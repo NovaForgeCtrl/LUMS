@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>LUMS – Client</title>
+
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+
+<body>
+
+<header class="topbar">
+    <div>
+        <div class="brand">LUMS</div>
+        <div class="subtitle">Linux Update Management Server</div>
+    </div>
+
+    <a href="/" class="back-link">← Dashboard</a>
+</header>
+
+
+<main class="container">
+
+    <!-- Client Header -->
+    <section class="client-header">
+
+        <div>
+            <h1 id="hostname">Client</h1>
+            <div class="client-ip" id="ip">–</div>
+        </div>
+
+        <div id="status" class="status-badge">
+            –
+        </div>
+
+    </section>
+
+
+    <!-- Statistics -->
+    <section class="stats-grid">
+
+        <div class="stat-card">
+            <div class="stat-label">Pakete</div>
+            <div class="stat-value" id="package-count">–</div>
+        </div>
+
+        <div class="stat-card">
+            <div class="stat-label">Updates</div>
+            <div class="stat-value" id="update-count">–</div>
+        </div>
+
+        <div class="stat-card">
+            <div class="stat-label">Kernel</div>
+            <div class="stat-value small" id="kernel">–</div>
+        </div>
+
+        <div class="stat-card">
+            <div class="stat-label">Agent</div>
+            <div class="stat-value" id="agent-version">–</div>
+        </div>
+
+    </section>
+
+
+    <!-- System information -->
+    <section class="panel">
+
+        <div class="panel-header">
+            <h2>Systeminformationen</h2>
+        </div>
+
+        <div class="info-grid">
+
+            <div>
+                <span class="info-label">Betriebssystem</span>
+                <span id="os">–</span>
+            </div>
+
+            <div>
+                <span class="info-label">Architektur</span>
+                <span id="architecture">–</span>
+            </div>
+
+            <div>
+                <span class="info-label">Letzte Meldung</span>
+                <span id="last-seen">–</span>
+            </div>
+
+        </div>
+
+    </section>
+
+
+    <!-- Updates -->
+    <section class="panel">
+
+        <div class="panel-header">
+
+            <div>
+                <h2>Updates</h2>
+
+                <div class="panel-description" id="update-description">
+                    Verfügbare Updates für diesen Client
+                </div>
+            </div>
+
+        </div>
+
+        <div id="updates-container">
+
+            <div class="empty-state">
+                Lade Updates...
+            </div>
+
+        </div>
+
+    </section>
+
+
+    <!-- Update Jobs -->
+    <section class="panel">
+
+        <div class="panel-header">
+
+            <div>
+                <h2>Update-Jobs</h2>
+
+                <div class="panel-description">
+                    Manuell angeforderte Updates
+                </div>
+            </div>
+
+        </div>
+
+        <div id="jobs-container">
+
+            <div class="empty-state">
+                Lade Update-Jobs...
+            </div>
+
+        </div>
+
+    </section>
+
+
+    <!-- Update History -->
+    <section class="panel">
+
+        <div class="panel-header">
+
+            <div>
+                <h2>Update-Verlauf</h2>
+
+                <div class="panel-description">
+                    Vergangene Update-Vorgänge
+                </div>
+            </div>
+
+        </div>
+
+        <div id="history-container">
+
+            <div class="empty-state">
+                Lade Update-Verlauf...
+            </div>
+
+        </div>
+
+    </section>
+
+
+    <!-- Software -->
+    <section class="panel">
+
+        <div class="panel-header software-header">
+
+            <div>
+                <h2>Software</h2>
+
+                <div class="panel-description">
+                    Installierte Software und Systempakete
+                </div>
+            </div>
+
+        </div>
+
+
+        <!-- Software Tabs -->
+        <div class="software-tabs">
+
+            <button
+                class="software-tab active"
+                data-filter="system"
+            >
+                Systemsoftware
+            </button>
+
+            <button
+                class="software-tab"
+                data-filter="additional"
+            >
+                Zusätzliche Software
+            </button>
+
+            <button
+                class="software-tab"
+                data-filter="all"
+            >
+                Alle Pakete
+            </button>
+
+        </div>
+
+
+        <!-- Search -->
+        <div class="software-toolbar">
+
+            <input
+                type="search"
+                id="package-search"
+                placeholder="Software oder Paket suchen..."
+                autocomplete="off"
+            >
+
+        </div>
+
+
+        <!-- Package count -->
+        <div class="package-summary">
+            <span id="visible-package-count">0</span>
+            Einträge angezeigt
+        </div>
+
+
+        <!-- Package table -->
+        <div class="table-wrapper">
+
+            <table class="data-table">
+
+                <thead>
+                    <tr>
+                        <th>Paket / Software</th>
+                        <th>Installierte Version</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+
+                <tbody id="packages-table">
+
+                    <tr>
+                        <td colspan="3" class="empty-state">
+                            Lade Pakete...
+                        </td>
+                    </tr>
+
+                </tbody>
+
+            </table>
+
+        </div>
+
+    </section>
+
+</main>
+
+
+<script src="/static/client.js"></script>
+
+</body>
+</html>

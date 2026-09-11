@@ -1,0 +1,12 @@
+[Unit]
+Description=LUMS Linux Update Management Agent
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/python3 /opt/lums-agent/agent.py
+EnvironmentFile=-/etc/default/lums-agent
+
+[Install]
+WantedBy=multi-user.target

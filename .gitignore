@@ -1,0 +1,47 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Local configuration
+.env
+.env.*
+!.env.example
+
+# LUMS local data
+*.db
+*.sqlite
+*.sqlite3
+*.log
+
+# Runtime / generated data
+data/
+logs/
+tmp/
+cache/
+
+# Aptly / repository data
+aptly/
+repository/
+packages/
+metadata/
+
+# Local installation/configuration
+/etc/default/lums-agent
+
+# Editor / OS files
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# Local LUMS agent configuration
+lums-agent.env
+lums-agent.conf

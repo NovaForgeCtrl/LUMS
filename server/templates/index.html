@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="de">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta name="viewport"
+          content="width=device-width, initial-scale=1.0">
+
+    <title>LUMS – Linux Update Management Server</title>
+
+    <link rel="stylesheet"
+          href="/static/style.css">
+
+</head>
+
+
+<body>
+
+
+<header class="topbar">
+
+    <div>
+
+        <h1>LUMS</h1>
+
+        <span>
+            Linux Update Management Server
+        </span>
+
+    </div>
+
+
+    <div class="server-status">
+
+        <span class="status-dot"></span>
+
+        API Online
+
+    </div>
+
+</header>
+
+
+
+<main class="container">
+
+
+    <section class="cards">
+
+
+        <div class="card">
+
+            <div class="card-title">
+                Clients
+            </div>
+
+            <div class="card-value"
+                 id="client-count">
+
+                0
+
+            </div>
+
+        </div>
+
+
+
+        <div class="card">
+
+            <div class="card-title">
+                Online
+            </div>
+
+            <div class="card-value"
+                 id="online-count">
+
+                0
+
+            </div>
+
+        </div>
+
+
+
+        <div class="card">
+
+            <div class="card-title">
+                Updates
+            </div>
+
+            <div class="card-value"
+                 id="update-count">
+
+                0
+
+            </div>
+
+        </div>
+
+
+    </section>
+
+
+
+    <section class="panel">
+
+
+        <div class="panel-header">
+
+            <div>
+
+                <h2>
+                    Clients
+                </h2>
+
+                <p>
+                    Registrierte Linux-Systeme
+                </p>
+
+            </div>
+
+
+            <button onclick="loadClients()">
+
+                Aktualisieren
+
+            </button>
+
+        </div>
+
+
+
+        <div class="table-container">
+
+
+            <table>
+
+
+                <thead>
+
+                    <tr>
+
+                        <th>
+                            Hostname
+                        </th>
+
+                        <th>
+                            IP-Adresse
+                        </th>
+
+                        <th>
+                            Status
+                        </th>
+
+                        <th>
+                            Updates
+                        </th>
+
+                        <th>
+                            Agent
+                        </th>
+
+                        <th>
+                            Letzte Meldung
+                        </th>
+
+                    </tr>
+
+                </thead>
+
+
+
+                <tbody id="clients-table">
+
+
+                    <tr>
+
+                        <td colspan="6"
+                            class="loading">
+
+                            Lade Clients...
+
+                        </td>
+
+                    </tr>
+
+
+                </tbody>
+
+
+            </table>
+
+
+        </div>
+
+
+    </section>
+
+
+</main>
+
+
+
+<script src="/static/app.js"></script>
+
+
+</body>
+
+</html>
