@@ -90,7 +90,7 @@ For permanent installations, use a systemd service and optionally a reverse prox
 
 ## 5. Install the LUMS Agent on a Linux client
 
-The agent is installed on the Linux machine that should be managed by LUMS.
+The agent is installed on every Linux machine that should be managed by LUMS.
 
 If the repository was cloned using the Quick Start instructions, the repository is located at:
 
@@ -130,7 +130,7 @@ LUMS_BASE=http://SERVER-IP:5000
 EOF
 ```
 
-Replace `SERVER-IP` with the IP address of the LUMS server.
+Replace `SERVER-IP` with the IP address or hostname of the LUMS server.
 
 Reload systemd:
 
@@ -182,6 +182,45 @@ After the first successful agent run, the client reports information including:
 * available updates
 
 The client can then be managed through the LUMS web interface.
+
+---
+
+# 6.1. Connect multiple clients
+
+A single LUMS server can manage multiple Linux clients.
+
+To connect additional clients, install the LUMS Agent on each client and configure the same LUMS server address:
+
+```bash
+sudo tee /etc/default/lums-agent > /dev/null <<'EOF'
+LUMS_BASE=http://SERVER-IP:5000
+EOF
+```
+
+Replace `SERVER-IP` with the IP address or hostname of the LUMS server.
+
+Each client registers independently with LUMS and receives its own:
+
+* client entry
+* system information
+* available updates
+* installed package information
+* update jobs
+* update history
+
+No separate LUMS server is required for each client.
+
+Example:
+
+```text
+                 LUMS Server
+                     |
+        +------------+------------+
+        |            |            |
+        v            v            v
+     Client 1     Client 2     Client 3
+      Agent         Agent        Agent
+```
 
 ---
 
@@ -375,7 +414,7 @@ sudo python3 /opt/lums-api/app.py
 The Flask application listens on:
 
 ```text
-http://0.0.0.0:5000
+0.0.0.0:5000
 ```
 
 For local testing:
@@ -469,7 +508,7 @@ For detailed output:
 sudo journalctl -u lums-agent.service -n 50 --no-pager
 ```
 
-The agent is designed as a one-shot systemd service. It performs one reporting cycle and then exits.
+The agent is designed as a one-shot systemd service. It performs one reporting cycle, processes an available update job if present, reports the result and then exits.
 
 For regular execution, use the systemd timer described below.
 
@@ -508,6 +547,38 @@ Check the timer:
 ```bash
 systemctl list-timers --all | grep lums
 ```
+
+---
+
+# Monitoring an Update
+
+The agent can be monitored through systemd and the system package logs.
+
+Watch the LUMS agent:
+
+```bash
+sudo journalctl -u lums-agent.service -f
+```
+
+Watch package installation:
+
+```bash
+sudo tail -f /var/log/dpkg.log
+```
+
+Watch APT history:
+
+```bash
+sudo tail -f /var/log/apt/history.log
+```
+
+Check for remaining updates:
+
+```bash
+apt list --upgradable 2>/dev/null
+```
+
+A successful update job should report the number of successful, failed and timed-out packages to the LUMS server.
 
 ---
 
@@ -657,8 +728,6 @@ A job is considered:
 LUMS is currently designed for trusted laboratory and internal environments.
 
 The API currently does not provide a full authentication and authorization layer.
-
-Therefore:
 
 **Do not expose the LUMS API directly to the public Internet.**
 
