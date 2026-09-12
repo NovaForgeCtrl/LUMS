@@ -89,7 +89,15 @@ Replace `SERVER-IP` with the IP address of the LUMS server.
 On the Linux machine that should be managed by LUMS:
 
 ```bash
+cd ~/LUMS
+
 sudo mkdir -p /opt/lums-agent
+sudo cp agent/agent.py /opt/lums-agent/
+sudo cp agent/lums-agent.service /etc/systemd/system/
+
+sudo tee /etc/default/lums-agent > /dev/null <<'EOF'
+LUMS_BASE=http://SERVER-IP:5000
+EOF
 ```
 
 Copy the agent:
