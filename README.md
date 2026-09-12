@@ -17,18 +17,18 @@ The project is designed primarily for Linux homelabs, test environments and smal
 
 ---
 
-## Quick Start
+# Quick Start
 
 This section provides a minimal setup for a new LUMS installation.
 
-### 1. Clone the repository
+## 1. Clone the repository
 
 ```bash
 git clone https://github.com/NovaForgeCtrl/LUMS.git
 cd LUMS
 ```
 
-### 2. Install the server requirements
+## 2. Install the server requirements
 
 On an Ubuntu Server:
 
@@ -37,7 +37,7 @@ sudo apt update
 sudo apt install -y python3 python3-flask sqlite3 git curl
 ```
 
-### 3. Install the LUMS server
+## 3. Install the LUMS server
 
 Create the application directories:
 
@@ -58,7 +58,7 @@ Initialize the database:
 sudo python3 /opt/lums-api/init_db.py
 ```
 
-### 4. Start LUMS
+## 4. Start LUMS
 
 For a first test, start the Flask application directly:
 
@@ -82,34 +82,44 @@ http://SERVER-IP:5000
 
 Replace `SERVER-IP` with the IP address of the LUMS server.
 
-> For permanent installations, use a systemd service and optionally a reverse proxy such as Nginx. See the server installation section below.
+For permanent installations, use a systemd service and optionally a reverse proxy such as Nginx. See the server installation section below.
 
-### 5. Install the LUMS Agent on a Linux client
+---
 
-On the Linux machine that should be managed by LUMS:
+# LUMS Agent
+
+## 5. Install the LUMS Agent on a Linux client
+
+The agent is installed on the Linux machine that should be managed by LUMS.
+
+If the repository was cloned using the Quick Start instructions, the repository is located at:
+
+```text
+~/LUMS
+```
+
+Define the repository path:
 
 ```bash
-cd ~/LUMS
+LUMS_DIR="$HOME/LUMS"
+```
 
+Create the agent directory:
+
+```bash
 sudo mkdir -p /opt/lums-agent
-sudo cp agent/agent.py /opt/lums-agent/
-sudo cp agent/lums-agent.service /etc/systemd/system/
-
-sudo tee /etc/default/lums-agent > /dev/null <<'EOF'
-LUMS_BASE=http://SERVER-IP:5000
-EOF
 ```
 
 Copy the agent:
 
 ```bash
-sudo cp agent/agent.py /opt/lums-agent/
+sudo cp "$LUMS_DIR/agent/agent.py" /opt/lums-agent/
 ```
 
 Install the systemd service:
 
 ```bash
-sudo cp agent/lums-agent.service /etc/systemd/system/
+sudo cp "$LUMS_DIR/agent/lums-agent.service" /etc/systemd/system/
 ```
 
 Create the agent configuration:
@@ -120,7 +130,7 @@ LUMS_BASE=http://SERVER-IP:5000
 EOF
 ```
 
-Replace `SERVER-IP` with the address of the LUMS server.
+Replace `SERVER-IP` with the IP address of the LUMS server.
 
 Reload systemd:
 
@@ -140,9 +150,25 @@ Check the agent:
 sudo systemctl status lums-agent.service
 ```
 
-The agent will report the client to the LUMS server.
+The agent is a one-shot service. After a successful run, systemd may show:
 
-### 6. Connect the client
+```text
+Active: inactive (dead)
+```
+
+This is expected.
+
+To inspect the agent output:
+
+```bash
+sudo journalctl -u lums-agent.service -n 50 --no-pager
+```
+
+A successful run should show that the client information was collected and the report was accepted by the LUMS API.
+
+---
+
+# 6. Connect the client
 
 After the first successful agent run, the client reports information including:
 
@@ -157,13 +183,16 @@ After the first successful agent run, the client reports information including:
 
 The client can then be managed through the LUMS web interface.
 
-### 7. Enable periodic agent execution
+---
+
+# 7. Enable periodic agent execution
 
 For regular reporting, the agent can be executed using a systemd timer.
 
-Example timer:
+Create the timer:
 
-```ini
+```bash
+sudo tee /etc/systemd/system/lums-agent.timer > /dev/null <<'EOF'
 [Unit]
 Description=LUMS Linux Update Management Agent Timer
 
@@ -174,18 +203,18 @@ Unit=lums-agent.service
 
 [Install]
 WantedBy=timers.target
+EOF
 ```
 
-Save it as:
-
-```text
-/etc/systemd/system/lums-agent.timer
-```
-
-Then enable it:
+Reload systemd:
 
 ```bash
 sudo systemctl daemon-reload
+```
+
+Enable and start the timer:
+
+```bash
 sudo systemctl enable --now lums-agent.timer
 ```
 
@@ -195,7 +224,11 @@ Check the timer:
 systemctl list-timers --all | grep lums
 ```
 
-### Quick Start Architecture
+The agent will now run periodically.
+
+---
+
+# Quick Start Architecture
 
 ```text
                     LUMS Server
@@ -217,9 +250,9 @@ systemctl list-timers --all | grep lums
 
 ---
 
-## Features
+# Features
 
-### LUMS Server
+## LUMS Server
 
 * Flask-based web interface
 * SQLite database
@@ -232,7 +265,7 @@ systemctl list-timers --all | grep lums
 * Reboot-required information
 * REST API
 
-### LUMS Agent
+## LUMS Agent
 
 The Linux client agent:
 
@@ -247,7 +280,7 @@ The Linux client agent:
 
 ---
 
-## Project Structure
+# Project Structure
 
 ```text
 LUMS/
@@ -278,9 +311,9 @@ LUMS/
 
 ---
 
-## Requirements
+# Requirements
 
-### Server
+## Server
 
 Recommended:
 
@@ -289,6 +322,7 @@ Recommended:
 * Flask
 * SQLite
 * Git
+* curl
 
 Install the required packages:
 
@@ -297,7 +331,7 @@ sudo apt update
 sudo apt install -y python3 python3-flask sqlite3 git curl
 ```
 
-### Client
+## Client
 
 The agent is intended for Debian/Ubuntu based Linux systems.
 
@@ -377,7 +411,7 @@ The database contains tables for:
 * update job packages
 * update history
 
-The database contains runtime data and **must not be committed to Git**.
+The database contains runtime data and must not be committed to Git.
 
 ---
 
@@ -405,11 +439,11 @@ Create the configuration file:
 
 ```bash
 sudo tee /etc/default/lums-agent > /dev/null <<'EOF'
-LUMS_BASE=http://127.0.0.1:5000
+LUMS_BASE=http://SERVER-IP:5000
 EOF
 ```
 
-Change the address to the actual LUMS server if the agent runs on another machine.
+Replace `SERVER-IP` with the address of the LUMS server.
 
 Reload systemd:
 
@@ -429,15 +463,26 @@ Check the result:
 sudo systemctl status lums-agent.service
 ```
 
+For detailed output:
+
+```bash
+sudo journalctl -u lums-agent.service -n 50 --no-pager
+```
+
+The agent is designed as a one-shot systemd service. It performs one reporting cycle and then exits.
+
+For regular execution, use the systemd timer described below.
+
 ---
 
 # Systemd Timer
 
 The agent can be executed periodically using a systemd timer.
 
-Example:
+Create:
 
-```ini
+```bash
+sudo tee /etc/systemd/system/lums-agent.timer > /dev/null <<'EOF'
 [Unit]
 Description=LUMS Linux Update Management Agent Timer
 
@@ -448,15 +493,10 @@ Unit=lums-agent.service
 
 [Install]
 WantedBy=timers.target
+EOF
 ```
 
-Save this as:
-
-```text
-/etc/systemd/system/lums-agent.timer
-```
-
-Then enable it:
+Then enable the timer:
 
 ```bash
 sudo systemctl daemon-reload
@@ -490,6 +530,8 @@ Example:
 ```text
 LUMS_BASE=http://SERVER-IP:5000
 ```
+
+Replace `SERVER-IP` with the IP address or hostname of the LUMS server.
 
 Do not commit private infrastructure addresses or credentials to the public repository.
 
@@ -674,7 +716,7 @@ Internal APT Repository
      LUMS
 ```
 
-Aptly repository data is intentionally **not part of this Git repository**.
+Aptly repository data is intentionally not part of this Git repository.
 
 ---
 
@@ -740,7 +782,7 @@ See [LICENSE](LICENSE).
 
 # Project
 
-LUMS – Linux Update Management Server
+**LUMS – Linux Update Management Server**
 
 GitHub:
 
