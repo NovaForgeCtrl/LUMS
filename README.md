@@ -2,43 +2,82 @@
 
 > **Linux Update Management without the noise.**
 
-LUMS is a lightweight Linux update management server for homelabs, test environments and small internal infrastructures.
-
-It provides a central place to:
-
-* register and monitor Linux clients
-* collect operating-system and package information
-* detect available updates
-* create update jobs
-* execute updates through the LUMS Agent
-* record update results
-* detect reboot requirements
-* maintain update history
-* provide an authenticated administration interface
-* audit security-relevant actions
-
 ```text
 ┌─────────────────────────────────────────────────────────────┐
 │                           LUMS                              │
 │              Linux Update Management Server                │
 │                                                             │
-│  Clients → Inventory → Updates → Jobs → Results → History  │
+│  Central Linux update management for labs and small        │
+│  internal infrastructures.                                 │
 │                                                             │
-│  Built with curiosity, testing and a little controlled      │
-│  chaos.                                                     │
+│  Build. Test. Break. Understand. Harden.                   │
 └─────────────────────────────────────────────────────────────┘
 ```
 
-**Signature:** `segfault // override`
+**`segfault // override`**
 *System Builder · Infrastructure / Security · Controlled Chaos*
+
+> `segfault // override` is the project author's signature/nickname.
+> It is **not** a software component, command, API or configuration option.
 
 ---
 
-# 🚀 Features
+# 🚀 What is LUMS?
+
+**LUMS** stands for **Linux Update Management Server**.
+
+It is a lightweight Linux update management system designed for:
+
+* homelabs
+* virtual test environments
+* learning environments
+* small internal infrastructures
+* Linux administration labs
+
+LUMS provides a central web interface and REST API for managing Linux clients.
+
+The basic workflow is:
+
+```text
+                  ┌─────────────────────┐
+                  │     LUMS Server     │
+                  │                     │
+                  │ Flask               │
+                  │ SQLite              │
+                  │ Authentication      │
+                  │ Audit Logging       │
+                  │ Web Interface       │
+                  └──────────┬──────────┘
+                             │
+                    HTTPS / REST API
+                             │
+            ┌────────────────┼────────────────┐
+            │                │                │
+            ▼                ▼                ▼
+       Linux Client     Linux Client     Linux Server
+       LUMS Agent       LUMS Agent       LUMS Agent
+            │                │                │
+            └────────────────┴────────────────┘
+                             │
+                     Reports / Updates
+                             │
+                             ▼
+                       Update Jobs
+                             │
+                             ▼
+                       Job Results
+                             │
+                             ▼
+                      Update History
+```
+
+---
+
+# ✨ Features
 
 ## Client Management
 
-LUMS collects information about connected Linux systems:
+LUMS can collect information about Linux clients:
 
 * hostname
 * IP address
@@ -46,76 +85,45 @@ LUMS collects information about connected Linux systems:
 * kernel version
 * architecture
 * LUMS Agent version
-* last-seen timestamp
-* installed package count
-* available update count
-* calculated client status
-
-Client status is currently determined by the last report:
-
-| Last report          | Status    |
-| -------------------- | --------- |
-| ≤ 2 minutes          | `online`  |
-| > 2 and ≤ 10 minutes | `unknown` |
-| > 10 minutes         | `offline` |
+* last report
+* installed packages
+* available updates
 
 ---
 
 ## 📦 Package Inventory
 
-The LUMS Agent can report installed packages.
+Clients can report installed packages to LUMS.
 
-LUMS stores:
-
-```text
-client
- └── installed packages
-      ├── package
-      └── version
-```
-
-The inventory is refreshed when a new client report is received.
+The server stores the package inventory per client.
 
 ---
 
 ## 🔄 Update Detection
 
-The agent reports available updates to the LUMS server.
+Clients report available package updates.
 
-For each update LUMS stores:
-
-* package name
-* installed version
-* available version
-* client
-
-Example:
-
-```text
-openssl
-    installed: 3.0.x
-    available: 3.0.y
-```
+LUMS can display available updates and use them as the basis for update jobs.
 
 ---
 
 ## 🛠 Update Jobs
 
-Administrators can create update jobs for individual clients.
+Administrators can create update jobs for clients.
 
-A job contains:
+A job can contain:
 
-* target client
+* client
 * selected packages
-* installed versions
-* target versions
-* current job status
-* creation timestamp
-* start timestamp
-* finish timestamp
+* installed version
+* target version
+* status
+* start time
+* finish time
 * reboot requirement
+* package-level results
 
-Job states include:
+Possible states:
 
 ```text
 pending
@@ -129,70 +137,112 @@ failed
 
 ## ♻️ Reboot Detection
 
-The LUMS Agent can report whether a system reboot is required after an update.
+The agent can report whether a reboot is required after updates.
 
-The result is stored together with the update job and update history.
-
----
-
-# 🧭 Architecture
-
-```text
-                         ┌──────────────────────┐
-                         │       LUMS Server    │
-                         │                      │
-                         │ Flask Web Interface  │
-                         │ REST API             │
-                         │ Authentication       │
-                         │ SQLite               │
-                         │ Audit Logging        │
-                         └──────────┬───────────┘
-                                    │
-                 ┌──────────────────┼──────────────────┐
-                 │                  │                  │
-                 ▼                  ▼                  ▼
-          ┌────────────┐     ┌────────────┐     ┌────────────┐
-          │ Linux VM   │     │ Linux PC   │     │ Linux      │
-          │ LUMS Agent │     │ LUMS Agent │     │ Server     │
-          └────────────┘     └────────────┘     └────────────┘
-                 │                  │                  │
-                 └──────────────────┴──────────────────┘
-                              Reports
-                              Updates
-                              Jobs
-                              Results
-```
-
-Typical production-style deployment:
-
-```text
-                    Client
-                      │
-                      │ HTTPS
-                      ▼
-              ┌───────────────┐
-              │     Nginx     │
-              │ TLS endpoint  │
-              └───────┬───────┘
-                      │
-                      │ localhost
-                      ▼
-              ┌───────────────┐
-              │ Flask / LUMS  │
-              │ 127.0.0.1:5000│
-              └───────┬───────┘
-                      │
-                      ▼
-                SQLite database
-```
-
-Nginx is therefore the external HTTPS endpoint while Flask remains bound to localhost.
+This information becomes part of the update result and history.
 
 ---
 
-# 📁 Project Structure
+## 🔐 Authentication
 
-The repository is organized as follows:
+The web interface provides:
+
+* administrator login
+* Argon2 password hashing
+* server-side sessions
+* secure session cookies
+* CSRF protection
+* security headers
+* audit logging
+
+LUMS also contains a client-token security foundation for agent authentication.
+
+**Important:** see [Agent Authentication Status](#agent-authentication-status) below before assuming all agent endpoints are currently token-protected.
+
+---
+
+# 🧭 Supported Operating Systems
+
+This section intentionally distinguishes between **tested**, **expected to work**, and **officially supported**.
+
+## LUMS Server
+
+| Operating system                 | Status                                |
+| -------------------------------- | ------------------------------------- |
+| **Ubuntu Server 26.04 LTS**      | ✅ Primary/tested platform             |
+| **Debian 13**                    | 🟡 Not currently officially validated |
+| Ubuntu versions other than 26.04 | 🟡 Not specifically validated         |
+| Other distributions              | ❌ Not officially supported            |
+
+### Is Ubuntu 26.04 required?
+
+**For the current documented installation: Ubuntu Server 26.04 LTS is the reference platform.**
+
+This does **not** mean that LUMS fundamentally requires Ubuntu 26.04.
+
+LUMS is primarily a Python/Flask/SQLite application and does not depend on Ubuntu-specific application code.
+
+However, the installation instructions, package names, service configuration and current lab testing are based on Ubuntu 26.04.
+
+Therefore:
+
+> **Ubuntu Server 26.04 = supported reference platform.**
+
+Debian 13 may work, but it should be considered:
+
+> **experimental / unverified until explicitly tested.**
+
+---
+
+## Linux Clients
+
+The agent is intended for Linux systems.
+
+The current lab focuses primarily on Debian/Ubuntu-based systems using APT.
+
+Other distributions may require agent changes because package-management commands differ.
+
+---
+
+# 🐍 Python Requirements
+
+The server uses Python 3.
+
+The currently required Python-side components are:
+
+| Dependency                                            | Purpose                                              |           Required |
+| ----------------------------------------------------- | ---------------------------------------------------- | -----------------: |
+| `Flask`                                               | Web application / REST API                           |                  ✅ |
+| `argon2-cffi` / distribution package `python3-argon2` | Password hashing                                     |                  ✅ |
+| Python standard library                               | Database, hashing, sessions, dates, security helpers |         ✅ built-in |
+| SQLite                                                | Database                                             | ✅ system component |
+
+The application does **not** require a large Python framework stack.
+
+## Installing the dependencies on Ubuntu 26.04
+
+```bash
+sudo apt update
+sudo apt install -y \
+    python3 \
+    python3-pip \
+    python3-venv \
+    python3-argon2 \
+    sqlite3
+```
+
+Nginx and Git are separate system requirements:
+
+```bash
+sudo apt install -y \
+    nginx \
+    git \
+    openssl
+```
+
+---
+
+# 📁 Repository Structure
 
 ```text
 LUMS/
@@ -229,58 +279,24 @@ LUMS/
 
 ---
 
-# 💻 Requirements
-
-## Server
-
-Recommended:
-
-* Ubuntu Server 26.04 LTS
-* Python 3
-* SQLite 3
-* Nginx
-* systemd
-* Git
-* OpenSSL
-
-Python packages:
-
-```text
-Flask
-argon2-cffi / python3-argon2
-```
-
-The exact Python dependencies may depend on the distribution and installation method used.
-
----
-
-## Clients
-
-A LUMS client requires:
-
-* Linux
-* Python 3
-* network connectivity to the LUMS server
-* the LUMS Agent
-* permission to query package information
-* permission to execute package updates if update jobs are enabled
-
-For Debian/Ubuntu systems, package management is based on APT.
-
----
-
 # 🛠 Server Installation
 
-The following procedure assumes a fresh Ubuntu Server.
+The following procedure uses Ubuntu Server 26.04.
 
-## 1. Update the operating system
+## 1. Update Ubuntu
 
 ```bash
 sudo apt update
 sudo apt upgrade -y
 ```
 
-Install required tools:
+⚠️ **Risk:** `apt upgrade` changes installed system packages.
+
+On production systems, review pending updates before applying them.
+
+---
+
+## 2. Install required packages
 
 ```bash
 sudo apt install -y \
@@ -305,11 +321,9 @@ git --version
 
 ---
 
-# 👤 Create the LUMS Service Account
+# 👤 Create the LUMS Service User
 
 LUMS should not run as root.
-
-Create a dedicated service account:
 
 ```bash
 sudo useradd \
@@ -320,25 +334,23 @@ sudo useradd \
     lums
 ```
 
-Verify:
+Check:
 
 ```bash
 getent passwd lums
 ```
 
-Expected conceptually:
+The shell should be:
 
 ```text
-lums:x:...:...::/home/lums:/usr/sbin/nologin
+/usr/sbin/nologin
 ```
 
-The account is intentionally not allowed to log in interactively.
+This prevents interactive login as the service account.
 
 ---
 
-# 📂 Create LUMS Directories
-
-Create the application and data directories:
+# 📂 Create Required Directories
 
 ```bash
 sudo mkdir -p /opt/lums-api
@@ -354,7 +366,7 @@ sudo chown -R lums:lums /opt/lums-api
 sudo chown -R lums:lums /var/lib/lums
 ```
 
-Restrict access:
+Permissions:
 
 ```bash
 sudo chmod 750 /opt/lums-api
@@ -367,12 +379,14 @@ sudo chmod 750 /etc/lums/tls
 
 # 📥 Clone the Repository
 
-Clone the repository into a location used for source/deployment management:
-
 ```bash
 cd /opt
-git clone https://github.com/NovaForgeCtrl/LUMS.git lums-public
+sudo git clone \
+    https://github.com/NovaForgeCtrl/LUMS.git \
+    lums-public
 ```
+
+Change ownership of the checkout to the administrator account that maintains the source tree if appropriate.
 
 Enter the repository:
 
@@ -380,35 +394,36 @@ Enter the repository:
 cd /opt/lums-public
 ```
 
-Check the current branch:
+Switch to the main branch:
 
 ```bash
-git branch
-```
-
-Switch to `main`:
-
-```bash
-git checkout main
+sudo git checkout main
 ```
 
 Update:
 
 ```bash
-git pull --ff-only origin main
+sudo git pull --ff-only origin main
 ```
+
+> Do not use `git pull` blindly on a deployment tree with local modifications.
 
 ---
 
-# 📦 Deploy the Server Application
+# 📦 Deploy the Server
 
-The repository and production deployment directory are intentionally separated.
-
-Example:
+LUMS uses two separate locations:
 
 ```text
-/opt/lums-public   → Git repository
-/opt/lums-api      → deployed application
+/opt/lums-public
+        │
+        │ source / Git
+        ▼
+/opt/lums-api
+        │
+        │ production deployment
+        ▼
+systemd
 ```
 
 Deploy:
@@ -420,21 +435,19 @@ sudo rsync -a --delete \
     /opt/lums-api/
 ```
 
-Set ownership:
+⚠️ **Risk:** `rsync --delete` can remove files from the destination.
+
+Only use it when `/opt/lums-api` is intentionally the deployment target.
+
+Restore ownership:
 
 ```bash
 sudo chown -R lums:lums /opt/lums-api
 ```
 
-Set directory permissions:
-
-```bash
-sudo chmod 750 /opt/lums-api
-```
-
 ---
 
-# 🔐 Configure the Server Secret
+# 🔐 Configure the LUMS Secret
 
 LUMS requires:
 
@@ -442,9 +455,7 @@ LUMS requires:
 LUMS_SECRET_KEY
 ```
 
-The secret must **never** be committed to Git.
-
-Generate a strong random value:
+Generate a random secret:
 
 ```bash
 openssl rand -hex 64
@@ -458,43 +469,49 @@ sudo chown root:lums /etc/lums/lums.env
 sudo chmod 640 /etc/lums/lums.env
 ```
 
-Edit the file using a root shell:
+Create it:
 
 ```bash
-sudo sh -c 'cat > /etc/lums/lums.env <<EOF
-LUMS_SECRET_KEY=REPLACE_WITH_A_RANDOM_SECRET
-EOF'
+sudo tee /etc/lums/lums.env > /dev/null <<'EOF'
+LUMS_SECRET_KEY=REPLACE_WITH_GENERATED_SECRET
+EOF
 ```
 
-Replace the placeholder with the generated secret.
+Replace:
 
-Do not print the file contents into logs or documentation.
+```text
+REPLACE_WITH_GENERATED_SECRET
+```
 
-Verify only the permissions:
+with the generated value.
+
+Do **not** commit this file.
+
+Do **not** print the secret.
+
+Verify only its permissions:
 
 ```bash
 ls -l /etc/lums/lums.env
 ```
 
-Expected:
+Expected conceptually:
 
 ```text
--rw-r----- root lums ... /etc/lums/lums.env
+root lums 640
 ```
 
 ---
 
-# 🗄 Database
+# 🗄 Initialize the Database
 
-The default LUMS database location is:
+The default database is:
 
 ```text
 /var/lib/lums/lums.db
 ```
 
-The application expects the database to be available there.
-
-Initialize the database using the project's database initialization script:
+Initialize:
 
 ```bash
 cd /opt/lums-api
@@ -504,201 +521,49 @@ sudo -u lums python3 init_db.py
 Check:
 
 ```bash
-sudo -u lums sqlite3 /var/lib/lums/lums.db '.tables'
-```
-
-Depending on the current schema, tables include structures such as:
-
-```text
-clients
-available_updates
-installed_packages
-update_jobs
-update_job_packages
-update_history
-users
-audit_log
-schema_migrations
+sudo -u lums sqlite3 \
+    /var/lib/lums/lums.db \
+    '.tables'
 ```
 
 ---
 
-# 🔐 Security Database Migration
-
-LUMS contains a security foundation migration.
-
-Run:
+# 🔐 Apply the Security Migration
 
 ```bash
 cd /opt/lums-api
 sudo -u lums python3 security_migration.py
 ```
 
-The migration is designed to be idempotent.
+The migration creates or extends the security-related database structures.
 
-That means it can safely determine whether the migration has already been applied.
-
-The migration creates the security-related structures and adds security fields to the client database.
+It is designed to be idempotent.
 
 ---
 
 # 👨‍💻 Create the Administrator
-
-Create the initial administrator using:
 
 ```bash
 cd /opt/lums-api
 sudo -u lums python3 create_admin.py
 ```
 
-The administrator password should:
+Use a strong, unique password.
 
-* be long
-* be unique
-* not be stored in Git
-* not be shared in chat logs
-* not be placed into the README
-* not be stored in plaintext
+Never place the password in:
+
+* Git
+* README files
+* shell scripts
+* screenshots
+* chat messages
+* public documentation
 
 Passwords are stored using Argon2id hashing.
 
-LUMS does not need the administrator's plaintext password after account creation.
-
 ---
 
-# 🔒 Authentication
-
-LUMS separates browser authentication from agent authentication.
-
-## Administrator
-
-The web interface uses:
-
-```text
-username
-password
-server-side session
-CSRF protection
-```
-
-The session cookie is configured with:
-
-```text
-HttpOnly
-Secure
-SameSite=Strict
-```
-
-The server session lifetime is five minutes.
-
-The browser interface additionally performs inactivity handling.
-
----
-
-# 🛡 Password Security
-
-Passwords are hashed using Argon2.
-
-The application also checks whether an existing password hash needs to be upgraded:
-
-```text
-password
-   │
-   ▼
-Argon2 verification
-   │
-   ├── valid
-   │
-   └── hash parameters outdated
-             │
-             ▼
-        rehash password
-```
-
-Plaintext passwords are never stored in the database.
-
----
-
-# 🧱 CSRF Protection
-
-State-changing browser operations use CSRF protection.
-
-Examples:
-
-```text
-POST /logout
-POST /api/clients/<id>/update-jobs
-```
-
-A missing or invalid CSRF token results in a rejected request.
-
-The login route is treated separately because a new session does not yet exist.
-
----
-
-# 🔑 Client Authentication
-
-LUMS contains infrastructure for individual client tokens.
-
-The security design uses:
-
-```text
-Client
-   │
-   │ Bearer token
-   ▼
-LUMS
-   │
-   ▼
-SHA-256 token hash
-   │
-   ▼
-Client record
-```
-
-The server stores the hash rather than the plaintext token.
-
-A token can be:
-
-* generated randomly
-* associated with one client
-* revoked
-* disabled
-* verified using constant-time comparison
-
-Example HTTP header:
-
-```http
-Authorization: Bearer CLIENT_TOKEN
-```
-
-## Important current implementation note
-
-The current `server/security.py` already contains the client-token authentication foundation.
-
-However, the currently documented `app.py` must be checked before claiming that every agent endpoint is protected by that mechanism.
-
-In particular, the following agent-facing endpoints must be reviewed before a production deployment:
-
-```text
-POST /api/report
-
-GET /api/clients/<client_id>/update-jobs/pending
-
-POST /api/update-jobs/<job_id>/result
-```
-
-The README intentionally does **not** claim that these endpoints are fully token-protected unless the corresponding decorators and client/job authorization checks are active in the deployed version.
-
-This distinction matters.
-
-**Security documentation must describe the code that actually runs.**
-
----
-
-# ⚙️ systemd Service
-
-The recommended production service runs LUMS as the unprivileged `lums` user.
+# ⚙️ LUMS systemd Service
 
 Create:
 
@@ -736,7 +601,7 @@ WantedBy=multi-user.target
 EOF
 ```
 
-Reload systemd:
+Reload:
 
 ```bash
 sudo systemctl daemon-reload
@@ -760,54 +625,150 @@ Check:
 sudo systemctl status lums
 ```
 
-Follow logs:
-
-```bash
-sudo journalctl -u lums -f
-```
-
 ---
 
-# 🩺 First Service Test
+# 🩺 Test Flask Before Nginx
 
-Before configuring Nginx, verify that Flask itself works.
-
-Check listening sockets:
+Check the listening socket:
 
 ```bash
 sudo ss -ltnp | grep 5000
 ```
 
-Expected:
+LUMS should listen locally:
 
 ```text
 127.0.0.1:5000
 ```
 
-Test locally:
+Test:
 
 ```bash
 curl http://127.0.0.1:5000/api/health
 ```
 
-Expected:
+If this does not work, **stop here**.
 
-```json
-{
-  "service": "LUMS API",
-  "status": "ok"
-}
+Do not troubleshoot Nginx yet.
+
+Check:
+
+```bash
+sudo journalctl -u lums -n 100 --no-pager
 ```
-
-If this fails, **do not continue with Nginx troubleshooting yet**.
-
-Fix Flask/systemd first.
 
 ---
 
-# 🌐 Nginx Configuration
+# 🔥 Firewall
 
-Nginx acts as the HTTPS reverse proxy.
+A server should expose only the services it actually needs.
+
+For a typical LUMS server:
+
+```text
+SSH     TCP 22
+HTTPS   TCP 443
+```
+
+HTTP port 80 may be required if it is used only to redirect HTTP to HTTPS.
+
+## Install UFW
+
+```bash
+sudo apt install -y ufw
+```
+
+Check current state:
+
+```bash
+sudo ufw status verbose
+```
+
+⚠️ **Important:** Before enabling UFW, make sure SSH is explicitly allowed.
+
+---
+
+## Allow SSH
+
+```bash
+sudo ufw allow 22/tcp
+```
+
+## Allow HTTPS
+
+```bash
+sudo ufw allow 443/tcp
+```
+
+## Optional HTTP redirect
+
+If Nginx listens on port 80:
+
+```bash
+sudo ufw allow 80/tcp
+```
+
+Enable:
+
+```bash
+sudo ufw enable
+```
+
+⚠️ **Risk:** Enabling a firewall can disconnect you if required access was not allowed first.
+
+Verify:
+
+```bash
+sudo ufw status numbered
+```
+
+Recommended result:
+
+```text
+22/tcp   ALLOW
+80/tcp   ALLOW
+443/tcp  ALLOW
+```
+
+depending on your chosen configuration.
+
+---
+
+# 🔒 Recommended Firewall Model
+
+Do **not** expose Flask directly.
+
+Do not create:
+
+```text
+5000/tcp ALLOW
+```
+
+for normal operation.
+
+The desired architecture is:
+
+```text
+Internet / LAN
+      │
+      ▼
+   TCP 443
+      │
+      ▼
+    Nginx
+      │
+      ▼
+127.0.0.1:5000
+      │
+      ▼
+    Flask
+```
+
+Port `5000` remains local.
+
+---
+
+# 🌐 Nginx
 
 Create:
 
@@ -861,7 +822,8 @@ with the actual server address.
 Enable:
 
 ```bash
-sudo ln -s /etc/nginx/sites-available/lums \
+sudo ln -s \
+    /etc/nginx/sites-available/lums \
     /etc/nginx/sites-enabled/lums
 ```
 
@@ -871,13 +833,15 @@ Remove the default site if necessary:
 sudo rm -f /etc/nginx/sites-enabled/default
 ```
 
+⚠️ **Risk:** Removing the default Nginx site changes the web server configuration.
+
 Test:
 
 ```bash
 sudo nginx -t
 ```
 
-Only if the test succeeds:
+Only if successful:
 
 ```bash
 sudo systemctl reload nginx
@@ -885,11 +849,11 @@ sudo systemctl reload nginx
 
 ---
 
-# 🔒 TLS Certificate
+# 🔒 TLS
 
-For an internal lab, a self-signed certificate can be used.
+For an internal lab, a self-signed certificate is sufficient for testing.
 
-Create:
+Generate:
 
 ```bash
 sudo openssl req \
@@ -902,8 +866,6 @@ sudo openssl req \
     -subj "/CN=SERVER_IP" \
     -addext "subjectAltName=IP:SERVER_IP"
 ```
-
-Replace `SERVER_IP`.
 
 Protect the private key:
 
@@ -928,138 +890,258 @@ sudo openssl x509 \
     -dates
 ```
 
-For production environments, use an appropriate trusted certificate instead of a self-signed certificate.
+For a real production environment, use an appropriately trusted certificate.
 
 ---
 
-# 🌍 Web Interface
+# 🤖 LUMS Agent Installation
 
-Once Nginx and TLS are running:
+This section describes the complete basic client installation.
 
-```text
-https://SERVER_IP/
-```
+The client should have:
 
-The application redirects unauthenticated users to:
+* Python 3
+* Git if installing from the repository
+* access to the LUMS server over HTTPS
+* the LUMS Agent files
 
-```text
-/login
-```
+## 1. Install client requirements
 
-The login page provides:
-
-```text
-segfault // override
-
-SECURE ACCESS
-
-Username
-Password
-
-AUTHENTICATE
-```
-
-After successful authentication, the user is redirected to the dashboard.
-
----
-
-# 🤖 LUMS Agent
-
-The agent runs on Linux clients.
-
-Typical architecture:
-
-```text
-LUMS Agent
-     │
-     ├── hostname
-     ├── IP
-     ├── OS
-     ├── kernel
-     ├── architecture
-     ├── agent version
-     ├── installed packages
-     └── available updates
-              │
-              ▼
-          LUMS Server
-```
-
-The agent should communicate with the server using the configured LUMS base URL.
-
-Example:
-
-```text
-https://SERVER_IP
-```
-
----
-
-# 📄 Agent Configuration
-
-Example configuration file:
-
-```text
-/etc/lums/lums-agent.env
-```
-
-Example:
-
-```ini
-LUMS_BASE=https://SERVER_IP
-```
-
-If client-token authentication is enabled for the deployed agent/API version, the token must be stored separately and securely.
-
-Do not commit real tokens to Git.
-
----
-
-# 🔑 Secure Client Token Storage
-
-Never put a real token into:
-
-```text
-Git
-README.md
-shell history
-chat messages
-public configuration
-world-readable files
-```
-
-A recommended configuration file:
+On Ubuntu/Debian:
 
 ```bash
-sudo touch /etc/lums/lums-agent.env
-sudo chown root:root /etc/lums/lums-agent.env
+sudo apt update
+sudo apt install -y \
+    python3 \
+    python3-pip \
+    ca-certificates
+```
+
+---
+
+## 2. Obtain the agent
+
+Clone the repository:
+
+```bash
+cd /opt
+sudo git clone \
+    https://github.com/NovaForgeCtrl/LUMS.git \
+    lums
+```
+
+The agent is located at:
+
+```text
+/opt/lums/agent/agent.py
+```
+
+---
+
+## 3. Create the agent configuration
+
+Create:
+
+```bash
+sudo mkdir -p /etc/lums
+```
+
+Create:
+
+```bash
+sudo tee /etc/lums/lums-agent.env > /dev/null <<'EOF'
+LUMS_BASE=https://SERVER_IP
+EOF
+```
+
+Replace:
+
+```text
+SERVER_IP
+```
+
+with the LUMS server.
+
+Protect the configuration:
+
+```bash
 sudo chmod 600 /etc/lums/lums-agent.env
 ```
 
-Example:
+---
 
-```ini
-LUMS_BASE=https://SERVER_IP
-LUMS_CLIENT_TOKEN=REPLACE_WITH_CLIENT_TOKEN
+# 🔑 Agent Token
+
+The repository contains client-token security support.
+
+However, **the currently documented `app.py` does not yet enforce client-token authentication on every agent endpoint**.
+
+Therefore the current implementation must not be documented as if this were already complete.
+
+The endpoints requiring additional protection are:
+
+```text
+POST /api/report
+GET  /api/clients/<client_id>/update-jobs/pending
+POST /api/update-jobs/<job_id>/result
+```
+
+The intended final design is:
+
+```text
+Agent
+  │
+  │ Authorization: Bearer <client-token>
+  ▼
+LUMS
+  │
+  ├── hash token
+  ├── find client
+  ├── verify enabled/revoked state
+  └── authorize client/job relationship
+```
+
+Until this integration is deployed and tested, treat the agent API as a lab-only interface.
+
+---
+
+# ⚙️ Complete Agent systemd Service
+
+Create:
+
+```bash
+sudo tee /etc/systemd/system/lums-agent.service > /dev/null <<'EOF'
+[Unit]
+Description=LUMS Linux Update Management Agent
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+
+User=root
+Group=root
+
+EnvironmentFile=/etc/lums/lums-agent.env
+
+ExecStart=/usr/bin/python3 /opt/lums/agent/agent.py
+
+NoNewPrivileges=false
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=true
+
+[Install]
+WantedBy=multi-user.target
+EOF
+```
+
+### Why does the agent currently use root?
+
+Package installation and system update operations generally require administrative privileges.
+
+The server itself should run as the restricted `lums` account.
+
+The agent is different because its purpose includes performing package-management operations on the client.
+
+This is an important trust boundary.
+
+---
+
+# ⏱️ Agent Timer
+
+The preferred periodic execution model is a systemd timer.
+
+Create:
+
+```bash
+sudo tee /etc/systemd/system/lums-agent.timer > /dev/null <<'EOF'
+[Unit]
+Description=Run LUMS Agent periodically
+
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=5min
+Persistent=true
+
+[Install]
+WantedBy=timers.target
+EOF
+```
+
+Reload:
+
+```bash
+sudo systemctl daemon-reload
+```
+
+Enable:
+
+```bash
+sudo systemctl enable --now lums-agent.timer
+```
+
+Check:
+
+```bash
+systemctl list-timers lums-agent.timer
+```
+
+Run manually for testing:
+
+```bash
+sudo systemctl start lums-agent.service
+```
+
+Check:
+
+```bash
+sudo systemctl status lums-agent.service
+```
+
+Logs:
+
+```bash
+sudo journalctl -u lums-agent.service -n 100 --no-pager
+```
+
+---
+
+# 🧪 First Agent Test
+
+Before enabling the timer, run:
+
+```bash
+sudo systemctl start lums-agent.service
 ```
 
 Then:
 
 ```bash
-sudo chmod 600 /etc/lums/lums-agent.env
+sudo journalctl \
+    -u lums-agent.service \
+    -n 100 \
+    --no-pager
 ```
 
-Only privileged users should be able to read the file.
+On the server:
+
+```bash
+sudo journalctl \
+    -u lums \
+    -n 100 \
+    --no-pager
+```
+
+The client should appear in LUMS.
 
 ---
 
-# 🖥️ First Client Registration
+# 🖥️ Client Registration
 
-The current application automatically creates or updates a client when `/api/report` receives a report.
+The current implementation uses the report endpoint for client registration.
 
-The client is identified by hostname in the current implementation.
-
-Conceptually:
+The flow is:
 
 ```text
 Agent starts
@@ -1071,367 +1153,203 @@ Collect system information
 POST /api/report
     │
     ▼
-LUMS
+LUMS identifies hostname
     │
-    ├── hostname already known?
-    │       │
-    │       ├── no → create client
-    │       └── yes → update client
+    ├── client exists → update
     │
-    ▼
-Save updates
+    └── client missing → create
     │
     ▼
-Save package inventory
+Store updates
+    │
+    ▼
+Store package inventory
 ```
 
-This is the current registration mechanism.
+This is the **current** registration mechanism.
 
-If explicit token-based enrollment is introduced later, the documentation should be updated to describe the exact enrollment flow rather than assuming one exists.
+A future explicit enrollment flow can replace or extend it.
 
 ---
 
-# 🔄 Agent Execution
+# 🔐 Agent Authentication Status
 
-The agent can be run manually during testing:
+This section is intentionally explicit.
 
-```bash
-sudo python3 /path/to/agent.py
-```
+The project already contains security helpers for:
 
-For production-style operation, use systemd.
+* random client tokens
+* SHA-256 token hashing
+* token verification
+* token revocation
+* client enable/disable state
+* bearer-token extraction
+* authenticated client handling
 
-Example:
+However, security helpers existing in `security.py` do not automatically secure an endpoint.
 
-```bash
-sudo cp agent/lums-agent.service \
-    /etc/systemd/system/lums-agent.service
-```
+The current application must explicitly apply the authentication layer.
 
-Then:
-
-```bash
-sudo systemctl daemon-reload
-sudo systemctl enable lums-agent
-sudo systemctl start lums-agent
-```
-
-Check:
-
-```bash
-sudo systemctl status lums-agent
-```
-
-Logs:
-
-```bash
-sudo journalctl -u lums-agent -f
-```
-
----
-
-# ⏱️ Periodic Agent Execution
-
-A periodic agent can be implemented using systemd timers.
-
-Example architecture:
+The following endpoints require special attention:
 
 ```text
-lums-agent.timer
-       │
-       ▼
-lums-agent.service
-       │
-       ▼
-collect information
-       │
-       ▼
-send report
-```
-
-Check timers:
-
-```bash
-systemctl list-timers
-```
-
-If the timer is enabled:
-
-```bash
-sudo systemctl enable --now lums-agent.timer
-```
-
----
-
-# 📡 REST API
-
-## Health
-
-```http
-GET /api/health
-```
-
-Returns service health.
-
-Example:
-
-```json
-{
-  "status": "ok",
-  "service": "LUMS API"
-}
-```
-
----
-
-## Client Report
-
-```http
 POST /api/report
-```
-
-Receives:
-
-* hostname
-* IP
-* OS
-* kernel
-* architecture
-* agent version
-* updates
-* installed packages
-
-Example conceptual payload:
-
-```json
-{
-  "hostname": "client01",
-  "ip": "192.168.2.210",
-  "os": "Ubuntu 26.04.1 LTS",
-  "kernel": "6.x",
-  "architecture": "x86_64",
-  "agent_version": "1.0",
-  "updates": [],
-  "packages": {}
-}
-```
-
----
-
-## List Clients
-
-```http
-GET /api/clients
-```
-
-Requires administrator authentication.
-
----
-
-## Client Details
-
-```http
-GET /api/clients/<client_id>
-```
-
----
-
-## Client Updates
-
-```http
-GET /api/clients/<client_id>/updates
-```
-
----
-
-## Installed Packages
-
-```http
-GET /api/clients/<client_id>/packages
-```
-
----
-
-## Create Update Job
-
-```http
-POST /api/clients/<client_id>/update-jobs
-```
-
-Requires administrator authentication and CSRF protection.
-
-Example:
-
-```json
-{
-  "packages": [
-    "openssl",
-    "curl"
-  ]
-}
-```
-
----
-
-## Pending Update Job
-
-```http
 GET /api/clients/<client_id>/update-jobs/pending
-```
-
-Used by the agent to claim the next pending job.
-
-The implementation uses a SQLite transaction with:
-
-```sql
-BEGIN IMMEDIATE
-```
-
-to reduce the risk of two agents claiming the same pending job simultaneously.
-
----
-
-## Update Job Result
-
-```http
 POST /api/update-jobs/<job_id>/result
 ```
 
-Example:
+## Required authorization rules
 
-```json
-{
-  "status": "success",
-  "reboot_required": false,
-  "packages": [
-    {
-      "package": "openssl",
-      "status": "success",
-      "message": "Updated successfully"
-    }
-  ]
-}
-```
+### `/api/report`
+
+The authenticated client should determine which client record may be updated.
+
+The hostname supplied by the client must not become the sole authorization mechanism.
 
 ---
 
-## Update Job Details
+### `/api/.../pending`
 
-```http
-GET /api/update-jobs/<job_id>
-```
-
----
-
-## Client Update History
-
-```http
-GET /api/clients/<client_id>/update-history
-```
-
----
-
-## Global Update History
-
-```http
-GET /api/update-history
-```
-
----
-
-# 🗃 Database Model
-
-The database contains the core LUMS state.
-
-Conceptually:
+The authenticated client must match:
 
 ```text
-clients
-   │
-   ├── installed_packages
-   │
-   ├── available_updates
-   │
-   └── update_jobs
-          │
-          └── update_job_packages
-                  │
-                  ▼
-             update_history
+requested client_id
 ```
 
-Security data:
+Otherwise one client could potentially request another client's pending jobs.
+
+---
+
+### `/api/.../result`
+
+The server must:
+
+1. load the job
+2. determine its `client_id`
+3. authenticate the caller
+4. verify that the caller's client ID matches the job's client ID
+5. only then accept the result
+
+This prevents one client from submitting results for another client's job.
+
+---
+
+# 🧪 Automated Security Tests for Agent Endpoints
+
+The agent endpoints should have automated tests covering both authentication and authorization.
+
+At minimum:
 
 ```text
-users
-   │
-   └── audit_log
-
-schema_migrations
+/api/report
+/api/clients/<client_id>/update-jobs/pending
+/api/update-jobs/<job_id>/result
 ```
 
+## Required test matrix
+
+| Test                             | Expected |
+| -------------------------------- | -------- |
+| No token                         | `401`    |
+| Invalid token                    | `401`    |
+| Revoked token                    | `401`    |
+| Disabled client                  | `401`    |
+| Valid token                      | accepted |
+| Client A requests Client B job   | `403`    |
+| Client A submits Client B result | `403`    |
+| Client A reports as Client B     | rejected |
+| Valid client/job relationship    | accepted |
+
 ---
 
-# 🔐 Security Model
+# 🧪 Example Automated Test Structure
 
-LUMS uses several layers of security.
+A test suite should contain cases similar to:
 
-## Passwords
+```python
+def test_report_requires_client_auth(client):
+    response = client.post("/api/report", json={
+        "hostname": "client01"
+    })
 
-Passwords use Argon2id.
+    assert response.status_code == 401
+```
+
+Invalid token:
+
+```python
+def test_report_rejects_invalid_token(client):
+    response = client.post(
+        "/api/report",
+        headers={"Authorization": "Bearer invalid-token"},
+        json={"hostname": "client01"},
+    )
+
+    assert response.status_code == 401
+```
+
+A client must not access another client's pending job:
+
+```python
+def test_client_cannot_claim_another_clients_job(client):
+    response = client.get(
+        "/api/clients/2/update-jobs/pending",
+        headers={"Authorization": "Bearer CLIENT_A_TOKEN"},
+    )
+
+    assert response.status_code == 403
+```
+
+A client must not submit another client's result:
+
+```python
+def test_client_cannot_submit_another_clients_result(client):
+    response = client.post(
+        "/api/update-jobs/2/result",
+        headers={"Authorization": "Bearer CLIENT_A_TOKEN"},
+        json={
+            "status": "success",
+            "reboot_required": False,
+        },
+    )
+
+    assert response.status_code == 403
+```
+
+A valid client/job relationship should succeed.
+
+The exact test implementation must match the actual Flask application and database fixtures.
 
 ---
 
-## Sessions
+# 🧪 Complete End-to-End Test
 
-Browser authentication uses server-side Flask sessions.
-
-Cookie security:
+Run the complete workflow:
 
 ```text
-HttpOnly
-Secure
-SameSite=Strict
+1. LUMS server running
+2. SQLite working
+3. Nginx running
+4. HTTPS working
+5. Admin login works
+6. Agent starts
+7. Client reports
+8. Client appears
+9. Updates appear
+10. Admin creates update job
+11. Agent claims job
+12. Agent performs update
+13. Agent reports result
+14. Job becomes completed
+15. Update history is created
+16. Reboot state is recorded
 ```
 
 ---
 
-## CSRF
+# 🔐 Security Headers
 
-State-changing browser requests require a valid CSRF token.
-
----
-
-## Client Tokens
-
-The security foundation supports individual random client tokens.
-
-Only token hashes are stored.
-
----
-
-## Audit Logging
-
-Security-relevant actions are recorded in:
-
-```text
-audit_log
-```
-
-Examples include:
-
-```text
-login
-logout
-failed login
-administrative actions
-```
-
----
-
-## Security Headers
-
-LUMS sets headers including:
+LUMS sets security headers including:
 
 ```text
 X-Content-Type-Options
@@ -1441,353 +1359,110 @@ Permissions-Policy
 Content-Security-Policy
 ```
 
-The CSP restricts scripts, styles and connections to the application origin unless explicitly allowed.
+The CSP restricts:
+
+* scripts
+* styles
+* frames
+* forms
+* objects
+* network connections
+
+to controlled origins.
 
 ---
 
-# 🚨 Important Security Principle
+# 🍪 Session Security
 
-LUMS should not be exposed directly to the public Internet without a deliberate security review.
-
-The intended environments are:
-
-* homelabs
-* internal networks
-* test environments
-* small infrastructures
-* learning environments
-
-Security is implemented using defense in depth.
-
-No software should be described as:
-
-> 100% secure.
-
----
-
-# 🧪 Testing
-
-Before deploying a new version, test the individual layers separately.
-
----
-
-## 1. Check Git
-
-```bash
-cd /opt/lums-public
-git status
-```
-
-Expected:
+Browser sessions use:
 
 ```text
-working tree clean
+HttpOnly
+Secure
+SameSite=Strict
+```
+
+The session lifetime is configured for five minutes.
+
+The dashboard also contains client-side inactivity handling.
+
+The server-side session remains authoritative.
+
+---
+
+# 🛡 Password Security
+
+Passwords are handled using Argon2id.
+
+The application supports password verification and hash re-evaluation.
+
+The database stores:
+
+```text
+password hash
+```
+
+not:
+
+```text
+plaintext password
 ```
 
 ---
 
-## 2. Check Python
+# 🧾 Audit Logging
 
-```bash
-python3 --version
+Security-relevant actions are written to:
+
+```text
+audit_log
 ```
 
----
+The log contains information such as:
 
-## 3. Check Database
+* timestamp
+* actor type
+* actor ID
+* action
+* target
+* result
+* details
+
+Example query:
 
 ```bash
 sudo -u lums sqlite3 \
     /var/lib/lums/lums.db \
-    'PRAGMA integrity_check;'
+    'SELECT timestamp, actor_type, action, result
+     FROM audit_log
+     ORDER BY id DESC
+     LIMIT 20;'
 ```
 
-Expected:
+---
+
+# 💾 Backups
+
+The most important LUMS state is stored in:
 
 ```text
-ok
+/var/lib/lums/
 ```
 
----
-
-## 4. Check LUMS Service
-
-```bash
-sudo systemctl status lums
-```
-
----
-
-## 5. Check Flask
-
-```bash
-curl http://127.0.0.1:5000/api/health
-```
-
-Expected:
-
-```json
-{
-  "status": "ok",
-  "service": "LUMS API"
-}
-```
-
----
-
-## 6. Check Nginx
-
-```bash
-sudo nginx -t
-```
-
-Expected:
+At minimum back up:
 
 ```text
-syntax is ok
-test is successful
+lums.db
 ```
 
----
-
-## 7. Check HTTPS
-
-```bash
-curl -k https://SERVER_IP/api/health
-```
-
-Expected:
-
-```json
-{
-  "status": "ok",
-  "service": "LUMS API"
-}
-```
-
----
-
-# 🧪 Complete End-to-End Test
-
-The complete test should verify the entire LUMS workflow.
-
-```text
-Server
-  │
-  ├── Flask running
-  ├── SQLite working
-  ├── Nginx working
-  └── HTTPS working
-          │
-          ▼
-       Client
-          │
-          ├── Agent starts
-          ├── Report sent
-          ├── Client appears
-          ├── Updates detected
-          │
-          ▼
-      Administrator
-          │
-          ├── Login
-          ├── Select client
-          ├── Select update
-          └── Create job
-                  │
-                  ▼
-               Client
-                  │
-                  ├── Claims job
-                  ├── Installs package
-                  ├── Determines reboot requirement
-                  └── Sends result
-                          │
-                          ▼
-                        LUMS
-                          │
-                          ├── Job completed
-                          └── History recorded
-```
-
----
-
-## Test 1 – Login
-
-Open:
-
-```text
-https://SERVER_IP/login
-```
-
-Authenticate with the administrator account.
-
----
-
-## Test 2 – Client Report
-
-Run the agent manually on the client.
-
-Check server logs:
-
-```bash
-sudo journalctl -u lums -f
-```
-
-Look for a client report.
-
----
-
-## Test 3 – Client Appears
-
-Open:
-
-```text
-https://SERVER_IP/
-```
-
-Verify the client appears in the dashboard.
-
-Check its:
-
-* hostname
-* IP
-* operating system
-* kernel
-* architecture
-* agent version
-* status
-
----
-
-## Test 4 – Updates
-
-Verify that available updates are visible.
-
----
-
-## Test 5 – Create Job
-
-Select one or more available updates and create an update job.
-
-Verify that:
-
-```text
-status = pending
-```
-
----
-
-## Test 6 – Agent Claims Job
-
-Run the agent.
-
-The job should change:
-
-```text
-pending
-   ↓
-running
-```
-
----
-
-## Test 7 – Package Update
-
-The agent executes the selected package update.
-
----
-
-## Test 8 – Result
-
-The client sends:
-
-```text
-success
-partial
-```
-
-or:
-
-```text
-failed
-```
-
-The job should become completed.
-
----
-
-## Test 9 – History
-
-Open the update history.
-
-Verify:
-
-* client
-* job ID
-* status
-* package count
-* successful count
-* failed count
-* reboot requirement
-* start time
-* finish time
-
----
-
-# 💾 Backup Before an Update
-
-Always make a backup before changing the production deployment.
-
-At minimum, back up:
-
-```text
-database
-configuration
-TLS material
-deployment configuration
-```
-
-Create a backup directory:
+Recommended:
 
 ```bash
 sudo mkdir -p /var/lib/lums/backups
 sudo chmod 700 /var/lib/lums/backups
 ```
 
-Back up the database:
-
-```bash
-sudo cp \
-    /var/lib/lums/lums.db \
-    /var/lib/lums/backups/lums.db.$(date +%Y%m%d-%H%M%S)
-```
-
-Protect it:
-
-```bash
-sudo chmod 600 /var/lib/lums/backups/*
-```
-
-Verify the database:
-
-```bash
-sudo -u lums sqlite3 \
-    /var/lib/lums/lums.db \
-    'PRAGMA integrity_check;'
-```
-
-Expected:
-
-```text
-ok
-```
-
----
-
-# 🧰 SQLite Online Backup
-
-A safer SQLite-native backup can also be created:
+SQLite-native backup:
 
 ```bash
 sudo -u lums sqlite3 \
@@ -1795,7 +1470,7 @@ sudo -u lums sqlite3 \
     ".backup '/var/lib/lums/backups/lums.db.$(date +%Y%m%d-%H%M%S)'"
 ```
 
-Afterward:
+Check:
 
 ```bash
 sudo ls -lh /var/lib/lums/backups/
@@ -1803,28 +1478,19 @@ sudo ls -lh /var/lib/lums/backups/
 
 ---
 
-# 🔄 Updating LUMS
+# 🔄 Updating LUMS Safely
 
-Never update blindly.
-
-First:
+Before updating:
 
 ```bash
 cd /opt/lums-public
 git status
 ```
 
-Make sure there are no unwanted local changes.
-
-Fetch:
+Then:
 
 ```bash
 git fetch origin
-```
-
-Review:
-
-```bash
 git log --oneline HEAD..origin/main
 ```
 
@@ -1834,19 +1500,15 @@ If the changes are expected:
 git pull --ff-only origin main
 ```
 
----
-
-# 💾 Backup Before Deployment
-
-Before replacing the deployed application:
+Create an application backup:
 
 ```bash
 sudo cp -a \
     /opt/lums-api \
-    /opt/lums-api.backup-$(date +%Y%m%d-%H%M%S)
+    "/opt/lums-api.backup-$(date +%Y%m%d-%H%M%S)"
 ```
 
-Then deploy:
+Deploy:
 
 ```bash
 sudo rsync -a --delete \
@@ -1855,101 +1517,10 @@ sudo rsync -a --delete \
     /opt/lums-api/
 ```
 
-Restore ownership:
-
-```bash
-sudo chown -R lums:lums /opt/lums-api
-```
-
----
-
-# 🔄 Restart After Deployment
-
-Check syntax first:
+Syntax-check:
 
 ```bash
 python3 -m py_compile /opt/lums-api/app.py
-```
-
-Then:
-
-```bash
-sudo systemctl restart lums
-```
-
-Check immediately:
-
-```bash
-sudo systemctl status lums
-```
-
-Then:
-
-```bash
-curl http://127.0.0.1:5000/api/health
-```
-
-Only after that:
-
-```bash
-sudo nginx -t
-sudo systemctl reload nginx
-```
-
----
-
-# 🚨 Server Does Not Start
-
-If:
-
-```bash
-sudo systemctl restart lums
-```
-
-fails, **do not immediately start changing random files.**
-
-First inspect the service:
-
-```bash
-sudo systemctl status lums --no-pager
-```
-
-Then:
-
-```bash
-sudo journalctl -u lums -n 100 --no-pager
-```
-
-For live debugging:
-
-```bash
-sudo journalctl -u lums -f
-```
-
----
-
-# 🔍 Common LUMS Startup Problems
-
-## Missing Secret
-
-Error similar to:
-
-```text
-LUMS_SECRET_KEY is not configured
-```
-
-Check:
-
-```bash
-sudo ls -l /etc/lums/lums.env
-```
-
-Check that the variable exists without printing the secret:
-
-```bash
-sudo grep -q '^LUMS_SECRET_KEY=' /etc/lums/lums.env \
-    && echo "Secret configured" \
-    || echo "Secret missing"
 ```
 
 Restart:
@@ -1958,48 +1529,131 @@ Restart:
 sudo systemctl restart lums
 ```
 
+Verify:
+
+```bash
+sudo systemctl status lums
+curl http://127.0.0.1:5000/api/health
+```
+
+Then:
+
+```bash
+sudo nginx -t
+sudo systemctl reload nginx
+```
+
 ---
 
-# 🐍 Python Syntax Error
+# ⚠️ Commands That Require Extra Attention
 
-Run:
+The following commands can change or destroy state:
+
+```text
+rsync --delete
+rm
+rm -rf
+apt upgrade
+apt autoremove
+systemctl restart
+systemctl stop
+systemctl disable
+ufw enable
+ufw reset
+sqlite restore
+database migration
+```
+
+Never execute these blindly on a production system.
+
+---
+
+# 📋 Command – Purpose – Risk
+
+| Command                   | Purpose                                       | Risk          |
+| ------------------------- | --------------------------------------------- | ------------- |
+| `apt update`              | Refresh package metadata                      | 🟢 Low        |
+| `apt upgrade`             | Install system updates                        | 🟠 Medium     |
+| `apt autoremove`          | Remove packages considered unnecessary        | 🟠 Medium     |
+| `git pull --ff-only`      | Update source tree                            | 🟢 Low/Medium |
+| `rsync -a`                | Copy deployment files                         | 🟢 Low        |
+| `rsync -a --delete`       | Synchronize and delete destination-only files | 🔴 High       |
+| `systemctl start lums`    | Start LUMS                                    | 🟢 Low        |
+| `systemctl stop lums`     | Stop LUMS                                     | 🟠 Medium     |
+| `systemctl restart lums`  | Restart LUMS                                  | 🟠 Medium     |
+| `systemctl restart nginx` | Restart web server                            | 🟠 Medium     |
+| `systemctl reload nginx`  | Reload Nginx config                           | 🟢 Low/Medium |
+| `ufw enable`              | Enable firewall                               | 🟠 Medium     |
+| `ufw reset`               | Reset firewall rules                          | 🔴 High       |
+| `rm file`                 | Delete file                                   | 🟠 Medium     |
+| `rm -rf directory`        | Recursive deletion                            | 🔴 Very high  |
+| `sqlite .backup`          | Create SQLite backup                          | 🟢 Low        |
+| `cp database backup`      | Copy database                                 | 🟢 Low        |
+| database restore          | Replace current database                      | 🔴 High       |
+
+---
+
+# 🚨 Commands That Restart Services
+
+These commands can cause temporary service interruption:
+
+```bash
+sudo systemctl restart lums
+```
+
+```bash
+sudo systemctl restart nginx
+```
+
+```bash
+sudo systemctl restart lums-agent.service
+```
+
+A safer Nginx configuration change is generally:
+
+```bash
+sudo nginx -t
+sudo systemctl reload nginx
+```
+
+because configuration is tested before reload.
+
+---
+
+# 🚨 If LUMS Stops Starting
+
+Do not immediately reinstall everything.
+
+Check:
+
+```bash
+sudo systemctl status lums --no-pager
+```
+
+Then:
+
+```bash
+sudo journalctl \
+    -u lums \
+    -n 100 \
+    --no-pager
+```
+
+Check Python:
 
 ```bash
 python3 -m py_compile /opt/lums-api/app.py
 ```
 
-If it returns an error, fix the Python source before restarting.
-
----
-
-# 📂 Permission Problem
-
-Check:
+Check secret:
 
 ```bash
-ls -ld /opt/lums-api
-ls -ld /var/lib/lums
-ls -l /var/lib/lums/lums.db
+sudo grep -q '^LUMS_SECRET_KEY=' /etc/lums/lums.env \
+    && echo "Secret configured" \
+    || echo "Secret missing"
 ```
 
-Expected application ownership:
-
-```text
-lums:lums
-```
-
-The service must be able to access:
-
-```text
-/opt/lums-api
-/var/lib/lums
-```
-
----
-
-# 🗄 Database Problem
-
-Check:
+Check database:
 
 ```bash
 sudo -u lums sqlite3 \
@@ -2013,90 +1667,9 @@ Expected:
 ok
 ```
 
-If the database is damaged, stop LUMS before restoring a backup:
-
-```bash
-sudo systemctl stop lums
-```
-
-Restore the selected backup:
-
-```bash
-sudo cp \
-    /var/lib/lums/backups/BACKUP_FILE \
-    /var/lib/lums/lums.db
-```
-
-Fix ownership:
-
-```bash
-sudo chown lums:lums /var/lib/lums/lums.db
-sudo chmod 600 /var/lib/lums/lums.db
-```
-
-Check integrity again:
-
-```bash
-sudo -u lums sqlite3 \
-    /var/lib/lums/lums.db \
-    'PRAGMA integrity_check;'
-```
-
-Then:
-
-```bash
-sudo systemctl start lums
-```
-
----
-
-# 🌐 Nginx Does Not Work
-
-First:
-
-```bash
-sudo nginx -t
-```
-
-If successful:
-
-```bash
-sudo systemctl status nginx
-```
-
-Then:
-
-```bash
-sudo journalctl -u nginx -n 100 --no-pager
-```
-
-Test Flask independently:
-
-```bash
-curl http://127.0.0.1:5000/api/health
-```
-
-If Flask works but HTTPS does not:
-
-```text
-Flask       → working
-Nginx       → investigate
-TLS         → investigate
-Firewall    → investigate
-```
-
-If Flask itself does not work:
-
-```text
-Nginx is not the first problem.
-Fix LUMS/systemd first.
-```
-
 ---
 
 # 🔙 Rollback
-
-If a new deployment breaks the application:
 
 Stop LUMS:
 
@@ -2104,21 +1677,21 @@ Stop LUMS:
 sudo systemctl stop lums
 ```
 
-Identify the previous deployment:
+Find the previous deployment:
 
 ```bash
 ls -ld /opt/lums-api.backup-*
 ```
 
-Move the broken deployment aside:
+Move the broken deployment away:
 
 ```bash
 sudo mv \
     /opt/lums-api \
-    /opt/lums-api.failed-$(date +%Y%m%d-%H%M%S)
+    "/opt/lums-api.failed-$(date +%Y%m%d-%H%M%S)"
 ```
 
-Restore the previous deployment:
+Restore the desired backup:
 
 ```bash
 sudo mv \
@@ -2126,13 +1699,13 @@ sudo mv \
     /opt/lums-api
 ```
 
-Correct ownership:
+Fix ownership:
 
 ```bash
 sudo chown -R lums:lums /opt/lums-api
 ```
 
-Test:
+Syntax-check:
 
 ```bash
 python3 -m py_compile /opt/lums-api/app.py
@@ -2152,136 +1725,48 @@ curl http://127.0.0.1:5000/api/health
 
 ---
 
-# 🔎 Troubleshooting Checklist
+# 🧪 Database Integrity
 
-When something breaks, work from the inside out.
-
-```text
-1. Is the server running?
-       │
-       ▼
-2. Is the LUMS service running?
-       │
-       ▼
-3. Does Flask respond locally?
-       │
-       ▼
-4. Does SQLite work?
-       │
-       ▼
-5. Does Nginx configuration pass?
-       │
-       ▼
-6. Does HTTPS work?
-       │
-       ▼
-7. Can the client reach the server?
-       │
-       ▼
-8. Does the agent run?
-       │
-       ▼
-9. Does the client report arrive?
-       │
-       ▼
-10. Does the update workflow work?
-```
-
-Useful commands:
+Always check the SQLite database after unexpected shutdowns or before recovery:
 
 ```bash
-sudo systemctl status lums
-sudo journalctl -u lums -n 100 --no-pager
-
-sudo systemctl status nginx
-sudo nginx -t
-sudo journalctl -u nginx -n 100 --no-pager
-
-sudo ss -ltnp
-
-curl http://127.0.0.1:5000/api/health
-curl -k https://SERVER_IP/api/health
-
-sudo -u lums sqlite3 /var/lib/lums/lums.db \
+sudo -u lums sqlite3 \
+    /var/lib/lums/lums.db \
     'PRAGMA integrity_check;'
 ```
 
----
+Expected:
 
-# 📊 Useful Database Checks
-
-Number of clients:
-
-```bash
-sudo -u lums sqlite3 \
-    /var/lib/lums/lums.db \
-    'SELECT COUNT(*) FROM clients;'
+```text
+ok
 ```
-
-Number of users:
-
-```bash
-sudo -u lums sqlite3 \
-    /var/lib/lums/lums.db \
-    'SELECT COUNT(*) FROM users;'
-```
-
-Number of update jobs:
-
-```bash
-sudo -u lums sqlite3 \
-    /var/lib/lums/lums.db \
-    'SELECT COUNT(*) FROM update_jobs;'
-```
-
-Recent jobs:
-
-```bash
-sudo -u lums sqlite3 \
-    /var/lib/lums/lums.db \
-    'SELECT id, client_id, status, created_at FROM update_jobs ORDER BY id DESC LIMIT 10;'
-```
-
-Recent audit events:
-
-```bash
-sudo -u lums sqlite3 \
-    /var/lib/lums/lums.db \
-    'SELECT timestamp, actor_type, action, result FROM audit_log ORDER BY id DESC LIMIT 20;'
-```
-
-Do not expose database contents publicly.
 
 ---
 
 # 📦 Aptly Integration
 
-LUMS can coexist with an Aptly-based internal package mirror.
+LUMS can coexist with an Aptly package repository.
 
 Example:
 
 ```text
-                 LUMS
-                  │
-                  │ update management
-                  ▼
-             Linux Clients
-                  │
-                  │ APT
-                  ▼
-                Aptly
-                  │
-                  ▼
-          Ubuntu repositories
+Linux Client
+     │
+     │ APT
+     ▼
+   Aptly
+     │
+     ▼
+Ubuntu repository
+
+LUMS
+     │
+     │ update management
+     ▼
+Linux Client
 ```
 
-Aptly may be served by Nginx under:
-
-```text
-/aptly/
-```
-
-Example Nginx location:
+Aptly can be served statically by Nginx:
 
 ```nginx
 location /aptly/ {
@@ -2290,285 +1775,179 @@ location /aptly/ {
 }
 ```
 
-Aptly is independent of the Flask application.
-
-Therefore:
-
-```text
-LUMS service stopped
-       ≠
-Aptly package repository stopped
-```
-
-if both are served independently by Nginx.
+Aptly does not need to be a systemd service when Nginx serves its published files directly.
 
 ---
 
-# 🔄 Recommended Update Procedure
+# 🔍 Troubleshooting
 
-Before changing LUMS:
-
-```text
-1. Check system health
-2. Check Git status
-3. Back up SQLite
-4. Back up deployed application
-5. Pull changes
-6. Review changes
-7. Deploy
-8. Run syntax check
-9. Restart LUMS
-10. Check systemd
-11. Check Flask
-12. Check Nginx
-13. Login through HTTPS
-14. Test client reporting
-15. Test update job
-```
-
-Never skip the backup just because the change looks small.
-
----
-
-# 🧱 Repository Privacy
-
-The repository should not contain:
-
-```text
-passwords
-API tokens
-client tokens
-private keys
-Flask secret keys
-personal credentials
-internal secrets
-```
-
-The following types of files must remain outside Git:
-
-```text
-/etc/lums/lums.env
-/etc/lums/lums-agent.env
-/etc/lums/tls/*.key
-```
-
-The `.gitignore` should contain appropriate secret/configuration patterns such as:
-
-```gitignore
-lums.env
-lums-*.env
-lums-agent.env
-lums-agent.conf
-```
-
-Private infrastructure addresses should also not be unnecessarily documented in a public repository.
-
-Use placeholders:
-
-```text
-SERVER_IP
-CLIENT_IP
-```
-
-instead of real internal addresses.
-
----
-
-# 🧪 Development
-
-For development, the Flask application can be started directly:
+## LUMS service is down
 
 ```bash
-cd /opt/lums-api
-```
-
-Set the required secret in the shell:
-
-```bash
-export LUMS_SECRET_KEY="$(openssl rand -hex 64)"
-```
-
-Start:
-
-```bash
-python3 app.py
-```
-
-The current application binds to:
-
-```text
-127.0.0.1:5000
-```
-
-This is intentional for the reverse-proxy architecture.
-
-Do not expose Flask directly to an untrusted network without understanding the security implications.
-
----
-
-# 🧪 Security Testing
-
-Security testing should verify at least:
-
-## Authentication
-
-```text
-✓ unauthenticated dashboard rejected
-✓ wrong password rejected
-✓ unknown user rejected
-✓ disabled user rejected
-✓ successful login works
-✓ logout works
-```
-
-## Session Security
-
-```text
-✓ session created after login
-✓ session contains authenticated user
-✓ CSRF token exists
-✓ logout clears session
-✓ Secure cookie enabled
-✓ HttpOnly cookie enabled
-✓ SameSite=Strict
-```
-
-## CSRF
-
-```text
-✓ missing token rejected
-✓ invalid token rejected
-✓ valid token accepted
-```
-
-## Password Security
-
-```text
-✓ Argon2 hash generated
-✓ correct password accepted
-✓ wrong password rejected
-✓ outdated hash can be upgraded
-```
-
-## Client Token Foundation
-
-```text
-✓ random tokens generated
-✓ tokens differ
-✓ hashes differ
-✓ correct token verifies
-✓ wrong token fails
-✓ revoked token fails
-✓ disabled client fails
-```
-
----
-
-# 🧪 Recommended Pre-Release Checklist
-
-Before merging a change:
-
-```text
-[ ] Python syntax check
-[ ] Database integrity check
-[ ] Unit/security tests
-[ ] Login test
-[ ] Logout test
-[ ] CSRF test
-[ ] Client report test
-[ ] Client list test
-[ ] Update detection test
-[ ] Update job creation test
-[ ] Agent job claim test
-[ ] Update result test
-[ ] Update history test
-[ ] Reboot detection test
-[ ] HTTPS test
-[ ] Nginx syntax test
-[ ] systemd restart test
-[ ] Backup created
-[ ] Rollback plan confirmed
-```
-
----
-
-# 🚢 Production-Style Deployment
-
-A controlled deployment can follow this model:
-
-```text
-Developer / Git
-       │
-       ▼
-GitHub main
-       │
-       ▼
-/opt/lums-public
-       │
-       │ controlled deployment
-       ▼
-/opt/lums-api
-       │
-       ▼
-systemd
-       │
-       ▼
-Flask
-       │
-       ▼
-Nginx
-       │
-       ▼
-HTTPS
-```
-
-The source checkout and deployed application should not be treated as the same thing.
-
-This makes it possible to:
-
-* review Git changes
-* keep deployment controlled
-* back up the deployed version
-* roll back
-* test before restarting production
-
----
-
-# 🧰 Recommended Operational Commands
-
-## Service
-
-```bash
-sudo systemctl start lums
-sudo systemctl stop lums
-sudo systemctl restart lums
 sudo systemctl status lums
-```
-
-## Logs
-
-```bash
-sudo journalctl -u lums
-sudo journalctl -u lums -f
 sudo journalctl -u lums -n 100 --no-pager
 ```
 
-## Nginx
+---
+
+## Flask works but HTTPS does not
+
+Check:
 
 ```bash
 sudo nginx -t
-sudo systemctl reload nginx
-sudo systemctl restart nginx
 sudo systemctl status nginx
+sudo journalctl -u nginx -n 100 --no-pager
 ```
 
-## Database
+---
+
+## HTTPS works but client cannot connect
+
+Check:
 
 ```bash
-sudo -u lums sqlite3 /var/lib/lums/lums.db
+curl -k https://SERVER_IP/api/health
 ```
 
-Integrity:
+From the client:
+
+```bash
+curl -k https://SERVER_IP/api/health
+```
+
+Check firewall:
+
+```bash
+sudo ufw status verbose
+```
+
+---
+
+## Client does not appear
+
+Check the agent:
+
+```bash
+sudo systemctl status lums-agent.service
+```
+
+Logs:
+
+```bash
+sudo journalctl \
+    -u lums-agent.service \
+    -n 100 \
+    --no-pager
+```
+
+Server logs:
+
+```bash
+sudo journalctl \
+    -u lums \
+    -n 100 \
+    --no-pager
+```
+
+---
+
+## Client reports but updates are missing
+
+Check:
+
+```bash
+sudo apt update
+```
+
+on the client.
+
+Then run:
+
+```bash
+sudo systemctl start lums-agent.service
+```
+
+Check the agent logs.
+
+---
+
+# 🧪 Security Test Checklist
+
+Before considering a release complete:
+
+```text
+[ ] Correct password accepted
+[ ] Wrong password rejected
+[ ] Unknown user rejected
+[ ] Disabled user rejected
+[ ] Session created
+[ ] Session cleared on logout
+[ ] CSRF token generated
+[ ] Missing CSRF rejected
+[ ] Invalid CSRF rejected
+[ ] Security headers present
+[ ] CSP present
+[ ] Database integrity verified
+[ ] Agent without authentication rejected
+[ ] Agent with invalid token rejected
+[ ] Revoked token rejected
+[ ] Disabled client rejected
+[ ] Client A cannot access Client B
+[ ] Client A cannot claim Client B job
+[ ] Client A cannot submit Client B result
+[ ] Valid client can report
+[ ] Valid client can claim own job
+[ ] Valid client can submit own result
+```
+
+---
+
+# 🧪 Recommended Test Commands
+
+Check service:
+
+```bash
+sudo systemctl status lums --no-pager
+```
+
+Check agent:
+
+```bash
+sudo systemctl status lums-agent.service --no-pager
+```
+
+Check timer:
+
+```bash
+systemctl list-timers lums-agent.timer
+```
+
+Check ports:
+
+```bash
+sudo ss -ltnp
+```
+
+Check Flask:
+
+```bash
+curl http://127.0.0.1:5000/api/health
+```
+
+Check HTTPS:
+
+```bash
+curl -k https://SERVER_IP/api/health
+```
+
+Check Nginx:
+
+```bash
+sudo nginx -t
+```
+
+Check SQLite:
 
 ```bash
 sudo -u lums sqlite3 \
@@ -2576,50 +1955,280 @@ sudo -u lums sqlite3 \
     'PRAGMA integrity_check;'
 ```
 
-## Network
+---
 
-```bash
-ip addr
-ip route
-ss -ltnp
+# 🚢 Deployment Model
+
+The recommended deployment separates source and runtime:
+
+```text
+GitHub
+   │
+   ▼
+/opt/lums-public
+   │
+   │ reviewed deployment
+   ▼
+/opt/lums-api
+   │
+   ▼
+systemd
+   │
+   ▼
+Flask
+   │
+   ▼
+Nginx
+   │
+   ▼
+HTTPS
+```
+
+This allows:
+
+* Git-based version control
+* controlled deployment
+* backups
+* rollback
+* testing
+* clear separation of source and runtime state
+
+---
+
+# 🧱 Security Principles
+
+LUMS follows several basic security principles.
+
+## Least Privilege
+
+The server runs as:
+
+```text
+lums
+```
+
+rather than root.
+
+---
+
+## Secrets Outside Git
+
+Secrets belong in:
+
+```text
+/etc/lums/
+```
+
+not in the repository.
+
+---
+
+## Defense in Depth
+
+Security is not based on a single control.
+
+The system combines:
+
+```text
+TLS
++
+authentication
++
+sessions
++
+CSRF
++
+password hashing
++
+security headers
++
+audit logging
++
+filesystem permissions
++
+systemd hardening
++
+firewall
 ```
 
 ---
 
-# 🧠 Design Philosophy
+## Internal Infrastructure
 
-LUMS is deliberately not intended to become a huge enterprise platform.
+LUMS is primarily intended for:
 
-The goal is a practical system that is:
+* internal networks
+* homelabs
+* test environments
+* small infrastructures
+
+It should not simply be placed on the public Internet without additional security review.
+
+---
+
+# 📋 Final Installation Checklist
+
+## Server
 
 ```text
-small
-understandable
-auditable
-testable
-extensible
+[ ] Ubuntu Server 26.04 installed
+[ ] System updated
+[ ] Required packages installed
+[ ] lums user created
+[ ] /opt/lums-api created
+[ ] /var/lib/lums created
+[ ] /etc/lums created
+[ ] Repository cloned
+[ ] Application deployed
+[ ] LUMS_SECRET_KEY configured
+[ ] Database initialized
+[ ] Security migration applied
+[ ] Administrator created
+[ ] systemd service installed
+[ ] LUMS service running
 ```
 
-The architecture favors technologies that are easy to inspect:
+## Network
+
+```text
+[ ] SSH allowed
+[ ] HTTPS allowed
+[ ] Optional HTTP redirect allowed
+[ ] Flask port 5000 not publicly exposed
+[ ] UFW enabled
+[ ] TLS configured
+[ ] Nginx configured
+[ ] nginx -t successful
+```
+
+## Agent
+
+```text
+[ ] Python installed
+[ ] Agent installed
+[ ] Agent configuration created
+[ ] Agent configuration protected
+[ ] systemd service installed
+[ ] systemd timer installed
+[ ] Agent starts successfully
+[ ] Client report received
+[ ] Client visible in dashboard
+```
+
+## Update workflow
+
+```text
+[ ] Updates detected
+[ ] Update job created
+[ ] Agent claims job
+[ ] Package updated
+[ ] Result reported
+[ ] Job completed
+[ ] Reboot requirement recorded
+[ ] History recorded
+```
+
+## Recovery
+
+```text
+[ ] Database backup exists
+[ ] Application backup exists
+[ ] Rollback procedure understood
+[ ] Database integrity check tested
+```
+
+## Security
+
+```text
+[ ] Admin password protected
+[ ] HTTPS enabled
+[ ] CSRF tested
+[ ] Security headers tested
+[ ] Agent authentication tested
+[ ] Client isolation tested
+[ ] Audit logging tested
+```
+
+---
+
+# 🏁 Quick Reference
+
+### LUMS service
+
+```bash
+sudo systemctl status lums
+```
+
+### LUMS logs
+
+```bash
+sudo journalctl -u lums -f
+```
+
+### Agent
+
+```bash
+sudo systemctl status lums-agent.service
+```
+
+### Agent logs
+
+```bash
+sudo journalctl -u lums-agent.service -f
+```
+
+### Agent timer
+
+```bash
+systemctl list-timers lums-agent.timer
+```
+
+### Nginx
+
+```bash
+sudo nginx -t
+```
+
+### HTTPS health
+
+```bash
+curl -k https://SERVER_IP/api/health
+```
+
+### Database integrity
+
+```bash
+sudo -u lums sqlite3 \
+    /var/lib/lums/lums.db \
+    'PRAGMA integrity_check;'
+```
+
+### Backup
+
+```bash
+sudo -u lums sqlite3 \
+    /var/lib/lums/lums.db \
+    ".backup '/var/lib/lums/backups/lums.db.$(date +%Y%m%d-%H%M%S)'"
+```
+
+---
+
+# 🧠 Project Philosophy
+
+LUMS is intentionally built with relatively simple and inspectable components:
 
 ```text
 Python
 Flask
 SQLite
+Linux
 systemd
 Nginx
-Linux
 ```
 
-No unnecessary orchestration layer is required.
+The goal is not to hide complexity behind layers of orchestration.
 
----
-
-# 🧪 Lab Philosophy
-
-LUMS is also a learning project.
-
-The recommended workflow is:
+The goal is to understand the system.
 
 ```text
 Build
@@ -2637,162 +2246,74 @@ Harden
 Document
 ```
 
-A failed service is not necessarily a disaster.
-
-It is often the most useful part of the lab.
-
 ---
 
-# 🐛 Why the Name?
+# 🐛 The `segfault // override` Principle
 
-LUMS is the technical project name.
-
-The human signature behind the project is:
+Every homelab eventually reaches this point:
 
 ```text
-segfault // override
+"That works."
+
+        ↓
+
+"Can we make it better?"
+
+        ↓
+
+"Let's add security."
+
+        ↓
+
+"Now we need logging."
+
+        ↓
+
+"Oh."
+
+        ↓
+
+"This could be a lab."
 ```
 
-It is a nickname/signature and **not a software component, command, function, API or configuration option**.
+And that is basically how LUMS happened.
 
-It represents the project's general philosophy:
+**`segfault // override`**
 
-> Build it. Break it. Understand it. Harden it.
+*System Builder · Infrastructure / Security · Controlled Chaos*
 
-Or, in classic homelab fashion:
-
-> “Oh, that could still be turned into a lab.” 😎
+> **Build it. Test it. Break it. Understand it. Harden it.**
 
 ---
 
 # 📜 License
 
-See:
-
-```text
-LICENSE
-```
-
-for the applicable project license.
+See [`LICENSE`](LICENSE).
 
 ---
 
-# 🔗 Project
+# 🔗 Repository
 
 GitHub:
 
-`https://github.com/NovaForgeCtrl/LUMS`
-
-Repository:
-
-```text
-NovaForgeCtrl/LUMS
-```
+https://github.com/NovaForgeCtrl/LUMS
 
 ---
 
-# 🏁 Final Quick Start
-
-For an experienced administrator, the shortest installation path is:
-
-```bash
-sudo apt update
-sudo apt install -y \
-    git \
-    python3 \
-    python3-pip \
-    python3-venv \
-    python3-argon2 \
-    sqlite3 \
-    nginx \
-    openssl
-
-sudo useradd \
-    --system \
-    --create-home \
-    --home-dir /home/lums \
-    --shell /usr/sbin/nologin \
-    lums
-
-sudo mkdir -p \
-    /opt/lums-api \
-    /var/lib/lums \
-    /etc/lums \
-    /etc/lums/tls
-
-sudo chown -R lums:lums \
-    /opt/lums-api \
-    /var/lib/lums
-```
-
-Then:
+# ❤️ LUMS
 
 ```text
-1. Clone repository
-2. Deploy server/
-3. Configure LUMS_SECRET_KEY
-4. Initialize database
-5. Run security migration
-6. Create administrator
-7. Configure systemd
-8. Configure TLS
-9. Configure Nginx
-10. Start LUMS
-11. Verify /api/health
-12. Login
-13. Install agent
-14. Register/report client
-15. Verify updates
-16. Create update job
-17. Execute job
-18. Verify result
-19. Verify history
-20. Create backup
+┌─────────────────────────────────────────────────────────────┐
+│                                                             │
+│                         L U M S                             │
+│                                                             │
+│       Linux Update Management without the noise.            │
+│                                                             │
+│       Build. Test. Break. Understand. Harden.              │
+│                                                             │
+│                   segfault // override                      │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
 ```
 
----
-
-# ✅ Definition of Done
-
-A LUMS installation can be considered operational when all of the following are true:
-
-```text
-[✓] LUMS service is running
-[✓] SQLite database is accessible
-[✓] Flask responds locally
-[✓] Nginx configuration is valid
-[✓] HTTPS works
-[✓] Administrator login works
-[✓] CSRF protection works
-[✓] Client can report
-[✓] Client appears in dashboard
-[✓] Package inventory is stored
-[✓] Available updates are stored
-[✓] Update job can be created
-[✓] Agent can process the job
-[✓] Result is recorded
-[✓] Reboot requirement is recorded
-[✓] Update history is available
-[✓] Audit logging works
-[✓] Database backup exists
-[✓] Recovery procedure has been tested
-```
-
----
-
-## LUMS
-
-**Linux Update Management without the noise.**
-
-```text
-        ┌─────────────────────────────────────┐
-        │             L U M S                 │
-        │                                     │
-        │   Build. Test. Break. Understand.  │
-        │             Harden.                 │
-        │                                     │
-        │       segfault // override          │
-        └─────────────────────────────────────┘
-```
-
-*Designed for homelabs, learning, testing and small internal infrastructures.*
+Designed for **homelabs, learning, testing and small internal infrastructures**.
