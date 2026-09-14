@@ -42,6 +42,10 @@ metadata/
 .DS_Store
 Thumbs.db
 
+# Local LUMS server configuration
+lums.env
+lums-*.env
+
 # Local LUMS agent configuration
 lums-agent.env
 lums-agent.conf
