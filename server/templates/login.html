@@ -6,66 +6,92 @@
         name="viewport"
         content="width=device-width, initial-scale=1.0"
     >
-    <title>LUMS Login</title>
+    <title>LUMS // Login</title>
     <link
         rel="stylesheet"
         href="{{ url_for('static', filename='style.css') }}"
     >
 </head>
 
-<body>
-    <main class="login-container">
-        <section class="login-card">
-            <h1>LUMS</h1>
-            <p>Linux Update Management Server</p>
+<body class="login-page">
 
-            <h2>Administrator Login</h2>
+    <main class="login-container">
+
+        <div class="login-brand">
+            <div class="login-brand-main">
+                segfault <span>//</span> override
+            </div>
+
+            <div class="login-brand-sub">
+                Linux Update Management Server
+            </div>
+        </div>
+
+        <section class="login-card">
+
+            <div class="login-card-header">
+                <span class="login-status-dot"></span>
+                <span>SECURE ACCESS</span>
+            </div>
+
+            <h1>System Login</h1>
+
+            <p class="login-description">
+                Authenticate to access the LUMS management interface.
+            </p>
 
             {% if error %}
-                <div class="error-message" role="alert">
-                    {{ error }}
-                </div>
+            <div class="login-error">
+                {{ error }}
+            </div>
             {% endif %}
 
-            <form method="post" action="{{ url_for('login') }}">
+            <form method="post" class="login-form">
+
+                <div class="login-field">
+                    <label for="username">Username</label>
+                    <input
+                        type="text"
+                        id="username"
+                        name="username"
+                        autocomplete="username"
+                        required
+                        autofocus
+                    >
+                </div>
+
+                <div class="login-field">
+                    <label for="password">Password</label>
+                    <input
+                        type="password"
+                        id="password"
+                        name="password"
+                        autocomplete="current-password"
+                        required
+                    >
+                </div>
+
                 <input
                     type="hidden"
                     name="csrf_token"
                     value="{{ csrf_token }}"
                 >
 
-                <label for="username">
-                    Username
-                </label>
-
-                <input
-                    id="username"
-                    name="username"
-                    type="text"
-                    autocomplete="username"
-                    maxlength="64"
-                    value="{{ username or '' }}"
-                    required
-                    autofocus
-                >
-
-                <label for="password">
-                    Password
-                </label>
-
-                <input
-                    id="password"
-                    name="password"
-                    type="password"
-                    autocomplete="current-password"
-                    required
-                >
-
-                <button type="submit">
-                    Login
+                <button
+                    type="submit"
+                    class="login-button">
+                    AUTHENTICATE
                 </button>
+
             </form>
+
+            <div class="login-footer">
+                LUMS // INTERNAL MANAGEMENT SYSTEM
+            </div>
+
         </section>
+
     </main>
+
 </body>
 </html>
