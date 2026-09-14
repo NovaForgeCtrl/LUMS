@@ -329,8 +329,10 @@ def logout():
 @app.route("/")
 @login_required
 def index():
-
-    return render_template("index.html")
+    return render_template(
+        "index.html",
+        csrf_token=get_csrf_token(),
+    )
 
 
 @app.route("/client")
@@ -1254,6 +1256,6 @@ def update_history():
 if __name__ == "__main__":
 
     app.run(
-        host="0.0.0.0",
+        host="127.0.0.1",
         port=5000
     )
