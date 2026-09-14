@@ -1,11 +1,35 @@
 from flask import Flask, request, jsonify, render_template
+import os
 import sqlite3
 from datetime import datetime, timezone
+
+from security import (
+    configure_session,
+    apply_security_headers,
+)
 
 
 app = Flask(__name__)
 
+# Security foundation
+#
+# Secret key is supplied externally and must never be stored in Git.
+app.secret_key = os.environ.get("LUMS_SECRET_KEY")
+
+if not app.secret_key:
+    raise RuntimeError(
+        "LUMS_SECRET_KEY is not configured. "
+        "Refusing to start without a secure Flask secret."
+    )
+
+configure_session(app)
+
 DB_PATH = "/var/lib/lums/lums.db"
+
+
+@app.after_request
+def security_headers(response):
+    return apply_security_headers(response)
 
 
 # ============================================================
