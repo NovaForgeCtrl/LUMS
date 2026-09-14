@@ -159,6 +159,17 @@ def logout_user():
     session.clear()
 
 
+def find_user(connection, username):
+    return connection.execute(
+        """
+        SELECT id, username, password_hash, enabled
+        FROM users
+        WHERE username = ?
+        """,
+        (username,),
+    ).fetchone()
+
+
 def current_user_id():
     return session.get(SESSION_USER_KEY)
 

@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify, render_template
+from flask import Flask, request, jsonify, render_template, url_for, redirect
 import os
 import sqlite3
 from datetime import datetime, timezone
@@ -6,6 +6,18 @@ from datetime import datetime, timezone
 from security import (
     configure_session,
     apply_security_headers,
+    find_user,
+    verify_password,
+    password_needs_rehash,
+    hash_password,
+    login_user,
+    logout_user,
+    current_username,
+    get_csrf_token,
+    audit_log,
+    current_user_id,
+    login_required,
+    csrf_required,
 )
 
 
@@ -194,13 +206,135 @@ def get_client_status(last_seen):
 # WEB PAGES
 # ============================================================
 
+@app.route("/login", methods=["GET", "POST"])
+def login():
+    if request.method == "GET":
+        return render_template(
+            "login.html",
+            csrf_token=get_csrf_token(),
+        )
+
+    username = (request.form.get("username") or "").strip()
+    password = request.form.get("password") or ""
+
+    connection = get_connection()
+
+    try:
+        user = find_user(connection, username)
+
+        # Deliberately use the same generic failure response for
+        # unknown and disabled users to avoid account enumeration.
+        if user is None or not user["enabled"]:
+            audit_log(
+                connection,
+                actor_type="user",
+                actor_id=username or None,
+                action="login",
+                target=None,
+                result="failure",
+                details="invalid credentials",
+            )
+            connection.commit()
+
+            return render_template(
+                "login.html",
+                csrf_token=get_csrf_token(),
+                error="Invalid username or password.",
+                username=username,
+            ), 401
+
+        if not verify_password(user["password_hash"], password):
+            audit_log(
+                connection,
+                actor_type="user",
+                actor_id=user["id"],
+                action="login",
+                target=f"user:{user['id']}",
+                result="failure",
+                details="invalid credentials",
+            )
+            connection.commit()
+
+            return render_template(
+                "login.html",
+                csrf_token=get_csrf_token(),
+                error="Invalid username or password.",
+                username=username,
+            ), 401
+
+        # Upgrade the password hash automatically if Argon2 parameters
+        # have changed since the account was created.
+        if password_needs_rehash(user["password_hash"]):
+            new_hash = hash_password(password)
+
+            connection.execute(
+                """
+                UPDATE users
+                SET password_hash = ?
+                WHERE id = ?
+                """,
+                (new_hash, user["id"]),
+            )
+
+        login_user(
+            user_id=user["id"],
+            username=user["username"],
+        )
+
+        audit_log(
+            connection,
+            actor_type="user",
+            actor_id=user["id"],
+            action="login",
+            target=f"user:{user['id']}",
+            result="success",
+            details="interactive login",
+        )
+
+        connection.commit()
+
+        return redirect(url_for("index"))
+
+    finally:
+        connection.close()
+
+
+@app.route("/logout", methods=["POST"])
+@login_required
+@csrf_required
+def logout():
+    user_id = current_user_id()
+
+    if user_id is not None:
+        connection = get_connection()
+
+        try:
+            audit_log(
+                connection,
+                actor_type="user",
+                actor_id=user_id,
+                action="logout",
+                target=f"user:{user_id}",
+                result="success",
+            )
+            connection.commit()
+        finally:
+            connection.close()
+
+    logout_user()
+
+    return redirect(url_for("login"))
+
+
 @app.route("/")
+@login_required
 def index():
 
     return render_template("index.html")
 
 
 @app.route("/client")
+@login_required
 def client_page():
 
     return render_template("client.html")
@@ -267,6 +401,7 @@ def report():
 # ============================================================
 
 @app.route("/api/clients", methods=["GET"])
+@login_required
 def clients():
 
     connection = get_connection()
@@ -317,6 +452,7 @@ def clients():
 # ============================================================
 
 @app.route("/api/clients/<int:client_id>", methods=["GET"])
+@login_required
 def client(client_id):
 
     connection = get_connection()
@@ -379,6 +515,7 @@ def client(client_id):
 # ============================================================
 
 @app.route("/api/clients/<int:client_id>/updates", methods=["GET"])
+@login_required
 def client_updates(client_id):
 
     connection = get_connection()
@@ -410,6 +547,7 @@ def client_updates(client_id):
 # ============================================================
 
 @app.route("/api/clients/<int:client_id>/packages", methods=["GET"])
+@login_required
 def client_packages(client_id):
 
     connection = get_connection()
@@ -442,6 +580,8 @@ def client_packages(client_id):
     "/api/clients/<int:client_id>/update-jobs",
     methods=["POST"]
 )
+@login_required
+@csrf_required
 def create_update_job(client_id):
 
     data = request.get_json()
@@ -610,6 +750,7 @@ def create_update_job(client_id):
     "/api/clients/<int:client_id>/update-jobs",
     methods=["GET"]
 )
+@login_required
 def client_update_jobs(client_id):
 
     connection = get_connection()
@@ -946,6 +1087,7 @@ def claim_pending_update_job(client_id):
     "/api/update-jobs/<int:job_id>",
     methods=["GET"]
 )
+@login_required
 def update_job(job_id):
 
     connection = get_connection()
@@ -1028,6 +1170,7 @@ def update_job(job_id):
     "/api/clients/<int:client_id>/update-history",
     methods=["GET"]
 )
+@login_required
 def client_update_history(client_id):
 
     connection = get_connection()
@@ -1068,6 +1211,7 @@ def client_update_history(client_id):
     "/api/update-history",
     methods=["GET"]
 )
+@login_required
 def update_history():
 
     connection = get_connection()
