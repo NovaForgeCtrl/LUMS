@@ -903,7 +903,7 @@ The client should have:
 
 ## 1. Install client requirements
 
-On Ubuntu/Debian:
+On Ubuntu:
 
 ```bash
 sudo apt update
