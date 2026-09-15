@@ -170,7 +170,6 @@ This section intentionally distinguishes between **tested**, **expected to work*
 | Operating system                 | Status                                |
 | -------------------------------- | ------------------------------------- |
 | **Ubuntu Server 26.04 LTS**      | ✅ Primary/tested platform             |
-| **Debian 13**                    | 🟡 Not currently officially validated |
 | Ubuntu versions other than 26.04 | 🟡 Not specifically validated         |
 | Other distributions              | ❌ Not officially supported            |
 
@@ -188,9 +187,6 @@ Therefore:
 
 > **Ubuntu Server 26.04 = supported reference platform.**
 
-Debian 13 may work, but it should be considered:
-
-> **experimental / unverified until explicitly tested.**
 
 ---
 
