@@ -75,7 +75,7 @@ The server needs an IP address that clients can reach.
 Example:
 
 ```text
-192.168.2.134
+ IP adress
 ```
 
 Replace this address with the actual address of your server.
@@ -95,7 +95,7 @@ ssh username@SERVER_IP
 Example:
 
 ```bash
-ssh admin@192.168.2.134
+ssh admin@IP adress
 ```
 
 ---
@@ -537,13 +537,13 @@ Find the address that clients will use.
 Example:
 
 ```text
-192.168.2.134
+Ip  adress
 ```
 
 From this point onward, this guide uses:
 
 ```text
-192.168.2.134
+Ip adress
 ```
 
 Replace it with your actual address.
@@ -576,7 +576,7 @@ subjectAltName = @alt_names
 
 [alt_names]
 DNS.1 = lums
-IP.1 = 192.168.2.134
+IP.1 = IP adress
 EOF
 ```
 
@@ -585,7 +585,7 @@ EOF
 Change:
 
 ```text
-IP.1 = 192.168.2.134
+IP.1 = IP adress
 ```
 
 to the actual LUMS server IP.
@@ -720,7 +720,7 @@ sudo systemctl reload nginx
 Run:
 
 ```bash
-curl -k -i https://192.168.2.134/api/health
+curl -k -i https:// IP adress/api/health
 ```
 
 Expected:
@@ -780,7 +780,7 @@ Do **not** open port 5000.
 Open:
 
 ```text
-https://192.168.2.134/
+https:// IP adress/
 ```
 
 Because the lab uses a self-signed certificate, the browser may display a certificate warning.
@@ -824,7 +824,7 @@ sudo chmod 755 /opt/lums-agent/agent.py
 From the client:
 
 ```bash
-curl -k https://192.168.2.134/api/health
+curl -k https:// IP adress/api/health
 ```
 
 Expected:
@@ -865,7 +865,7 @@ Create:
 
 ```bash
 sudo tee /etc/default/lums-agent > /dev/null <<'EOF'
-LUMS_BASE=https://192.168.2.134
+LUMS_BASE=https:// IP adress
 LUMS_TOKEN=PUT_CLIENT_TOKEN_HERE
 LUMS_CA_FILE=/opt/lums-agent/lums-ca.crt
 EOF
@@ -902,7 +902,7 @@ Copy the server certificate to the client.
 For example:
 
 ```bash
-scp username@192.168.2.134:/etc/lums/tls/lums.crt /tmp/lums.crt
+scp username@IP address:/etc/lums/tls/lums.crt /tmp/lums.crt
 ```
 
 Install:
@@ -924,7 +924,7 @@ Run:
 
 ```bash
 sudo env \
-    LUMS_BASE="https://192.168.2.134" \
+    LUMS_BASE="https://IP adress" \
     LUMS_CA_FILE="/opt/lums-agent/lums-ca.crt" \
     python3 - <<'PY'
 import ssl
@@ -935,7 +935,7 @@ context = ssl.create_default_context(
 )
 
 with urllib.request.urlopen(
-    "https://192.168.2.134/api/health",
+    "https://IP adress/api/health",
     context=context
 ) as response:
     print(response.status)
@@ -958,7 +958,7 @@ Run:
 
 ```bash
 sudo env \
-    LUMS_BASE="https://192.168.2.134" \
+    LUMS_BASE="https://IP adress" \
     LUMS_TOKEN="$(sudo awk -F= '/^LUMS_TOKEN=/{print $2}' /etc/default/lums-agent)" \
     LUMS_CA_FILE="/opt/lums-agent/lums-ca.crt" \
     python3 - <<'PY'
@@ -990,7 +990,7 @@ Enabled: True
 
 ```bash
 sudo env \
-    LUMS_BASE="https://192.168.2.134" \
+    LUMS_BASE="https://IP adress" \
     LUMS_TOKEN="$(sudo awk -F= '/^LUMS_TOKEN=/{print $2}' /etc/default/lums-agent)" \
     LUMS_CA_FILE="/opt/lums-agent/lums-ca.crt" \
     python3 /opt/lums-agent/agent.py
@@ -1160,8 +1160,8 @@ The installation is complete when:
 
 For daily operation continue with:
 
-[`ADMINISTRATION.md`](ADMINISTRATION.md)
+[`administration.md`](administration.md)
 
 For problems:
 
-[`TROUBLESHOOTING.md`](TROUBLESHOOTING.md)
+[`troubleshooting.md`](troubleshooting.md)
