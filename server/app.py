@@ -18,6 +18,8 @@ from security import (
     current_user_id,
     login_required,
     csrf_required,
+    client_auth_required,
+    authenticated_client,
 )
 
 
@@ -39,6 +41,9 @@ configure_session(app)
 DB_PATH = "/var/lib/lums/lums.db"
 
 
+app.config["LUMS_GET_CONNECTION"] = lambda: get_connection()
+
+
 @app.after_request
 def security_headers(response):
     return apply_security_headers(response)
@@ -58,7 +63,7 @@ def get_connection():
 # CLIENT REPORT
 # ============================================================
 
-def save_client(data):
+def save_client(client_id, data):
 
     connection = get_connection()
     cursor = connection.cursor()
@@ -66,24 +71,15 @@ def save_client(data):
     last_seen = datetime.now(timezone.utc).isoformat()
 
     cursor.execute("""
-        INSERT INTO clients (
-            hostname,
-            ip,
-            os,
-            kernel,
-            architecture,
-            agent_version,
-            last_seen
-        )
-        VALUES (?, ?, ?, ?, ?, ?, ?)
-
-        ON CONFLICT(hostname) DO UPDATE SET
-            ip = excluded.ip,
-            os = excluded.os,
-            kernel = excluded.kernel,
-            architecture = excluded.architecture,
-            agent_version = excluded.agent_version,
-            last_seen = excluded.last_seen
+        UPDATE clients
+        SET hostname = ?,
+            ip = ?,
+            os = ?,
+            kernel = ?,
+            architecture = ?,
+            agent_version = ?,
+            last_seen = ?
+        WHERE id = ?
     """, (
         data.get("hostname"),
         data.get("ip"),
@@ -91,25 +87,14 @@ def save_client(data):
         data.get("kernel"),
         data.get("architecture"),
         data.get("agent_version"),
-        last_seen
+        last_seen,
+        client_id
     ))
 
     connection.commit()
-
-    cursor.execute(
-        "SELECT id FROM clients WHERE hostname = ?",
-        (data.get("hostname"),)
-    )
-
-    row = cursor.fetchone()
-
     connection.close()
 
-    if row:
-        return row["id"]
-
-    return None
-
+    return client_id
 
 def save_updates(client_id, updates):
 
@@ -339,7 +324,10 @@ def index():
 @login_required
 def client_page():
 
-    return render_template("client.html")
+    return render_template(
+        "client.html",
+        csrf_token=get_csrf_token(),
+    )
 
 
 # ============================================================
@@ -360,7 +348,10 @@ def health():
 # ============================================================
 
 @app.route("/api/report", methods=["POST"])
+@client_auth_required
 def report():
+
+    client = authenticated_client()
 
     data = request.get_json()
 
@@ -371,7 +362,10 @@ def report():
             "message": "No JSON data received"
         }), 400
 
-    client_id = save_client(data)
+    client_id = save_client(
+        client["id"],
+        data
+    )
 
     if client_id is not None:
 
@@ -395,6 +389,23 @@ def report():
 
     return jsonify({
         "status": "received"
+    })
+
+
+# ============================================================
+# AUTHENTICATED CLIENT
+# ============================================================
+
+@app.route("/api/client/me", methods=["GET"])
+@client_auth_required
+def client_me():
+
+    client = authenticated_client()
+
+    return jsonify({
+        "id": client["id"],
+        "hostname": client["hostname"],
+        "enabled": bool(client["enabled"])
     })
 
 
@@ -805,7 +816,10 @@ def client_update_jobs(client_id):
 # ============================================================
 
 @app.route("/api/update-jobs/<int:job_id>/result", methods=["POST"])
+@client_auth_required
 def update_job_result(job_id):
+    client = authenticated_client()
+
     data = request.get_json(silent=True) or {}
 
     status = data.get("status")
@@ -833,6 +847,12 @@ def update_job_result(job_id):
         return jsonify({
             "error": "job not found"
         }), 404
+
+    if job["client_id"] != client["id"]:
+        conn.close()
+        return jsonify({
+            "error": "client_access_denied"
+        }), 403
 
     now = datetime.now(timezone.utc).isoformat()
 
@@ -929,7 +949,15 @@ def update_job_result(job_id):
     "/api/clients/<int:client_id>/update-jobs/pending",
     methods=["GET"]
 )
+@client_auth_required
 def claim_pending_update_job(client_id):
+
+    client = authenticated_client()
+
+    if client["id"] != client_id:
+        return jsonify({
+            "error": "client_access_denied"
+        }), 403
 
     connection = get_connection()
 

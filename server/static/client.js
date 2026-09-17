@@ -623,7 +623,12 @@ async function createUpdateJob() {
 
                     headers: {
                         "Content-Type":
-                            "application/json"
+                            "application/json",
+
+                        "X-CSRF-Token":
+                            document.querySelector(
+                                'meta[name="csrf-token"]'
+                            ).content
                     },
 
                     body: JSON.stringify({

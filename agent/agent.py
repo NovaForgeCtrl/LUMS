@@ -4,6 +4,7 @@ import json
 import os
 import platform
 import socket
+import ssl
 import subprocess
 import urllib.error
 import urllib.request
@@ -13,6 +14,27 @@ AGENT_VERSION = "1.3.0"
 
 LUMS_BASE = os.environ.get("LUMS_BASE", "http://127.0.0.1:5000")
 LUMS_REPORT_API = f"{LUMS_BASE}/api/report"
+LUMS_TOKEN = os.environ.get("LUMS_TOKEN", "")
+LUMS_CA_FILE = os.environ.get(
+    "LUMS_CA_FILE",
+    "/opt/lums-agent/lums-ca.crt"
+)
+
+LUMS_SSL_CONTEXT = ssl.create_default_context(
+    cafile=LUMS_CA_FILE
+)
+
+
+def get_auth_headers():
+    if not LUMS_TOKEN:
+        raise RuntimeError(
+            "LUMS_TOKEN ist nicht gesetzt."
+        )
+
+    return {
+        "Authorization": f"Bearer {LUMS_TOKEN}"
+    }
+
 
 PACKAGE_TIMEOUT = 900
 
@@ -120,42 +142,36 @@ def send_report(data):
         LUMS_REPORT_API,
         data=payload,
         headers={
-            "Content-Type": "application/json"
+            "Content-Type": "application/json",
+            **get_auth_headers()
         },
         method="POST"
     )
 
     with urllib.request.urlopen(
         request,
-        timeout=10
+        timeout=10,
+        context=LUMS_SSL_CONTEXT
     ) as response:
 
         return response.read().decode("utf-8")
 
 
 def get_client():
-    hostname = socket.gethostname()
-
     request = urllib.request.Request(
-        f"{LUMS_BASE}/api/clients"
+        f"{LUMS_BASE}/api/client/me",
+        headers=get_auth_headers()
     )
 
     with urllib.request.urlopen(
         request,
-        timeout=10
+        timeout=10,
+        context=LUMS_SSL_CONTEXT
     ) as response:
 
-        clients = json.loads(
+        return json.loads(
             response.read().decode("utf-8")
         )
-
-    for client in clients:
-
-        if client.get("hostname") == hostname:
-            return client
-
-    return None
-
 
 def get_pending_job(client_id):
     url = (
@@ -163,13 +179,17 @@ def get_pending_job(client_id):
         f"{client_id}/update-jobs/pending"
     )
 
-    request = urllib.request.Request(url)
+    request = urllib.request.Request(
+        url,
+        headers=get_auth_headers()
+    )
 
     try:
 
         with urllib.request.urlopen(
             request,
-            timeout=10
+            timeout=10,
+            context=LUMS_SSL_CONTEXT
         ) as response:
 
             if response.status == 204:
@@ -452,14 +472,16 @@ def send_job_result(
         f"{LUMS_BASE}/api/update-jobs/{job_id}/result",
         data=payload,
         headers={
-            "Content-Type": "application/json"
+            "Content-Type": "application/json",
+            **get_auth_headers()
         },
         method="POST"
     )
 
     with urllib.request.urlopen(
         request,
-        timeout=10
+        timeout=10,
+        context=LUMS_SSL_CONTEXT
     ) as response:
 
         return response.read().decode("utf-8")
@@ -652,6 +674,35 @@ def main():
             return
 
         execute_job(job)
+
+        print()
+        print(
+            "Erfasse aktuellen Systemstatus nach dem Update..."
+        )
+
+        updated_data = collect_data()
+
+        print(
+            f"Updates nach dem Update: {len(updated_data['updates'])}"
+        )
+
+        print(
+            "Sende aktualisierten Report an LUMS01..."
+        )
+
+        try:
+
+            response = send_report(updated_data)
+
+            print(
+                f"LUMS API: {response}"
+            )
+
+        except Exception as error:
+
+            print(
+                f"Fehler beim Senden des aktualisierten Reports: {error}"
+            )
 
     except Exception as error:
 

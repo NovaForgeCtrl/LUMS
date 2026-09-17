@@ -1,0 +1,11 @@
+[Unit]
+Description=LUMS Linux Update Management Agent Timer
+
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=15min
+Unit=lums-agent.service
+Persistent=true
+
+[Install]
+WantedBy=timers.target
