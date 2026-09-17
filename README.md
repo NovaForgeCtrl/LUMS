@@ -161,7 +161,7 @@ The complete installation procedure is documented separately.
 
 **Start here:**
 
-➡️ [`INSTALL.md`](INSTALL.md)
+➡️ [`install.md`](install.md)
 
 The installation guide is intentionally written for users with little or no Linux experience.
 
@@ -185,7 +185,7 @@ It explains:
 
 After installation, use:
 
-➡️ [`ADMINISTRATION.md`](ADMINISTRATION.md)
+➡️ [`administration.md`](administration.md)
 
 The administration guide covers:
 
@@ -209,7 +209,7 @@ The administration guide covers:
 
 If something does not work:
 
-➡️ [`TROUBLESHOOTING.md`](TROUBLESHOOTING.md)
+➡️ [`troubleshooting.md`](troubleshooting.md)
 
 The troubleshooting guide follows the LUMS architecture from the inside out:
 
@@ -538,6 +538,6 @@ See [`LICENSE`](LICENSE).
 | Document                                   | Purpose               |
 | ------------------------------------------ | --------------------- |
 | [`README.md`](README.md)                   | Project overview      |
-| [`INSTALL.md`](INSTALL.md)                 | Complete installation |
-| [`ADMINISTRATION.md`](ADMINISTRATION.md)   | Daily administration  |
-| [`TROUBLESHOOTING.md`](TROUBLESHOOTING.md) | Troubleshooting       |
+| [`INSTALL.md`](install.md)                 | Complete installation |
+| [`ADMINISTRATION.md`](administration.md)   | Daily administration  |
+| [`TROUBLESHOOTING.md`](troubleshooting.md) | Troubleshooting       |
