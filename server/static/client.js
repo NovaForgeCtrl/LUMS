@@ -1245,6 +1245,84 @@ document
 
 
 /*
+ * Client entfernen
+ */
+async function deleteClient() {
+
+    const hostname =
+        document.getElementById("hostname").textContent.trim();
+
+    const confirmed = window.confirm(
+        `Client "${hostname}" wirklich entfernen?\n\n` +
+        "Der Client kann anschließend erneut angelegt werden."
+    );
+
+    if (!confirmed) {
+        return;
+    }
+
+    const button =
+        document.getElementById("delete-client-button");
+
+    button.disabled = true;
+    button.textContent = "Wird entfernt...";
+
+    try {
+
+        const csrfToken =
+            document.querySelector('meta[name="csrf-token"]')?.content;
+
+        if (!csrfToken) {
+            throw new Error("CSRF-Token konnte nicht gefunden werden.");
+        }
+
+        const response =
+            await fetch(`/api/clients/${clientId}`, {
+                method: "DELETE",
+                headers: {
+                    "X-CSRF-Token": csrfToken
+                }
+            });
+
+        const data =
+            await response.json();
+
+        if (!response.ok) {
+            throw new Error(
+                data.error || "Client konnte nicht entfernt werden."
+            );
+        }
+
+        window.location.href = "/";
+
+    } catch (error) {
+
+        console.error(error);
+
+        alert(
+            "Client konnte nicht entfernt werden.\n\n" +
+            error.message
+        );
+
+        button.disabled = false;
+        button.textContent = "🗑️ Client entfernen";
+    }
+}
+
+
+const deleteClientButton =
+    document.getElementById("delete-client-button");
+
+if (deleteClientButton) {
+
+    deleteClientButton.addEventListener(
+        "click",
+        deleteClient
+    );
+}
+
+
+/*
  * Start
  */
 if (!clientId) {

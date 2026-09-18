@@ -336,6 +336,337 @@ function escapeHtml(value) {
 
 
 
+/* =========================================================
+   LUMS Client Management
+   ========================================================= */
+
+function openAddClientDialog() {
+
+    const dialog =
+        document.getElementById("add-client-dialog");
+
+    const form =
+        document.getElementById("add-client-form");
+
+    const error =
+        document.getElementById("add-client-error");
+
+    const tokenResult =
+        document.getElementById("client-token-result");
+
+    const hostname =
+        document.getElementById("client-hostname");
+
+    dialog.hidden = false;
+
+    form.hidden = false;
+    tokenResult.hidden = true;
+
+    error.hidden = true;
+    error.textContent = "";
+
+    hostname.value = "";
+    hostname.focus();
+}
+
+
+
+function closeAddClientDialog() {
+
+    const dialog =
+        document.getElementById("add-client-dialog");
+
+    const form =
+        document.getElementById("add-client-form");
+
+    const error =
+        document.getElementById("add-client-error");
+
+    const tokenResult =
+        document.getElementById("client-token-result");
+
+    const token =
+        document.getElementById("client-token");
+
+    dialog.hidden = true;
+
+    form.hidden = false;
+
+    tokenResult.hidden = true;
+
+    error.hidden = true;
+    error.textContent = "";
+
+    token.textContent = "";
+
+    form.reset();
+}
+
+
+
+function showAddClientError(message) {
+
+    const error =
+        document.getElementById("add-client-error");
+
+    error.textContent = message;
+    error.hidden = false;
+}
+
+
+
+async function createClient(event) {
+
+    event.preventDefault();
+
+    const ip =
+        document
+            .getElementById("client-ip")
+            .value
+            .trim();
+
+    if (!ip) {
+
+        showAddClientError(
+            "Bitte eine IP-Adresse eingeben."
+        );
+
+        return;
+
+    }
+
+    const csrfToken =
+        document.querySelector(
+            'meta[name="csrf-token"]'
+        )?.content;
+
+    if (!csrfToken) {
+
+        showAddClientError(
+            "CSRF-Token konnte nicht gefunden werden."
+        );
+
+        return;
+
+    }
+
+    const submitButton =
+        document.querySelector(
+            "#add-client-form button[type='submit']"
+        );
+
+    submitButton.disabled = true;
+    submitButton.textContent = "Wird angelegt...";
+
+    try {
+
+        const response =
+            await fetch(
+                "/api/clients",
+                {
+                    method: "POST",
+
+                    headers: {
+                        "Content-Type": "application/json",
+                        "X-CSRF-Token": csrfToken
+                    },
+
+                    body: JSON.stringify({
+                        ip: ip
+                    })
+                }
+            );
+
+        const data =
+            await response.json();
+
+        if (!response.ok) {
+
+            if (
+                response.status === 409 ||
+                data.error === "client_already_exists"
+            ) {
+
+                throw new Error(
+                    "Ein Client mit diesen Daten existiert bereits."
+                );
+
+            }
+
+            throw new Error(
+                data.error ||
+                "Client konnte nicht angelegt werden."
+            );
+
+        }
+
+        document.getElementById(
+            "client-token"
+        ).textContent = data.token;
+
+        document.getElementById(
+            "add-client-form"
+        ).hidden = true;
+
+        document.getElementById(
+            "client-token-result"
+        ).hidden = false;
+
+        document.getElementById(
+            "add-client-error"
+        ).hidden = true;
+
+    } catch (error) {
+
+        console.error(error);
+
+        showAddClientError(
+            error.message
+        );
+
+    } finally {
+
+        submitButton.disabled = false;
+        submitButton.textContent = "Client anlegen";
+
+    }
+}
+
+
+
+async function copyClientToken() {
+
+    const token =
+        document
+            .getElementById("client-token")
+            .textContent
+            .trim();
+
+
+    if (!token) {
+
+        return;
+
+    }
+
+
+    try {
+
+        await navigator.clipboard.writeText(token);
+
+        alert(
+            "Client-Token wurde in die Zwischenablage kopiert."
+        );
+
+    } catch (error) {
+
+        console.error(error);
+
+        alert(
+            "Token konnte nicht automatisch kopiert werden."
+        );
+
+    }
+
+}
+
+
+
+const addClientForm =
+    document.getElementById("add-client-form");
+
+
+if (addClientForm) {
+
+    addClientForm.addEventListener(
+        "submit",
+        createClient
+    );
+
+}
+
+
+const addClientButton =
+    document.getElementById("add-client-button");
+
+if (addClientButton) {
+
+    addClientButton.addEventListener(
+        "click",
+        openAddClientDialog
+    );
+
+}
+
+
+const refreshClientsButton =
+    document.getElementById("refresh-clients-button");
+
+if (refreshClientsButton) {
+
+    refreshClientsButton.addEventListener(
+        "click",
+        loadClients
+    );
+
+}
+
+
+const closeAddClientButton =
+    document.getElementById("close-add-client-button");
+
+if (closeAddClientButton) {
+
+    closeAddClientButton.addEventListener(
+        "click",
+        closeAddClientDialog
+    );
+
+}
+
+
+const cancelAddClientButton =
+    document.getElementById("cancel-add-client-button");
+
+if (cancelAddClientButton) {
+
+    cancelAddClientButton.addEventListener(
+        "click",
+        closeAddClientDialog
+    );
+
+}
+
+
+const copyTokenButton =
+    document.getElementById("copy-client-token-button");
+
+if (copyTokenButton) {
+
+    copyTokenButton.addEventListener(
+        "click",
+        copyClientToken
+    );
+
+}
+
+
+const finishAddClientButton =
+    document.getElementById("finish-add-client-button");
+
+if (finishAddClientButton) {
+
+    finishAddClientButton.addEventListener(
+        "click",
+        () => {
+            closeAddClientDialog();
+            loadClients();
+        }
+    );
+
+}
+
+
 loadClients();
 
 

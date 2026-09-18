@@ -3,6 +3,12 @@
 
 <head>
 
+    <meta
+        name="csrf-token"
+        content="{{ csrf_token }}"
+    >
+
+
     <meta charset="UTF-8">
 
     <meta name="viewport"
@@ -130,11 +136,23 @@
             </div>
 
 
-            <button onclick="loadClients()">
+            <div class="client-actions">
 
-                Aktualisieren
+                <button
+                    type="button"
+                    id="add-client-button"
+                >
+                    ＋ Client hinzufügen
+                </button>
 
-            </button>
+                <button
+                    type="button"
+                    id="refresh-clients-button"
+                >
+                    Aktualisieren
+                </button>
+
+            </div>
 
         </div>
 
@@ -205,6 +223,124 @@
 
 
     </section>
+
+
+    <!-- Add Client Dialog -->
+
+    <div
+        id="add-client-dialog"
+        class="modal"
+        hidden
+    >
+
+        <div class="modal-content">
+
+            <div class="modal-header">
+
+                <div>
+
+                    <h2>Client hinzufügen</h2>
+
+                    <p>
+                        Neues Linux-System bei LUMS registrieren
+                    </p>
+
+                </div>
+
+                <button
+                    type="button"
+                    id="close-add-client-button"
+                    class="modal-close"
+                >
+                    ×
+                </button>
+
+            </div>
+
+
+                        <form id="add-client-form">
+
+                <label for="client-ip">
+                    IP-Adresse
+                </label>
+
+                <input
+                    type="text"
+                    id="client-ip"
+                    name="ip"
+                    placeholder="z. B. 192.168.2.210"
+                    autocomplete="off"
+                    required
+                >
+
+                <div
+                    id="add-client-error"
+                    class="form-error"
+                    hidden
+                ></div>
+
+                <div class="modal-actions">
+
+                    <button
+                        type="button"
+                        id="cancel-add-client-button"
+                    >
+                        Abbrechen
+                    </button>
+
+                    <button
+                        type="submit"
+                        class="button-primary"
+                    >
+                        Client anlegen
+                    </button>
+
+                </div>
+
+            </form>
+
+
+            <div
+                id="client-token-result"
+                hidden
+            >
+
+                <h3>Client-Token</h3>
+
+                <p>
+                    Dieses Token wird nur jetzt angezeigt.
+                    Speichere es für die Konfiguration des Agents.
+                </p>
+
+                <div class="token-box">
+
+                    <code id="client-token"></code>
+
+                    <button
+                        type="button"
+                        id="copy-client-token-button"
+                    >
+                        Kopieren
+                    </button>
+
+                </div>
+
+                <div class="modal-actions">
+
+                    <button
+                        type="button"
+                        id="finish-add-client-button"
+                    >
+                        Fertig
+                    </button>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
 
 
 </main>

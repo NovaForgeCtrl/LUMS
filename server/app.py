@@ -20,6 +20,8 @@ from security import (
     csrf_required,
     client_auth_required,
     authenticated_client,
+    generate_client_token,
+    hash_client_token,
 )
 
 
@@ -329,6 +331,185 @@ def client_page():
         csrf_token=get_csrf_token(),
     )
 
+
+# ============================================================
+# CLIENT MANAGEMENT
+# ============================================================
+
+@app.route("/api/clients", methods=["POST"])
+@login_required
+@csrf_required
+def create_client():
+
+    data = request.get_json(silent=True) or {}
+
+    hostname = str(data.get("hostname", "")).strip() or None
+    ip = str(data.get("ip", "")).strip() or None
+    os_name = str(data.get("os", "")).strip() or None
+    kernel = str(data.get("kernel", "")).strip() or None
+    architecture = str(data.get("architecture", "")).strip() or None
+    agent_version = str(data.get("agent_version", "")).strip() or None
+
+    if not ip:
+        return jsonify({
+            "error": "ip_required"
+        }), 400
+
+    connection = get_connection()
+
+    try:
+        existing = connection.execute(
+            "SELECT id FROM clients WHERE ip = ?",
+            (ip,)
+        ).fetchone()
+
+        if existing:
+            return jsonify({
+                "error": "client_already_exists"
+            }), 409
+
+        token = generate_client_token()
+        token_hash = hash_client_token(token)
+        now = datetime.now(timezone.utc).isoformat()
+
+        cursor = connection.execute(
+            """
+            INSERT INTO clients (
+                hostname,
+                ip,
+                os,
+                kernel,
+                architecture,
+                agent_version,
+                last_seen,
+                client_token_hash,
+                token_created_at,
+                token_revoked_at,
+                enabled
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, 1)
+            """,
+            (
+                hostname,
+                ip,
+                os_name,
+                kernel,
+                architecture,
+                agent_version,
+                now,
+                token_hash,
+                now,
+            )
+        )
+
+        client_id = cursor.lastrowid
+
+        audit_log(
+            connection,
+            actor_type="user",
+            actor_id=current_user_id(),
+            action="client.create",
+            target=f"client:{client_id}",
+            result="success",
+            details=f"hostname={hostname}",
+        )
+
+        connection.commit()
+
+        return jsonify({
+            "status": "created",
+            "client": {
+                "id": client_id,
+                "hostname": hostname,
+                "ip": ip,
+                "os": os_name,
+                "kernel": kernel,
+                "architecture": architecture,
+                "agent_version": agent_version,
+                "enabled": True,
+            },
+            "token": token,
+        }), 201
+
+    except sqlite3.IntegrityError:
+        connection.rollback()
+
+        return jsonify({
+            "error": "client_already_exists"
+        }), 409
+
+    finally:
+        connection.close()
+
+
+
+@app.route("/api/clients/<int:client_id>", methods=["DELETE"])
+@login_required
+@csrf_required
+def delete_client(client_id):
+
+    connection = get_connection()
+
+    try:
+        client = connection.execute(
+            """
+            SELECT id, hostname
+            FROM clients
+            WHERE id = ?
+            """,
+            (client_id,)
+        ).fetchone()
+
+        if client is None:
+            return jsonify({
+                "error": "client_not_found"
+            }), 404
+
+        # Remove current client state first.
+        connection.execute(
+            "DELETE FROM available_updates WHERE client_id = ?",
+            (client_id,)
+        )
+
+        connection.execute(
+            "DELETE FROM installed_packages WHERE client_id = ?",
+            (client_id,)
+        )
+
+        # Historical update information remains available.
+        # The client itself is removed from active client management.
+        connection.execute(
+            "DELETE FROM clients WHERE id = ?",
+            (client_id,)
+        )
+
+        audit_log(
+            connection,
+            actor_type="user",
+            actor_id=current_user_id(),
+            action="client.delete",
+            target=f"client:{client_id}",
+            result="success",
+            details=f"hostname={client['hostname']}",
+        )
+
+        connection.commit()
+
+        return jsonify({
+            "status": "deleted",
+            "client_id": client_id,
+            "hostname": client["hostname"],
+        }), 200
+
+    except sqlite3.IntegrityError:
+        connection.rollback()
+
+        return jsonify({
+            "error": "client_has_dependencies"
+        }), 409
+
+    finally:
+        connection.close()
 
 # ============================================================
 # HEALTH
