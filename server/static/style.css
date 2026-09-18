@@ -2738,32 +2738,32 @@ button:active {
    Standard LUMS remains the original design.
    ============================================================ */
 
-/* ---------- NFL STADIUM ---------- */
+/* ---------- LUMSStadium STADIUM ---------- */
 
-html[data-theme="nfl"] .login-page {
+html[data-theme="LUMSStadium"] .login-page {
     background:
         radial-gradient(circle at 50% 0%, #183a24 0%, #0b1710 48%, #050807 100%);
 }
 
-html[data-theme="nfl"] .login-page::before {
+html[data-theme="LUMSStadium"] .login-page::before {
     opacity: 0.12;
     background-size: 32px 32px;
 }
 
-html[data-theme="nfl"] .login-brand-main {
+html[data-theme="LUMSStadium"] .login-brand-main {
     color: #f4f4f4;
     text-shadow: 0 0 18px rgba(255,255,255,0.15);
 }
 
-html[data-theme="nfl"] .login-brand-main span {
+html[data-theme="LUMSStadium"] .login-brand-main span {
     color: #d6a928;
 }
 
-html[data-theme="nfl"] .login-brand-sub {
+html[data-theme="LUMSStadium"] .login-brand-sub {
     color: #9ab79f;
 }
 
-html[data-theme="nfl"] .login-card {
+html[data-theme="LUMSStadium"] .login-card {
     background: rgba(8, 20, 12, 0.94);
     border-color: #31583b;
     box-shadow:
@@ -2771,40 +2771,40 @@ html[data-theme="nfl"] .login-card {
         0 0 35px rgba(28,105,55,0.15);
 }
 
-html[data-theme="nfl"] .login-card-header {
+html[data-theme="LUMSStadium"] .login-card-header {
     color: #d6a928;
 }
 
-html[data-theme="nfl"] .login-status-dot {
+html[data-theme="LUMSStadium"] .login-status-dot {
     background: #39d353;
     box-shadow: 0 0 12px rgba(57,211,83,0.7);
 }
 
-html[data-theme="nfl"] .login-field label {
+html[data-theme="LUMSStadium"] .login-field label {
     color: #a9c3ae;
 }
 
-html[data-theme="nfl"] .login-field input {
+html[data-theme="LUMSStadium"] .login-field input {
     background: #071009;
     border-color: #31583b;
 }
 
-html[data-theme="nfl"] .login-field input:focus {
+html[data-theme="LUMSStadium"] .login-field input:focus {
     border-color: #d6a928;
     box-shadow: 0 0 0 3px rgba(214,169,40,0.12);
 }
 
-html[data-theme="nfl"] .login-button {
+html[data-theme="LUMSStadium"] .login-button {
     background: #d6a928;
     border-color: #d6a928;
     color: #101010;
 }
 
-html[data-theme="nfl"] .login-button:hover {
+html[data-theme="LUMSStadium"] .login-button:hover {
     background: #edc34b;
 }
 
-html[data-theme="nfl"] .login-footer {
+html[data-theme="LUMSStadium"] .login-footer {
     border-color: #27452f;
     color: #69806e;
 }
@@ -3114,7 +3114,7 @@ html[data-theme="admin"] .login-footer {
 
 /* ---------- THEME SELECTOR ADAPTATION ---------- */
 
-html[data-theme="nfl"] .login-theme-selector select {
+html[data-theme="LUMSStadium"] .login-theme-selector select {
     background: #09130c;
     border-color: #31583b;
     color: #d6a928;
@@ -3151,51 +3151,51 @@ html[data-theme="admin"] .login-theme-selector select {
    Theme is selected on login and persisted via localStorage.
    ============================================================ */
 
-/* ---------- NFL STADIUM ---------- */
+/* ---------- LUMSStadium STADIUM ---------- */
 
-html[data-theme="nfl"] body {
+html[data-theme="LUMSStadium"] body {
     background: #07120b;
     color: #e8efe9;
 }
 
-html[data-theme="nfl"] .topbar {
+html[data-theme="LUMSStadium"] .topbar {
     background: #0b2414;
     box-shadow: 0 2px 12px rgba(0,0,0,0.35);
 }
 
-html[data-theme="nfl"] .topbar span {
+html[data-theme="LUMSStadium"] .topbar span {
     color: #9ab79f;
 }
 
-html[data-theme="nfl"] .card,
-html[data-theme="nfl"] .panel {
+html[data-theme="LUMSStadium"] .card,
+html[data-theme="LUMSStadium"] .panel {
     background: #102116;
     color: #e8efe9;
     border: 1px solid #27452f;
     box-shadow: 0 3px 12px rgba(0,0,0,0.35);
 }
 
-html[data-theme="nfl"] .card-title,
-html[data-theme="nfl"] .panel-header p,
-html[data-theme="nfl"] th {
+html[data-theme="LUMSStadium"] .card-title,
+html[data-theme="LUMSStadium"] .panel-header p,
+html[data-theme="LUMSStadium"] th {
     color: #9ab79f;
 }
 
-html[data-theme="nfl"] .panel-header,
-html[data-theme="nfl"] td {
+html[data-theme="LUMSStadium"] .panel-header,
+html[data-theme="LUMSStadium"] td {
     border-color: #27452f;
 }
 
-html[data-theme="nfl"] th {
+html[data-theme="LUMSStadium"] th {
     background: #0b1a10;
 }
 
-html[data-theme="nfl"] button {
+html[data-theme="LUMSStadium"] button {
     background: #d6a928;
     color: #101010;
 }
 
-html[data-theme="nfl"] button:hover {
+html[data-theme="LUMSStadium"] button:hover {
     background: #edc34b;
 }
 
@@ -3405,9 +3405,9 @@ html[data-theme="admin"] button:hover {
    Standard LUMS remains completely untouched.
    ============================================================ */
 
-/* ---------- NFL STADIUM // GAME DAY ---------- */
+/* ---------- LUMSStadium STADIUM // GAME DAY ---------- */
 
-html[data-theme="nfl"] body {
+html[data-theme="LUMSStadium"] body {
     background:
         linear-gradient(rgba(8,25,14,0.88), rgba(3,10,6,0.96)),
         repeating-linear-gradient(
@@ -3420,7 +3420,7 @@ html[data-theme="nfl"] body {
         #07120b;
 }
 
-html[data-theme="nfl"] body::before {
+html[data-theme="LUMSStadium"] body::before {
     content: "";
     position: fixed;
     inset: 0;
@@ -3441,26 +3441,26 @@ html[data-theme="nfl"] body::before {
     z-index: -1;
 }
 
-html[data-theme="nfl"] .topbar {
+html[data-theme="LUMSStadium"] .topbar {
     position: relative;
     background:
         linear-gradient(90deg, #07170d, #12351d, #07170d);
     border-bottom: 3px solid #d6a928;
 }
 
-html[data-theme="nfl"] .topbar h1 {
+html[data-theme="LUMSStadium"] .topbar h1 {
     letter-spacing: 1px;
     text-transform: uppercase;
 }
 
-html[data-theme="nfl"] .card,
-html[data-theme="nfl"] .panel {
+html[data-theme="LUMSStadium"] .card,
+html[data-theme="LUMSStadium"] .panel {
     position: relative;
     overflow: hidden;
 }
 
-html[data-theme="nfl"] .card::before,
-html[data-theme="nfl"] .panel::before {
+html[data-theme="LUMSStadium"] .card::before,
+html[data-theme="LUMSStadium"] .panel::before {
     content: "";
     position: absolute;
     top: 0;
@@ -3470,11 +3470,11 @@ html[data-theme="nfl"] .panel::before {
     background: #d6a928;
 }
 
-html[data-theme="nfl"] .card-value {
+html[data-theme="LUMSStadium"] .card-value {
     color: #f0c94f;
 }
 
-html[data-theme="nfl"] .status-dot {
+html[data-theme="LUMSStadium"] .status-dot {
     box-shadow: 0 0 14px rgba(57,211,83,0.85);
 }
 
@@ -3698,16 +3698,16 @@ html[data-theme="admin"] .server-status {
 }
 
 /* ============================================================
-   NFL STADIUM // ANIMATION PACK
+   LUMSStadium STADIUM // ANIMATION PACK
    ============================================================ */
 
-html[data-theme="nfl"] body {
+html[data-theme="LUMSStadium"] body {
     position: relative;
     overflow-x: hidden;
 }
 
 /* Moving stadium light */
-html[data-theme="nfl"] body::after {
+html[data-theme="LUMSStadium"] body::after {
     content: "";
     position: fixed;
     inset: -20%;
@@ -3723,22 +3723,22 @@ html[data-theme="nfl"] body::after {
             transparent 62%
         );
     transform: translateX(-35%);
-    animation: nfl-stadium-light 9s ease-in-out infinite;
+    animation: LUMSStadium-stadium-light 9s ease-in-out infinite;
 }
 
 /* Game-day glow */
-html[data-theme="nfl"] .topbar {
-    animation: nfl-scoreboard-pulse 4s ease-in-out infinite;
+html[data-theme="LUMSStadium"] .topbar {
+    animation: LUMSStadium-scoreboard-pulse 4s ease-in-out infinite;
 }
 
 /* Stadium cards */
-html[data-theme="nfl"] .card,
-html[data-theme="nfl"] .panel {
-    animation: nfl-card-enter 0.55s ease-out both;
+html[data-theme="LUMSStadium"] .card,
+html[data-theme="LUMSStadium"] .panel {
+    animation: LUMSStadium-card-enter 0.55s ease-out both;
 }
 
-html[data-theme="nfl"] .card:hover,
-html[data-theme="nfl"] .panel:hover {
+html[data-theme="LUMSStadium"] .card:hover,
+html[data-theme="LUMSStadium"] .panel:hover {
     transform: translateY(-3px);
     box-shadow:
         0 8px 24px rgba(0,0,0,0.35),
@@ -3749,17 +3749,17 @@ html[data-theme="nfl"] .panel:hover {
 }
 
 /* Stadium status light */
-html[data-theme="nfl"] .status-dot {
-    animation: nfl-status-light 1.8s ease-in-out infinite;
+html[data-theme="LUMSStadium"] .status-dot {
+    animation: LUMSStadium-status-light 1.8s ease-in-out infinite;
 }
 
 /* Scoreboard-style value pulse */
-html[data-theme="nfl"] .card-value {
-    animation: nfl-score-pulse 3s ease-in-out infinite;
+html[data-theme="LUMSStadium"] .card-value {
+    animation: LUMSStadium-score-pulse 3s ease-in-out infinite;
 }
 
 /* Yard-line movement */
-html[data-theme="nfl"] .container::before {
+html[data-theme="LUMSStadium"] .container::before {
     content: "";
     position: absolute;
     left: 50%;
@@ -3771,14 +3771,14 @@ html[data-theme="nfl"] .container::before {
         -120px 0 rgba(214,169,40,0.05),
         120px 0 rgba(214,169,40,0.05);
     pointer-events: none;
-    animation: nfl-yard-lines 5s ease-in-out infinite;
+    animation: LUMSStadium-yard-lines 5s ease-in-out infinite;
 }
 
 /* ------------------------------------------------------------
-   NFL KEYFRAMES
+   LUMSStadium KEYFRAMES
    ------------------------------------------------------------ */
 
-@keyframes nfl-stadium-light {
+@keyframes LUMSStadium-stadium-light {
     0% {
         transform: translateX(-35%) rotate(0deg);
         opacity: 0;
@@ -3803,7 +3803,7 @@ html[data-theme="nfl"] .container::before {
     }
 }
 
-@keyframes nfl-scoreboard-pulse {
+@keyframes LUMSStadium-scoreboard-pulse {
     0%, 100% {
         box-shadow:
             0 2px 8px rgba(0,0,0,0.35),
@@ -3817,7 +3817,7 @@ html[data-theme="nfl"] .container::before {
     }
 }
 
-@keyframes nfl-card-enter {
+@keyframes LUMSStadium-card-enter {
     from {
         opacity: 0;
         transform: translateY(12px);
@@ -3829,7 +3829,7 @@ html[data-theme="nfl"] .container::before {
     }
 }
 
-@keyframes nfl-status-light {
+@keyframes LUMSStadium-status-light {
     0%, 100% {
         opacity: 1;
         box-shadow:
@@ -3843,7 +3843,7 @@ html[data-theme="nfl"] .container::before {
     }
 }
 
-@keyframes nfl-score-pulse {
+@keyframes LUMSStadium-score-pulse {
     0%, 100% {
         text-shadow: 0 0 0 rgba(214,169,40,0);
     }
@@ -3854,7 +3854,7 @@ html[data-theme="nfl"] .container::before {
     }
 }
 
-@keyframes nfl-yard-lines {
+@keyframes LUMSStadium-yard-lines {
     0%, 100% {
         opacity: 0.35;
         transform: translate(-50%, 0);
@@ -3872,18 +3872,18 @@ html[data-theme="nfl"] .container::before {
 
 @media (prefers-reduced-motion: reduce) {
 
-    html[data-theme="nfl"] body::after,
-    html[data-theme="nfl"] .topbar,
-    html[data-theme="nfl"] .card,
-    html[data-theme="nfl"] .panel,
-    html[data-theme="nfl"] .status-dot,
-    html[data-theme="nfl"] .card-value,
-    html[data-theme="nfl"] .container::before {
+    html[data-theme="LUMSStadium"] body::after,
+    html[data-theme="LUMSStadium"] .topbar,
+    html[data-theme="LUMSStadium"] .card,
+    html[data-theme="LUMSStadium"] .panel,
+    html[data-theme="LUMSStadium"] .status-dot,
+    html[data-theme="LUMSStadium"] .card-value,
+    html[data-theme="LUMSStadium"] .container::before {
         animation: none !important;
     }
 
-    html[data-theme="nfl"] .card:hover,
-    html[data-theme="nfl"] .panel:hover {
+    html[data-theme="LUMSStadium"] .card:hover,
+    html[data-theme="LUMSStadium"] .panel:hover {
         transform: none;
     }
 }
@@ -3894,12 +3894,12 @@ html[data-theme="nfl"] .container::before {
    Pure CSS animation - no external assets
    ============================================================ */
 
-html[data-theme="nfl"] .topbar {
+html[data-theme="LUMSStadium"] .topbar {
     position: relative;
     overflow: hidden;
 }
 
-html[data-theme="nfl"] .topbar::after {
+html[data-theme="LUMSStadium"] .topbar::after {
     content: "🏈";
     position: absolute;
     left: -80px;
@@ -3973,7 +3973,7 @@ html[data-theme="nfl"] .topbar::after {
 
 @media (prefers-reduced-motion: reduce) {
 
-    html[data-theme="nfl"] .topbar::after {
+    html[data-theme="LUMSStadium"] .topbar::after {
         animation: none !important;
         opacity: 0 !important;
     }
@@ -3984,7 +3984,7 @@ html[data-theme="nfl"] .topbar::after {
    LUMS STADIUM // IMAGE BACKGROUND
    ============================================================ */
 
-html[data-theme="nfl"] body {
+html[data-theme="LUMSStadium"] body {
     background:
         #07120b
         url("/static/images/lumsstadium.jpg")
@@ -3993,7 +3993,7 @@ html[data-theme="nfl"] body {
         no-repeat;
 }
 
-html[data-theme="nfl"] body::before {
+html[data-theme="LUMSStadium"] body::before {
     background:
         linear-gradient(
             rgba(4, 12, 22, 0.30),
@@ -4018,11 +4018,11 @@ html[data-theme="nfl"] body::before {
    LUMS STADIUM // GAMEDAY TITLE
    ============================================================ */
 
-html[data-theme="nfl"] .topbar {
+html[data-theme="LUMSStadium"] .topbar {
     position: relative;
 }
 
-html[data-theme="nfl"] .gameday-title {
+html[data-theme="LUMSStadium"] .gameday-title {
     position: absolute;
     left: 50%;
     top: 50%;
@@ -4044,17 +4044,17 @@ html[data-theme="nfl"] .gameday-title {
 
 
 /* GAMEDAY above stadium effects */
-html[data-theme="nfl"] .topbar {
+html[data-theme="LUMSStadium"] .topbar {
     z-index: 1000;
 }
 
-html[data-theme="nfl"] .gameday-title {
+html[data-theme="LUMSStadium"] .gameday-title {
     z-index: 1001;
 }
 
 
 /* GAMEDAY aligned with LUMS title */
-html[data-theme="nfl"] .gameday-title {
+html[data-theme="LUMSStadium"] .gameday-title {
     top: 18px;
     transform: translateX(-50%);
 }
@@ -4081,7 +4081,7 @@ html[data-theme="golf"] body {
    LUMS THEME DAY TITLES
    ============================================================ */
 
-html[data-theme="nfl"] .theme-day-title::after {
+html[data-theme="LUMSStadium"] .theme-day-title::after {
     content: "GAMEDAY";
 }
 
@@ -4089,7 +4089,7 @@ html[data-theme="golf"] .theme-day-title::after {
     content: "CLUB DAY";
 }
 
-html[data-theme="nfl"] .theme-day-title,
+html[data-theme="LUMSStadium"] .theme-day-title,
 html[data-theme="golf"] .theme-day-title {
     position: absolute;
     left: 50%;
@@ -4111,7 +4111,7 @@ html[data-theme="golf"] .theme-day-title {
     white-space: nowrap;
 }
 
-html[data-theme="nfl"] .topbar,
+html[data-theme="LUMSStadium"] .topbar,
 html[data-theme="golf"] .topbar {
     position: relative;
     z-index: 1000;
