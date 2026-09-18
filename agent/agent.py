@@ -156,7 +156,7 @@ def send_report(data):
         data=payload,
         headers=get_auth_headers({
             "Content-Type": "application/json"
-        })
+        }),
         method="POST"
     )
 
@@ -485,7 +485,7 @@ def send_job_result(
         data=payload,
         headers=get_auth_headers({
             "Content-Type": "application/json"
-        })
+        }),
         method="POST"
     )
 
