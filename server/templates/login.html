@@ -27,6 +27,18 @@
             </div>
         </div>
 
+        <div class="login-theme-selector">
+            <label for="login-theme-select">Theme</label>
+            <select id="login-theme-select">
+                <option value="standard">🖥️ Standard LUMS</option>
+                <option value="nfl">🏈 LUMS Stadium</option>
+                <option value="golf">⛳ Golf Club</option>
+                <option value="nerd">🤓 Nerd Mode</option>
+                <option value="geek">🧠 Geek Lab</option>
+                <option value="admin">🗄️ Enterprise Admin</option>
+            </select>
+        </div>
+
         <section class="login-card">
 
             <div class="login-card-header">
@@ -92,6 +104,10 @@
         </section>
 
     </main>
+
+    <script
+        src="{{ url_for('static', filename='theme.js') }}"
+    ></script>
 
 </body>
 </html>
