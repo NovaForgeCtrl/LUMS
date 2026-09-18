@@ -17,7 +17,7 @@ cursor = connection.cursor()
 cursor.execute("""
 CREATE TABLE IF NOT EXISTS clients (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    hostname TEXT NOT NULL UNIQUE,
+    hostname TEXT UNIQUE,
     ip TEXT,
     os TEXT,
     kernel TEXT,

@@ -12,9 +12,20 @@ import urllib.request
 
 AGENT_VERSION = "1.3.0"
 
-LUMS_BASE = os.environ.get("LUMS_BASE", "http://127.0.0.1:5000")
+LUMS_BASE = os.environ.get(
+    "LUMS_BASE",
+    "http://127.0.0.1:5000"
+)
+
+LUMS_TOKEN = os.environ.get(
+    "LUMS_TOKEN",
+    ""
+)
+
 LUMS_REPORT_API = f"{LUMS_BASE}/api/report"
-LUMS_TOKEN = os.environ.get("LUMS_TOKEN", "")
+
+PACKAGE_TIMEOUT = 900
+
 LUMS_CA_FILE = os.environ.get(
     "LUMS_CA_FILE",
     "/opt/lums-agent/lums-ca.crt"
@@ -25,18 +36,20 @@ LUMS_SSL_CONTEXT = ssl.create_default_context(
 )
 
 
-def get_auth_headers():
+def get_auth_headers(extra=None):
     if not LUMS_TOKEN:
         raise RuntimeError(
             "LUMS_TOKEN ist nicht gesetzt."
         )
 
-    return {
+    headers = {
         "Authorization": f"Bearer {LUMS_TOKEN}"
     }
 
+    if extra:
+        headers.update(extra)
 
-PACKAGE_TIMEOUT = 900
+    return headers
 
 
 def get_ip():
@@ -141,10 +154,9 @@ def send_report(data):
     request = urllib.request.Request(
         LUMS_REPORT_API,
         data=payload,
-        headers={
-            "Content-Type": "application/json",
-            **get_auth_headers()
-        },
+        headers=get_auth_headers({
+            "Content-Type": "application/json"
+        })
         method="POST"
     )
 
@@ -471,10 +483,9 @@ def send_job_result(
     request = urllib.request.Request(
         f"{LUMS_BASE}/api/update-jobs/{job_id}/result",
         data=payload,
-        headers={
-            "Content-Type": "application/json",
-            **get_auth_headers()
-        },
+        headers=get_auth_headers({
+            "Content-Type": "application/json"
+        })
         method="POST"
     )
 
