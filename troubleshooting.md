@@ -1,30 +1,52 @@
 # LUMS Troubleshooting Guide
 
-## Linux Update Management Server
+> **Linux Update Management Server**
+>
+> A practical troubleshooting guide for diagnosing LUMS server, agent, authentication, TLS, database, Git and update-management problems.
 
-This document helps diagnose common LUMS problems.
+---
 
-The most important rule is:
+## Golden Rule
 
 > **Do not reinstall everything immediately. Find the layer where the problem occurs.**
+
+LUMS consists of several independent components. A failure in one layer does not necessarily mean that the entire system is broken.
+
+The recommended approach is:
+
+```text
+Observe
+   ↓
+Measure
+   ↓
+Identify the failing layer
+   ↓
+Change one thing
+   ↓
+Test again
+   ↓
+Document the result
+```
 
 ---
 
 # 1. Troubleshooting Strategy
 
-LUMS consists of several layers:
+The current LUMS architecture looks like this:
 
 ```text
 ┌───────────────────────────┐
 │        Web Browser        │
 └─────────────┬─────────────┘
               │
+              │ HTTPS :443
               ▼
 ┌───────────────────────────┐
-│          HTTPS            │
-│         Nginx :443        │
+│          Nginx            │
+│      TLS / Reverse Proxy  │
 └─────────────┬─────────────┘
               │
+              │ HTTP
               ▼
 ┌───────────────────────────┐
 │          Flask            │
@@ -34,12 +56,13 @@ LUMS consists of several layers:
               ▼
 ┌───────────────────────────┐
 │          SQLite           │
+│    /var/lib/lums/lums.db  │
 └───────────────────────────┘
+
 
               ▲
               │
-        HTTPS + Token
-              │
+              │ HTTPS + Bearer Token
               │
 ┌─────────────┴─────────────┐
 │       Linux Agent         │
@@ -48,7 +71,7 @@ LUMS consists of several layers:
 └───────────────────────────┘
 ```
 
-Test the layers in this order:
+Troubleshoot in this order:
 
 ```text
 Network
@@ -74,11 +97,85 @@ APT / dpkg
 Result reporting
 ```
 
-Do not skip directly to reinstalling components.
+> [!IMPORTANT]
+> Do not change multiple layers at the same time. Otherwise it becomes difficult to determine which change actually solved the problem.
 
 ---
 
-# 2. LUMS Does Not Start
+# 2. Important LUMS Paths
+
+Before troubleshooting, make sure the current paths are known.
+
+## Server
+
+| Component            | Path                               |
+| -------------------- | ---------------------------------- |
+| Git source           | `/opt/lums-public`                 |
+| Deployed application | `/opt/lums-api`                    |
+| Database             | `/var/lib/lums/lums.db`            |
+| Server environment   | `/etc/lums.env`                    |
+| Systemd service      | `/etc/systemd/system/lums.service` |
+| TLS certificate      | `/etc/nginx/ssl/lums.crt`          |
+| TLS private key      | `/etc/nginx/ssl/lums.key`          |
+
+## Client
+
+| Component           | Path                              |
+| ------------------- | --------------------------------- |
+| Agent source        | `/opt/lums-public/agent/agent.py` |
+| Installed agent     | `/opt/lums-agent/agent.py`        |
+| Agent configuration | `/etc/default/lums-agent`         |
+| Agent service       | `lums-agent.service`              |
+| Agent timer         | `lums-agent.timer`                |
+
+> [!CAUTION]
+> The following files contain runtime state or secrets and must not be overwritten by a normal Git deployment:
+>
+> * `/var/lib/lums/lums.db`
+> * `/etc/lums.env`
+> * `/etc/nginx/ssl/lums.key`
+> * `/etc/default/lums-agent`
+
+---
+
+# 3. LUMS Does Not Start
+
+Check the service:
+
+```bash
+sudo systemctl status lums.service
+```
+
+Check recent logs:
+
+```bash
+sudo journalctl \
+    -u lums.service \
+    -n 100 \
+    --no-pager
+```
+
+Look for errors such as:
+
+```text
+ModuleNotFoundError
+Permission denied
+file not found
+secret missing
+database error
+```
+
+If the service fails immediately after a deployment, first check the Python syntax:
+
+```bash
+python3 -m py_compile \
+    /opt/lums-api/app.py \
+    /opt/lums-api/init_db.py
+```
+
+---
+
+# 4. LUMS Service Keeps Restarting
 
 Check:
 
@@ -91,63 +188,74 @@ Then:
 ```bash
 sudo journalctl \
     -u lums.service \
-    -n 100 \
+    -n 200 \
     --no-pager
 ```
 
-Look for messages such as:
+Because the service uses:
 
-```text
-ModuleNotFoundError
-Permission denied
-file not found
-secret missing
-database error
+```ini
+Restart=on-failure
 ```
+
+a repeated application failure can result in repeated restart attempts.
+
+The important question is therefore not:
+
+> Why does systemd restart it?
+
+but:
+
+> Why does the application exit?
+
+Check the first actual Python or configuration error in the journal.
 
 ---
 
-# 3. Missing LUMS Secret
+# 5. Missing LUMS Secret
 
-If the service reports a missing secret, check:
+The server environment file is:
 
-```bash
-sudo ls -l /etc/lums/lums.env
+```text
+/etc/lums.env
 ```
 
-Check that the variable exists without printing it:
+Check that it exists:
 
 ```bash
-sudo grep -q '^LUMS_SECRET_KEY=' /etc/lums/lums.env \
+sudo ls -l /etc/lums.env
+```
+
+Check whether the expected variable exists without displaying its value:
+
+```bash
+sudo grep -q '^LUMS_SECRET_KEY=' /etc/lums.env \
     && echo "Secret vorhanden" \
     || echo "Secret fehlt"
 ```
 
-Expected ownership:
+The secret itself must never be copied into:
 
-```text
-root:lums
-```
+* documentation
+* GitHub issues
+* screenshots
+* bug reports
+* chat messages
 
-Expected permissions:
-
-```text
-640
-```
-
-The secret itself must never be copied into documentation or bug reports.
+> [!CAUTION]
+> Never use `cat /etc/lums.env` in a public troubleshooting report.
 
 ---
 
-# 4. Python Module Missing
+# 6. Python Module Missing
 
-If logs contain:
+If the journal contains:
 
 ```text
 ModuleNotFoundError
 ```
 
-check installed packages.
+check the relevant module.
 
 Flask:
 
@@ -161,29 +269,30 @@ Argon2:
 python3 -c "import argon2; print('argon2 OK')"
 ```
 
-If Flask is missing:
+The currently installed environment should provide the required Python dependencies.
 
-```bash
-sudo apt install -y python3-flask
-```
+If a dependency is actually missing, install the appropriate package and then retest the application.
 
-If Argon2 is missing:
-
-```bash
-sudo apt install -y python3-argon2
-```
+> [!NOTE]
+> Do not blindly reinstall the entire Python environment because of one missing module. First identify which module is missing and why.
 
 ---
 
-# 5. Flask Health Check Fails
+# 7. Flask Health Check Fails
 
-Run locally:
+LUMS Flask listens locally on:
+
+```text
+127.0.0.1:5000
+```
+
+Test it directly:
 
 ```bash
 curl -i http://127.0.0.1:5000/api/health
 ```
 
-If this fails:
+If this fails, check:
 
 ```bash
 sudo systemctl status lums.service
@@ -195,19 +304,19 @@ Then:
 sudo ss -lntp | grep ':5000'
 ```
 
-If nothing is listening, Flask is not running correctly.
+If nothing is listening on port `5000`, Flask is not running correctly.
 
 ---
 
-# 6. Flask Is Listening on the Wrong Address
+# 8. Flask Is Listening on the Wrong Address
 
-Correct:
+The expected binding is:
 
 ```text
 127.0.0.1:5000
 ```
 
-Potentially unsafe:
+The following would expose Flask directly to the network:
 
 ```text
 0.0.0.0:5000
@@ -219,9 +328,7 @@ Check:
 sudo ss -lntp | grep ':5000'
 ```
 
-If Flask is externally exposed, investigate the application startup configuration immediately.
-
-The expected architecture is:
+Expected architecture:
 
 ```text
 Client
@@ -239,9 +346,9 @@ Port `5000` should not be directly accessible from the network.
 
 ---
 
-# 7. Nginx Does Not Start
+# 9. Nginx Does Not Start
 
-Test:
+Test the configuration:
 
 ```bash
 sudo nginx -t
@@ -262,13 +369,15 @@ sudo journalctl \
     --no-pager
 ```
 
-If `nginx -t` fails, do not reload Nginx until the configuration problem has been fixed.
+If `nginx -t` fails:
+
+> **Do not reload Nginx until the configuration problem has been fixed.**
 
 ---
 
-# 8. Nginx Returns 502 Bad Gateway
+# 10. Nginx Returns `502 Bad Gateway`
 
-A `502 Bad Gateway` normally means Nginx cannot reach Flask.
+A `502 Bad Gateway` normally means that Nginx cannot reach the Flask application.
 
 Test Flask directly:
 
@@ -282,16 +391,16 @@ If this fails:
 sudo systemctl status lums.service
 ```
 
-If Flask works, inspect Nginx:
+If Flask works, check Nginx:
 
 ```bash
 sudo nginx -t
 ```
 
-Verify that the proxy points to:
+The proxy should point to:
 
 ```text
-proxy_pass http://127.0.0.1:5000;
+http://127.0.0.1:5000
 ```
 
 Expected flow:
@@ -308,7 +417,13 @@ Flask
 
 ---
 
-# 9. HTTPS Does Not Work
+# 11. HTTPS Does Not Work
+
+Check that Nginx is listening:
+
+```bash
+sudo ss -lntp | grep ':443'
+```
 
 Test locally:
 
@@ -316,99 +431,120 @@ Test locally:
 curl -k -i https://127.0.0.1/api/health
 ```
 
-If it works locally but not remotely, investigate:
+Test using the server IP:
 
-```text
-firewall
-network
-routing
-DNS
+```bash
+curl -k -i https://192.168.2.229/api/health
 ```
 
-Check:
+If the local test works but a client cannot connect, investigate:
+
+```text
+network
+firewall
+routing
+client connectivity
+```
+
+Check UFW if it is in use:
 
 ```bash
 sudo ufw status verbose
 ```
 
-Check:
-
-```bash
-sudo ss -lntp | grep ':443'
-```
+> [!NOTE]
+> A successful local HTTPS test proves that Nginx and TLS are working locally. It does not prove that remote clients can reach TCP/443.
 
 ---
 
-# 10. Certificate Error
+# 12. Certificate Error
 
-Inspect:
+The current certificate is:
+
+```text
+/etc/nginx/ssl/lums.crt
+```
+
+Inspect the certificate:
 
 ```bash
-openssl x509 \
-    -in /etc/lums/tls/lums.crt \
+sudo openssl x509 \
+    -in /etc/nginx/ssl/lums.crt \
     -noout \
     -subject \
     -dates
 ```
 
-Inspect SAN:
+Inspect the SAN:
 
 ```bash
-openssl x509 \
-    -in /etc/lums/tls/lums.crt \
+sudo openssl x509 \
+    -in /etc/nginx/ssl/lums.crt \
     -noout \
     -ext subjectAltName
 ```
 
-The hostname or IP used by the client must match a SAN.
-
-For example, if the agent connects to:
+The current LUMS server address is:
 
 ```text
-https://192.168.2.134
+192.168.2.229
 ```
 
-the certificate should contain:
+Therefore the certificate must contain:
 
 ```text
-IP Address:192.168.2.134
+IP Address:192.168.2.229
 ```
+
+as a Subject Alternative Name.
+
+> [!IMPORTANT]
+> The address used by the client must match a SAN in the certificate.
 
 ---
 
-# 11. Agent Reports `CERTIFICATE_VERIFY_FAILED`
+# 13. Agent Reports `CERTIFICATE_VERIFY_FAILED`
 
-Check:
+The agent configuration is:
 
-```bash
-ls -l /opt/lums-agent/lums-ca.crt
+```text
+/etc/default/lums-agent
 ```
 
-Check configuration:
+Check the CA configuration:
 
 ```bash
 sudo grep '^LUMS_CA_FILE=' /etc/default/lums-agent
 ```
 
-Expected:
+The current configuration should point to:
 
 ```text
-LUMS_CA_FILE=/opt/lums-agent/lums-ca.crt
+/etc/nginx/ssl/lums.crt
 ```
 
-Test the certificate:
+on the client installation where that certificate has been copied appropriately.
+
+Check the configured file:
 
 ```bash
-openssl x509 \
-    -in /opt/lums-agent/lums-ca.crt \
+sudo ls -l "$(sudo awk -F= '/^LUMS_CA_FILE=/{print $2}' /etc/default/lums-agent)"
+```
+
+Inspect the certificate:
+
+```bash
+sudo openssl x509 \
+    -in /etc/nginx/ssl/lums.crt \
     -noout \
     -subject \
     -dates
 ```
 
-Do not solve the problem by permanently disabling certificate verification.
+> [!WARNING]
+> Do not permanently disable certificate verification to solve a TLS problem.
 
-For diagnosis, distinguish between:
+The following are different states:
 
 ```text
 TLS connection works
@@ -420,28 +556,30 @@ and:
 TLS certificate is trusted
 ```
 
-These are not the same thing.
+A connection can succeed with verification disabled while the actual certificate trust configuration remains broken.
 
 ---
 
-# 12. Agent Cannot Reach the Server
+# 14. Agent Cannot Reach the Server
 
-From the client:
+From the client, first test basic connectivity:
 
 ```bash
-ping SERVER_IP
+ping 192.168.2.229
 ```
 
-Then:
+Then test HTTPS:
 
 ```bash
-curl -k https://SERVER_IP/api/health
+curl -k https://192.168.2.229/api/health
 ```
 
 If ping works but HTTPS does not:
 
-```bash
-sudo ufw status
+```text
+Ping works
+   ≠
+HTTPS works
 ```
 
 Check the server:
@@ -450,23 +588,21 @@ Check the server:
 sudo ss -lntp | grep ':443'
 ```
 
-The important distinction is:
+Then check the firewall:
 
-```text
-Ping works
-   ≠
-HTTPS works
+```bash
+sudo ufw status verbose
 ```
 
 ICMP connectivity only proves that the host can be reached using ICMP.
 
 ---
 
-# 13. Agent Returns `401 Unauthorized`
+# 15. Agent Returns `401 Unauthorized`
 
 A `401 Unauthorized` means that the API rejected the authentication credentials.
 
-First check that the token exists:
+First verify that a token exists without displaying it:
 
 ```bash
 sudo grep -q '^LUMS_TOKEN=.' /etc/default/lums-agent \
@@ -474,96 +610,104 @@ sudo grep -q '^LUMS_TOKEN=.' /etc/default/lums-agent \
     || echo "Token fehlt"
 ```
 
-Do not print the token.
-
-Check the base URL:
+Check the server URL:
 
 ```bash
 sudo grep '^LUMS_BASE=' /etc/default/lums-agent
 ```
 
-Expected example:
+Expected structure:
 
 ```text
-LUMS_BASE=https://SERVER_IP
+LUMS_BASE=https://192.168.2.229
 ```
 
-Possible causes:
+Possible causes include:
 
 ```text
 token missing
 wrong token
-wrong token hash in database
+wrong token hash
 token revoked
 client disabled
 client does not exist
 ```
 
-## Known LUMS installation issue
+---
 
-During the initial LUMS installation, a `401 Unauthorized` was caused by the client being registered with an authentication value that did not match the format expected by the existing API security logic.
+# 16. Client Authentication and SHA-256
 
-The API expected the client token to be represented as a SHA-256 hexadecimal digest.
+LUMS client authentication uses a Bearer token.
 
-The relevant database is:
+The server stores the corresponding client authentication value as a SHA-256 hexadecimal digest.
+
+The authentication chain is:
+
+```text
+Client Token
+     │
+     ▼
+SHA-256
+     │
+     ▼
+Token Hash
+     │
+     ▼
+SQLite clients table
+```
+
+Database:
 
 ```text
 /var/lib/lums/lums.db
 ```
 
-The existing security implementation should always be inspected before changing the database manually.
+If the token itself appears correct but authentication still returns `401`, inspect the implementation before changing the database.
 
-Do not blindly replace authentication values with a different hashing scheme.
+> [!CAUTION]
+> Do not replace the token hash with a password hash or another hashing format simply because it looks more secure or familiar. The stored value must match the authentication implementation used by LUMS.
 
 ---
 
-# 14. Agent Token Hash Mismatch
+# 17. Agent Token Authentication Chain
 
-If the token itself is correct but the API continues returning:
-
-```text
-401 Unauthorized
-```
-
-investigate the complete authentication chain:
+When investigating authentication, check the complete chain:
 
 ```text
 Agent token
       ↓
 /etc/default/lums-agent
       ↓
+Bearer Authorization header
+      ↓
 API authentication
       ↓
-Token processing
+SHA-256 token processing
       ↓
 SQLite client record
       ↓
-Client enabled state
+enabled / revoked state
 ```
 
-The important point is that the token stored by the agent and the authentication value stored by the server must correspond to the implementation in `security.py`.
-
-Inspect the relevant code before modifying the database.
-
-The database is:
+The important database:
 
 ```text
 /var/lib/lums/lums.db
 ```
 
-If a manual correction is required, create a backup first.
+Before any manual database correction, create a backup.
 
 ---
 
-# 15. Missing `LUMS_TOKEN` During Manual Agent Start
+# 18. Missing `LUMS_TOKEN` During Manual Agent Start
 
-A common source of confusion is:
+A common source of confusion is running:
 
 ```bash
 python3 /opt/lums-agent/agent.py
 ```
 
-returning an error that:
+and receiving an error that:
 
 ```text
 LUMS_TOKEN
@@ -571,21 +715,25 @@ LUMS_TOKEN
 
 is missing.
 
-This does not necessarily mean that the token is missing from the configuration file.
-
-The problem can be that `/etc/default/lums-agent` was not loaded into the current shell environment.
-
-The configuration file contains values such as:
+This does not necessarily mean that the token is missing from:
 
 ```text
-LUMS_BASE=https://SERVER_IP
-LUMS_TOKEN=CLIENT_TOKEN
-LUMS_CA_FILE=/opt/lums-agent/lums-ca.crt
+/etc/default/lums-agent
 ```
 
-A direct Python invocation does not automatically load this file.
+The problem may simply be that the environment file was not loaded into the current shell.
 
-For a manual test, load the environment first:
+The file contains values such as:
+
+```text
+LUMS_BASE=https://192.168.2.229
+LUMS_TOKEN=CLIENT_TOKEN
+LUMS_CA_FILE=/etc/nginx/ssl/lums.crt
+```
+
+A direct Python invocation does not automatically load `/etc/default/lums-agent`.
+
+For a manual test:
 
 ```bash
 sudo bash -c '
@@ -595,54 +743,42 @@ python3 /opt/lums-agent/agent.py
 '
 ```
 
-Alternatively, explicitly pass the variables:
+This is different from:
 
 ```bash
-sudo env \
-    LUMS_BASE="https://SERVER_IP" \
-    LUMS_TOKEN="$(sudo awk -F= '/^LUMS_TOKEN=/{print $2}' /etc/default/lums-agent)" \
-    LUMS_CA_FILE="/opt/lums-agent/lums-ca.crt" \
-    python3 /opt/lums-agent/agent.py
+sudo systemctl start lums-agent.service
 ```
 
-This distinction is important:
-
-```text
-/etc/default/lums-agent exists
-        │
-        └── does not mean
-            │
-            ▼
-Python automatically loaded it
-```
+because systemd provides the service environment separately.
 
 ---
 
-# 16. Agent Configuration Is Incomplete
+# 19. Agent Configuration Is Incomplete
 
-Check:
+Check the configuration structure:
 
 ```bash
-sudo grep -E '^(LUMS_BASE|LUMS_TOKEN|LUMS_CA_FILE)=' \
+sudo grep -E '^(LUMS_BASE|LUMS_CA_FILE)=' \
     /etc/default/lums-agent
+```
+
+Check that a token exists without printing it:
+
+```bash
+sudo grep -q '^LUMS_TOKEN=.' /etc/default/lums-agent \
+    && echo "Token vorhanden" \
+    || echo "Token fehlt"
 ```
 
 Expected structure:
 
 ```text
-LUMS_BASE=https://SERVER_IP
+LUMS_BASE=https://192.168.2.229
+LUMS_CA_FILE=/etc/nginx/ssl/lums.crt
 LUMS_TOKEN=CLIENT_TOKEN
-LUMS_CA_FILE=/opt/lums-agent/lums-ca.crt
 ```
 
-Verify the token without displaying it:
-
-```bash
-sudo grep -q '^LUMS_TOKEN=.' /etc/default/lums-agent \
-    && echo "Token vorhanden"
-```
-
-Protect the file:
+Protect the configuration file appropriately:
 
 ```bash
 sudo chown root:root /etc/default/lums-agent
@@ -651,9 +787,22 @@ sudo chmod 600 /etc/default/lums-agent
 
 ---
 
-# 17. Agent Returns `403 Forbidden`
+# 20. Agent Returns `403 Forbidden`
 
-A `403` can mean that the authenticated client attempted to access another client's resource.
+A `403 Forbidden` is different from a `401 Unauthorized`.
+
+A useful model is:
+
+```text
+401
+│
+└── Authentication failed
+
+403
+│
+└── Authentication succeeded,
+    but the requested action is not authorized
+```
 
 For example:
 
@@ -664,10 +813,6 @@ Client 1
 ```
 
 The server should reject this.
-
-Check the client ID being used.
-
-Do not interpret a `403` as a network or TLS problem.
 
 At this stage:
 
@@ -682,87 +827,39 @@ is a useful diagnostic model.
 
 ---
 
-# 18. `/api/client/me` Fails
+# 21. `/api/client/me` Fails
 
-Test through the installed agent:
+The authenticated client identity endpoint is:
 
-```bash
-sudo env \
-    LUMS_BASE="https://SERVER_IP" \
-    LUMS_TOKEN="$(sudo awk -F= '/^LUMS_TOKEN=/{print $2}' /etc/default/lums-agent)" \
-    LUMS_CA_FILE="/opt/lums-agent/lums-ca.crt" \
-    python3 - <<'PY'
-import sys
-
-sys.path.insert(0, "/opt/lums-agent")
-
-import agent
-
-print(agent.get_client())
-PY
+```text
+GET /api/client/me
 ```
 
-If this fails, investigate in this order:
+If this endpoint fails, investigate:
 
 ```text
 TLS
-↓
+   ↓
 Token
-↓
+   ↓
 Client registration
-↓
+   ↓
 Client enabled state
-↓
+   ↓
 Authorization
 ```
 
----
-
-# 19. Agent Sends Report but No Updates Appear
-
-Check the client directly:
+A useful manual test is to execute the agent with its configured environment:
 
 ```bash
-apt list --upgradable 2>/dev/null
+sudo bash -c '
+set -a
+source /etc/default/lums-agent
+python3 /opt/lums-agent/agent.py
+'
 ```
 
-Count:
-
-```bash
-apt list --upgradable 2>/dev/null | tail -n +2 | wc -l
-```
-
-If:
-
-```text
-0
-```
-
-the client currently has no available updates.
-
-If updates are listed locally but not visible in LUMS, investigate:
-
-```text
-agent report
-API endpoint
-client ID
-database
-server-side inventory
-```
-
----
-
-# 20. LUMS Shows Old Updates
-
-LUMS stores update information from the latest client report.
-
-Run:
-
-```bash
-sudo systemctl start lums-agent.service
-```
-
-Then check:
+Then inspect the agent journal:
 
 ```bash
 sudo journalctl \
@@ -771,37 +868,100 @@ sudo journalctl \
     --no-pager
 ```
 
-The report should update the server inventory.
+---
+
+# 22. Agent Sends Report but No Updates Appear
+
+LUMS receives update information through the client report.
+
+The inventory therefore represents the state reported by the client.
+
+Check the client locally:
+
+```bash
+apt list --upgradable 2>/dev/null
+```
+
+Count available updates:
+
+```bash
+apt list --upgradable 2>/dev/null | tail -n +2 | wc -l
+```
+
+If the result is:
+
+```text
+0
+```
+
+the client currently reports no available upgrades.
+
+If packages are listed locally but not visible in LUMS, investigate:
+
+```text
+agent report
+   ↓
+API endpoint
+   ↓
+client identity
+   ↓
+database
+   ↓
+server inventory
+```
 
 ---
 
-# 21. Agent Timer Does Not Run
+# 23. LUMS Shows Old Inventory
 
-Check:
+The LUMS inventory is based on the client's latest successful report.
+
+Run the agent manually:
+
+```bash
+sudo systemctl start lums-agent.service
+```
+
+Then inspect:
+
+```bash
+sudo journalctl \
+    -u lums-agent.service \
+    -n 100 \
+    --no-pager
+```
+
+A successful report should result in the server receiving the new client state.
+
+---
+
+# 24. Agent Timer Does Not Run
+
+Check the timer:
 
 ```bash
 systemctl status lums-agent.timer
 ```
 
-Then:
+List the timer:
 
 ```bash
-systemctl list-timers lums-agent.timer
+systemctl list-timers --all | grep lums-agent
 ```
 
-Check that the timer exists:
+Check the unit:
 
 ```bash
-ls -l /etc/systemd/system/lums-agent.timer
+systemctl cat lums-agent.timer
 ```
 
-Reload systemd:
+If the timer configuration was changed:
 
 ```bash
 sudo systemctl daemon-reload
 ```
 
-Enable again:
+Enable and start it:
 
 ```bash
 sudo systemctl enable --now lums-agent.timer
@@ -809,7 +969,7 @@ sudo systemctl enable --now lums-agent.timer
 
 ---
 
-# 22. Agent Service Does Not Run
+# 25. Agent Service Does Not Run
 
 Check:
 
@@ -826,38 +986,40 @@ sudo journalctl \
     --no-pager
 ```
 
-Check agent syntax:
+Check syntax:
 
 ```bash
-sudo python3 -m py_compile /opt/lums-agent/agent.py
+python3 -m py_compile /opt/lums-agent/agent.py
 ```
 
-If the service fails but manual execution works, compare:
+If manual execution works but systemd execution fails, compare:
 
 ```text
-environment variables
-working directory
+environment
 user
 permissions
+working directory
 certificate path
 systemd configuration
 ```
 
 ---
 
-# 23. Timer Exists but Service Fails
+# 26. Timer Exists but Service Fails
 
 Remember:
 
 ```text
-timer
-  ↓
-starts
-  ↓
-service
+lums-agent.timer
+       │
+       ▼
+lums-agent.service
+       │
+       ▼
+agent.py
 ```
 
-The timer can be perfectly healthy while the service fails.
+The timer can be completely healthy while the service itself fails.
 
 Therefore check both:
 
@@ -873,16 +1035,16 @@ systemctl status lums-agent.service
 
 ---
 
-# 24. Update Job Remains `running`
+# 27. Update Job Remains `running`
 
-First inspect the job:
+First inspect the jobs:
 
 ```bash
 sudo -u lums sqlite3 /var/lib/lums/lums.db \
 "SELECT id, client_id, status, created_at, started_at, finished_at FROM update_jobs ORDER BY id;"
 ```
 
-Then inspect packages:
+Then inspect packages for the affected job:
 
 ```bash
 sudo -u lums sqlite3 /var/lib/lums/lums.db \
@@ -895,15 +1057,16 @@ Replace:
 JOB_ID
 ```
 
-with the actual number.
+with the actual job number.
 
-Do not manually reset jobs without first determining why the agent stopped.
+> [!WARNING]
+> Do not manually reset a job before determining why the client stopped processing it.
 
 ---
 
-# 25. Package Update Failed
+# 28. Package Update Failed
 
-Check the agent logs:
+Check the agent log:
 
 ```bash
 sudo journalctl \
@@ -924,23 +1087,20 @@ Replace:
 PACKAGE
 ```
 
-with the package name.
+with the affected package name.
 
-Check APT:
-
-```bash
-sudo apt update
-```
-
-Then:
+Inspect available upgrades:
 
 ```bash
 apt list --upgradable 2>/dev/null
 ```
 
+> [!NOTE]
+> This guide intentionally does not use `apt update`. Package-index maintenance is outside the LUMS troubleshooting workflow documented here.
+
 ---
 
-# 26. Reboot Required
+# 29. Reboot Required
 
 The agent checks:
 
@@ -956,13 +1116,21 @@ test -f /var/run/reboot-required \
     || echo "No reboot required"
 ```
 
-LUMS does not automatically reboot the system.
+LUMS does not automatically reboot the client.
+
+A reboot remains an administrative decision.
 
 ---
 
-# 27. Database Problems
+# 30. Database Problems
 
-Check:
+The LUMS database is:
+
+```text
+/var/lib/lums/lums.db
+```
+
+Check integrity:
 
 ```bash
 sudo -u lums sqlite3 /var/lib/lums/lums.db \
@@ -975,52 +1143,68 @@ Expected:
 ok
 ```
 
-If the result is not `ok`, stop making unnecessary changes and restore or investigate the database carefully.
+If the result is not:
 
-Before manual database changes, create a backup.
+```text
+ok
+```
 
----
+stop making unnecessary changes.
 
-# 28. Permission Problems
-
-Check:
+Create a backup before further investigation:
 
 ```bash
-ls -ld /opt/lums-api
-ls -ld /var/lib/lums
-ls -l /var/lib/lums/lums.db
-ls -l /etc/lums/lums.env
+sudo cp \
+    /var/lib/lums/lums.db \
+    /var/lib/lums/lums.db.before-troubleshooting
 ```
 
-Typical ownership:
-
-```text
-/opt/lums-api
-lums:lums
-
-/var/lib/lums
-lums:lums
-
-/etc/lums
-root:root
-```
-
-The secret:
-
-```text
-/etc/lums/lums.env
-```
-
-should normally be:
-
-```text
-root:lums
-640
-```
+> [!CAUTION]
+> Never perform structural database changes on the production database without a backup.
 
 ---
 
-# 29. Agent Configuration Permissions
+# 31. Permission Problems
+
+Check the deployed application:
+
+```bash
+sudo ls -ld /opt/lums-api
+```
+
+Check the database:
+
+```bash
+sudo ls -ld /var/lib/lums
+sudo ls -l /var/lib/lums/lums.db
+```
+
+Check the server environment:
+
+```bash
+sudo ls -l /etc/lums.env
+```
+
+Check TLS files:
+
+```bash
+sudo ls -l /etc/nginx/ssl/
+```
+
+The LUMS application and database are normally operated by:
+
+```text
+lums:lums
+```
+
+The server environment file is protected separately.
+
+> [!IMPORTANT]
+> Do not blindly change ownership of the complete `/etc`, `/opt` or `/var/lib` hierarchy. Change only the affected resource.
+
+---
+
+# 32. Agent Configuration Permissions
 
 Check:
 
@@ -1028,50 +1212,110 @@ Check:
 sudo ls -l /etc/default/lums-agent
 ```
 
-Expected:
+The file contains the client token and should therefore not be world-readable.
+
+A suitable restrictive configuration is:
 
 ```text
--rw------- root root
+root:root
+0600
 ```
 
-This is important because the file contains the client token.
+If permissions were changed unintentionally:
+
+```bash
+sudo chown root:root /etc/default/lums-agent
+```
+
+```bash
+sudo chmod 600 /etc/default/lums-agent
+```
 
 ---
 
-# 30. Git Problems
+# 33. Git Problems
 
-Check repository status:
+The source repository is:
+
+```text
+/opt/lums-public
+```
+
+Check status:
 
 ```bash
 cd /opt/lums-public
-sudo git status
+git status
 ```
 
 Check differences:
 
 ```bash
-sudo git diff
+git diff
 ```
 
-Check whitespace:
+Check whitespace errors:
 
 ```bash
-sudo git diff --check
+git diff --check
 ```
 
-If Git reports:
+Fetch remote information:
+
+```bash
+git fetch origin
+```
+
+Check whether local and remote branches differ:
+
+```bash
+git rev-list --left-right --count HEAD...origin/main
+```
+
+Expected:
 
 ```text
-dubious ownership
+0       0
 ```
 
-the repository ownership/configuration needs to be reviewed.
+This means the local branch and `origin/main` are synchronized.
 
-Do not blindly disable Git security checks globally.
+> [!WARNING]
+> Do not use `git reset --hard` or force-push as a routine troubleshooting method.
 
 ---
 
-# 31. Git Commit Identity
+# 34. Git Repository Has Uncommitted Changes
+
+If:
+
+```bash
+git status
+```
+
+shows modified files, stop before running a deployment pull.
+
+Inspect:
+
+```bash
+git diff
+```
+
+Determine whether the changes are:
+
+```text
+intentional
+local-only
+unfinished
+generated
+accidental
+```
+
+Do not overwrite local work without first understanding what changed.
+
+---
+
+# 35. Git Commit Identity
 
 If Git reports:
 
@@ -1079,63 +1323,84 @@ If Git reports:
 Author identity unknown
 ```
 
-configure an appropriate Git identity:
+configure the repository identity appropriately.
+
+For the LUMS project:
 
 ```bash
-git config --global user.name "YOUR_NAME"
-git config --global user.email "YOUR_EMAIL"
+git config user.name "NovaForgeCtrl"
 ```
-
-Then verify:
 
 ```bash
-git config --global --list
+git config user.email "232026481+NovaForgeCtrl@users.noreply.github.com"
 ```
 
-Do not place real credentials or secrets into the repository.
+Verify:
+
+```bash
+git config --get user.name
+```
+
+```bash
+git config --get user.email
+```
+
+Do not put passwords, tokens or private credentials into Git configuration or repository files.
 
 ---
 
-# 32. Nginx Configuration Problems
+# 36. Nginx Configuration Problems
 
-Check:
+Test:
 
 ```bash
 sudo nginx -t
 ```
 
-If this fails, do not reload Nginx until the syntax error is fixed.
+Inspect the active configuration:
 
-Inspect:
+```bash
+sudo nginx -T
+```
+
+Check enabled sites:
+
+```bash
+sudo ls -la /etc/nginx/sites-enabled/
+```
+
+If the LUMS site configuration is known:
 
 ```bash
 sudo cat /etc/nginx/sites-available/lums
 ```
 
-Check the enabled configuration:
+Do not reload Nginx until:
 
-```bash
-ls -la /etc/nginx/sites-enabled/
+```text
+nginx -t
 ```
+
+reports a successful configuration test.
 
 ---
 
-# 33. Port Diagnostics
+# 37. Port Diagnostics
 
-Check all listening ports:
+List listening TCP ports:
 
 ```bash
 sudo ss -lntp
 ```
 
-Important ports:
+Important LUMS ports:
 
-```text
-22
-80
-443
-5000
-```
+|   Port | Purpose                |
+| -----: | ---------------------- |
+|   `22` | SSH                    |
+|   `80` | HTTP → HTTPS redirect  |
+|  `443` | HTTPS / Nginx          |
+| `5000` | Flask / localhost only |
 
 Expected LUMS architecture:
 
@@ -1146,71 +1411,183 @@ Expected LUMS architecture:
 5000    Flask / localhost only
 ```
 
+> [!CAUTION]
+> Do not expose port `5000` to the network just to simplify troubleshooting.
+
 ---
 
-# 34. Firewall Diagnostics
+# 38. Firewall Diagnostics
 
-Check:
+Check UFW:
 
 ```bash
 sudo ufw status verbose
 ```
 
-If HTTPS is blocked, ensure:
+If HTTPS is blocked, the firewall must allow TCP/443.
 
-```bash
-sudo ufw allow 443/tcp
+Before changing SSH firewall rules remotely, make sure SSH access remains available.
+
+> [!WARNING]
+> Never lock yourself out of the server by changing firewall rules remotely without verifying the current SSH access path.
+
+---
+
+# 39. Deployment Problems
+
+The recommended deployment sequence is:
+
+```text
+Git
+ ↓
+git status
+ ↓
+git fetch
+ ↓
+git pull --ff-only
+ ↓
+syntax check
+ ↓
+git diff --check
+ ↓
+rsync
+ ↓
+systemctl restart lums
+ ↓
+health check
 ```
 
-If SSH is blocked, ensure SSH is allowed **before** enabling or changing UFW remotely.
+Before deployment:
 
-Do not expose port `5000` just to make troubleshooting easier.
+```bash
+cd /opt/lums-public
+```
 
----
+Check:
 
-# 35. Logs: Where to Look
+```bash
+git status
+```
 
-| Problem            | First place to check                 |
-| ------------------ | ------------------------------------ |
-| LUMS not starting  | `journalctl -u lums.service`         |
-| Missing secret     | `/etc/lums/lums.env` + LUMS journal  |
-| Python module      | LUMS journal                         |
-| Flask problem      | `curl` + LUMS journal                |
-| Nginx not starting | `journalctl -u nginx`                |
-| HTTPS problem      | Nginx + certificate                  |
-| TLS verification   | Agent configuration + CA certificate |
-| Agent connectivity | `curl`, `ss`, `ufw`                  |
-| Authentication     | Agent configuration + API/server log |
-| Authorization      | Client ID + API logic                |
-| Agent failure      | `journalctl -u lums-agent.service`   |
-| Timer problem      | `systemctl list-timers`              |
-| Update failure     | Agent journal + APT                  |
-| Database issue     | SQLite integrity check               |
-| Git problem        | `git status` + `git diff`            |
+Fetch:
 
----
+```bash
+git fetch origin
+```
 
-# 36. Recommended Diagnostic Sequence
+Synchronize:
 
-When reporting a LUMS problem, collect the following information.
+```bash
+git pull --ff-only origin main
+```
 
-## Server
+Check syntax:
+
+```bash
+python3 -m py_compile \
+    server/app.py \
+    server/init_db.py \
+    agent/agent.py
+```
+
+Check whitespace:
+
+```bash
+git diff --check
+```
+
+Deploy the server code:
+
+```bash
+sudo rsync -a \
+    --delete \
+    --exclude='.git/' \
+    /opt/lums-public/server/ \
+    /opt/lums-api/
+```
+
+Restart:
+
+```bash
+sudo systemctl restart lums.service
+```
+
+Verify:
 
 ```bash
 sudo systemctl status lums.service --no-pager
 ```
 
+Finally:
+
+```bash
+curl -k https://192.168.2.229/api/health
+```
+
+> [!CAUTION]
+> The deployment must not overwrite:
+>
+> * `/var/lib/lums/lums.db`
+> * `/etc/lums.env`
+> * `/etc/nginx/ssl/`
+> * `/etc/default/lums-agent`
+
+---
+
+# 40. Logs: Where to Look
+
+| Problem            | First place to check               |
+| ------------------ | ---------------------------------- |
+| LUMS not starting  | `journalctl -u lums.service`       |
+| LUMS restarting    | LUMS journal                       |
+| Missing secret     | `/etc/lums.env` + LUMS journal     |
+| Python module      | LUMS journal                       |
+| Flask problem      | `curl` + LUMS journal              |
+| Nginx not starting | `journalctl -u nginx`              |
+| HTTP 502           | Flask + Nginx                      |
+| HTTPS problem      | Nginx + certificate                |
+| TLS verification   | Agent config + certificate         |
+| Agent connectivity | `curl`, `ss`, firewall             |
+| `401 Unauthorized` | Token + authentication logic       |
+| `403 Forbidden`    | Client authorization               |
+| Agent failure      | `journalctl -u lums-agent.service` |
+| Timer problem      | `systemctl list-timers`            |
+| Update failure     | Agent journal + APT                |
+| Job stuck          | SQLite + agent journal             |
+| Database issue     | SQLite integrity check             |
+| Git problem        | `git status` + `git diff`          |
+
+---
+
+# 41. Recommended Diagnostic Sequence
+
+## Server
+
+Start with:
+
+```bash
+sudo systemctl status lums.service --no-pager
+```
+
+Then:
+
 ```bash
 sudo systemctl status nginx --no-pager
 ```
+
+Then:
 
 ```bash
 sudo nginx -t
 ```
 
+Then:
+
 ```bash
 sudo ss -lntp
 ```
+
+Then:
 
 ```bash
 sudo ufw status verbose
@@ -1238,13 +1615,19 @@ sudo journalctl \
 
 ## Client
 
+Check the timer:
+
 ```bash
 sudo systemctl status lums-agent.timer --no-pager
 ```
 
+Check the service:
+
 ```bash
 sudo systemctl status lums-agent.service --no-pager
 ```
+
+Check the logs:
 
 ```bash
 sudo journalctl \
@@ -1253,19 +1636,25 @@ sudo journalctl \
     --no-pager
 ```
 
+Check available upgrades:
+
 ```bash
 apt list --upgradable 2>/dev/null
 ```
 
-Check configuration without displaying the token:
+Check the server URL:
 
 ```bash
 sudo grep '^LUMS_BASE=' /etc/default/lums-agent
 ```
 
+Check the CA path:
+
 ```bash
 sudo grep '^LUMS_CA_FILE=' /etc/default/lums-agent
 ```
+
+Check token presence without displaying it:
 
 ```bash
 sudo grep -q '^LUMS_TOKEN=.' /etc/default/lums-agent \
@@ -1275,56 +1664,104 @@ sudo grep -q '^LUMS_TOKEN=.' /etc/default/lums-agent \
 
 ---
 
-# 37. Do Not Share Secrets in Bug Reports
+# 42. Do Not Share Secrets in Bug Reports
 
-Before posting logs publicly, remove:
+Before posting logs publicly, remove or redact:
 
 ```text
 LUMS_SECRET_KEY
 LUMS_TOKEN
 passwords
 private keys
-```
-
-Also review logs for:
-
-```text
 Authorization headers
 session information
-internal addresses
 ```
 
-Never use a real client token as an example in documentation.
-
-Use:
+Review logs for internal information such as:
 
 ```text
-CLIENT_TOKEN
+internal IP addresses
+hostnames
+usernames
+database paths
 ```
 
-instead.
+Use placeholders in documentation:
+
+```text
+SERVER_IP
+CLIENT_TOKEN
+PACKAGE
+JOB_ID
+```
+
+Never use a real production token as an example.
 
 ---
 
-# 38. Known Installation Lessons
+# 43. Known LUMS Installation Lessons
 
-The first LUMS installation exposed several problems that are worth documenting because they can otherwise look unrelated.
+The initial LUMS installation exposed several problems that are useful to document.
 
-## 38.1 Authentication Hash
+## 43.1 Client Authentication Hash
 
-The client authentication value in SQLite must correspond to the hashing logic implemented by LUMS.
+The API expects the client authentication value in the format implemented by the current security layer.
 
-The relevant database is:
+The current implementation uses a SHA-256 hexadecimal digest.
+
+Database:
 
 ```text
 /var/lib/lums/lums.db
 ```
 
-Do not assume that a normal password hash can be substituted for the authentication format expected by the API.
+A different password-hashing scheme must not be substituted.
 
 ---
 
-## 38.2 Environment Variables
+## 43.2 Client Database Schema
+
+Client registration previously failed because the database schema required:
+
+```text
+hostname NOT NULL
+```
+
+while the frontend could initially submit only:
+
+```json
+{
+  "ip": "CLIENT_IP"
+}
+```
+
+The schema was corrected so that:
+
+```text
+hostname TEXT UNIQUE
+```
+
+is optional.
+
+This allows a client to be registered before its hostname information is available.
+
+---
+
+## 43.3 TLS SAN
+
+The original certificate did not contain the required IP SAN.
+
+The certificate was regenerated with:
+
+```text
+subjectAltName = IP:192.168.2.229
+```
+
+The current certificate therefore matches the server address used by the LUMS client.
+
+---
+
+## 43.4 Agent Environment
 
 The agent requires:
 
@@ -1344,21 +1781,33 @@ A correctly configured file does not automatically mean that a manually started 
 
 ---
 
-## 38.3 Manual Python Execution
+## 43.5 `/api/client/me`
 
-This:
+Authenticated agents use:
+
+```text
+/api/client/me
+```
+
+to obtain their authenticated client context.
+
+This endpoint must not be confused with administrative client-management endpoints.
+
+---
+
+## 43.6 Manual Python Execution vs systemd
+
+These are different execution environments:
 
 ```bash
 python3 /opt/lums-agent/agent.py
 ```
 
-and this:
+and:
 
 ```bash
 sudo systemctl start lums-agent.service
 ```
-
-are not equivalent execution environments.
 
 systemd can provide:
 
@@ -1370,21 +1819,19 @@ permissions
 service configuration
 ```
 
-A manual Python process does not automatically receive all of those settings.
+A manually started Python process does not automatically receive all of those settings.
 
 ---
 
-## 38.4 Python Indentation Errors
+## 43.7 Python Indentation
 
-Large Python blocks pasted directly into a terminal can produce:
+Large Python blocks pasted directly into a terminal can cause:
 
 ```text
 IndentationError
 ```
 
-because Python uses indentation as part of its syntax.
-
-For larger changes, prefer writing the complete file:
+For larger file changes, prefer complete file replacement:
 
 ```bash
 sudo tee /path/to/file.py > /dev/null <<'EOF'
@@ -1392,13 +1839,13 @@ sudo tee /path/to/file.py > /dev/null <<'EOF'
 EOF
 ```
 
-This produces reproducible file contents and avoids accidental indentation damage.
+This creates reproducible file contents and reduces accidental indentation problems.
 
 ---
 
-## 38.5 Do Not Change Multiple Layers at Once
+# 44. Do Not Change Multiple Layers at Once
 
-If HTTPS fails, do not simultaneously modify:
+For example, if HTTPS fails, do not immediately change:
 
 ```text
 Nginx
@@ -1412,20 +1859,27 @@ Instead:
 
 ```text
 1. Test Flask
+      ↓
 2. Test Nginx
+      ↓
 3. Test HTTPS
+      ↓
 4. Test client connectivity
+      ↓
 5. Test TLS verification
+      ↓
 6. Test authentication
+      ↓
 7. Test authorization
+      ↓
 8. Test reporting
 ```
 
-This makes the actual cause much easier to identify.
+This keeps the troubleshooting process reproducible.
 
 ---
 
-# 39. Final Troubleshooting Checklist
+# 45. Final Troubleshooting Checklist
 
 ```text
 [ ] Is the LUMS service running?
@@ -1439,34 +1893,38 @@ This makes the actual cause much easier to identify.
 [ ] Is the client registered?
 [ ] Is the client enabled?
 [ ] Does the token exist?
-[ ] Does the token match the server authentication logic?
+[ ] Does the token match the SHA-256 authentication logic?
+[ ] Is the token revoked?
 [ ] Does TLS verification succeed?
 [ ] Does /api/client/me work?
-[ ] Does the report work?
-[ ] Does the timer exist?
+[ ] Does the report reach the server?
+[ ] Is the agent timer active?
 [ ] Does the timer trigger the service?
-[ ] Does APT see the expected updates?
+[ ] Does the agent execute successfully?
+[ ] Does APT report the expected package state?
 [ ] Does the update job exist?
-[ ] Did the package update succeed?
-[ ] Was the result reported?
-[ ] Was the post-update report sent?
-[ ] Is the database healthy?
+[ ] Does the package update succeed?
+[ ] Is the result reported?
+[ ] Is the post-update inventory current?
+[ ] Is the SQLite database healthy?
+[ ] Is the Git repository synchronized?
 ```
 
 ---
 
-# 40. The Golden Rule
+# 46. The Golden Rule
 
 When something fails:
 
 ```text
 Don't reinstall.
 Don't disable security.
-Don't use -k as a permanent solution.
+Don't permanently disable TLS verification.
 Don't disable authentication.
 Don't expose port 5000.
 Don't paste secrets into bug reports.
 Don't change five things at once.
+Don't modify the production database without a backup.
 ```
 
 Instead:
@@ -1488,3 +1946,10 @@ Document the result
 The goal of troubleshooting is not merely to make LUMS work again.
 
 The goal is to understand **why** it failed and leave behind a reproducible solution.
+
+---
+
+> **LUMS — Linux Update Management without the noise.**
+>
+> Centralize the management. Keep execution controlled.
+> **Know what changed. Know where it happened.**
