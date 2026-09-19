@@ -12,7 +12,7 @@ import urllib.error
 import urllib.request
 
 
-AGENT_VERSION = "1.4.0"
+AGENT_VERSION = "1.5.2"
 
 LUMS_BASE = os.environ.get(
     "LUMS_BASE",
