@@ -354,8 +354,6 @@ function openAddClientDialog() {
     const tokenResult =
         document.getElementById("client-token-result");
 
-    const hostname =
-        document.getElementById("client-hostname");
 
     dialog.hidden = false;
 
@@ -365,8 +363,9 @@ function openAddClientDialog() {
     error.hidden = true;
     error.textContent = "";
 
-    hostname.value = "";
-    hostname.focus();
+    document
+        .getElementById("client-ip")
+        .focus();
 }
 
 

@@ -6,11 +6,13 @@ import platform
 import socket
 import ssl
 import subprocess
+import sys
+import time
 import urllib.error
 import urllib.request
 
 
-AGENT_VERSION = "1.3.0"
+AGENT_VERSION = "1.4.0"
 
 LUMS_BASE = os.environ.get(
     "LUMS_BASE",
@@ -35,6 +37,530 @@ LUMS_SSL_CONTEXT = ssl.create_default_context(
     cafile=LUMS_CA_FILE
 )
 
+SIMULATE_UPDATES = os.environ.get(
+    "LUMS_SIMULATE_UPDATES",
+    "0"
+).lower() in ("1", "true", "yes", "on")
+
+
+# ============================================================
+# TERMINAL UI // MINIMAL CYBER HUD
+# ============================================================
+
+RESET = "\033[0m"
+BOLD = "\033[1m"
+DIM = "\033[2m"
+
+BLACK = "\033[30m"
+GREEN = "\033[92m"
+RED = "\033[91m"
+YELLOW = "\033[93m"
+BLUE = "\033[94m"
+CYAN = "\033[96m"
+WHITE = "\033[97m"
+
+
+def c(color, text):
+    return f"{color}{text}{RESET}"
+
+
+def clear_line():
+    sys.stdout.write("\r\033[2K")
+    sys.stdout.flush()
+
+
+def separator(width=64):
+    print(c(DIM, "─" * width))
+
+
+def status_ok(text):
+    print(c(GREEN, f"  ✓ {text}"))
+
+
+def status_warn(text):
+    print(c(YELLOW, f"  ! {text}"))
+
+
+def status_fail(text):
+    print(c(RED, f"  ✕ {text}"))
+
+
+def panel(title):
+    print()
+    print(
+        c(CYAN, "  ◈ ") +
+        c(WHITE + BOLD, title)
+    )
+
+
+def print_banner():
+    print()
+
+    print(
+        c(CYAN, "╔══════════════════════════════════════════════════════════════╗")
+    )
+
+    print(
+        c(CYAN, "║") +
+        c(WHITE + BOLD, "  LUMS // UPDATE AGENT".ljust(62)) +
+        c(CYAN, "║")
+    )
+
+    print(
+        c(CYAN, "║") +
+        c(GREEN + BOLD, "  segfault // override".ljust(62)) +
+        c(CYAN, "║")
+    )
+
+    print(
+        c(CYAN, "║") +
+        c(DIM, "  Linux Update Management without the noise.".ljust(62)) +
+        c(CYAN, "║")
+    )
+
+    print(
+        c(CYAN, "╚══════════════════════════════════════════════════════════════╝")
+    )
+
+    print(
+        f"  {c(CYAN, 'AGENT')} {c(GREEN, AGENT_VERSION)}"
+    )
+
+
+def print_system(data):
+    panel("SYSTEM")
+
+    print(
+        f"  {c(CYAN, 'HOST'):16}"
+        f"{c(WHITE, data['hostname'])}"
+        f"    {c(CYAN, 'IP'):10}"
+        f"{c(WHITE, data['ip'])}"
+    )
+
+    print(
+        f"  {c(CYAN, 'OS'):16}"
+        f"{c(WHITE, data['os'])}"
+        f"    {c(CYAN, 'ARCH'):10}"
+        f"{c(WHITE, data['architecture'])}"
+    )
+
+    print(
+        f"  {c(CYAN, 'KERNEL'):16}"
+        f"{c(WHITE, data['kernel'])}"
+    )
+
+    print(
+        f"  {c(CYAN, 'PACKAGES'):16}"
+        f"{c(WHITE, str(len(data['packages'])))}"
+        f"    {c(CYAN, 'UPDATES'):10}"
+        f"{c(YELLOW, str(len(data['updates'])))}"
+    )
+
+
+def print_connection_header():
+    panel("LUMS CHANNEL")
+
+
+def print_connection_state():
+    print(
+        f"  {c(GREEN, '● TLS')}  {c(GREEN, 'CONNECTED')}"
+        f"    {c(GREEN, '● AUTH')}  {c(GREEN, 'VERIFIED')}"
+    )
+
+
+def hud_bar(progress, width=42, failed=False, cursor=True):
+    progress = max(0.0, min(1.0, progress))
+
+    filled = int(width * progress)
+    empty = width - filled
+
+    if failed:
+        active_color = RED
+    else:
+        active_color = GREEN
+
+    chars = ["█"] * filled + ["░"] * empty
+
+    if cursor and 0 < filled < width:
+        cursor_pos = min(filled, width - 1)
+        chars[cursor_pos] = "◆"
+
+    bar = ""
+
+    for index, char in enumerate(chars):
+
+        if char == "◆":
+            bar += c(CYAN + BOLD, char)
+
+        elif index < filled:
+            bar += c(active_color, char)
+
+        else:
+            bar += c(DIM, char)
+
+    hex_value = f"{int(progress * 255):02X}"
+
+    return (
+        f"{bar} "
+        f"{c(BLACK + BOLD, '0x' + hex_value)}"
+    )
+
+
+def print_bar(progress, status="PROCESSING", elapsed=None, failed=False):
+    if status.lower() == "timeout":
+        failed = True
+
+    bar = hud_bar(
+        progress,
+        width=42,
+        failed=failed,
+        cursor=False
+    )
+
+    if status.lower() == "success":
+        state = c(GREEN + BOLD, "SUCCESS")
+
+    elif status.lower() == "failed":
+        state = c(RED + BOLD, "FAILED")
+
+    elif status.lower() == "timeout":
+        state = c(YELLOW + BOLD, "TIMEOUT")
+
+    else:
+        state = c(GREEN, "PROCESSING")
+
+    if elapsed is not None:
+        print(
+            f"  {bar}  {state}"
+            f"  {c(DIM, f'{elapsed:.2f}s')}"
+        )
+    else:
+        print(
+            f"  {bar}  {state}"
+        )
+
+
+def print_package_header(index, total, package):
+    print()
+
+    print(
+        f"  {c(CYAN, f'[{index:02d}/{total:02d}]')}"
+        f" {c(WHITE + BOLD, package)}"
+    )
+
+
+def print_package_stats(elapsed, progress):
+    if elapsed > 0:
+        rate = progress / elapsed
+    else:
+        rate = 0.0
+
+    print(
+        f"  {c(DIM, 'STATE'):10}"
+        f"{c(GREEN, 'RUNNING'):10}"
+        f"{c(DIM, 'RATE'):10}"
+        f"{c(WHITE, f'{rate:.2f}')}"
+        f"{c(DIM, 'ELAPSED'):12}"
+        f"{c(WHITE, f'{elapsed:.2f}s')}"
+    )
+
+
+def animate_simulation(package, index, total, duration=1.8, fail=False):
+    start = time.monotonic()
+
+    while True:
+        elapsed = time.monotonic() - start
+        progress = min(elapsed / duration, 1.0)
+
+        clear_line()
+
+        activity = ["◈", "◇", "◆", "◇"][
+            int(elapsed * 10) % 4
+        ]
+
+        bar = hud_bar(
+            progress,
+            width=42,
+            failed=fail,
+            cursor=True
+        )
+
+        state = (
+            c(RED + BOLD, "FAILED")
+            if fail
+            else c(GREEN, "PROCESSING")
+        )
+
+        sys.stdout.write(
+            f"\r  {c(CYAN + BOLD, activity)} "
+            f"{bar}  {state} "
+            f"{c(DIM, f'{elapsed:.2f}s')}"
+        )
+
+        sys.stdout.flush()
+
+        if progress >= 1.0:
+            break
+
+        time.sleep(0.045)
+
+    elapsed = time.monotonic() - start
+
+    clear_line()
+
+    if fail:
+        final_progress = 0.78
+        activity = c(RED + BOLD, "✕")
+        state = c(RED + BOLD, "FAILED")
+    else:
+        final_progress = 1.0
+        activity = c(GREEN + BOLD, "✓")
+        state = c(GREEN + BOLD, "SUCCESS")
+
+    bar = hud_bar(
+        final_progress,
+        width=42,
+        failed=fail,
+        cursor=False
+    )
+
+    sys.stdout.write(
+        f"  {activity} "
+        f"{bar}  {state} "
+        f"{c(DIM, f'{elapsed:.2f}s')}\n"
+    )
+
+    sys.stdout.flush()
+
+
+def print_matrix(results):
+    successful = sum(
+        1 for item in results
+        if item["status"] == "success"
+    )
+
+    failed = sum(
+        1 for item in results
+        if item["status"] == "failed"
+    )
+
+    timeout = sum(
+        1 for item in results
+        if item["status"] == "timeout"
+    )
+
+    total = len(results)
+
+    percentage = (
+        (successful / total) * 100
+        if total
+        else 0
+    )
+
+    panel("UPDATE SUMMARY")
+
+    print(
+        f"  {c(GREEN, '✓')} "
+        f"{c(WHITE, str(successful))} successful"
+    )
+
+    print(
+        f"  {c(RED, '✕')} "
+        f"{c(WHITE, str(failed))} failed"
+    )
+
+    print(
+        f"  {c(YELLOW, '○')} "
+        f"{c(WHITE, str(timeout))} timeout"
+    )
+
+    print()
+
+    print(
+        f"  TOTAL  {hud_bar(percentage / 100, width=42, cursor=False)}"
+        f"  {c(WHITE + BOLD, f'{percentage:.1f}%')}"
+    )
+
+
+def print_error_panel(package):
+    print(
+        f"  {c(RED, '✕')} "
+        f"{c(RED + BOLD, package)} "
+        f"{c(DIM, '// simulated failure')}"
+    )
+
+
+def print_simulation_report(results, started):
+    elapsed = time.monotonic() - started
+
+    successful = sum(
+        1 for item in results
+        if item["status"] == "success"
+    )
+
+    failed = sum(
+        1 for item in results
+        if item["status"] == "failed"
+    )
+
+    timeout = sum(
+        1 for item in results
+        if item["status"] == "timeout"
+    )
+
+    panel("FINAL REPORT")
+
+    print(
+        f"  {c(CYAN, 'RESULT'):14}"
+        f"{c(GREEN, 'SIMULATION COMPLETE')}"
+    )
+
+    print(
+        f"  {c(CYAN, 'SUCCESS'):14}"
+        f"{c(GREEN, str(successful))}"
+        f"    {c(CYAN, 'FAILED'):10}"
+        f"{c(RED, str(failed))}"
+    )
+
+    print(
+        f"  {c(CYAN, 'TIMEOUT'):14}"
+        f"{c(YELLOW, str(timeout))}"
+        f"    {c(CYAN, 'RUNTIME'):10}"
+        f"{c(WHITE, f'{elapsed:.2f}s')}"
+    )
+
+    print(
+        f"  {c(CYAN, 'APT'):14}"
+        f"{c(GREEN, 'DISABLED')}"
+        f"    {c(CYAN, 'LUMS RESULT'):10}"
+        f"{c(GREEN, 'NOT SENT')}"
+    )
+
+
+def simulate_job():
+    started = time.monotonic()
+
+    panel("SIMULATION")
+
+    print(
+        f"  {c(CYAN, 'MODE'):14}"
+        f"{c(YELLOW + BOLD, 'SIMULATION')}"
+    )
+
+    print(
+        f"  {c(CYAN, 'APT'):14}"
+        f"{c(GREEN, 'DISABLED')}"
+    )
+
+    print(
+        f"  {c(CYAN, 'ENGINE'):14}"
+        f"{c(GREEN, 'READ-ONLY')}"
+    )
+
+    print()
+
+    status_warn(
+        "Visual test only // no packages will be changed."
+    )
+
+    packages = [
+        "linux-image-generic",
+        "libssl3",
+        "openssl",
+        "python3-cryptography",
+        "sqlite3",
+        "curl",
+        "ca-certificates",
+        "netplan.io",
+    ]
+
+    results = []
+    total = len(packages)
+
+    panel("UPDATE ENGINE")
+
+    for index, package in enumerate(
+        packages,
+        start=1
+    ):
+
+        print_package_header(
+            index,
+            total,
+            package
+        )
+
+        print(
+            c(
+                DIM,
+                "  $ simulated apt-get install "
+                "--only-upgrade -y " + package
+            )
+        )
+
+        fail = package == "sqlite3"
+
+        animate_simulation(
+            package,
+            index,
+            total,
+            duration=1.4,
+            fail=fail
+        )
+
+        if fail:
+
+            status_fail(
+                f"{package} // FAILED"
+            )
+
+            print_error_panel(package)
+
+            results.append({
+                "package": package,
+                "status": "failed",
+                "message": "Simulated failure.",
+                "returncode": 1
+            })
+
+        else:
+
+            status_ok(
+                f"{package} // SUCCESS"
+            )
+
+            results.append({
+                "package": package,
+                "status": "success",
+                "message": "Simulated success.",
+                "returncode": 0
+            })
+
+        overall = index / total
+
+        print(
+            f"  {c(DIM, 'TOTAL PROGRESS')} "
+            f"{hud_bar(overall, width=42, cursor=False)} "
+            f"{c(WHITE, f'{overall * 100:05.1f}%')}"
+        )
+
+    print_matrix(results)
+
+    print_simulation_report(
+        results,
+        started
+    )
+
+    print()
+
+    status_ok(
+        "SIMULATION COMPLETE // NO LUMS JOB RESULT SENT"
+    )
+
+
+# ============================================================
+# LUMS API
+# ============================================================
 
 def get_auth_headers(extra=None):
     if not LUMS_TOKEN:
@@ -62,6 +588,10 @@ def get_ip():
         text=True
     ).strip()
 
+
+# ============================================================
+# PACKAGE INFORMATION
+# ============================================================
 
 def get_packages():
     result = subprocess.run(
@@ -148,6 +678,10 @@ def collect_data():
     }
 
 
+# ============================================================
+# REPORTING
+# ============================================================
+
 def send_report(data):
     payload = json.dumps(data).encode("utf-8")
 
@@ -185,6 +719,7 @@ def get_client():
             response.read().decode("utf-8")
         )
 
+
 def get_pending_job(client_id):
     url = (
         f"{LUMS_BASE}/api/clients/"
@@ -218,6 +753,10 @@ def get_pending_job(client_id):
 
         raise
 
+
+# ============================================================
+# PACKAGE STATE
+# ============================================================
 
 def get_installed_package_state(package):
     result = subprocess.run(
@@ -290,12 +829,97 @@ def get_candidate_version(package):
     return None
 
 
-def run_package_update(package):
-    env = os.environ.copy()
+# ============================================================
+# UPDATE ENGINE
+# ============================================================
 
+def animate_update(command, package):
+    env = os.environ.copy()
     env["DEBIAN_FRONTEND"] = "noninteractive"
     env["LC_ALL"] = "C"
 
+    process = subprocess.Popen(
+        command,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        text=True,
+        env=env,
+        bufsize=1
+    )
+
+    start = time.monotonic()
+    output_lines = []
+
+    try:
+
+        while True:
+
+            if time.monotonic() - start > PACKAGE_TIMEOUT:
+                process.kill()
+                process.wait()
+
+                raise subprocess.TimeoutExpired(
+                    command,
+                    PACKAGE_TIMEOUT
+                )
+
+            line = process.stdout.readline()
+
+            if line:
+                output_lines.append(
+                    line.rstrip()
+                )
+
+                if len(output_lines) > 250:
+                    output_lines.pop(0)
+
+            returncode = process.poll()
+
+            if returncode is not None:
+                break
+
+            elapsed = time.monotonic() - start
+            cycle = (elapsed % 8.0) / 8.0
+            progress = 0.08 + (cycle * 0.84)
+
+            clear_line()
+
+            value = int(progress * 255)
+            hex_value = f"0x{value:02X}"
+
+            sys.stdout.write(
+                f"  UPDATE {c(CYAN, package):30} "
+                f"{c(GREEN, hex_value)}"
+            )
+
+            sys.stdout.flush()
+
+            time.sleep(0.08)
+
+        remaining = process.stdout.read()
+
+        if remaining:
+            output_lines.extend(
+                remaining.splitlines()
+            )
+
+    except subprocess.TimeoutExpired:
+        raise
+
+    except Exception:
+        process.kill()
+        process.wait()
+        raise
+
+    clear_line()
+
+    return (
+        process.returncode,
+        "\n".join(output_lines)
+    )
+
+
+def run_package_update(package):
     command = [
         "apt-get",
         "install",
@@ -304,69 +928,47 @@ def run_package_update(package):
         package
     ]
 
+    print()
     print(
-        "  $ " +
-        " ".join(command)
+        c(CYAN, f"  UPDATE // {package}")
     )
 
-    target_version = get_candidate_version(
-        package
+    print(
+        c(DIM, "  $ " + " ".join(command))
     )
+
+    target_version = get_candidate_version(package)
 
     if target_version:
         print(
-            f"  Zielversion: {target_version}"
+            f"  Zielversion: {c(WHITE, target_version)}"
         )
 
     try:
 
-        result = subprocess.run(
+        returncode, output = animate_update(
             command,
-            capture_output=True,
-            text=True,
-            env=env,
-            timeout=PACKAGE_TIMEOUT
+            package
         )
 
-    except subprocess.TimeoutExpired as error:
+    except subprocess.TimeoutExpired:
 
-        stdout = error.stdout or ""
-        stderr = error.stderr or ""
+        print_bar(
+            0.78,
+            "timeout"
+        )
 
-        if isinstance(stdout, bytes):
-            stdout = stdout.decode(
-                "utf-8",
-                errors="replace"
-            )
-
-        if isinstance(stderr, bytes):
-            stderr = stderr.decode(
-                "utf-8",
-                errors="replace"
-            )
-
-        output = (
-            stdout +
-            "\n" +
-            stderr
-        ).strip()
+        print()
 
         return {
             "package": package,
             "status": "timeout",
             "message": (
                 f"Package update timed out after "
-                f"{PACKAGE_TIMEOUT} seconds.\n\n"
-                f"{output[-3500:]}"
+                f"{PACKAGE_TIMEOUT} seconds."
             ),
             "returncode": None
         }
-
-    output = (
-        result.stdout +
-        "\n" +
-        result.stderr
-    ).strip()
 
     package_state = get_installed_package_state(
         package
@@ -380,21 +982,26 @@ def run_package_update(package):
         "installed"
     )
 
-    if result.returncode == 0:
+    if returncode == 0:
 
-        message = (
-            f"Package update completed successfully.\n"
-            f"Returncode: {result.returncode}\n"
-            f"Installed version: "
-            f"{installed_version or 'unknown'}\n\n"
-            f"{output[-3500:]}"
+        print_bar(
+            1.0,
+            "success"
         )
+
+        print()
 
         return {
             "package": package,
             "status": "success",
-            "message": message,
-            "returncode": result.returncode
+            "message": (
+                f"Package update completed successfully.\n"
+                f"Returncode: {returncode}\n"
+                f"Installed version: "
+                f"{installed_version or 'unknown'}\n\n"
+                f"{output[-3500:]}"
+            ),
+            "returncode": returncode
         }
 
     if (
@@ -403,21 +1010,26 @@ def run_package_update(package):
         and installed_version == target_version
     ):
 
-        message = (
-            "apt-get returned a non-zero code, "
-            "but the package is installed and the "
-            "target version is present.\n"
-            f"Returncode: {result.returncode}\n"
-            f"Installed version: {installed_version}\n"
-            f"Target version: {target_version}\n\n"
-            f"{output[-3000:]}"
+        print_bar(
+            1.0,
+            "success"
         )
+
+        print()
 
         return {
             "package": package,
             "status": "success",
-            "message": message,
-            "returncode": result.returncode
+            "message": (
+                "apt-get returned a non-zero code, "
+                "but the package is installed and the "
+                "target version is present.\n"
+                f"Returncode: {returncode}\n"
+                f"Installed version: {installed_version}\n"
+                f"Target version: {target_version}\n\n"
+                f"{output[-3000:]}"
+            ),
+            "returncode": returncode
         }
 
     if (
@@ -425,40 +1037,50 @@ def run_package_update(package):
         and target_version is None
     ):
 
-        message = (
-            "apt-get returned a non-zero code, "
-            "but the package is installed correctly. "
-            "No candidate version was available "
-            "for comparison.\n"
-            f"Returncode: {result.returncode}\n"
-            f"Installed version: {installed_version}\n\n"
-            f"{output[-3000:]}"
+        print_bar(
+            1.0,
+            "success"
         )
+
+        print()
 
         return {
             "package": package,
             "status": "success",
-            "message": message,
-            "returncode": result.returncode
+            "message": (
+                "apt-get returned a non-zero code, "
+                "but the package is installed correctly. "
+                "No candidate version was available "
+                "for comparison.\n"
+                f"Returncode: {returncode}\n"
+                f"Installed version: {installed_version}\n\n"
+                f"{output[-3000:]}"
+            ),
+            "returncode": returncode
         }
 
-    message = (
-        f"Package update failed.\n"
-        f"Returncode: {result.returncode}\n"
-        f"Package status: "
-        f"{package_state.get('status') or 'unknown'}\n"
-        f"Installed version: "
-        f"{installed_version or 'unknown'}\n"
-        f"Target version: "
-        f"{target_version or 'unknown'}\n\n"
-        f"{output[-3500:]}"
+    print_bar(
+        0.78,
+        "failed"
     )
+
+    print()
 
     return {
         "package": package,
         "status": "failed",
-        "message": message,
-        "returncode": result.returncode
+        "message": (
+            f"Package update failed.\n"
+            f"Returncode: {returncode}\n"
+            f"Package status: "
+            f"{package_state.get('status') or 'unknown'}\n"
+            f"Installed version: "
+            f"{installed_version or 'unknown'}\n"
+            f"Target version: "
+            f"{target_version or 'unknown'}\n\n"
+            f"{output[-3500:]}"
+        ),
+        "returncode": returncode
     }
 
 
@@ -467,6 +1089,10 @@ def reboot_required():
         "/var/run/reboot-required"
     )
 
+
+# ============================================================
+# JOB RESULT
+# ============================================================
 
 def send_job_result(
     job_id,
@@ -502,20 +1128,34 @@ def execute_job(job):
     job_id = job["job_id"]
     job_packages = job.get("packages", [])
 
-    print()
-    print("=== LUMS UPDATE JOB ===")
-    print(f"Job-ID: {job_id}")
-    print(f"Pakete: {len(job_packages)}")
+    panel("UPDATE ENGINE")
+
+    print(
+        f"  JOB        {c(CYAN, str(job_id))}"
+    )
+
+    print(
+        f"  PACKAGES   {c(WHITE, str(len(job_packages)))}"
+    )
+
     print()
 
     results = []
 
-    for item in job_packages:
+    total = len(job_packages)
+
+    for index, item in enumerate(
+        job_packages,
+        start=1
+    ):
 
         package = item["package"]
 
         print(
-            f"Update: {package}"
+            c(
+                WHITE + BOLD,
+                f"[{index:02d}/{total:02d}] {package}"
+            )
         )
 
         result = run_package_update(
@@ -526,20 +1166,20 @@ def execute_job(job):
 
         if result["status"] == "success":
 
-            print(
-                f"  ✓ {package}"
+            status_ok(
+                f"{package} // SUCCESS"
             )
 
         elif result["status"] == "timeout":
 
-            print(
-                f"  ⏱ {package}"
+            status_warn(
+                f"{package} // TIMEOUT"
             )
 
         else:
 
-            print(
-                f"  ✗ {package}"
+            status_fail(
+                f"{package} // FAILED"
             )
 
     successful = sum(
@@ -571,26 +1211,29 @@ def execute_job(job):
 
     reboot = reboot_required()
 
+    panel("UPDATE RESULT")
+
+    print(
+        f"  SUCCESS    {c(GREEN, str(successful))}"
+    )
+
+    print(
+        f"  FAILED     {c(RED, str(failed))}"
+    )
+
+    print(
+        f"  TIMEOUT    {c(YELLOW, str(timed_out))}"
+    )
+
+    print(
+        f"  REBOOT     "
+        f"{c(YELLOW, 'REQUIRED' if reboot else 'NOT REQUIRED')}"
+    )
+
     print()
-    print(
-        f"Erfolgreich: {successful}"
-    )
 
     print(
-        f"Fehlgeschlagen: {failed}"
-    )
-
-    print(
-        f"Timeout: {timed_out}"
-    )
-
-    print(
-        f"Neustart erforderlich: {reboot}"
-    )
-
-    print()
-    print(
-        "Sende Ergebnis an LUMS..."
+        c(CYAN, "  SENDING RESULT TO LUMS...")
     )
 
     response = send_job_result(
@@ -600,54 +1243,59 @@ def execute_job(job):
         reboot
     )
 
-    print(
-        f"LUMS API: {response}"
+    status_ok(
+        f"LUMS API // {response}"
     )
 
+
+# ============================================================
+# MAIN
+# ============================================================
 
 def main():
 
+    print_banner()
+
+    if SIMULATE_UPDATES:
+        simulate_job()
+
+        print()
+        separator()
+
+        print(
+            c(
+                GREEN + BOLD,
+                "LUMS // Simulation cycle complete."
+            )
+        )
+
+        print()
+
+        return
+
     data = collect_data()
 
-    print("=== LUMS Agent ===")
+    print_system(data)
+
+    print_connection_header()
 
     print(
-        f"Hostname: {data['hostname']}"
-    )
-
-    print(
-        f"IP: {data['ip']}"
-    )
-
-    print(
-        f"Agent: {data['agent_version']}"
-    )
-
-    print(
-        f"Updates: {len(data['updates'])}"
-    )
-
-    print(
-        f"Pakete: {len(data['packages'])}"
-    )
-
-    print()
-    print(
-        "Sende Report an LUMS01..."
+        c(CYAN, "  REPORT      ") +
+        "Sending system report..."
     )
 
     try:
 
         response = send_report(data)
 
-        print(
-            f"LUMS API: {response}"
+        status_ok(
+            f"REPORT ACCEPTED // {response}"
         )
 
     except Exception as error:
 
-        print(
-            f"Fehler beim Senden des Reports: {error}"
+        status_fail(
+            f"REPORT FAILED // {error}"
         )
 
     try:
@@ -656,11 +1304,15 @@ def main():
 
         if client is None:
 
-            print(
-                "Client nicht bei LUMS gefunden."
+            status_fail(
+                "CLIENT NOT FOUND"
             )
 
             return
+
+        status_ok(
+            f"CLIENT AUTHENTICATED // ID {client['id']}"
+        )
 
         job = get_pending_job(
             client["id"]
@@ -668,59 +1320,96 @@ def main():
 
         if not job:
 
+            status_ok(
+                "NO UPDATE JOB // SYSTEM CLEAN"
+            )
+
             print()
             print(
-                "Kein Update-Job vorhanden."
+                c(
+                    GREEN,
+                    "LUMS // Agent cycle complete."
+                )
             )
 
             return
 
         if job.get("status") == "no_job":
 
+            status_ok(
+                "NO UPDATE JOB // SYSTEM CLEAN"
+            )
+
             print()
             print(
-                "Kein Update-Job vorhanden."
+                c(
+                    GREEN,
+                    "LUMS // Agent cycle complete."
+                )
             )
 
             return
 
         execute_job(job)
 
-        print()
+        panel("POST-UPDATE")
+
         print(
-            "Erfasse aktuellen Systemstatus nach dem Update..."
+            c(
+                CYAN,
+                "  COLLECTING CURRENT SYSTEM STATE..."
+            )
         )
 
         updated_data = collect_data()
 
         print(
-            f"Updates nach dem Update: {len(updated_data['updates'])}"
+            f"  UPDATES    "
+            f"{c(YELLOW, str(len(updated_data['updates'])))}"
         )
 
         print(
-            "Sende aktualisierten Report an LUMS01..."
+            c(
+                CYAN,
+                "  SENDING UPDATED REPORT..."
+            )
         )
 
         try:
 
-            response = send_report(updated_data)
+            response = send_report(
+                updated_data
+            )
 
-            print(
-                f"LUMS API: {response}"
+            status_ok(
+                f"UPDATED REPORT // {response}"
             )
 
         except Exception as error:
 
-            print(
-                f"Fehler beim Senden des aktualisierten Reports: {error}"
+            status_fail(
+                f"UPDATED REPORT FAILED // {error}"
             )
 
     except Exception as error:
 
         print()
-        print(
-            f"Fehler bei der Job-Ausführung: {error}"
+
+        status_fail(
+            f"JOB EXECUTION ERROR // {error}"
         )
+
+    print()
+    separator()
+
+    print(
+        c(
+            GREEN + BOLD,
+            "LUMS // Agent cycle complete."
+        )
+    )
+
+    print()
 
 
 if __name__ == "__main__":
