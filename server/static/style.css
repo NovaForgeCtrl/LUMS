@@ -4272,3 +4272,659 @@ html[data-theme="golf"] .success-state {
     border-color: #22c55e;
 }
 
+
+/* =========================================================
+   LUMS NERD // FINAL TERMINAL OVERRIDE
+   ========================================================= */
+
+html[data-theme="nerd"] body {
+    background: #020602;
+    color: #b8ffb8;
+}
+
+html[data-theme="nerd"] .topbar {
+    background: #010301;
+    color: #7cff7c;
+    border-bottom-color: #39d353;
+}
+
+html[data-theme="nerd"] .topbar span {
+    color: #5fa85f;
+}
+
+html[data-theme="nerd"] .server-status {
+    color: #7cff7c;
+}
+
+html[data-theme="nerd"] .status-dot {
+    background: #39d353;
+    box-shadow: 0 0 10px rgba(57,211,83,0.75);
+}
+
+html[data-theme="nerd"] .card,
+html[data-theme="nerd"] .panel {
+    background: #071007;
+    color: #b8ffb8;
+    border-color: #214d21;
+    box-shadow: 0 0 14px rgba(57,211,83,0.08);
+}
+
+html[data-theme="nerd"] .card-title,
+html[data-theme="nerd"] .panel-header p {
+    color: #6fba6f;
+}
+
+html[data-theme="nerd"] .card-value {
+    color: #7cff7c;
+}
+
+html[data-theme="nerd"] .panel-header {
+    border-bottom-color: #214d21;
+}
+
+html[data-theme="nerd"] th {
+    background: #0b160b;
+    color: #7cff7c;
+    border-bottom-color: #214d21;
+}
+
+html[data-theme="nerd"] td {
+    color: #b8ffb8;
+    border-bottom-color: #163516;
+}
+
+html[data-theme="nerd"] tr:hover {
+    background: #0d1d0d;
+}
+
+html[data-theme="nerd"] button {
+    background: #123512;
+    color: #7cff7c;
+    border: 1px solid #39d353;
+}
+
+html[data-theme="nerd"] button:hover {
+    background: #1a4a1a;
+    color: #a8ffb0;
+}
+
+html[data-theme="nerd"] a {
+    color: #6fff6f;
+}
+
+html[data-theme="nerd"] code {
+    color: #7cff7c;
+    background: #010501;
+}
+
+html[data-theme="nerd"] .status-online {
+    color: #39d353;
+}
+
+html[data-theme="nerd"] .status-unknown {
+    color: #facc15;
+}
+
+html[data-theme="nerd"] .status-offline {
+    color: #ef4444;
+}
+
+html[data-theme="nerd"] .status-online .status-indicator {
+    background: #39d353;
+}
+
+html[data-theme="nerd"] .status-unknown .status-indicator {
+    background: #facc15;
+}
+
+html[data-theme="nerd"] .status-offline .status-indicator {
+    background: #ef4444;
+}
+
+html[data-theme="nerd"] .updates-none {
+    color: #39d353;
+}
+
+html[data-theme="nerd"] .updates-warning {
+    color: #ef4444;
+}
+
+html[data-theme="nerd"] .status-badge {
+    background: #010501;
+    color: #b8ffb8;
+    border-color: #214d21;
+}
+
+html[data-theme="nerd"] .status-badge.online {
+    background: #010501;
+    color: #39d353;
+    border-color: #39d353;
+    box-shadow: none;
+}
+
+html[data-theme="nerd"] .status-badge.online::before {
+    background: #39d353;
+    box-shadow: 0 0 8px rgba(57,211,83,0.8);
+}
+
+html[data-theme="nerd"] .status-badge.offline {
+    background: #080202;
+    color: #ef4444;
+    border-color: #ef4444;
+}
+
+html[data-theme="nerd"] .status-badge.offline::before {
+    background: #ef4444;
+}
+
+html[data-theme="nerd"] .package-status.current {
+    background: #010501;
+    color: #39d353;
+    border-color: #39d353;
+}
+
+html[data-theme="nerd"] .package-status.current::before {
+    background: #39d353;
+}
+
+html[data-theme="nerd"] .package-status.update {
+    background: #080202;
+    color: #ef4444;
+    border-color: #ef4444;
+    box-shadow: none;
+}
+
+html[data-theme="nerd"] .package-status.update::before {
+    background: #ef4444;
+}
+
+html[data-theme="nerd"] .success-state {
+    background: #010501;
+    color: #39d353;
+    border-color: #39d353;
+}
+
+
+/* =========================================================
+   LUMS NERD // OVERDRIVE
+   TERMINAL SYSTEM INTERFACE
+   ========================================================= */
+
+html[data-theme="nerd"] {
+    color-scheme: dark;
+}
+
+html[data-theme="nerd"] body {
+    background:
+        radial-gradient(
+            circle at 50% 0%,
+            rgba(57,211,83,0.045),
+            transparent 42%
+        ),
+        linear-gradient(
+            180deg,
+            #010301 0%,
+            #020602 45%,
+            #010301 100%
+        );
+    color: #b8ffb8;
+    font-family: "Courier New", Courier, monospace;
+    text-shadow: 0 0 2px rgba(124,255,124,0.12);
+}
+
+html[data-theme="nerd"] body::before {
+    background:
+        repeating-linear-gradient(
+            0deg,
+            rgba(124,255,124,0.018) 0,
+            rgba(124,255,124,0.018) 1px,
+            transparent 1px,
+            transparent 3px
+        );
+}
+
+html[data-theme="nerd"] body::after {
+    background:
+        linear-gradient(
+            rgba(124,255,124,0.018),
+            rgba(0,0,0,0.018)
+        ),
+        repeating-linear-gradient(
+            0deg,
+            transparent 0,
+            transparent 3px,
+            rgba(124,255,124,0.022) 4px
+        );
+}
+
+/* ---------- TOPBAR ---------- */
+
+html[data-theme="nerd"] .topbar {
+    background: #010301;
+    color: #7cff7c;
+    border-bottom: 2px solid #39d353;
+    box-shadow:
+        0 0 18px rgba(57,211,83,0.12),
+        inset 0 -1px 0 rgba(124,255,124,0.08);
+}
+
+html[data-theme="nerd"] .topbar h1 {
+    color: #7cff7c;
+    text-shadow:
+        0 0 5px rgba(124,255,124,0.45),
+        0 0 14px rgba(57,211,83,0.22);
+}
+
+html[data-theme="nerd"] .topbar span {
+    color: #67b967;
+}
+
+/* ---------- SERVER STATUS ---------- */
+
+html[data-theme="nerd"] .server-status {
+    color: #7cff7c;
+}
+
+html[data-theme="nerd"] .status-dot {
+    background: #39d353;
+    box-shadow:
+        0 0 6px #39d353,
+        0 0 14px rgba(57,211,83,0.75);
+}
+
+/* ---------- CARDS / PANELS ---------- */
+
+html[data-theme="nerd"] .card,
+html[data-theme="nerd"] .panel {
+    background:
+        linear-gradient(
+            180deg,
+            #071007 0%,
+            #030803 100%
+        );
+    color: #b8ffb8;
+    border: 1px solid #286b32;
+    box-shadow:
+        0 0 10px rgba(57,211,83,0.07),
+        inset 0 0 18px rgba(57,211,83,0.025);
+}
+
+html[data-theme="nerd"] .card-title,
+html[data-theme="nerd"] .panel-header p {
+    color: #6fba6f;
+    text-shadow: 0 0 3px rgba(57,211,83,0.18);
+}
+
+html[data-theme="nerd"] .card-value {
+    color: #7cff7c;
+    text-shadow:
+        0 0 5px rgba(124,255,124,0.42),
+        0 0 14px rgba(57,211,83,0.18);
+}
+
+html[data-theme="nerd"] .panel-header {
+    background: #020602;
+    border-bottom: 1px solid #286b32;
+}
+
+/* ---------- TERMINAL MARKERS ---------- */
+
+html[data-theme="nerd"] .card::after,
+html[data-theme="nerd"] .panel::after {
+    color: #286b32;
+    text-shadow: 0 0 4px rgba(57,211,83,0.18);
+}
+
+/* ---------- TABLES ---------- */
+
+html[data-theme="nerd"] table {
+    background: #020602;
+}
+
+html[data-theme="nerd"] th {
+    background:
+        linear-gradient(
+            180deg,
+            #0a180a,
+            #020602
+        );
+    color: #7cff7c;
+    border-bottom: 1px solid #39d353;
+    text-shadow: 0 0 4px rgba(124,255,124,0.2);
+}
+
+html[data-theme="nerd"] td {
+    background: #030803;
+    color: #b8ffb8;
+    border-bottom: 1px solid #163516;
+}
+
+html[data-theme="nerd"] tr:nth-child(even) td {
+    background: #040a04;
+}
+
+html[data-theme="nerd"] tr:hover td {
+    background: #0b1c0b;
+    color: #d1ffd1;
+}
+
+/* ---------- LINKS / CODE ---------- */
+
+html[data-theme="nerd"] a {
+    color: #7cff7c;
+    text-shadow: 0 0 4px rgba(124,255,124,0.18);
+}
+
+html[data-theme="nerd"] a:hover {
+    color: #b8ffb8;
+}
+
+html[data-theme="nerd"] code {
+    background: #010401;
+    color: #7cff7c;
+    border-color: #214d21;
+}
+
+/* ---------- BUTTONS ---------- */
+
+html[data-theme="nerd"] button {
+    background:
+        linear-gradient(
+            180deg,
+            #123512,
+            #061506
+        );
+    color: #7cff7c;
+    border: 1px solid #39d353;
+    box-shadow:
+        0 0 6px rgba(57,211,83,0.12),
+        inset 0 0 8px rgba(57,211,83,0.04);
+    font-family: "Courier New", Courier, monospace;
+    text-shadow: 0 0 4px rgba(124,255,124,0.2);
+}
+
+html[data-theme="nerd"] button:hover {
+    background:
+        linear-gradient(
+            180deg,
+            #1a4a1a,
+            #0b240b
+        );
+    color: #d1ffd1;
+    border-color: #7cff7c;
+    box-shadow:
+        0 0 10px rgba(57,211,83,0.22),
+        inset 0 0 10px rgba(57,211,83,0.07);
+}
+
+/* ---------- STATUS SYSTEM ---------- */
+
+html[data-theme="nerd"] .status-online,
+html[data-theme="nerd"] .status-online .status-indicator,
+html[data-theme="nerd"] .updates-none {
+    color: #39d353;
+}
+
+html[data-theme="nerd"] .status-online .status-indicator {
+    background: #39d353;
+    box-shadow: 0 0 7px rgba(57,211,83,0.7);
+}
+
+html[data-theme="nerd"] .status-unknown {
+    color: #facc15;
+}
+
+html[data-theme="nerd"] .status-unknown .status-indicator {
+    background: #facc15;
+    box-shadow: 0 0 7px rgba(250,204,21,0.55);
+}
+
+html[data-theme="nerd"] .status-offline,
+html[data-theme="nerd"] .updates-warning {
+    color: #ef4444;
+}
+
+html[data-theme="nerd"] .status-offline .status-indicator {
+    background: #ef4444;
+    box-shadow: 0 0 7px rgba(239,68,68,0.6);
+}
+
+/* ---------- CLIENT / PACKAGE STATUS ---------- */
+
+html[data-theme="nerd"] .status-badge {
+    background: #010501;
+    color: #b8ffb8;
+    border: 1px solid #286b32;
+}
+
+html[data-theme="nerd"] .status-badge.online {
+    background: #010501;
+    color: #39d353;
+    border-color: #39d353;
+    box-shadow: 0 0 7px rgba(57,211,83,0.12);
+}
+
+html[data-theme="nerd"] .status-badge.online::before {
+    background: #39d353;
+    box-shadow:
+        0 0 6px #39d353,
+        0 0 12px rgba(57,211,83,0.65);
+}
+
+html[data-theme="nerd"] .status-badge.offline {
+    background: #080202;
+    color: #ef4444;
+    border-color: #ef4444;
+}
+
+html[data-theme="nerd"] .status-badge.offline::before {
+    background: #ef4444;
+    box-shadow: 0 0 7px rgba(239,68,68,0.65);
+}
+
+html[data-theme="nerd"] .package-status.current {
+    background: #010501;
+    color: #39d353;
+    border-color: #39d353;
+}
+
+html[data-theme="nerd"] .package-status.current::before {
+    background: #39d353;
+    box-shadow: 0 0 6px rgba(57,211,83,0.7);
+}
+
+html[data-theme="nerd"] .package-status.update {
+    background: #080202;
+    color: #ef4444;
+    border-color: #ef4444;
+}
+
+html[data-theme="nerd"] .package-status.update::before {
+    background: #ef4444;
+    box-shadow: 0 0 6px rgba(239,68,68,0.65);
+}
+
+/* ---------- SYSTEM CURRENT ---------- */
+
+html[data-theme="nerd"] .success-state {
+    background:
+        linear-gradient(
+            90deg,
+            #010501,
+            #071407,
+            #010501
+        );
+    color: #39d353;
+    border: 1px solid #39d353;
+    box-shadow:
+        0 0 10px rgba(57,211,83,0.12),
+        inset 0 0 10px rgba(57,211,83,0.04);
+    text-shadow: 0 0 5px rgba(57,211,83,0.35);
+}
+
+/* ---------- CRT TERMINAL ACCENTS ---------- */
+
+html[data-theme="nerd"] .card,
+html[data-theme="nerd"] .panel,
+html[data-theme="nerd"] button {
+    transition:
+        border-color 0.15s ease,
+        box-shadow 0.15s ease,
+        background 0.15s ease;
+}
+
+html[data-theme="nerd"] .card:hover,
+html[data-theme="nerd"] .panel:hover {
+    border-color: #39d353;
+    box-shadow:
+        0 0 14px rgba(57,211,83,0.13),
+        inset 0 0 18px rgba(57,211,83,0.035);
+}
+
+/* =========================================================
+   END OF NERD OVERDRIVE
+   ========================================================= */
+
+
+/* =========================================================
+   LUMS NERD // MATRIX BACKGROUND
+   Occasional terminal rain
+   ========================================================= */
+
+html[data-theme="nerd"] body::before {
+    content:
+        "01010110100101101001011010010110"
+        "10100110100101101001011010010110"
+        "00110110100101101001011010010110"
+        "11001010100101101001011010010110";
+    position: fixed;
+    inset: -20%;
+    z-index: 0;
+    pointer-events: none;
+    overflow: hidden;
+
+    color: rgba(57,211,83,0.055);
+    font-family: "Courier New", Courier, monospace;
+    font-size: 14px;
+    line-height: 1.8;
+    letter-spacing: 8px;
+    word-break: break-all;
+
+    text-shadow:
+        0 0 5px rgba(57,211,83,0.25),
+        0 0 12px rgba(57,211,83,0.08);
+
+    opacity: 0;
+    transform: translateY(-8%);
+    animation: lums-matrix-pulse 18s linear infinite;
+}
+
+@keyframes lums-matrix-pulse {
+    0% {
+        opacity: 0;
+        transform: translateY(-8%);
+    }
+
+    8% {
+        opacity: 0;
+    }
+
+    12% {
+        opacity: 0.55;
+    }
+
+    28% {
+        opacity: 0.18;
+        transform: translateY(2%);
+    }
+
+    34% {
+        opacity: 0;
+        transform: translateY(8%);
+    }
+
+    100% {
+        opacity: 0;
+        transform: translateY(8%);
+    }
+}
+
+/* Keep the actual LUMS interface above the Matrix layer */
+
+html[data-theme="nerd"] .topbar,
+html[data-theme="nerd"] .container {
+    position: relative;
+    z-index: 1;
+}
+
+/* =========================================================
+   END OF MATRIX BACKGROUND
+   ========================================================= */
+
+
+/* =========================================================
+   LUMS NERD // MATRIX RAIN LAYER
+   ========================================================= */
+
+html[data-theme="nerd"] #lums-matrix-layer {
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    overflow: hidden;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.8s ease;
+}
+
+html[data-theme="nerd"] #lums-matrix-layer.active {
+    opacity: 1;
+}
+
+html[data-theme="nerd"] .lums-matrix-column {
+    position: absolute;
+    top: -35%;
+    display: block;
+    color: #39d353;
+    font-family: "Courier New", Courier, monospace;
+    font-size: 13px;
+    line-height: 1.35;
+    white-space: nowrap;
+    text-align: center;
+    text-shadow:
+        0 0 5px rgba(57,211,83,0.85),
+        0 0 12px rgba(57,211,83,0.35);
+    opacity: 0.5;
+    animation-name: lums-matrix-fall;
+    animation-timing-function: linear;
+    animation-iteration-count: 1;
+}
+
+html[data-theme="nerd"] .lums-matrix-column::first-line {
+    color: #b8ffb8;
+    text-shadow:
+        0 0 6px #7cff7c,
+        0 0 14px rgba(124,255,124,0.65);
+}
+
+@keyframes lums-matrix-fall {
+    from {
+        transform: translateY(-20vh);
+    }
+
+    to {
+        transform: translateY(145vh);
+    }
+}
+
+/* Keep the complete LUMS interface above the Matrix layer */
+
+html[data-theme="nerd"] .topbar,
+html[data-theme="nerd"] .container {
+    position: relative;
+    z-index: 1;
+}
+
+/* =========================================================
+   END OF MATRIX RAIN LAYER
+   ========================================================= */
+
