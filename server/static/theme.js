@@ -5,7 +5,7 @@
 
     const THEMES = [
         "standard",
-        "nfl",
+        "LUMSStadium",
         "golf",
         "nerd",
         "geek",
