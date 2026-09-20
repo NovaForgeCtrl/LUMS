@@ -8,11 +8,11 @@
 
 ## 1. Security Philosophy
 
-LUMS is designed around a simple principle:
+LUMS follows a simple principle:
 
 > **Centralized management does not mean centralized trust.**
 
-The LUMS server manages clients, receives inventory information and distributes update jobs.
+LUMS manages Linux clients, receives inventory information and distributes update jobs.
 
 The actual package installation remains on the managed Linux client.
 
@@ -20,6 +20,8 @@ The actual package installation remains on the managed Linux client.
                     ┌─────────────────────┐
                     │      LUMS Server    │
                     │                     │
+                    │ Docker              │
+                    │ Flask               │
                     │ Authentication      │
                     │ Authorization       │
                     │ Inventory           │
@@ -36,12 +38,14 @@ The actual package installation remains on the managed Linux client.
                     └─────────────────────┘
 ```
 
-Security therefore depends on multiple layers:
+Security depends on multiple layers:
 
 ```text
 Network
    ↓
 TLS
+   ↓
+Nginx
    ↓
 Authentication
    ↓
@@ -49,124 +53,214 @@ Authorization
    ↓
 Application
    ↓
+Docker
+   ↓
 Database
    ↓
 Operating System
    ↓
-Package Management
+APT / dpkg
 ```
 
-A weakness in one layer must not be treated as a reason to disable another layer.
+A weakness in one layer must never be used as a reason to disable another security layer.
 
 ---
 
-# 2. Security Scope
+## 2. Security Scope
 
 This document covers:
 
-* server security
-* client authentication
-* authorization
-* TLS
-* secrets
-* database protection
-* systemd services
-* Nginx
-* Git repository security
-* update execution
-* logging
-* incident handling
+- Docker deployment security
+- Server authentication
+- Client authentication
+- Authorization
+- TLS
+- Secrets
+- SQLite database protection
+- Nginx
+- systemd agent services
+- Git repository security
+- Update execution
+- Logging
+- Backup protection
+- Incident handling
 
-It does not replace the security documentation of the underlying operating system, Python, Flask, Nginx, SQLite or APT.
+This document does not replace the security documentation of:
+
+- Ubuntu
+- Debian
+- Docker
+- Python
+- Flask
+- Nginx
+- SQLite
+- APT
+- dpkg
 
 ---
 
-# 3. Sensitive Information
+## 3. Current Installation
+
+The current LUMS installation uses Docker and Nginx.
+
+| Component | Configuration |
+|---|---|
+| Server IP | `192.168.2.138` |
+| Repository | `/opt/lums-public` |
+| Docker container | `lums` |
+| Docker image | `lums:latest` |
+| Docker volume | `lums-data` |
+| Internal Flask port | `5000` |
+| Host binding | `127.0.0.1:5050` |
+| HTTPS endpoint | `https://192.168.2.138` |
+| Nginx HTTP port | `80` |
+| Nginx HTTPS port | `443` |
+| Database | `/var/lib/lums/lums.db` |
+| Environment file | `/etc/lums/docker/lums.env` |
+
+The Docker application is only bound to localhost:
+
+```text
+127.0.0.1:5050 → Docker container port 5000
+```
+
+The external application endpoint is provided by Nginx:
+
+```text
+Client
+   │
+   │ HTTPS :443
+   ▼
+Nginx
+   │
+   │ HTTP localhost:5050
+   ▼
+Docker container
+   │
+   │ Flask :5000
+   ▼
+SQLite
+```
+
+---
+
+## 4. Sensitive Information
 
 The following information must be treated as sensitive:
 
 ```text
-LUMS server secrets
+LUMS server secret
 Client tokens
 Authentication hashes
-Passwords
+Administrator passwords
 TLS private keys
 Session information
 Database contents
 Internal infrastructure information
 ```
 
-Examples of sensitive files:
+Important sensitive files:
 
 ```text
-/etc/lums.env
-/etc/nginx/ssl/lums.key
+/etc/lums/docker/lums.env
+/etc/nginx/ssl/lums/lums.key
 /etc/default/lums-agent
-/var/lib/lums/lums.db
+```
+
+The Docker volume contains the operational database:
+
+```text
+lums-data:/var/lib/lums
 ```
 
 > [!CAUTION]
-> Never commit these files or their contents to the Git repository.
+>
+> Never commit sensitive files or their contents to Git.
 
 ---
 
-# 4. Secrets Management
+## 5. Secrets Management
 
-## 4.1 Server Secret
+### 5.1 Docker Server Secret
 
-The server environment is stored outside the Git repository:
+The LUMS server secret is stored outside the Git repository:
 
 ```text
-/etc/lums.env
+/etc/lums/docker/lums.env
 ```
 
-The systemd service loads this file through:
+The Docker container loads the file using:
 
-```ini
-EnvironmentFile=/etc/lums.env
+```bash
+sudo docker run \
+    --env-file /etc/lums/docker/lums.env \
+    ...
 ```
 
-The file must not be committed to Git.
+Protect the file:
+
+```bash
+sudo chown root:root /etc/lums/docker/lums.env
+sudo chmod 600 /etc/lums/docker/lums.env
+```
+
+Check the permissions without displaying its content:
+
+```bash
+sudo ls -l /etc/lums/docker/lums.env
+```
+
+Check whether the secret exists:
+
+```bash
+sudo grep -q '^LUMS_SECRET_KEY=' \
+    /etc/lums/docker/lums.env \
+    && echo "Secret vorhanden" \
+    || echo "Secret fehlt"
+```
+
+Never publish the contents of the environment file.
 
 ---
 
-## 4.2 Client Token
+### 5.2 Client Token
 
-The client configuration is:
+The client configuration is stored in:
 
 ```text
 /etc/default/lums-agent
 ```
 
-The configuration contains the client token.
-
-Example:
+Example structure:
 
 ```ini
-LUMS_BASE=https://192.168.2.229
-LUMS_CA_FILE=/etc/nginx/ssl/lums.crt
+LUMS_BASE=https://SERVER_IP
 LUMS_TOKEN=CLIENT_TOKEN
+LUMS_CA_FILE=/opt/lums-agent/lums-ca.crt
 ```
 
 The real token must never appear in:
 
-* Git commits
-* README files
-* screenshots
-* documentation
-* public issue reports
-* example configuration files
+- Git commits
+- README files
+- Screenshots
+- Documentation
+- Public issue reports
+- Chat messages
+- Log files
 
-Use placeholders instead:
+Use placeholders:
 
 ```text
-CLIENT_TOKEN
 SERVER_IP
+CLIENT_TOKEN
+JOB_ID
+PACKAGE
 ```
 
 ---
 
-# 5. Client Authentication
+## 6. Client Authentication
 
 LUMS clients authenticate using Bearer tokens.
 
@@ -176,9 +270,9 @@ The request contains:
 Authorization: Bearer <client-token>
 ```
 
-The server does not need to store the plaintext client token.
+The server stores a SHA-256 hexadecimal digest of the client token instead of the plaintext token.
 
-The authentication model is:
+Authentication flow:
 
 ```text
 Client Token
@@ -190,50 +284,41 @@ SHA-256
 Hexadecimal Digest
      │
      ▼
-SQLite
+SQLite clients table
 ```
 
-The corresponding authentication value is stored in the client database record.
+The authentication format must remain consistent with the LUMS implementation.
 
-Database:
+Do not replace the client token hash with:
 
-```text
-/var/lib/lums/lums.db
-```
-
-> [!IMPORTANT]
-> The authentication format must remain consistent with the implementation in the LUMS security layer.
-
-Do not replace the client authentication hash with:
-
-* plaintext tokens
-* password hashes
-* arbitrary hashes
-* another encoding format
+- Plaintext tokens
+- Password hashes
+- Arbitrary hashes
+- Another encoding format
 
 unless the application implementation is changed accordingly.
 
 ---
 
-# 6. Client Authorization
+## 7. Client Authorization
 
 Authentication and authorization are separate concepts.
 
 ```text
 Authentication
-     │
-     └── Who is this client?
+    ↓
+Who is this client?
 
 Authorization
-     │
-     └── What is this client allowed to access?
+    ↓
+What is this client allowed to access?
 ```
 
-A valid token does not automatically grant access to every client resource.
+A valid token must not automatically provide access to every client resource.
 
-The server must ensure that authenticated clients operate within their own authorization scope.
+The server must restrict clients to their permitted authorization scope.
 
-For example:
+Example:
 
 ```text
 Client A
@@ -241,107 +326,141 @@ Client A
    └── requests Client B data
             │
             ▼
-        DENIED
+          DENIED
 ```
 
-This distinction is particularly important for:
+This is particularly important for:
 
 ```text
 /api/client/me
-client inventory
-update jobs
-job results
+/api/report
+/client inventory
+/update jobs
+/job results
 ```
 
 ---
 
-# 7. `/api/client/me`
+## 8. Client Identity
 
-Authenticated agents use:
+The client should use its authenticated identity instead of trusting arbitrary client IDs supplied by the client.
+
+The endpoint:
 
 ```text
 GET /api/client/me
 ```
 
-to obtain their authenticated client context.
+can be used to obtain the authenticated client context.
 
-This endpoint is intentionally separate from administrative client management.
+Client-specific operations must be validated on the server.
 
-The agent should use its authenticated identity rather than supplying arbitrary client IDs for operations that belong to the current client.
+The server must not rely solely on:
+
+- Client-supplied IDs
+- Request parameters
+- Hidden form fields
+- Frontend restrictions
+
+Authorization must be enforced server-side.
 
 ---
 
-# 8. TLS
+## 9. TLS
 
-LUMS uses HTTPS between clients and the server.
+LUMS uses HTTPS between agents and the server.
 
-The current server certificate is:
+Certificate:
 
 ```text
-/etc/nginx/ssl/lums.crt
+/etc/nginx/ssl/lums/lums.crt
 ```
 
-The private key is:
+Private key:
 
 ```text
-/etc/nginx/ssl/lums.key
+/etc/nginx/ssl/lums/lums.key
 ```
 
 The private key is highly sensitive.
 
-```text
-/etc/nginx/ssl/lums.key
-        │
-        └── NEVER commit to Git
+Recommended permissions:
+
+```bash
+sudo chown root:root /etc/nginx/ssl/lums/lums.key
+sudo chmod 600 /etc/nginx/ssl/lums/lums.key
+
+sudo chmod 644 /etc/nginx/ssl/lums/lums.crt
 ```
 
 ---
 
-## 8.1 Certificate SAN
+## 10. Certificate SAN
 
-The current LUMS server uses:
-
-```text
-192.168.2.229
-```
-
-The certificate must contain the server address as a Subject Alternative Name:
+The current LUMS server address is:
 
 ```text
-IP Address:192.168.2.229
+192.168.2.138
 ```
 
-The client must connect using an address that matches the certificate SAN.
+The certificate must contain the server IP as a Subject Alternative Name:
+
+```text
+IP Address:192.168.2.138
+```
+
+Inspect the certificate:
+
+```bash
+sudo openssl x509 \
+    -in /etc/nginx/ssl/lums/lums.crt \
+    -noout \
+    -subject \
+    -dates
+```
+
+Inspect the SAN:
+
+```bash
+sudo openssl x509 \
+    -in /etc/nginx/ssl/lums/lums.crt \
+    -noout \
+    -ext subjectAltName
+```
+
+The address used by the client must match a SAN in the certificate.
 
 ---
 
-## 8.2 Certificate Verification
+## 11. Certificate Verification
 
 Certificate verification must remain enabled during normal operation.
 
-Do not permanently solve certificate problems by:
+Do not permanently solve TLS problems by:
 
-```text
-disabling verification
-ignoring certificate errors
-using insecure HTTP
-```
+- Disabling certificate verification
+- Ignoring certificate errors
+- Using insecure HTTP
+- Removing the CA configuration
 
-A diagnostic command may temporarily use:
+The following command bypasses certificate verification and is intended only for diagnostics:
 
 ```bash
-curl -k
+curl -k https://192.168.2.138/
 ```
 
-but `-k` means that certificate verification is bypassed.
+Normal operation should use the configured CA certificate:
 
-It is therefore a diagnostic tool, not a security solution.
+```bash
+curl --cacert /opt/lums-agent/lums-ca.crt \
+    https://192.168.2.138/
+```
 
 ---
 
-# 9. Network Exposure
+## 12. Network Exposure
 
-The intended LUMS architecture is:
+The intended architecture is:
 
 ```text
 Client
@@ -352,130 +471,290 @@ Nginx
    │
    │ HTTP localhost
    ▼
-Flask
-127.0.0.1:5000
+127.0.0.1:5050
+   │
+   ▼
+Docker container :5000
 ```
 
-Flask should listen only on:
+The Docker application must not be exposed directly to the network.
+
+Check the Docker port binding:
+
+```bash
+sudo docker port lums
+```
+
+Check listening ports:
+
+```bash
+sudo ss -lntp
+```
+
+Expected application binding:
 
 ```text
-127.0.0.1:5000
+127.0.0.1:5050
 ```
 
-It should not be exposed directly as:
+Avoid exposing the application using:
 
 ```text
 0.0.0.0:5000
 ```
 
-Port `5000` is an internal application port.
-
-The externally accessible application interface is Nginx over HTTPS.
+unless the security architecture is deliberately redesigned and reviewed.
 
 ---
 
-# 10. HTTP and HTTPS
+## 13. HTTP and HTTPS
 
-The current Nginx configuration provides:
-
-```text
-HTTP :80
-   │
-   └── redirect
-          ↓
-HTTPS :443
-```
-
-Normal client communication should therefore use:
+Normal communication must use:
 
 ```text
 https://SERVER_IP
 ```
 
-rather than:
+Test the HTTP redirect:
 
-```text
-http://SERVER_IP
+```bash
+curl -I http://192.168.2.138/
 ```
 
-The HTTP listener exists for redirection and should not be treated as the secure application endpoint.
+Test HTTPS:
+
+```bash
+curl -k -I https://192.168.2.138/
+```
+
+HTTP should redirect to HTTPS.
+
+Sensitive information must never be transmitted through unencrypted HTTP.
 
 ---
 
-# 11. Nginx Security
+## 14. Nginx Security
 
-Nginx acts as the public-facing reverse proxy.
+Nginx is the public-facing reverse proxy.
 
-Responsibilities include:
+Responsibilities:
 
-* TLS termination
-* HTTP → HTTPS redirection
-* proxying requests to Flask
-* exposing Flask only indirectly
+- TLS termination
+- HTTP-to-HTTPS redirection
+- Forwarding requests to Docker
+- Preventing direct external access to Flask
+- Providing the external HTTPS endpoint
 
-The configuration should be validated before reload:
+Validate the configuration:
 
 ```bash
 sudo nginx -t
 ```
 
-Only after a successful configuration test should Nginx be reloaded.
+Reload Nginx only after a successful configuration test:
 
 ```bash
 sudo systemctl reload nginx
 ```
 
-> [!IMPORTANT]
-> Never reload a known-invalid Nginx configuration during production troubleshooting.
+Check the service:
+
+```bash
+sudo systemctl status nginx --no-pager
+```
 
 ---
 
-# 12. Flask Security
+## 15. Docker Security
 
-Flask is intentionally bound to:
-
-```text
-127.0.0.1:5000
-```
-
-This means clients cannot directly connect to the Flask application.
-
-The expected path is:
+The LUMS application runs inside the Docker container:
 
 ```text
-Internet / LAN
-      │
-      ▼
-Nginx :443
-      │
-      ▼
-Flask :5000
+lums
 ```
 
-This separation reduces the externally exposed application surface.
+Check the container:
+
+```bash
+sudo docker ps --filter name=lums
+```
+
+Inspect the container:
+
+```bash
+sudo docker inspect lums
+```
+
+View the logs:
+
+```bash
+sudo docker logs --tail 100 lums
+```
+
+Follow the logs:
+
+```bash
+sudo docker logs -f lums
+```
+
+The Docker volume contains persistent application data.
+
+Do not remove the volume during normal troubleshooting.
+
+> [!CAUTION]
+>
+> Removing `lums-data` can permanently delete the LUMS database and operational state.
+
+Never execute the following command without a verified backup:
+
+```bash
+sudo docker volume rm lums-data
+```
 
 ---
 
-# 13. Systemd Services
+## 16. Docker Environment Protection
 
-LUMS uses systemd for service management.
-
-Server:
+The server environment file is:
 
 ```text
-lums.service
+/etc/lums/docker/lums.env
 ```
 
-Client:
+The file must remain outside the Git repository:
+
+```text
+/opt/lums-public
+```
+
+Recommended permissions:
+
+```text
+Owner: root
+Group: root
+Mode: 0600
+```
+
+Apply the permissions:
+
+```bash
+sudo chown root:root /etc/lums/docker/lums.env
+sudo chmod 600 /etc/lums/docker/lums.env
+```
+
+Do not copy the environment file into the project directory.
+
+---
+
+## 17. Agent Security
+
+The agent performs security-sensitive operations:
+
+```text
+Authenticate
+   ↓
+Report inventory
+   ↓
+Retrieve update jobs
+   ↓
+Execute package updates
+   ↓
+Report results
+```
+
+The agent requires access to:
+
+- Client token
+- TLS CA certificate
+- APT
+- dpkg
+- System package management
+
+The agent configuration must therefore be protected.
+
+---
+
+## 18. Agent Configuration Protection
+
+The agent configuration is:
+
+```text
+/etc/default/lums-agent
+```
+
+Recommended permissions:
+
+```bash
+sudo chown root:root /etc/default/lums-agent
+sudo chmod 600 /etc/default/lums-agent
+```
+
+Check the permissions:
+
+```bash
+sudo ls -l /etc/default/lums-agent
+```
+
+Display configuration values without revealing the token:
+
+```bash
+sudo awk -F= '
+/^LUMS_BASE=/ {
+    print $1 "=" $2
+}
+/^LUMS_CA_FILE=/ {
+    print $1 "=" $2
+}
+/^LUMS_TOKEN=/ {
+    print "LUMS_TOKEN=<redacted>"
+}
+' /etc/default/lums-agent
+```
+
+---
+
+## 19. Agent TLS Certificate
+
+The agent uses a copied CA certificate:
+
+```text
+/opt/lums-agent/lums-ca.crt
+```
+
+Check the certificate:
+
+```bash
+sudo ls -l /opt/lums-agent/lums-ca.crt
+```
+
+Inspect the certificate:
+
+```bash
+sudo openssl x509 \
+    -in /opt/lums-agent/lums-ca.crt \
+    -noout \
+    -subject \
+    -dates
+```
+
+The certificate must correspond to the certificate presented by Nginx.
+
+Do not permanently disable TLS verification to bypass certificate problems.
+
+---
+
+## 20. systemd Agent Services
+
+The agent uses:
 
 ```text
 lums-agent.service
 lums-agent.timer
 ```
 
-The agent is a oneshot service.
+The service is a oneshot service.
 
-It does not need to run permanently.
+Execution flow:
 
 ```text
 Timer
@@ -487,77 +766,53 @@ Agent
 Exit
 ```
 
-This limits the amount of time during which the client agent process is active.
+The timer remains active and starts the service at the configured interval.
 
----
-
-# 14. Agent Security
-
-The agent performs several security-sensitive operations:
+An expected state after successful execution is:
 
 ```text
-authenticate
-report inventory
-retrieve jobs
-execute package updates
-report results
+lums-agent.service
+inactive (dead)
+status 0/SUCCESS
 ```
 
-The agent therefore requires access to:
+This is normal for a successful oneshot service.
 
-```text
-client token
-TLS certificate
-APT
-system package management
-```
-
-The agent configuration must be protected accordingly.
-
----
-
-# 15. Agent Configuration Protection
-
-The configuration file:
-
-```text
-/etc/default/lums-agent
-```
-
-contains the client token.
-
-It should therefore not be world-readable.
-
-A restrictive configuration is:
-
-```text
-root:root
-0600
-```
-
-Check:
+Enable the timer:
 
 ```bash
-sudo ls -l /etc/default/lums-agent
+sudo systemctl enable --now lums-agent.timer
 ```
 
-If necessary:
+Check the timer:
 
 ```bash
-sudo chown root:root /etc/default/lums-agent
+sudo systemctl status lums-agent.timer --no-pager
 ```
 
+Check the next execution:
+
 ```bash
-sudo chmod 600 /etc/default/lums-agent
+systemctl list-timers --all | grep lums-agent
+```
+
+Check the latest service execution:
+
+```bash
+sudo systemctl status lums-agent.service --no-pager
+```
+
+View service logs:
+
+```bash
+sudo journalctl -u lums-agent.service -n 100 --no-pager
 ```
 
 ---
 
-# 16. Update Execution
+## 21. Update Execution
 
-LUMS does not directly install packages on the server.
-
-The update workflow is:
+LUMS manages update jobs, but the client agent executes package operations.
 
 ```text
 Administrator
@@ -569,33 +824,30 @@ LUMS update job
 Client agent
      │
      ▼
-APT
+APT / dpkg
      │
      ▼
 Package installation
      │
      ▼
-Result
-     │
-     ▼
-LUMS
+Result reporting
 ```
 
-The client remains responsible for executing the actual package operation.
+APT remains responsible for:
 
-The agent uses:
+- Package dependency resolution
+- Repository trust
+- Package signatures
+- Package installation
+- dpkg operations
 
-```bash
-apt-get install --only-upgrade -y PACKAGE
-```
-
-for approved package updates.
+The agent must not silently bypass the operating system's package-management mechanisms.
 
 ---
 
-# 17. Automatic Reboots
+## 22. Automatic Reboots
 
-LUMS does not automatically reboot clients after package updates.
+LUMS does not automatically reboot clients.
 
 The agent checks:
 
@@ -603,778 +855,636 @@ The agent checks:
 /var/run/reboot-required
 ```
 
-A required reboot is therefore reported rather than silently performed.
+Check manually:
 
-This is important for controlled infrastructure because automatic reboots can interrupt services unexpectedly.
+```bash
+test -f /var/run/reboot-required \
+    && echo "Reboot required" \
+    || echo "No reboot required"
+```
 
----
+A required reboot is reported as an administrative condition.
 
-# 18. APT and Package Security
-
-LUMS relies on the operating system's package-management infrastructure.
-
-The agent does not replace:
-
-* APT
-* dpkg
-* package signatures
-* repository trust
-* operating-system security mechanisms
-
-LUMS controls **which update job should be executed**.
-
-APT remains responsible for the actual package installation process.
+The reboot remains a deliberate operational decision.
 
 ---
 
-# 19. Database Security
+## 23. Database Security
 
-LUMS uses SQLite:
+LUMS uses SQLite inside the Docker volume:
+
+```text
+lums-data
+```
+
+The database path inside the container is:
 
 ```text
 /var/lib/lums/lums.db
 ```
 
-The database contains operational information such as:
+The database may contain:
 
-```text
-clients
-client authentication data
-inventory
-available updates
-installed packages
-update jobs
-job results
-audit information
-```
+- Clients
+- Authentication hashes
+- Inventory
+- Available updates
+- Installed packages
+- Update jobs
+- Job results
+- Audit information
 
-Database access must therefore be restricted to the appropriate service account and administrators.
+Database access must be restricted to the LUMS application and authorized administrators.
 
 ---
 
-## 19.1 Database Backups
+## 24. Database Integrity
 
-Before structural changes:
-
-```bash
-sudo cp \
-    /var/lib/lums/lums.db \
-    /var/lib/lums/lums.db.backup
-```
-
-For troubleshooting:
+Check the SQLite database from inside the running container:
 
 ```bash
-sudo cp \
-    /var/lib/lums/lums.db \
-    /var/lib/lums/lums.db.before-troubleshooting
+sudo docker exec lums \
+    python3 -c '
+import sqlite3
+
+connection = sqlite3.connect("/var/lib/lums/lums.db")
+result = connection.execute("PRAGMA integrity_check;").fetchone()[0]
+print(result)
+connection.close()
+'
 ```
 
-A backup should exist before:
-
-* schema migrations
-* manual database corrections
-* recovery operations
-* destructive troubleshooting
-
----
-
-## 19.2 Database Integrity
-
-Check:
-
-```bash
-sudo -u lums sqlite3 /var/lib/lums/lums.db \
-"PRAGMA integrity_check;"
-```
-
-Expected:
+Expected result:
 
 ```text
 ok
 ```
 
----
+Do not modify the database manually without:
 
-# 20. File System Protection
-
-Important runtime locations include:
-
-```text
-/var/lib/lums/
-/etc/lums.env
-/etc/nginx/ssl/
-/etc/default/lums-agent
-```
-
-These should not be writable by arbitrary users.
-
-The application data is normally owned by:
-
-```text
-lums:lums
-```
-
-while sensitive system configuration remains protected by root.
-
-Do not recursively change ownership of system directories without understanding the consequences.
+1. A verified backup
+2. A clear reason
+3. An understanding of the schema
+4. A validation after the change
 
 ---
 
-# 21. Git Repository Security
+## 25. Database Backup
 
-The Git repository contains source code.
-
-It must not contain production secrets.
-
-Never commit:
-
-```text
-.env files
-server secrets
-client tokens
-TLS private keys
-production databases
-passwords
-API credentials
-session secrets
-```
-
-Before committing:
+Create a backup directory:
 
 ```bash
-git status
+sudo install -d -m 700 /var/backups/lums
 ```
 
-Review changes:
+Create a SQLite backup from inside the container:
 
 ```bash
-git diff
+sudo docker exec lums \
+    python3 -c '
+import sqlite3
+
+source = sqlite3.connect("/var/lib/lums/lums.db")
+backup = sqlite3.connect("/var/lib/lums/lums.backup.db")
+
+source.backup(backup)
+
+backup.close()
+source.close()
+'
 ```
 
-Check whitespace:
+Copy the backup outside the container:
 
 ```bash
-git diff --check
+sudo docker cp \
+    lums:/var/lib/lums/lums.backup.db \
+    "/var/backups/lums/lums-$(date +%F_%H-%M-%S).db"
 ```
 
-Before pushing security-sensitive changes, inspect the actual diff.
+Remove the temporary backup:
+
+```bash
+sudo docker exec \
+    lums \
+    rm -f /var/lib/lums/lums.backup.db
+```
+
+Protect the backup files:
+
+```bash
+sudo find /var/backups/lums \
+    -type f \
+    -name "*.db" \
+    -exec chmod 600 {} \;
+```
+
+Backups must not be committed to Git.
 
 ---
 
-# 22. Secrets Outside Git
+## 26. Database Restore
 
-The separation should look like this:
+A database restore must be treated as a controlled maintenance operation.
+
+Before restoring:
+
+1. Stop the LUMS container.
+2. Create a backup of the current database.
+3. Verify the restore source.
+4. Restore the database.
+5. Check file permissions.
+6. Start the container.
+7. Run an integrity check.
+8. Test authentication and client reporting.
+
+Never overwrite the only available database copy.
+
+---
+
+## 27. Filesystem Permissions
+
+Sensitive files must be owned by the appropriate administrative account.
+
+Review permissions:
+
+```bash
+sudo ls -l /etc/lums/docker/lums.env
+sudo ls -l /etc/default/lums-agent
+sudo ls -l /etc/nginx/ssl/lums/
+```
+
+Recommended protection:
 
 ```text
-Git Repository
-│
-├── application source
-├── agent source
-├── documentation
-└── configuration templates
-          │
-          X
-          │
-          └── NO production secrets
-
-
-System
-│
-├── /etc/lums.env
-├── /etc/default/lums-agent
-├── /etc/nginx/ssl/
-└── /var/lib/lums/lums.db
+Environment files: 0600
+Private keys:      0600
+Public certificates: 0644
+Agent configuration: 0600
+Backup directory: 0700
 ```
 
-The Git repository contains the **code**.
+Permissions must be reviewed after:
 
-The system contains the **runtime secrets and state**.
+- Installation
+- Updates
+- Manual changes
+- File copies
+- Restores
+- Deployment operations
 
 ---
 
-# 23. Deployment Security
+## 28. Git Repository Security
 
-The deployment process should never overwrite runtime secrets or database state.
-
-The source tree is:
+The repository is located at:
 
 ```text
 /opt/lums-public
 ```
 
-The deployed server application is:
-
-```text
-/opt/lums-api
-```
-
-Server deployment:
+Before committing changes:
 
 ```bash
-sudo rsync -a \
-    --delete \
-    --exclude='.git/' \
-    /opt/lums-public/server/ \
-    /opt/lums-api/
-```
-
-The deployment directory must remain separate from:
-
-```text
-/var/lib/lums/
-/etc/
-/etc/nginx/ssl/
-```
-
-> [!CAUTION]
-> Never use a broad `rsync --delete` operation against `/etc`, `/var/lib/lums` or the complete server filesystem.
-
----
-
-# 24. Secure Deployment Procedure
-
-Before deployment:
-
-```text
-Git status
-   ↓
-Git synchronization
-   ↓
-Syntax check
-   ↓
-Diff validation
-   ↓
-Deployment
-   ↓
-Service restart
-   ↓
-Health check
-```
-
-Recommended checks:
-
-```bash
+cd /opt/lums-public
 git status
 ```
 
-```bash
-git fetch origin
-```
+Review the changed files:
 
 ```bash
-git rev-list --left-right --count HEAD...origin/main
+git diff
 ```
+
+Check tracked files:
 
 ```bash
-python3 -m py_compile \
-    server/app.py \
-    server/init_db.py \
-    agent/agent.py
+git ls-files
 ```
 
-```bash
-git diff --check
-```
-
-After deployment:
-
-```bash
-sudo systemctl status lums.service
-```
-
-Then:
-
-```bash
-curl -k https://192.168.2.229/api/health
-```
-
----
-
-# 25. Logging
-
-Security-relevant events should be investigated through the appropriate logs.
-
-Server:
-
-```bash
-sudo journalctl -u lums.service
-```
-
-Nginx:
-
-```bash
-sudo journalctl -u nginx
-```
-
-Agent:
-
-```bash
-sudo journalctl -u lums-agent.service
-```
-
-Timer:
-
-```bash
-sudo journalctl -u lums-agent.timer
-```
-
-When sharing logs externally, inspect them for:
+Do not commit:
 
 ```text
-tokens
-Authorization headers
-passwords
-session information
-internal infrastructure details
+.env files
+Private keys
+Client tokens
+Passwords
+Database files
+Backups
+Session data
+Internal IP information
+Personal information
 ```
 
----
-
-# 26. Logging Principle
-
-Logs should help answer:
-
-```text
-What happened?
-When did it happen?
-Which component was involved?
-What operation failed?
-```
-
-Logs should **not** become a source of plaintext credentials.
-
-Never deliberately log:
-
-```text
-client tokens
-server secrets
-passwords
-private keys
-Authorization headers
-```
-
----
-
-# 27. Security Headers
-
-The LUMS application uses HTTP security headers as part of the web security layer.
-
-These should be verified after changes to the Flask/Nginx stack.
-
-Example:
-
-```bash
-curl -k -I https://192.168.2.229/
-```
-
-Review the response headers for the expected security configuration.
-
-> [!NOTE]
-> Header configuration is part of the application/web layer and should be tested after changes to Nginx or Flask security middleware.
-
----
-
-# 28. Authentication vs Authorization
-
-A useful troubleshooting and security model is:
-
-```text
-                    ┌───────────────┐
-Request ───────────►│ Authentication│
-                    └───────┬───────┘
-                            │
-                       Who are you?
-                            │
-                            ▼
-                    ┌───────────────┐
-                    │ Authorization │
-                    └───────┬───────┘
-                            │
-                     What may you do?
-                            │
-                            ▼
-                         Resource
-```
-
-Typical failures:
-
-```text
-401 Unauthorized
-    ↓
-Authentication problem
-```
-
-```text
-403 Forbidden
-    ↓
-Authorization problem
-```
-
-This distinction is useful when investigating agent/API problems.
-
----
-
-# 29. Security Maintenance
-
-When modifying LUMS:
-
-1. Understand the current implementation.
-2. Make the smallest required change.
-3. Test the affected layer.
-4. Check for regressions.
-5. Review the Git diff.
-6. Update the documentation.
-7. Commit the change.
-8. Verify the deployed state.
-
-Avoid large, unrelated changes during security troubleshooting.
-
----
-
-# 30. Security Changes Require Testing
-
-Examples of security-sensitive changes include:
-
-```text
-authentication
-authorization
-TLS
-session handling
-security headers
-database schema
-client tokens
-Nginx configuration
-systemd permissions
-file ownership
-```
-
-After such changes, perform at least:
-
-```text
-syntax check
-service check
-API health check
-authentication test
-agent test
-```
-
-Where appropriate, also verify:
-
-```text
-authorization
-TLS verification
-database integrity
-Git diff
-```
-
----
-
-# 31. Incident Handling
-
-If a client token is suspected to be compromised:
-
-```text
-1. Identify the affected client
-        ↓
-2. Revoke the token
-        ↓
-3. Generate a replacement token
-        ↓
-4. Update the client configuration
-        ↓
-5. Test authentication
-        ↓
-6. Review relevant logs
-```
-
-Do not continue using a known-compromised token.
-
----
-
-## 31.1 Compromised Server Secret
-
-If the server secret is suspected to be compromised:
-
-```text
-1. Stop and assess the affected secret
-2. Rotate the secret according to the application design
-3. Restart affected services
-4. Verify authentication and sessions
-5. Review relevant logs
-6. Document the incident
-```
-
-The exact rotation procedure depends on which secret was compromised.
-
----
-
-# 32. Database Exposure
-
-If:
-
-```text
-/var/lib/lums/lums.db
-```
-
-is accidentally exposed or copied outside the trusted environment:
-
-1. Treat the database as sensitive.
-2. Determine who or what accessed it.
-3. Review client authentication records.
-4. Assess whether token-related data was exposed.
-5. Rotate affected credentials where necessary.
-6. Review logs.
-7. Document the incident.
-
-Do not assume that a database copy is harmless simply because plaintext client tokens are not stored.
-
----
-
-# 33. Private Key Exposure
-
-If:
-
-```text
-/etc/nginx/ssl/lums.key
-```
-
-is exposed:
-
-> **Treat the TLS private key as compromised.**
-
-The certificate/key pair should be replaced and the new certificate deployed.
-
-Do not continue treating the exposed private key as trustworthy.
-
----
-
-# 34. Security Testing Principles
-
-Security testing should verify the actual security boundaries.
-
-Examples:
-
-```text
-Can Flask be reached externally?
-        ↓
-Should be NO
-
-Can an unauthenticated client access protected API endpoints?
-        ↓
-Should be NO
-
-Can Client A access Client B resources?
-        ↓
-Should be NO
-
-Can a revoked client authenticate?
-        ↓
-Should be NO
-
-Can an invalid TLS certificate be silently accepted?
-        ↓
-Should be NO in normal operation
-
-Are production secrets present in Git?
-        ↓
-Should be NO
-```
-
----
-
-# 35. Security Checklist
-
-## Repository
-
-```text
-[ ] No passwords committed
-[ ] No client tokens committed
-[ ] No server secrets committed
-[ ] No TLS private keys committed
-[ ] No production database committed
-[ ] Git diff reviewed
-[ ] Git working tree understood
-```
-
-## Server
-
-```text
-[ ] Flask listens only on 127.0.0.1
-[ ] Nginx provides the external HTTPS endpoint
-[ ] Port 5000 is not externally exposed
-[ ] TLS certificate contains the correct SAN
-[ ] TLS private key is protected
-[ ] /etc/lums.env is protected
-[ ] LUMS service runs with the intended service account
-[ ] Database permissions are restricted
-```
-
-## Client
-
-```text
-[ ] Client token is protected
-[ ] Agent configuration is not world-readable
-[ ] TLS verification is enabled
-[ ] Agent authenticates using Bearer token
-[ ] Revoked clients cannot authenticate
-[ ] Disabled clients cannot authenticate
-[ ] Agent does not automatically reboot systems
-```
-
-## Database
-
-```text
-[ ] Database is stored outside Git
-[ ] Backups exist before migrations
-[ ] SQLite integrity check passes
-[ ] Authentication data is protected
-[ ] Database permissions are restricted
-```
-
----
-
-# 36. Security Rules at a Glance
-
-```text
-DO
-────────────────────────────────────────
-✓ Use HTTPS
-✓ Validate TLS certificates
-✓ Protect client tokens
-✓ Store secrets outside Git
-✓ Restrict Flask to localhost
-✓ Protect the SQLite database
-✓ Back up before migrations
-✓ Review Git diffs
-✓ Test authentication
-✓ Test authorization
-✓ Rotate compromised credentials
-✓ Document security changes
-
-
-DO NOT
-────────────────────────────────────────
-✗ Commit secrets
-✗ Commit private keys
-✗ Publish client tokens
-✗ Expose Flask port 5000
-✗ Disable TLS verification permanently
-✗ Disable authentication for convenience
-✗ Use plaintext client tokens in the database
-✗ Modify production DB without a backup
-✗ Force-push security-sensitive changes
-✗ Automatically reboot managed systems
-✗ Publish production database contents
-```
-
----
-
-# 37. Responsible Security Reporting
-
-If a security issue is discovered, provide enough information to reproduce the problem without exposing sensitive information.
-
-Include where possible:
-
-```text
-LUMS version / commit
-affected component
-affected endpoint
-observed behavior
-expected behavior
-reproduction steps
-relevant sanitized logs
-```
-
-Never include:
-
-```text
-client tokens
-server secrets
-passwords
-private keys
-production database dumps
-session credentials
-```
-
-Use placeholders such as:
+Use placeholders in documentation:
 
 ```text
 SERVER_IP
+CLIENT_IP
 CLIENT_TOKEN
-JOB_ID
-PACKAGE
+ADMIN_PASSWORD
 ```
 
 ---
 
-# 38. Security Documentation Principle
+## 29. Secure Git Workflow
 
-Security documentation should describe the actual implementation.
+Before pushing changes:
 
-If the implementation changes, update this document.
+```bash
+cd /opt/lums-public
 
-Examples:
-
-```text
-authentication changes
-       ↓
-update SECURITY.md
-
-TLS changes
-       ↓
-update SECURITY.md
-
-new API authorization rules
-       ↓
-update SECURITY.md
-
-new secret locations
-       ↓
-update SECURITY.md
+git status
+git diff --check
+git diff
 ```
 
-Documentation that describes an old security model can itself become a security problem.
+Review the commit history:
+
+```bash
+git log --oneline --decorate -5
+```
+
+Use the configured repository identity:
+
+```text
+Name:  NovaForgeCtrl
+Email: 232026481+NovaForgeCtrl@users.noreply.github.com
+```
+
+Do not push unreviewed changes directly to the main branch.
 
 ---
 
-# 39. Final Security Principle
+## 30. Docker Deployment Updates
 
-LUMS security is not one feature.
+The LUMS application is deployed by building a Docker image and recreating the container.
 
-It is the combination of:
+Before updating:
 
-```text
-                ┌─────────────┐
-                │    TLS      │
-                └──────┬──────┘
-                       │
-                ┌──────▼──────┐
-                │   Network   │
-                └──────┬──────┘
-                       │
-                ┌──────▼──────┐
-                │   AuthN     │
-                └──────┬──────┘
-                       │
-                ┌──────▼──────┐
-                │   AuthZ     │
-                └──────┬──────┘
-                       │
-                ┌──────▼──────┐
-                │ Application │
-                └──────┬──────┘
-                       │
-                ┌──────▼──────┐
-                │  Database   │
-                └──────┬──────┘
-                       │
-                ┌──────▼──────┐
-                │ OS / APT    │
-                └─────────────┘
+```bash
+cd /opt/lums-public
+
+git status --short
+git fetch origin
+git log --oneline --decorate -3
 ```
 
-No individual layer should be treated as the entire security model.
+Update the repository:
+
+```bash
+git pull --ff-only origin main
+```
+
+Build the Docker image:
+
+```bash
+sudo docker build -t lums:latest .
+```
+
+Stop and remove the container:
+
+```bash
+sudo docker stop lums
+sudo docker rm lums
+```
+
+> [!CAUTION]
+>
+> Do not remove the `lums-data` volume.
+
+Start the updated container:
+
+```bash
+sudo docker run -d \
+    --name lums \
+    --restart unless-stopped \
+    --env-file /etc/lums/docker/lums.env \
+    -p 127.0.0.1:5050:5000 \
+    -v lums-data:/var/lib/lums \
+    lums:latest
+```
+
+Check the deployment:
+
+```bash
+sudo docker ps
+sudo docker logs --tail 100 lums
+```
+
+Test the local application:
+
+```bash
+curl -I http://127.0.0.1:5050/
+```
+
+Test HTTPS through Nginx:
+
+```bash
+curl -k -I https://192.168.2.138/
+```
+
+---
+
+## 31. Deployment Requirements
+
+Every deployment should verify:
+
+- Docker image builds successfully
+- Container starts successfully
+- Environment file is available
+- Persistent volume is mounted
+- Nginx configuration is valid
+- HTTPS is reachable
+- Login works
+- Client authentication works
+- Client reporting works
+- Update jobs remain available
+- Database integrity is valid
+
+A successful Docker build alone does not prove a successful deployment.
+
+---
+
+## 32. Logging
+
+LUMS uses Docker logs for the server application:
+
+```bash
+sudo docker logs --tail 100 lums
+```
+
+Follow live logs:
+
+```bash
+sudo docker logs -f lums
+```
+
+The agent uses systemd journal logs:
+
+```bash
+sudo journalctl \
+    -u lums-agent.service \
+    -n 100 \
+    --no-pager
+```
+
+Nginx logs can be reviewed using:
+
+```bash
+sudo journalctl -u nginx -n 100 --no-pager
+```
+
+Logs must not contain:
+
+- Plaintext client tokens
+- Passwords
+- Server secrets
+- Private keys
+- Session secrets
+
+---
+
+## 33. Flask Deployment Considerations
+
+The current LUMS application runs Flask inside the Docker container.
+
+The Flask development server displays a warning when used.
+
+This configuration is acceptable only for the current controlled laboratory environment.
+
+For a production deployment, consider:
+
+- A production WSGI server
+- Process supervision
+- Resource limits
+- Container hardening
+- Dedicated service accounts
+- Security updates
+- Monitoring
+- Centralized logging
+- Network segmentation
+
+The current laboratory deployment must not automatically be considered production-ready.
+
+---
+
+## 34. Security Headers
+
+The application should provide appropriate security headers where applicable.
+
+Recommended headers include:
+
+```text
+Content-Security-Policy
+X-Content-Type-Options
+X-Frame-Options
+Referrer-Policy
+Strict-Transport-Security
+```
+
+Header configuration must be tested carefully to avoid breaking the application.
+
+Check response headers:
+
+```bash
+curl -k -I https://192.168.2.138/
+```
+
+HSTS should only be enabled after HTTPS is correctly configured and intended for the environment.
+
+---
+
+## 35. Incident Handling
+
+If a client token is compromised:
+
+1. Identify the affected client.
+2. Revoke or replace the token.
+3. Review recent client activity.
+4. Check server logs.
+5. Issue a new token.
+6. Update the client configuration.
+7. Verify successful authentication.
+8. Document the incident.
+
+If the server secret is compromised:
+
+1. Restrict access to the server.
+2. Review application logs.
+3. Rotate the secret.
+4. Restart the Docker container.
+5. Verify authentication and sessions.
+6. Review related credentials.
+7. Document the incident.
+
+If a TLS private key is compromised:
+
+1. Replace the certificate and private key.
+2. Update the trusted CA on clients.
+3. Reload Nginx.
+4. Verify certificate validation.
+5. Review possible unauthorized access.
+
+---
+
+## 36. Security Testing Checklist
+
+### Server
+
+- [ ] Docker container is running
+- [ ] Docker volume is mounted
+- [ ] Application binds only to localhost
+- [ ] Port `5000` is not externally exposed
+- [ ] Nginx configuration passes validation
+- [ ] HTTPS is enabled
+- [ ] HTTP redirects to HTTPS
+- [ ] TLS certificate contains the correct SAN
+- [ ] Private key permissions are restricted
+- [ ] Environment file permissions are restricted
+
+### Authentication
+
+- [ ] Administrator authentication works
+- [ ] Invalid credentials are rejected
+- [ ] Invalid client tokens are rejected
+- [ ] Client tokens are not logged
+- [ ] Client token hashes use the expected format
+- [ ] Authentication endpoints require authentication where appropriate
+
+### Authorization
+
+- [ ] Clients cannot access other clients' data
+- [ ] Client IDs are validated server-side
+- [ ] Update jobs are restricted to authorized clients
+- [ ] Job results are restricted to authorized clients
+- [ ] Administrative endpoints are protected
+
+### Agent
+
+- [ ] Agent uses HTTPS
+- [ ] TLS verification is enabled
+- [ ] CA certificate is available
+- [ ] Agent configuration is protected
+- [ ] Timer is enabled
+- [ ] Service execution succeeds
+- [ ] Inventory reporting works
+- [ ] Update job retrieval works
+- [ ] Job result reporting works
+
+### Database
+
+- [ ] Database integrity check returns `ok`
+- [ ] Backups are created
+- [ ] Backups are protected
+- [ ] Database files are not committed to Git
+- [ ] Restore procedure is documented
+
+### Git
+
+- [ ] No secrets are committed
+- [ ] No private keys are committed
+- [ ] No tokens are committed
+- [ ] No database files are committed
+- [ ] Changes are reviewed before pushing
+- [ ] Documentation uses placeholders
+
+---
+
+## 37. Responsible Security Reporting
+
+Security issues should be reported responsibly.
+
+A security report should contain:
+
+- Short description
+- Affected component
+- Reproduction steps
+- Expected behavior
+- Actual behavior
+- Potential impact
+- Suggested mitigation
+- Relevant logs with secrets removed
+
+Never include:
+
+- Passwords
+- Client tokens
+- Private keys
+- Server secrets
+- Personal information
+- Complete production databases
+
+Always redact sensitive information before sharing logs or screenshots.
+
+---
+
+## 38. Security Maintenance
+
+Security reviews should be performed after:
+
+- Application changes
+- Authentication changes
+- Authorization changes
+- Docker changes
+- Nginx changes
+- Certificate changes
+- Database schema changes
+- Agent changes
+- Deployment changes
+
+Regularly review:
+
+```text
+Docker images
+Operating system updates
+Python dependencies
+Flask dependencies
+Nginx configuration
+TLS certificates
+File permissions
+Database backups
+Git history
+Authentication behavior
+Authorization behavior
+```
+
+---
+
+## 39. Security Principles
+
+The following principles apply to LUMS:
+
+1. Never store secrets in Git.
+2. Never expose the Flask application directly to the network.
+3. Use HTTPS for client communication.
+4. Keep TLS verification enabled.
+5. Separate authentication from authorization.
+6. Validate client identity server-side.
+7. Protect the Docker environment file.
+8. Protect client tokens.
+9. Protect TLS private keys.
+10. Keep database backups secure.
+11. Do not remove persistent volumes during troubleshooting.
+12. Do not automatically reboot clients.
+13. Review changes before deployment.
+14. Test security-sensitive changes.
+15. Document incidents and configuration changes.
+
+---
+
+## 40. Final Principle
+
+LUMS is designed to centralize Linux update management without removing operational control from the administrator.
+
+The system should remain:
+
+- Transparent
+- Auditable
+- Controlled
+- Secure
+- Documented
+- Maintainable
 
 > **LUMS — Linux Update Management without the noise.**
 >
