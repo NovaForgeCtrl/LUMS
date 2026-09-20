@@ -23,9 +23,39 @@ CREATE TABLE IF NOT EXISTS clients (
     kernel TEXT,
     architecture TEXT,
     agent_version TEXT,
-    last_seen TEXT NOT NULL
+    last_seen TEXT NOT NULL,
+    idle INTEGER NOT NULL DEFAULT 0,
+    idle_seconds INTEGER NOT NULL DEFAULT 0,
+    idle_threshold_seconds INTEGER NOT NULL DEFAULT 300,
+    idle_source TEXT NOT NULL DEFAULT 'unknown',
+    idle_supported INTEGER NOT NULL DEFAULT 0
 )
 """)
+
+# ============================================================
+# CLIENT IDLE METADATA MIGRATION
+# ============================================================
+
+try:
+    cursor.execute(
+        "ALTER TABLE clients ADD COLUMN idle_source TEXT NOT NULL DEFAULT 'unknown'"
+    )
+    print("ADDED: idle_source")
+except sqlite3.OperationalError as error:
+    if "duplicate column name" not in str(error).lower():
+        raise
+
+try:
+    cursor.execute(
+        "ALTER TABLE clients ADD COLUMN idle_supported INTEGER NOT NULL DEFAULT 0"
+    )
+    print("ADDED: idle_supported")
+except sqlite3.OperationalError as error:
+    if "duplicate column name" not in str(error).lower():
+        raise
+
+connection.commit()
+
 
 cursor.execute("""
 CREATE TABLE IF NOT EXISTS available_updates (

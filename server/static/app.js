@@ -69,6 +69,70 @@ function updateDashboard(clients) {
 
 
 
+function formatIdleStatus(client) {
+
+    if (!client.idle) {
+
+        return `
+            <span class="idle-status idle-active">
+                ● Aktiv
+            </span>
+        `;
+
+    }
+
+
+    const idleSeconds =
+        Math.max(
+            0,
+            Number(client.idle_seconds) || 0
+        );
+
+
+    const thresholdSeconds =
+        Math.max(
+            1,
+            Number(client.idle_threshold_seconds) || 300
+        );
+
+
+    return `
+        <span class="idle-status idle-ready">
+            ◷ Idle
+            ${formatDuration(idleSeconds)}
+            / ${formatDuration(thresholdSeconds)}
+        </span>
+    `;
+
+}
+
+
+
+function formatDuration(seconds) {
+
+    const totalSeconds =
+        Math.max(
+            0,
+            Math.floor(Number(seconds) || 0)
+        );
+
+
+    const minutes =
+        Math.floor(totalSeconds / 60);
+
+
+    const remainingSeconds =
+        totalSeconds % 60;
+
+
+    return `${String(minutes).padStart(2, "0")}:${String(
+        remainingSeconds
+    ).padStart(2, "0")}`;
+
+}
+
+
+
 async function loadUpdateCount(clients) {
 
     let totalUpdates = 0;
@@ -207,6 +271,12 @@ function renderClients(clients) {
                     ${escapeHtml(client.status)}
 
                 </span>
+
+                <div class="idle-state">
+
+                    ${formatIdleStatus(client)}
+
+                </div>
 
             </td>
 

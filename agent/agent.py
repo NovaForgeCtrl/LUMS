@@ -12,7 +12,7 @@ import urllib.error
 import urllib.request
 
 
-AGENT_VERSION = "1.5.2"
+AGENT_VERSION = "1.6.0"
 
 LUMS_BASE = os.environ.get(
     "LUMS_BASE",
@@ -578,6 +578,225 @@ def get_auth_headers(extra=None):
     return headers
 
 
+def get_idle_status():
+    """
+    Determine local user inactivity.
+
+    For server/TTY/SSH clients we use `w -h` because loginctl's
+    IdleHint is not reliable for headless TTY/SSH sessions.
+
+    Safety rule:
+    - Any relevant active session resets the idle state.
+    - The shortest idle duration is used.
+    - Unknown or malformed activity information is treated as active.
+    - The agent itself does not create a persistent user session and
+      therefore does not artificially keep the client active.
+    """
+
+    threshold_seconds = 300
+
+    def parse_idle_seconds(value):
+        """
+        Parse the IDLE column from `w`.
+
+        Supported examples:
+            0.00s
+            5.00s
+            30:16
+            1:02:03
+            2days
+            2days,01:15
+        """
+
+        value = value.strip()
+
+        if not value:
+            raise ValueError("empty idle value")
+
+        # Seconds, e.g. 0.00s / 5.00s
+        if value.endswith("s"):
+            return max(
+                0,
+                int(float(value[:-1]))
+            )
+
+        # Days, e.g. 2days
+        if value.endswith("days"):
+            days_part = value[:-4]
+            return max(
+                0,
+                int(float(days_part) * 86400)
+            )
+
+        # Optional combined format:
+        # 2days,01:15
+        if "days," in value:
+            days_part, time_part = value.split(",", 1)
+
+            days = int(days_part.replace("days", "").strip())
+
+            parts = time_part.split(":")
+
+            if len(parts) == 2:
+                hours = 0
+                minutes = int(parts[0])
+                seconds = int(parts[1])
+
+            elif len(parts) == 3:
+                hours = int(parts[0])
+                minutes = int(parts[1])
+                seconds = int(parts[2])
+
+            else:
+                raise ValueError("invalid day/time idle format")
+
+            return max(
+                0,
+                days * 86400
+                + hours * 3600
+                + minutes * 60
+                + seconds
+            )
+
+        # HH:MMm
+        # Example: 1:49m = 1 hour and 49 minutes
+        if value.endswith("m") and ":" in value:
+            time_value = value[:-1]
+            parts = time_value.split(":")
+
+            if len(parts) == 2:
+                hours = int(parts[0])
+                minutes = int(parts[1])
+
+                return max(
+                    0,
+                    hours * 3600
+                    + minutes * 60
+                )
+
+            raise ValueError(
+                f"unsupported minute idle value: {value}"
+            )
+
+        # HH:MM
+        parts = value.split(":")
+
+        if len(parts) == 2:
+            minutes = int(parts[0])
+            seconds = int(parts[1])
+
+            return max(
+                0,
+                minutes * 60 + seconds
+            )
+
+        # HH:MM:SS
+        if len(parts) == 3:
+            hours = int(parts[0])
+            minutes = int(parts[1])
+            seconds = int(parts[2])
+
+            return max(
+                0,
+                hours * 3600
+                + minutes * 60
+                + seconds
+            )
+
+        raise ValueError(
+            f"unsupported idle value: {value}"
+        )
+
+    try:
+        result = subprocess.run(
+            [
+                "w",
+                "-h"
+            ],
+            capture_output=True,
+            text=True,
+            check=True
+        )
+
+        idle_values = []
+
+        for line in result.stdout.splitlines():
+
+            if not line.strip():
+                continue
+
+            parts = line.split()
+
+            # Expected minimum:
+            #
+            # USER TTY FROM LOGIN@ IDLE JCPU PCPU WHAT
+            #
+            if len(parts) < 7:
+                continue
+
+            user = parts[0]
+            tty = parts[1]
+            idle_value = parts[4]
+
+            # Ignore non-terminal pseudo entries.
+            if not tty:
+                continue
+
+            # `w` reports the current command itself as a process
+            # but this does not represent user activity.
+            #
+            # We intentionally do not treat the presence of the
+            # session as activity. Only the IDLE column matters.
+
+            try:
+                idle_seconds = parse_idle_seconds(
+                    idle_value
+                )
+            except (ValueError, TypeError):
+                return {
+                    "idle": False,
+                    "idle_seconds": 0,
+                    "threshold_seconds": threshold_seconds,
+                    "idle_source": "w",
+                    "idle_supported": False
+                }
+
+            idle_values.append(idle_seconds)
+
+        if not idle_values:
+            return {
+                "idle": False,
+                "idle_seconds": 0,
+                "threshold_seconds": threshold_seconds,
+                "idle_source": "w",
+                "idle_supported": False
+            }
+
+        # Safety rule:
+        # The most recently active session determines the client state.
+        idle_seconds = min(idle_values)
+
+        return {
+            "idle": idle_seconds >= threshold_seconds,
+            "idle_seconds": idle_seconds,
+            "threshold_seconds": threshold_seconds,
+            "idle_source": "w",
+            "idle_supported": True
+        }
+
+    except (
+        subprocess.CalledProcessError,
+        ValueError,
+        OSError
+    ):
+        return {
+            "idle": False,
+            "idle_seconds": 0,
+            "threshold_seconds": threshold_seconds,
+            "idle_source": "w",
+            "idle_supported": False
+        }
+
 def get_ip():
     return subprocess.check_output(
         [
@@ -666,6 +885,8 @@ def get_updates():
 
 
 def collect_data():
+    idle_status = get_idle_status()
+
     return {
         "hostname": socket.gethostname(),
         "ip": get_ip(),
@@ -674,13 +895,13 @@ def collect_data():
         "architecture": platform.machine(),
         "agent_version": AGENT_VERSION,
         "updates": get_updates(),
-        "packages": get_packages()
+        "packages": get_packages(),
+        "idle": idle_status["idle"],
+        "idle_seconds": idle_status["idle_seconds"],
+        "idle_threshold_seconds": idle_status["threshold_seconds"],
+        "idle_source": idle_status["idle_source"],
+        "idle_supported": idle_status["idle_supported"]
     }
-
-
-# ============================================================
-# REPORTING
-# ============================================================
 
 def send_report(data):
     payload = json.dumps(data).encode("utf-8")
@@ -750,6 +971,82 @@ def get_pending_job(client_id):
 
         if error.code == 204:
             return None
+
+        raise
+
+
+
+def get_running_job(client_id):
+    url = (
+        f"{LUMS_BASE}/api/clients/"
+        f"{client_id}/update-jobs/running"
+    )
+
+    request = urllib.request.Request(
+        url,
+        headers=get_auth_headers()
+    )
+
+    try:
+
+        with urllib.request.urlopen(
+            request,
+            timeout=10,
+            context=LUMS_SSL_CONTEXT
+        ) as response:
+
+            if response.status == 204:
+                return None
+
+            return json.loads(
+                response.read().decode("utf-8")
+            )
+
+    except urllib.error.HTTPError as error:
+
+        if error.code == 204:
+            return None
+
+        raise
+
+def claim_job(client_id, job_id):
+    url = (
+        f"{LUMS_BASE}/api/clients/"
+        f"{client_id}/update-jobs/"
+        f"{job_id}/claim"
+    )
+
+    request = urllib.request.Request(
+        url,
+        method="POST",
+        headers=get_auth_headers()
+    )
+
+    try:
+
+        with urllib.request.urlopen(
+            request,
+            timeout=10,
+            context=LUMS_SSL_CONTEXT
+        ) as response:
+
+            return json.loads(
+                response.read().decode("utf-8")
+            )
+
+    except urllib.error.HTTPError as error:
+
+        if error.code == 409:
+            try:
+                body = json.loads(
+                    error.read().decode("utf-8")
+                )
+            except Exception:
+                body = {
+                    "status": "not_claimable"
+                }
+
+            return body
 
         raise
 
@@ -1128,7 +1425,11 @@ def execute_job(job):
     job_id = job["job_id"]
     job_packages = job.get("packages", [])
 
-    panel("UPDATE ENGINE")
+    simulation = SIMULATE_UPDATES
+
+    panel(
+        "SIMULATION" if simulation else "UPDATE ENGINE"
+    )
 
     print(
         f"  JOB        {c(CYAN, str(job_id))}"
@@ -1137,6 +1438,29 @@ def execute_job(job):
     print(
         f"  PACKAGES   {c(WHITE, str(len(job_packages)))}"
     )
+
+    if simulation:
+
+        print(
+            f"  MODE       "
+            f"{c(YELLOW + BOLD, "SIMULATION")}"
+        )
+
+        print(
+            f"  APT        "
+            f"{c(GREEN, "DISABLED")}"
+        )
+
+        print(
+            f"  ENGINE     "
+            f"{c(GREEN, "READ-ONLY")}"
+        )
+
+        print()
+
+        status_warn(
+            "E2E simulation // no packages will be changed."
+        )
 
     print()
 
@@ -1158,9 +1482,30 @@ def execute_job(job):
             )
         )
 
-        result = run_package_update(
-            package
-        )
+        if simulation:
+
+            print(
+                c(
+                    DIM,
+                    "  $ simulated apt-get install "
+                    "--only-upgrade -y " + package
+                )
+            )
+
+            time.sleep(1.0)
+
+            result = {
+                "package": package,
+                "status": "success",
+                "message": "E2E simulation success.",
+                "returncode": 0
+            }
+
+        else:
+
+            result = run_package_update(
+                package
+            )
 
         results.append(result)
 
@@ -1209,7 +1554,7 @@ def execute_job(job):
     else:
         status = "failed"
 
-    reboot = reboot_required()
+    reboot = False if simulation else reboot_required()
 
     panel("UPDATE RESULT")
 
@@ -1350,7 +1695,103 @@ def main():
 
             return
 
-        execute_job(job)
+        idle = bool(data.get("idle"))
+        idle_seconds = max(
+            0,
+            int(data.get("idle_seconds", 0))
+        )
+        idle_threshold = max(
+            1,
+            int(data.get("idle_threshold_seconds", 300))
+        )
+
+        if not idle or idle_seconds < idle_threshold:
+
+            remaining = max(
+                0,
+                idle_threshold - idle_seconds
+            )
+
+            minutes = remaining // 60
+            seconds = remaining % 60
+
+            status_warn(
+                "UPDATE JOB // WAITING FOR IDLE // "
+                f"{minutes:02d}:{seconds:02d} remaining"
+            )
+
+            print()
+            print(
+                c(
+                    YELLOW,
+                    "  UPDATE REMAINS PENDING"
+                )
+            )
+
+            print(
+                c(
+                    YELLOW,
+                    "  NO CLAIM // NO EXECUTION"
+                )
+            )
+
+            print()
+            print(
+                c(
+                    GREEN,
+                    "LUMS // Agent cycle complete."
+                )
+            )
+
+            return
+
+        status_ok(
+            "IDLE THRESHOLD REACHED"
+        )
+
+        print()
+        print(
+            c(
+                CYAN,
+                f"  CLAIMING JOB #{job['job_id']}..."
+            )
+        )
+
+        claimed_job = claim_job(
+            client["id"],
+            job["job_id"]
+        )
+
+        if claimed_job.get("status") != "claimed":
+
+            status_warn(
+                "JOB NOT CLAIMED // "
+                f"{claimed_job.get('status', 'unknown')}"
+            )
+
+            print()
+            print(
+                c(
+                    YELLOW,
+                    "  NO EXECUTION"
+                )
+            )
+
+            print()
+            print(
+                c(
+                    GREEN,
+                    "LUMS // Agent cycle complete."
+                )
+            )
+
+            return
+
+        status_ok(
+            f"JOB CLAIMED // #{claimed_job['job_id']}"
+        )
+
+        execute_job(claimed_job)
 
         panel("POST-UPDATE")
 

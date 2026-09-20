@@ -216,6 +216,23 @@ tr:hover {
     color: #dc2626;
 }
 
+.idle-state {
+    margin-top: 4px;
+}
+
+.idle-status {
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.idle-active {
+    color: #6b7280;
+}
+
+.idle-ready {
+    color: #ca8a04;
+}
+
 .status-indicator {
     width: 8px;
     height: 8px;

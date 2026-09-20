@@ -3,6 +3,9 @@ import os
 import sqlite3
 from datetime import datetime, timezone
 
+# Initialize and migrate the LUMS database before the Flask app starts.
+import init_db
+
 from security import (
     configure_session,
     apply_security_headers,
@@ -72,6 +75,27 @@ def save_client(client_id, data):
 
     last_seen = datetime.now(timezone.utc).isoformat()
 
+    idle = 1 if data.get("idle") else 0
+
+    try:
+        idle_seconds = max(0, int(data.get("idle_seconds", 0)))
+    except (TypeError, ValueError):
+        idle_seconds = 0
+
+    try:
+        idle_threshold_seconds = max(
+            1,
+            int(data.get("idle_threshold_seconds", 300))
+        )
+    except (TypeError, ValueError):
+        idle_threshold_seconds = 300
+
+    idle_source = str(
+        data.get("idle_source", "unknown") or "unknown"
+    ).strip()
+
+    idle_supported = 1 if data.get("idle_supported") else 0
+
     cursor.execute("""
         UPDATE clients
         SET hostname = ?,
@@ -80,7 +104,12 @@ def save_client(client_id, data):
             kernel = ?,
             architecture = ?,
             agent_version = ?,
-            last_seen = ?
+            last_seen = ?,
+            idle = ?,
+            idle_seconds = ?,
+            idle_threshold_seconds = ?,
+            idle_source = ?,
+            idle_supported = ?
         WHERE id = ?
     """, (
         data.get("hostname"),
@@ -90,6 +119,11 @@ def save_client(client_id, data):
         data.get("architecture"),
         data.get("agent_version"),
         last_seen,
+        idle,
+        idle_seconds,
+        idle_threshold_seconds,
+        idle_source,
+        idle_supported,
         client_id
     ))
 
@@ -611,6 +645,11 @@ def clients():
             c.architecture,
             c.agent_version,
             c.last_seen,
+            c.idle,
+            c.idle_seconds,
+            c.idle_threshold_seconds,
+            c.idle_source,
+            c.idle_supported,
             COUNT(DISTINCT p.id) AS package_count,
             COUNT(DISTINCT u.id) AS update_count
         FROM clients c
@@ -1035,6 +1074,14 @@ def update_job_result(job_id):
             "error": "client_access_denied"
         }), 403
 
+    if job["status"] != "running":
+        conn.close()
+        return jsonify({
+            "error": "job_not_running",
+            "job_id": job_id,
+            "job_status": job["status"]
+        }), 409
+
     now = datetime.now(timezone.utc).isoformat()
 
     successful_count = 0
@@ -1131,7 +1178,7 @@ def update_job_result(job_id):
     methods=["GET"]
 )
 @client_auth_required
-def claim_pending_update_job(client_id):
+def get_pending_update_job(client_id):
 
     client = authenticated_client()
 
@@ -1143,17 +1190,7 @@ def claim_pending_update_job(client_id):
     connection = get_connection()
 
     try:
-
-        # BEGIN IMMEDIATE sorgt dafür, dass während der
-        # Auswahl/Übernahme kein anderer Agent denselben
-        # pending Job gleichzeitig übernehmen kann.
-        connection.execute("BEGIN IMMEDIATE")
-
         cursor = connection.cursor()
-
-        # ----------------------------------------------------
-        # Client prüfen
-        # ----------------------------------------------------
 
         cursor.execute("""
             SELECT
@@ -1166,17 +1203,10 @@ def claim_pending_update_job(client_id):
         client_row = cursor.fetchone()
 
         if client_row is None:
-
-            connection.rollback()
-
             return jsonify({
                 "status": "error",
                 "message": "Client not found"
             }), 404
-
-        # ----------------------------------------------------
-        # Ältesten pending Job holen
-        # ----------------------------------------------------
 
         cursor.execute("""
             SELECT
@@ -1194,45 +1224,11 @@ def claim_pending_update_job(client_id):
         job_row = cursor.fetchone()
 
         if job_row is None:
-
-            connection.commit()
-
             return jsonify({
                 "status": "no_job"
             }), 204
 
         job_id = job_row["id"]
-
-        started_at = datetime.now(timezone.utc).isoformat()
-
-        # ----------------------------------------------------
-        # Job übernehmen
-        # ----------------------------------------------------
-
-        cursor.execute("""
-            UPDATE update_jobs
-            SET
-                status = 'running',
-                started_at = ?
-            WHERE id = ?
-            AND status = 'pending'
-        """, (
-            started_at,
-            job_id
-        ))
-
-        if cursor.rowcount != 1:
-
-            connection.rollback()
-
-            return jsonify({
-                "status": "error",
-                "message": "Job could not be claimed"
-            }), 409
-
-        # ----------------------------------------------------
-        # Pakete laden
-        # ----------------------------------------------------
 
         cursor.execute("""
             SELECT
@@ -1242,7 +1238,205 @@ def claim_pending_update_job(client_id):
                 status
             FROM update_job_packages
             WHERE job_id = ?
-            ORDER BY package
+            ORDER BY id ASC
+        """, (job_id,))
+
+        package_rows = cursor.fetchall()
+
+        return jsonify({
+            "status": "pending",
+            "job_id": job_id,
+            "client_id": job_row["client_id"],
+            "created_at": job_row["created_at"],
+            "reboot_required": bool(job_row["reboot_required"]),
+            "packages": [
+                {
+                    "package": row["package"],
+                    "installed_version": row["installed_version"],
+                    "target_version": row["target_version"],
+                    "status": row["status"]
+                }
+                for row in package_rows
+            ]
+        })
+
+    finally:
+        connection.close()
+
+
+
+@app.route(
+    "/api/clients/<int:client_id>/update-jobs/running",
+    methods=["GET"]
+)
+@client_auth_required
+def get_running_update_job(client_id):
+
+    client = authenticated_client()
+
+    if client["id"] != client_id:
+        return jsonify({
+            "error": "client_access_denied"
+        }), 403
+
+    connection = get_connection()
+
+    try:
+        cursor = connection.cursor()
+
+        cursor.execute("""
+            SELECT
+                id,
+                hostname
+            FROM clients
+            WHERE id = ?
+        """, (client_id,))
+
+        client_row = cursor.fetchone()
+
+        if client_row is None:
+            return jsonify({
+                "status": "error",
+                "message": "Client not found"
+            }), 404
+
+        cursor.execute("""
+            SELECT
+                id,
+                client_id,
+                created_at,
+                started_at,
+                reboot_required
+            FROM update_jobs
+            WHERE client_id = ?
+            AND status = 'running'
+            ORDER BY id ASC
+            LIMIT 1
+        """, (client_id,))
+
+        job_row = cursor.fetchone()
+
+        if job_row is None:
+            return jsonify({
+                "status": "no_job"
+            }), 204
+
+        cursor.execute("""
+            SELECT
+                package,
+                target_version,
+                status
+            FROM update_job_packages
+            WHERE job_id = ?
+            ORDER BY id ASC
+        """, (job_row["id"],))
+
+        packages = [
+            {
+                "package": row["package"],
+                "target_version": row["target_version"],
+                "status": row["status"]
+            }
+            for row in cursor.fetchall()
+        ]
+
+        return jsonify({
+            "status": "running",
+            "job_id": job_row["id"],
+            "client_id": job_row["client_id"],
+            "created_at": job_row["created_at"],
+            "started_at": job_row["started_at"],
+            "reboot_required": bool(job_row["reboot_required"]),
+            "packages": packages
+        }), 200
+
+    finally:
+        connection.close()
+
+@app.route(
+    "/api/clients/<int:client_id>/update-jobs/<int:job_id>/claim",
+    methods=["POST"]
+)
+@client_auth_required
+def claim_update_job(client_id, job_id):
+
+    client = authenticated_client()
+
+    if client["id"] != client_id:
+        return jsonify({
+            "error": "client_access_denied"
+        }), 403
+
+    connection = get_connection()
+
+    try:
+        connection.execute("BEGIN IMMEDIATE")
+        cursor = connection.cursor()
+
+        cursor.execute("""
+            SELECT
+                id,
+                client_id,
+                status,
+                created_at,
+                reboot_required
+            FROM update_jobs
+            WHERE id = ?
+            AND client_id = ?
+        """, (
+            job_id,
+            client_id
+        ))
+
+        job_row = cursor.fetchone()
+
+        if job_row is None:
+            connection.rollback()
+            return jsonify({
+                "status": "error",
+                "message": "Job not found"
+            }), 404
+
+        if job_row["status"] != "pending":
+            connection.rollback()
+            return jsonify({
+                "status": "not_claimable",
+                "job_id": job_id,
+                "job_status": job_row["status"]
+            }), 409
+
+        started_at = datetime.now(timezone.utc).isoformat()
+
+        cursor.execute("""
+            UPDATE update_jobs
+            SET
+                status = 'running',
+                started_at = ?
+            WHERE id = ?
+            AND client_id = ?
+            AND status = 'pending'
+        """, (
+            started_at,
+            job_id,
+            client_id
+        ))
+
+        if cursor.rowcount != 1:
+            connection.rollback()
+            return jsonify({
+                "status": "error",
+                "message": "Job could not be claimed"
+            }), 409
+
+        cursor.execute("""
+            SELECT
+                package,
+                installed_version,
+                target_version,
+                status
+            FROM update_job_packages
+            WHERE job_id = ?
+            ORDER BY id ASC
         """, (job_id,))
 
         package_rows = cursor.fetchall()
@@ -1252,7 +1446,7 @@ def claim_pending_update_job(client_id):
         print(
             f"Update job claimed: "
             f"Job #{job_id} "
-            f"Client {client_row['hostname']} "
+            f"Client {client_id} "
             f"Packages: {len(package_rows)}"
         )
 
@@ -1260,39 +1454,25 @@ def claim_pending_update_job(client_id):
             "status": "claimed",
             "job_id": job_id,
             "client_id": client_id,
-            "hostname": client_row["hostname"],
-            "created_at": job_row["created_at"],
             "started_at": started_at,
-            "reboot_required": job_row["reboot_required"],
-            "package_count": len(package_rows),
+            "reboot_required": bool(job_row["reboot_required"]),
             "packages": [
-                dict(row)
+                {
+                    "package": row["package"],
+                    "installed_version": row["installed_version"],
+                    "target_version": row["target_version"],
+                    "status": row["status"]
+                }
                 for row in package_rows
             ]
         })
 
-    except Exception as error:
-
+    except Exception:
         connection.rollback()
-
-        print(
-            f"Error claiming update job "
-            f"for client {client_id}: {error}"
-        )
-
-        return jsonify({
-            "status": "error",
-            "message": "Could not claim update job"
-        }), 500
+        raise
 
     finally:
-
         connection.close()
-
-
-# ============================================================
-# UPDATE JOB DETAILS
-# ============================================================
 
 @app.route(
     "/api/update-jobs/<int:job_id>",
