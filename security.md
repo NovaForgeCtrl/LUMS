@@ -105,14 +105,14 @@ The current LUMS installation uses Docker and Nginx.
 
 | Component | Configuration |
 |---|---|
-| Server IP | `192.168.2.138` |
+| Server IP | `IP Address` |
 | Repository | `/opt/lums-public` |
 | Docker container | `lums` |
 | Docker image | `lums:latest` |
 | Docker volume | `lums-data` |
 | Internal Flask port | `5000` |
 | Host binding | `127.0.0.1:5050` |
-| HTTPS endpoint | `https://192.168.2.138` |
+| HTTPS endpoint | `https://IP Address` |
 | Nginx HTTP port | `80` |
 | Nginx HTTPS port | `443` |
 | Database | `/var/lib/lums/lums.db` |
@@ -400,13 +400,13 @@ sudo chmod 644 /etc/nginx/ssl/lums/lums.crt
 The current LUMS server address is:
 
 ```text
-192.168.2.138
+IP Address
 ```
 
 The certificate must contain the server IP as a Subject Alternative Name:
 
 ```text
-IP Address:192.168.2.138
+IP Address:IP Address
 ```
 
 Inspect the certificate:
@@ -446,14 +446,14 @@ Do not permanently solve TLS problems by:
 The following command bypasses certificate verification and is intended only for diagnostics:
 
 ```bash
-curl -k https://192.168.2.138/
+curl -k https://IP Address/
 ```
 
 Normal operation should use the configured CA certificate:
 
 ```bash
 curl --cacert /opt/lums-agent/lums-ca.crt \
-    https://192.168.2.138/
+    https://IP Address/
 ```
 
 ---
@@ -518,13 +518,13 @@ https://SERVER_IP
 Test the HTTP redirect:
 
 ```bash
-curl -I http://192.168.2.138/
+curl -I http://IP Address/
 ```
 
 Test HTTPS:
 
 ```bash
-curl -k -I https://192.168.2.138/
+curl -k -I https://IP Address/
 ```
 
 HTTP should redirect to HTTPS.
@@ -1181,7 +1181,7 @@ curl -I http://127.0.0.1:5050/
 Test HTTPS through Nginx:
 
 ```bash
-curl -k -I https://192.168.2.138/
+curl -k -I https://IP Address/
 ```
 
 ---
@@ -1288,7 +1288,7 @@ Header configuration must be tested carefully to avoid breaking the application.
 Check response headers:
 
 ```bash
-curl -k -I https://192.168.2.138/
+curl -k -I https://IP Address/
 ```
 
 HSTS should only be enabled after HTTPS is correctly configured and intended for the environment.
