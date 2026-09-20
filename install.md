@@ -1,845 +1,620 @@
-
-# LUMS Installation Guide v2.0
+# LUMS Installation Guide
 
 ## Linux Update Management Server
 
-**LUMS** is a self-hosted Linux update management platform for centrally managing Linux systems, collecting system information, detecting available updates and executing controlled update jobs.
-
-> Linux Update Management without the noise.
-
-LUMS consists of two major components:
-
-- **LUMS Server:** Flask application running inside Docker
-- **LUMS Agent:** Native Python agent running directly on managed Linux systems
-
-The server provides the web interface, REST API, authentication, client management, update jobs, audit logging and persistent database storage.
-
-The agent collects system information, communicates with the server over HTTPS and executes update jobs locally using the native package manager.
+**Version:** 2.1  
+**Project:** LUMS  
+**Slogan:** Linux Update Management without the noise.  
+**Repository:** `https://github.com/NovaForgeCtrl/LUMS.git`
 
 ---
 
-# Table of Contents
+## 1. Overview
 
-1. [Architecture](#1-architecture)
-2. [Prerequisites](#2-prerequisites)
-3. [Prepare the Ubuntu Server](#3-prepare-the-ubuntu-server)
-4. [Install Docker](#4-install-docker)
-5. [Install Supporting Tools](#5-install-supporting-tools)
-6. [Download the Repository](#6-download-the-repository)
-7. [Review the Project](#7-review-the-project)
-8. [Build the Docker Image](#8-build-the-docker-image)
-9. [Create Persistent Storage](#9-create-persistent-storage)
-10. [Configure the Secret Key](#10-configure-the-secret-key)
-11. [Initialize the Database](#11-initialize-the-database)
-12. [Run the Security Migration](#12-run-the-security-migration)
-13. [Start the LUMS Container](#13-start-the-lums-container)
-14. [Verify the Container](#14-verify-the-container)
-15. [Configure the Server IP](#15-configure-the-server-ip)
-16. [Create the TLS Certificate](#16-create-the-tls-certificate)
-17. [Configure Nginx](#17-configure-nginx)
-18. [Test HTTPS](#18-test-https)
-19. [Configure the Firewall](#19-configure-the-firewall)
-20. [Register a Client](#20-register-a-client)
-21. [Install the Agent](#21-install-the-agent)
-22. [Configure the Agent Certificate](#22-configure-the-agent-certificate)
-23. [Configure Agent Authentication](#23-configure-agent-authentication)
-24. [Test the Agent Manually](#24-test-the-agent-manually)
-25. [Install the systemd Service](#25-install-the-systemd-service)
-26. [Install the systemd Timer](#26-install-the-systemd-timer)
-27. [Verify Automatic Execution](#27-verify-automatic-execution)
-28. [Update Job Workflow](#28-update-job-workflow)
-29. [Backup](#29-backup)
-30. [Restore](#30-restore)
-31. [Security Checklist](#31-security-checklist)
-32. [Troubleshooting](#32-troubleshooting)
-33. [Final Verification](#33-final-verification)
+LUMS is a centralized Linux update management platform designed for controlled update distribution, client reporting, job management, and auditable execution.
+
+The project is intended for laboratory environments, small infrastructures, and future production-oriented development.
+
+LUMS currently consists of:
+
+- Flask-based backend
+- SQLite database
+- Docker deployment
+- Nginx reverse proxy
+- HTTPS encryption
+- Linux client agent
+- Separate execution watcher
+- Centralized update jobs
+- Client status reporting
+- Audit logging
+- Idle-aware update execution
+
+The project is designed with a security-oriented approach:
+
+> Do not reinstall everything immediately. Find the layer where the problem occurs.
 
 ---
 
-# 1. Architecture
-
-The LUMS architecture separates the central management server from the managed Linux systems.
+## 2. Architecture
 
 ```text
-                         LUMS SERVER
-                    Ubuntu Linux Host
+                         Client Browser
                               |
-              +---------------+---------------+
-              |                               |
-            Nginx                          Docker
-          HTTPS :443                    LUMS :5000
-              |                               |
-              |                        +------+------+
-              |                        | Flask       |
-              |                        | Web UI/API  |
-              |                        +------+------+
-              |                               |
-              |                          lums-data
-              |                               |
-              +---------------+---------------+
+                              | HTTPS :443
                               |
-                         HTTPS + Token
-                              |
-              +---------------+---------------+
-              |                               |
-       Linux Client                    Linux Client
-       Native Agent                    Native Agent
-              |                               |
-       systemd Timer                   systemd Timer
-              |                               |
-          APT/dpkg                        APT/dpkg
+                    +----------------------+
+                    |        Nginx         |
+                    | HTTPS Reverse Proxy  |
+                    +----------+-----------+
+                               |
+                               | HTTP :5050
+                               |
+                    +----------v-----------+
+                    |     Docker Host      |
+                    |                      |
+                    |  +----------------+  |
+                    |  | LUMS Container  |  |
+                    |  | Flask :5000     |  |
+                    |  +--------+-------+  |
+                    |           |          |
+                    |  +--------v-------+  |
+                    |  | SQLite Volume  |  |
+                    |  | lums-data      |  |
+                    |  +----------------+  |
+                    +----------------------+
+                               |
+                 HTTPS / Bearer Authentication
+                               |
+          +--------------------+--------------------+
+          |                    |                    |
++---------v---------+ +--------v---------+ +--------v---------+
+| Linux Client 01   | | Linux Client 02  | | Linux Client 03  |
+|                   | |                  | |                  |
+| lums-agent        | | lums-agent       | | lums-agent       |
+| watcher.py        | | watcher.py       | | watcher.py       |
++-------------------+ +------------------+ +------------------+
 ```
 
-## 1.1 Server Components
+---
+
+## 3. Main Components
+
+### 3.1 LUMS Server
 
 The LUMS server provides:
 
 - Web interface
-- REST API
 - Client registration
-- Client authentication
-- System inventory
-- Package inventory
-- Update detection
-- Update job management
-- Update history
+- Client reporting
+- Update job creation
+- Job state management
+- Job claiming
+- Job result processing
 - Audit logging
-- SQLite database
-- HTTPS access through Nginx
+- Authentication
+- Authorization
+- Database access
 
-## 1.2 Agent Components
+The Flask application runs inside a Docker container.
 
-The native agent provides:
-
-- Hostname detection
-- IP address detection
-- Operating system information
-- Kernel information
-- Architecture detection
-- Package inventory
-- Available update detection
-- Report transmission
-- Client authentication
-- Pending job retrieval
-- Update job execution
-- Result reporting
-
-## 1.3 Component Separation
-
-| Component | Location |
-|---|---|
-| LUMS Flask application | Docker container |
-| SQLite database | Persistent Docker volume |
-| Nginx | Linux host |
-| TLS private key | Linux host |
-| LUMS agent | Managed Linux host |
-| systemd timer | Managed Linux host |
-| APT/dpkg | Managed Linux host |
-
-The agent runs outside Docker because it requires direct access to the managed operating system, package manager and systemd.
+The container is not directly exposed to the network.
 
 ---
 
-# 2. Prerequisites
+### 3.2 Nginx Reverse Proxy
 
-## 2.1 LUMS Server
+Nginx provides:
 
-Recommended minimum configuration:
+- HTTPS termination
+- TLS certificate handling
+- HTTP to HTTPS redirection
+- Reverse proxying to the Flask application
+- External access control
+
+The Flask application is bound to the local host only.
 
 ```text
-Operating system: Ubuntu Server 26.04 LTS
-CPU:              2 cores
-RAM:              2–4 GB
-Storage:          20 GB or more
-Network:          Stable network connection
-Docker:           Required
-Nginx:            Required
+External HTTPS :443
+        |
+        v
+Nginx
+        |
+        v
+127.0.0.1:5050
+        |
+        v
+Docker container port 5000
 ```
 
-The server must have a stable IP address that managed clients can reach.
+Ports `5000` and `5050` must not be exposed directly to the network.
 
-Example:
+---
+
+### 3.3 Linux Agent
+
+The LUMS agent is responsible for:
+
+- Collecting system information
+- Detecting installed packages
+- Detecting available updates
+- Reporting client status
+- Sending data to the LUMS server
+- Communicating using Bearer authentication
+
+The agent does not directly represent the complete update execution workflow.
+
+The current agent version is:
 
 ```text
-LUMS server IP:
-IP Address
+AGENT 1.6.0
 ```
 
-Throughout this document, replace:
+---
+
+### 3.4 Execution Watcher
+
+The execution watcher is separated from the reporting agent.
+
+The watcher is responsible for:
+
+- Checking pending update jobs
+- Checking whether the client is idle
+- Claiming jobs atomically
+- Executing approved jobs
+- Recovering interrupted running jobs
+- Sending execution results
+- Reporting execution states
+
+This separation reduces the responsibilities of the reporting agent and allows update execution to be developed independently.
+
+The current watcher version is:
 
 ```text
-<LUMS_SERVER_IP>
+WATCHER 1.2.1
 ```
 
-with the actual server IP address.
+---
 
-## 2.2 Managed Linux Client
+## 4. Current Execution Model
 
-The agent requires:
+The execution watcher uses an idle-aware execution model.
+
+A job should only be executed when:
+
+1. The client supports idle detection.
+2. The detected idle time reaches the configured threshold.
+3. A pending job is available.
+4. The job can be claimed successfully.
+5. The package manager is not already being used by another process.
+
+The current idle threshold is:
 
 ```text
-Linux
-Python 3
-systemd
-APT-compatible package manager
-Network access to the LUMS server
+300 seconds
 ```
 
-The agent is intended for Debian- and Ubuntu-based systems.
+The idle detection currently uses:
 
-## 2.3 Important Security Information
+```text
+w -h
+```
 
-The following values are sensitive:
+This primarily supports server, terminal, console, and SSH-oriented environments.
 
-- Flask secret key
-- Administrator password
-- Client authentication token
-- TLS private key
-- Agent configuration file
+It must not be considered universal desktop idle detection.
 
-Never publish these values in GitHub repositories, screenshots or documentation.
+The watcher reports metadata such as:
+
+```text
+idle
+idle_seconds
+idle_threshold_seconds
+idle_source
+idle_supported
+```
+
+The watcher must not execute update jobs while active user activity is detected.
 
 ---
 
-# 3. Prepare the Ubuntu Server
+## 5. Job States
 
-Update the package lists:
+The job lifecycle uses the following states:
 
-```bash
-sudo apt update
+```text
+pending
+   |
+   v
+running
+   |
+   +------------------+
+   |                  |
+   v                  v
+success            partial
+   |
+   v
+failed
 ```
 
-Install available updates:
+A job may also require recovery when the client or watcher stops while the job is running.
 
-```bash
-sudo apt upgrade -y
-```
+The implementation must handle interrupted jobs carefully to prevent permanent `running` states.
 
-Check the operating system:
+### 5.1 Pending
 
-```bash
-cat /etc/os-release
-```
+The job has been created but has not yet been claimed by a client.
 
-Check the kernel:
+### 5.2 Running
 
-```bash
-uname -r
-```
+The job has been claimed and is currently being processed.
 
-Check the IP address:
+### 5.3 Success
 
-```bash
-hostname -I
-```
+The job completed successfully.
 
-Check available storage:
+### 5.4 Partial
 
-```bash
-df -h
-```
+The job completed with some operations succeeding and others failing.
 
-Check systemd:
+### 5.5 Failed
 
-```bash
-systemctl is-system-running
-```
-
-If Ubuntu requests a reboot:
-
-```bash
-sudo reboot
-```
-
-Reconnect after the reboot.
+The job could not be completed successfully.
 
 ---
 
-# 4. Install Docker
+## 6. Repository Structure
 
-Install Docker from the Ubuntu repositories:
+A simplified repository structure:
 
-```bash
-sudo apt install -y docker.io
+```text
+LUMS/
+├── agent/
+│   ├── agent.py
+│   └── watcher.py
+├── server/
+│   ├── app.py
+│   ├── security.py
+│   ├── database.py
+│   └── ...
+├── templates/
+├── static/
+├── Dockerfile
+├── docker-compose.yml
+├── requirements.txt
+└── README.md
 ```
 
-Enable and start Docker:
+The exact structure may change during development.
 
-```bash
-sudo systemctl enable --now docker
-```
-
-Check the version:
-
-```bash
-docker --version
-```
-
-Check the service:
-
-```bash
-sudo systemctl status docker --no-pager
-```
-
-Add the current user to the Docker group:
-
-```bash
-sudo usermod -aG docker "$USER"
-```
-
-Apply the group membership:
-
-```bash
-newgrp docker
-```
-
-Test Docker:
-
-```bash
-docker ps
-```
-
-The command should work without requiring `sudo`.
-
-> Group membership changes may require logging out and logging in again.
+The server-side application and client-side agent must be versioned together whenever API changes affect both components.
 
 ---
 
-# 5. Install Supporting Tools
+## 7. Server Requirements
 
-Install the required tools:
+Recommended server requirements:
 
-```bash
-sudo apt install -y \
-    nginx \
-    git \
-    openssl \
-    curl \
-    ca-certificates
-```
+- Linux operating system
+- Docker Engine
+- Docker Compose plugin
+- Nginx
+- OpenSSL
+- UFW or another firewall
+- Python tooling inside the Docker image
+- Persistent storage for the SQLite database
 
-Enable Nginx:
+The server must have sufficient storage for:
 
-```bash
-sudo systemctl enable --now nginx
-```
-
-Verify the installed tools:
-
-```bash
-nginx -v
-```
-
-```bash
-git --version
-```
-
-```bash
-openssl version
-```
-
-```bash
-curl --version
-```
-
-Check Nginx:
-
-```bash
-sudo systemctl status nginx --no-pager
-```
+- Docker images
+- Application files
+- Database files
+- Logs
+- Backups
+- TLS certificates
 
 ---
 
-# 6. Download the Repository
+## 8. Directory Layout
 
-Change to the `/opt` directory:
+The following directory layout is recommended:
 
-```bash
-cd /opt
+```text
+/opt/lums-public/
+    Git repository
+
+/opt/lums-api/
+    Deployment-related application files
+
+/etc/lums/
+├── docker/
+│   └── lums.env
+└── tls/
+    ├── lums.crt
+    └── lums.key
+
+/var/backups/lums/
+    SQLite backups
+
+/opt/lums-agent/
+├── agent.py
+├── watcher.py
+└── lums-ca.crt
 ```
+
+The exact deployment structure may differ depending on the environment.
+
+---
+
+## 9. Clone or Update the Repository
 
 Clone the repository:
 
 ```bash
-sudo git clone \
-    https://github.com/NovaForgeCtrl/LUMS.git \
-    lums-public
+sudo mkdir -p /opt
+cd /opt
+
+sudo git clone https://github.com/NovaForgeCtrl/LUMS.git lums-public
 ```
 
-Set ownership of the working directory:
-
-```bash
-sudo chown -R "$USER":"$USER" /opt/lums-public
-```
-
-Enter the repository:
+If the repository already exists:
 
 ```bash
 cd /opt/lums-public
+
+git fetch origin
+git status -sb
+git pull --ff-only origin main
 ```
 
-Check the Git status:
-
-```bash
-git status
-```
-
-Check the current branch:
-
-```bash
-git branch --show-current
-```
-
-Check the latest commits:
+Always review the changes before deploying:
 
 ```bash
 git log --oneline --decorate -5
+git diff HEAD~1..HEAD
 ```
 
-The working tree should be clean.
+Do not deploy unreviewed changes directly into a production-like environment.
 
 ---
 
-# 7. Review the Project
+## 10. Docker Environment Configuration
 
-Review the repository structure:
+Create the configuration directory:
 
 ```bash
-find . -maxdepth 2 -type f | sort
+sudo install -d -o root -g root -m 750 /etc/lums/docker
 ```
 
-Important files and directories include:
+Create the environment file:
+
+```bash
+sudo touch /etc/lums/docker/lums.env
+
+sudo chown root:root /etc/lums/docker/lums.env
+sudo chmod 600 /etc/lums/docker/lums.env
+```
+
+The environment file must contain only deployment-specific values.
+
+Example:
+
+```dotenv
+FLASK_ENV=production
+LUMS_DATABASE=/var/lib/lums/lums.db
+```
+
+Do not commit the environment file to Git.
+
+Do not store:
+
+- Passwords
+- API tokens
+- Private keys
+- Secret keys
+- Internal credentials
+
+inside the public repository.
+
+---
+
+## 11. Docker Deployment
+
+Build the Docker image:
+
+```bash
+cd /opt/lums-public
+
+sudo docker build -t lums:latest .
+```
+
+Verify the image:
+
+```bash
+sudo docker image ls lums
+```
+
+The LUMS container should use the following port mapping:
 
 ```text
-Dockerfile
-.dockerignore
-server/
-agent/
-README.md
+127.0.0.1:5050:5000
 ```
 
-Review the Dockerfile:
+This means:
 
-```bash
-sed -n '1,240p' Dockerfile
-```
-
-Review the server dependencies:
-
-```bash
-cat server/requirements.txt
-```
-
-Review the agent files:
-
-```bash
-find agent -maxdepth 2 -type f -print
-```
-
-Review the agent service definition:
-
-```bash
-cat agent/lums-agent.service
-```
-
-Review the timer definition:
-
-```bash
-cat agent/lums-agent.timer
-```
-
-> Review the project files before making changes. The repository is the authoritative source for the application structure.
+- Flask listens on port `5000` inside the container.
+- The Docker host exposes the service only on `127.0.0.1:5050`.
+- Nginx accesses the service locally.
+- The Flask application is not directly accessible from the network.
 
 ---
 
-# 8. Build the Docker Image
+## 12. Docker Volume
 
-Build the LUMS image:
+LUMS uses a persistent Docker volume for the SQLite database.
 
-```bash
-docker build -t lums:latest .
+Expected volume:
+
+```text
+lums-data
 ```
 
-List the image:
+Check the volume:
 
 ```bash
-docker images lums
-```
-
-Inspect the image:
-
-```bash
-docker image inspect lums:latest \
-    --format '{{.Id}}'
-```
-
-Check the image size:
-
-```bash
-docker image inspect lums:latest \
-    --format '{{.Size}}'
-```
-
-The build must complete without errors before continuing.
-
----
-
-# 9. Create Persistent Storage
-
-Create the Docker volume:
-
-```bash
-docker volume create lums-data
-```
-
-List Docker volumes:
-
-```bash
-docker volume ls
+sudo docker volume ls
 ```
 
 Inspect the volume:
 
 ```bash
-docker volume inspect lums-data
+sudo docker volume inspect lums-data
 ```
 
-The database will be stored in:
+The volume contains persistent application data.
 
-```text
-/var/lib/lums/lums.db
+### Important
+
+Never delete the database volume during ordinary deployment or troubleshooting.
+
+Do not execute:
+
+```bash
+sudo docker volume rm lums-data
 ```
 
-The container volume is mounted to:
-
-```text
-/var/lib/lums
-```
-
-> Do not delete the `lums-data` volume unless you intentionally want to delete the LUMS database.
+unless a complete, verified backup exists and data destruction is explicitly intended.
 
 ---
 
-# 10. Configure the Secret Key
+## 13. Starting the LUMS Container
 
-Create the configuration directory:
-
-```bash
-sudo mkdir -p /etc/lums/docker
-```
-
-Generate a secure secret key:
+Example container creation:
 
 ```bash
-sudo sh -c '
-    umask 077
-    printf "LUMS_SECRET_KEY=%s\n" \
-        "$(openssl rand -hex 64)" \
-        > /etc/lums/docker/lums.env
-'
+sudo docker run -d \
+  --name lums \
+  --restart unless-stopped \
+  --env-file /etc/lums/docker/lums.env \
+  -p 127.0.0.1:5050:5000 \
+  -v lums-data:/var/lib/lums \
+  lums:latest
 ```
 
-Set directory permissions:
+Check the container:
 
 ```bash
-sudo chown root:root /etc/lums/docker
-sudo chmod 700 /etc/lums/docker
-```
-
-Set file permissions:
-
-```bash
-sudo chown root:root /etc/lums/docker/lums.env
-sudo chmod 600 /etc/lums/docker/lums.env
-```
-
-Verify the key exists without displaying it:
-
-```bash
-sudo grep -q '^LUMS_SECRET_KEY=.' \
-    /etc/lums/docker/lums.env \
-    && echo "LUMS_SECRET_KEY vorhanden"
-```
-
-Verify permissions:
-
-```bash
-sudo stat -c '%U:%G %a %n' \
-    /etc/lums/docker/lums.env
-```
-
-Expected permissions:
-
-```text
-root:root 600 /etc/lums/docker/lums.env
-```
-
-The file must not be committed to Git.
-
----
-
-# 11. Initialize the Database
-
-Run the database initialization inside a temporary container:
-
-```bash
-docker run --rm \
-    --env-file /etc/lums/docker/lums.env \
-    -v lums-data:/var/lib/lums \
-    lums:latest \
-    python3 init_db.py
-```
-
-The database should be created at:
-
-```text
-/var/lib/lums/lums.db
-```
-
-Check the database using a temporary container:
-
-```bash
-docker run --rm \
-    --env-file /etc/lums/docker/lums.env \
-    -v lums-data:/var/lib/lums \
-    lums:latest \
-    python3 -c '
-import sqlite3
-
-db = sqlite3.connect("/var/lib/lums/lums.db")
-print("Database OK")
-print("Tables:")
-for row in db.execute(
-    "SELECT name FROM sqlite_master WHERE type=\"table\" ORDER BY name"
-):
-    print(" -", row[0])
-db.close()
-'
-```
-
-The database must exist before continuing.
-
----
-
-# 12. Run the Security Migration
-
-Run the security migration:
-
-```bash
-docker run --rm -it \
-    --env-file /etc/lums/docker/lums.env \
-    -v lums-data:/var/lib/lums \
-    lums:latest \
-    python3 security_migration.py
-```
-
-Follow the prompts.
-
-Create the administrator account and choose a strong password.
-
-The security migration may create or update:
-
-- Administrator user
-- User table
-- Audit log
-- Schema migration records
-- Client security fields
-- Authentication-related database structures
-
-Verify the database:
-
-```bash
-docker run --rm \
-    --env-file /etc/lums/docker/lums.env \
-    -v lums-data:/var/lib/lums \
-    lums:latest \
-    python3 -c '
-import sqlite3
-
-db = sqlite3.connect("/var/lib/lums/lums.db")
-
-for table in ("users", "audit_log", "schema_migrations"):
-    result = db.execute(
-        "SELECT name FROM sqlite_master WHERE type=\"table\" AND name=?",
-        (table,)
-    ).fetchone()
-    print(table, "OK" if result else "MISSING")
-
-db.close()
-'
-```
-
-Do not store the administrator password in documentation.
-
----
-
-# 13. Start the LUMS Container
-
-Start the production container:
-
-```bash
-docker run -d \
-    --name lums \
-    --restart unless-stopped \
-    --env-file /etc/lums/docker/lums.env \
-    -p 127.0.0.1:5050:5000 \
-    -v lums-data:/var/lib/lums \
-    lums:latest
-```
-
-Check the running containers:
-
-```bash
-docker ps
-```
-
-Check the LUMS container:
-
-```bash
-docker ps \
-    --filter name=lums
+sudo docker ps
 ```
 
 Check the logs:
 
 ```bash
-docker logs lums
+sudo docker logs --tail 100 lums
 ```
 
 Follow the logs:
 
 ```bash
-docker logs -f lums
+sudo docker logs -f lums
 ```
 
-Press `Ctrl+C` to stop following the logs.
-
-Verify the port mapping:
+Check the container health:
 
 ```bash
-docker port lums
-```
-
-Expected:
-
-```text
-5000/tcp -> 127.0.0.1:5050
-```
-
-Port `5050` is bound only to localhost.
-
----
-
-# 14. Verify the Container
-
-Check the container state:
-
-```bash
-docker inspect lums \
-    --format '{{.State.Status}}'
-```
-
-Expected:
-
-```text
-running
-```
-
-Test the local application:
-
-```bash
-curl -i http://127.0.0.1:5050/
-```
-
-Test the login page:
-
-```bash
-curl -i http://127.0.0.1:5050/login
-```
-
-The application should respond.
-
-Check the database inside the running container:
-
-```bash
-docker exec lums \
-    python3 -c '
-import sqlite3
-
-db = sqlite3.connect("/var/lib/lums/lums.db")
-print("Database OK")
-print("Users:", db.execute("SELECT COUNT(*) FROM users").fetchone()[0])
-db.close()
-'
-```
-
-Check the container restart policy:
-
-```bash
-docker inspect lums \
-    --format '{{.HostConfig.RestartPolicy.Name}}'
-```
-
-Expected:
-
-```text
-unless-stopped
+sudo docker inspect lums
 ```
 
 ---
 
-# 15. Configure the Server IP
+## 14. Updating the Docker Deployment
 
-Determine the server IP address:
-
-```bash
-hostname -I
-```
-
-Alternative:
+Before updating:
 
 ```bash
-ip -br addr
+sudo docker ps
+sudo docker volume inspect lums-data
+sudo docker logs --tail 100 lums
 ```
 
-Determine the default route:
+Build the updated image:
 
 ```bash
-ip route
+cd /opt/lums-public
+
+sudo docker build -t lums:latest .
 ```
 
-Example:
+Stop and remove only the container:
 
-```text
-IP Address
+```bash
+sudo docker stop lums
+sudo docker rm lums
 ```
 
-Use the IP address that is reachable by the managed clients.
+Do not remove the persistent database volume.
 
-From this point onward, replace:
+Start the updated container:
 
-```text
-<LUMS_SERVER_IP>
+```bash
+sudo docker run -d \
+  --name lums \
+  --restart unless-stopped \
+  --env-file /etc/lums/docker/lums.env \
+  -p 127.0.0.1:5050:5000 \
+  -v lums-data:/var/lib/lums \
+  lums:latest
 ```
 
-with the actual server IP.
+Verify the deployment:
 
-> The IP address must be included in the TLS certificate's Subject Alternative Name.
+```bash
+sudo docker ps
+sudo docker logs --tail 100 lums
+```
+
+Test the local application endpoint:
+
+```bash
+curl -I http://127.0.0.1:5050
+```
 
 ---
 
-# 16. Create the TLS Certificate
+## 15. TLS Certificate Directory
 
 Create the TLS directory:
 
 ```bash
-sudo mkdir -p /etc/lums/tls
+sudo install -d -o root -g root -m 750 /etc/lums/tls
 ```
 
-Create the OpenSSL configuration:
+The expected server-side files are:
+
+```text
+/etc/lums/tls/lums.crt
+/etc/lums/tls/lums.key
+```
+
+Set secure permissions:
 
 ```bash
-sudo tee /etc/lums/tls/lums-openssl.cnf > /dev/null <<'EOF'
+sudo chown root:root /etc/lums/tls/lums.crt
+sudo chown root:root /etc/lums/tls/lums.key
+
+sudo chmod 644 /etc/lums/tls/lums.crt
+sudo chmod 600 /etc/lums/tls/lums.key
+```
+
+The private key must never be committed to GitHub.
+
+---
+
+## 16. Example Certificate Configuration
+
+Create a temporary OpenSSL configuration file:
+
+```bash
+cat > /tmp/lums-openssl.cnf <<'EOF'
 [req]
 default_bits = 4096
 prompt = no
@@ -849,10 +624,10 @@ x509_extensions = v3_req
 
 [dn]
 C = DE
-ST = NRW
-L = Essen
+ST = North Rhine-Westphalia
+L = Local
 O = LUMS
-OU = Lab
+OU = Infrastructure
 CN = lums
 
 [v3_req]
@@ -865,70 +640,52 @@ IP.1 = <LUMS_SERVER_IP>
 EOF
 ```
 
-Edit the configuration and replace:
-
-```text
-<LUMS_SERVER_IP>
-```
-
-with the real IP address.
-
-Generate the certificate:
+Generate a self-signed certificate:
 
 ```bash
 sudo openssl req \
-    -x509 \
-    -nodes \
-    -newkey rsa:4096 \
-    -keyout /etc/lums/tls/lums.key \
-    -out /etc/lums/tls/lums.crt \
-    -days 825 \
-    -config /etc/lums/tls/lums-openssl.cnf
+  -x509 \
+  -nodes \
+  -days 825 \
+  -newkey rsa:4096 \
+  -keyout /etc/lums/tls/lums.key \
+  -out /etc/lums/tls/lums.crt \
+  -config /tmp/lums-openssl.cnf
 ```
 
-Protect the private key:
+Secure the private key:
 
 ```bash
 sudo chown root:root /etc/lums/tls/lums.key
 sudo chmod 600 /etc/lums/tls/lums.key
 ```
 
-Protect the certificate:
+Remove the temporary configuration file:
 
 ```bash
-sudo chown root:root /etc/lums/tls/lums.crt
-sudo chmod 644 /etc/lums/tls/lums.crt
+rm -f /tmp/lums-openssl.cnf
 ```
 
-Verify the certificate:
+### Certificate limitation
 
-```bash
-sudo openssl x509 \
-    -in /etc/lums/tls/lums.crt \
-    -noout \
-    -subject \
-    -issuer \
-    -dates
-```
+Self-signed certificates are suitable for controlled laboratories.
 
-Verify the SAN:
+For broader deployments, use a trusted internal certificate authority or another suitable certificate management solution.
 
-```bash
-sudo openssl x509 \
-    -in /etc/lums/tls/lums.crt \
-    -noout \
-    -ext subjectAltName
-```
-
-The server IP must be present in the SAN.
-
-> A self-signed certificate is suitable for a laboratory environment. A trusted internal CA or publicly trusted certificate may be preferred for production environments.
+Clients must explicitly trust the correct certificate or CA certificate.
 
 ---
 
-# 17. Configure Nginx
+## 17. Nginx Configuration
 
-Create the Nginx configuration:
+Install Nginx if required:
+
+```bash
+sudo apt update
+sudo apt install -y nginx
+```
+
+Create the LUMS site configuration:
 
 ```bash
 sudo tee /etc/nginx/sites-available/lums > /dev/null <<'EOF'
@@ -936,7 +693,7 @@ server {
     listen 80;
     listen [::]:80;
 
-    server_name _;
+    server_name lums;
 
     return 301 https://$host$request_uri;
 }
@@ -945,15 +702,17 @@ server {
     listen 443 ssl;
     listen [::]:443 ssl;
 
-    server_name _;
+    server_name lums;
 
-    ssl_certificate /etc/lums/tls/lums.crt;
+    ssl_certificate     /etc/lums/tls/lums.crt;
     ssl_certificate_key /etc/lums/tls/lums.key;
 
     ssl_protocols TLSv1.2 TLSv1.3;
 
     location / {
         proxy_pass http://127.0.0.1:5050;
+
+        proxy_http_version 1.1;
 
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
@@ -964,18 +723,18 @@ server {
 EOF
 ```
 
-Disable the default Nginx site:
+Enable the configuration:
+
+```bash
+sudo ln -s \
+  /etc/nginx/sites-available/lums \
+  /etc/nginx/sites-enabled/lums
+```
+
+Disable the default site if necessary:
 
 ```bash
 sudo rm -f /etc/nginx/sites-enabled/default
-```
-
-Enable the LUMS site:
-
-```bash
-sudo ln -sf \
-    /etc/nginx/sites-available/lums \
-    /etc/nginx/sites-enabled/lums
 ```
 
 Test the configuration:
@@ -984,73 +743,26 @@ Test the configuration:
 sudo nginx -t
 ```
 
-Expected:
-
-```text
-syntax is ok
-test is successful
-```
-
 Reload Nginx:
 
 ```bash
 sudo systemctl reload nginx
 ```
 
-Check Nginx:
+Check the service:
 
 ```bash
-sudo systemctl status nginx --no-pager
+sudo systemctl status nginx
 ```
 
 ---
 
-# 18. Test HTTPS
+## 18. Firewall Configuration
 
-Test HTTP redirection:
-
-```bash
-curl -I \
-    http://<LUMS_SERVER_IP>/
-```
-
-The response should redirect to HTTPS.
-
-Test HTTPS:
+Install UFW if required:
 
 ```bash
-curl -k -I \
-    https://<LUMS_SERVER_IP>/
-```
-
-Test the login endpoint:
-
-```bash
-curl -k -I \
-    https://<LUMS_SERVER_IP>/login
-```
-
-The `-k` option allows testing with a self-signed certificate.
-
-Open the following address in a browser:
-
-```text
-https://<LUMS_SERVER_IP>/
-```
-
-The LUMS login page should appear.
-
-> The browser may display a certificate warning because the certificate is self-signed.
-
-Do not expose port `5000` or `5050` directly to the network.
-
----
-
-# 19. Configure the Firewall
-
-Install UFW:
-
-```bash
+sudo apt update
 sudo apt install -y ufw
 ```
 
@@ -1060,16 +772,11 @@ Allow SSH:
 sudo ufw allow 22/tcp
 ```
 
-Allow HTTPS:
-
-```bash
-sudo ufw allow 443/tcp
-```
-
-Allow HTTP for redirection:
+Allow HTTP and HTTPS:
 
 ```bash
 sudo ufw allow 80/tcp
+sudo ufw allow 443/tcp
 ```
 
 Enable the firewall:
@@ -1078,321 +785,187 @@ Enable the firewall:
 sudo ufw enable
 ```
 
-Check the firewall:
+Check the rules:
 
 ```bash
 sudo ufw status verbose
 ```
 
-Verify listening ports:
-
-```bash
-sudo ss -tulpn
-```
-
-The LUMS application should be bound locally:
+Do not expose the following ports externally:
 
 ```text
-127.0.0.1:5050
+5000
+5050
 ```
 
-Do not add firewall rules for ports `5000` or `5050`.
-
-> Ensure that SSH access is allowed before enabling UFW on a remote server.
+The Flask application should only be reachable through Nginx.
 
 ---
 
-# 20. Register a Client
+## 19. Client Requirements
 
-Log in to the LUMS web interface.
+The Linux client requires:
 
-Open the client management section.
+- Python 3
+- systemd
+- Network connectivity to the LUMS server
+- A valid client token
+- The LUMS trust certificate
+- Permission to query the package manager
+- Permission to execute the configured update operations
 
-Register a client using its IP address.
+The client must be configured individually.
 
-Example:
-
-```text
-IP address:
-192.168.2.210
-```
-
-The server generates a client authentication token.
-
-Store the token securely.
-
-The token is used by the agent in the HTTP Authorization header:
-
-```text
-Authorization: Bearer <CLIENT_TOKEN>
-```
-
-The agent automatically reports:
-
-- Hostname
-- Operating system
-- Kernel
-- Architecture
-- Agent version
-- Package inventory
-- Available updates
-- Last report time
-
-The IP address must be registered correctly before the agent can authenticate.
-
-> The client token must be treated like a password.
+Never reuse one client token across multiple independent clients.
 
 ---
 
-# 21. Install the Agent
-
-Perform the following steps on the managed Linux client.
+## 20. Client Directory
 
 Create the agent directory:
 
 ```bash
-sudo mkdir -p /opt/lums-agent
+sudo install -d -o root -g root -m 750 /opt/lums-agent
 ```
 
-Copy the agent script:
+Copy the agent files to the client.
 
-```bash
-sudo cp \
-    /opt/lums-public/agent/agent.py \
-    /opt/lums-agent/agent.py
-```
-
-Set ownership:
-
-```bash
-sudo chown root:root \
-    /opt/lums-agent/agent.py
-```
-
-Set permissions:
-
-```bash
-sudo chmod 750 \
-    /opt/lums-agent/agent.py
-```
-
-Check the file:
-
-```bash
-ls -l /opt/lums-agent/agent.py
-```
-
-If the repository is not available on the client, transfer `agent.py` securely using a method such as SCP.
-
----
-
-# 22. Configure the Agent Certificate
-
-The agent must trust the LUMS server certificate.
-
-Create the configuration directory:
-
-```bash
-sudo mkdir -p /etc/lums
-```
-
-Copy the server certificate securely to the client.
-
-Example:
-
-```bash
-scp \
-    <USER>@<LUMS_SERVER_IP>:/etc/lums/tls/lums.crt \
-    /tmp/lums-ca.crt
-```
-
-Install the certificate:
+If the repository is available locally:
 
 ```bash
 sudo install \
-    -o root \
-    -g root \
-    -m 644 \
-    /tmp/lums-ca.crt \
-    /etc/lums/ca.crt
+  -o root \
+  -g root \
+  -m 750 \
+  /opt/lums-public/agent/agent.py \
+  /opt/lums-agent/agent.py
 ```
-
-Remove the temporary file:
 
 ```bash
-rm -f /tmp/lums-ca.crt
+sudo install \
+  -o root \
+  -g root \
+  -m 750 \
+  /opt/lums-public/agent/watcher.py \
+  /opt/lums-agent/watcher.py
 ```
 
-Verify the certificate:
+If the repository is not available locally, transfer the files using a secure method such as SCP or another controlled file transfer process.
+
+Verify the files:
 
 ```bash
-ls -l /etc/lums/ca.crt
+sudo ls -l /opt/lums-agent
 ```
-
-Verify the certificate:
-
-```bash
-openssl x509 \
-    -in /etc/lums/ca.crt \
-    -noout \
-    -subject \
-    -dates
-```
-
-The certificate must match the certificate used by Nginx.
 
 ---
 
-# 23. Configure Agent Authentication
+## 21. Client TLS Certificate
 
-Create the agent configuration file:
+Install the trusted certificate:
 
 ```bash
-sudo tee /etc/default/lums-agent > /dev/null <<'EOF'
+sudo install \
+  -o root \
+  -g root \
+  -m 644 \
+  /tmp/lums-ca.crt \
+  /opt/lums-agent/lums-ca.crt
+```
+
+Verify the certificate:
+
+```bash
+sudo openssl x509 \
+  -in /opt/lums-agent/lums-ca.crt \
+  -noout \
+  -subject \
+  -issuer \
+  -dates
+```
+
+The configured certificate path must be:
+
+```text
+/opt/lums-agent/lums-ca.crt
+```
+
+---
+
+## 22. Client Configuration
+
+Create the client configuration file:
+
+```bash
+sudo touch /etc/default/lums-agent
+
+sudo chown root:root /etc/default/lums-agent
+sudo chmod 600 /etc/default/lums-agent
+```
+
+Edit the file using a secure administrative method.
+
+Example configuration:
+
+```dotenv
 LUMS_BASE="https://<LUMS_SERVER_IP>"
-LUMS_TOKEN="PUT_CLIENT_TOKEN_HERE"
-LUMS_CA_FILE="/etc/lums/ca.crt"
-EOF
+LUMS_TOKEN="<CLIENT_TOKEN>"
+LUMS_CA_FILE="/opt/lums-agent/lums-ca.crt"
 ```
 
-Replace:
+The file must be owned by root and must not be readable by regular users.
 
-```text
-<LUMS_SERVER_IP>
-```
-
-with the LUMS server IP.
-
-Replace:
-
-```text
-PUT_CLIENT_TOKEN_HERE
-```
-
-with the token generated during client registration.
-
-Protect the file:
+Verify the permissions:
 
 ```bash
-sudo chown root:root \
-    /etc/default/lums-agent
+sudo stat -c '%U:%G %a %n' /etc/default/lums-agent
 ```
 
-```bash
-sudo chmod 600 \
-    /etc/default/lums-agent
-```
-
-Verify the server URL without displaying the token:
-
-```bash
-sudo grep '^LUMS_BASE=' \
-    /etc/default/lums-agent
-```
-
-Verify the CA file:
-
-```bash
-sudo grep '^LUMS_CA_FILE=' \
-    /etc/default/lums-agent
-```
-
-Verify that the token exists:
-
-```bash
-sudo grep -q '^LUMS_TOKEN=.' \
-    /etc/default/lums-agent \
-    && echo "Token vorhanden"
-```
-
-Check permissions:
-
-```bash
-sudo stat -c '%U:%G %a %n' \
-    /etc/default/lums-agent
-```
-
-Expected:
+Expected result:
 
 ```text
 root:root 600 /etc/default/lums-agent
 ```
 
----
-
-# 24. Test the Agent Manually
-
-The agent reads its configuration from environment variables.
-
-When running the Python script directly, load the configuration explicitly:
-
-```bash
-sudo bash -c '
-    source /etc/default/lums-agent
-    export LUMS_BASE
-    export LUMS_TOKEN
-    export LUMS_CA_FILE
-    exec /usr/bin/python3 /opt/lums-agent/agent.py
-'
-```
-
-A successful run should include:
-
-```text
-LUMS // UPDATE AGENT
-AGENT 1.5.2
-
-SYSTEM
-HOST ...
-IP ...
-OS ...
-ARCH ...
-KERNEL ...
-
-LUMS CHANNEL
-REPORT      Sending system report...
-REPORT ACCEPTED
-
-CLIENT AUTHENTICATED
-NO UPDATE JOB
-```
-
-The exact output depends on the client.
-
-Expected successful results include:
-
-```text
-REPORT ACCEPTED
-CLIENT AUTHENTICATED
-```
-
-If there is no pending update job:
-
-```text
-NO UPDATE JOB // SYSTEM CLEAN
-```
-
-The agent should complete its cycle and exit successfully.
-
-Check the return code:
-
-```bash
-echo $?
-```
-
-Expected:
-
-```text
-0
-```
-
-> The direct test must load `/etc/default/lums-agent`. Systemd loads the file automatically when using the service.
+Never display the token in terminal output or documentation.
 
 ---
 
-# 25. Install the systemd Service
+## 23. Bearer Authentication
 
-Create the service file:
+The agent communicates with the LUMS server using a Bearer token.
+
+The token must be transmitted using the HTTP authorization header:
+
+```text
+Authorization: Bearer <CLIENT_TOKEN>
+```
+
+The token must be:
+
+- Unique per client
+- Stored securely
+- Protected from unauthorized access
+- Revocable
+- Never committed to Git
+- Never written into public documentation
+
+The server must validate the token on every protected endpoint.
+
+Authentication and authorization must be enforced consistently for:
+
+- Client reports
+- Pending jobs
+- Running jobs
+- Job claiming
+- Job status retrieval
+- Job result submission
+
+---
+
+## 24. Reporting Service
+
+Create the systemd service:
 
 ```bash
 sudo tee /etc/systemd/system/lums-agent.service > /dev/null <<'EOF'
@@ -1417,54 +990,29 @@ Reload systemd:
 sudo systemctl daemon-reload
 ```
 
-Check the service configuration:
-
-```bash
-systemctl cat lums-agent.service
-```
-
-Run the service manually:
+Run the agent manually:
 
 ```bash
 sudo systemctl start lums-agent.service
 ```
 
-Check the service status:
+Check the result:
 
 ```bash
-sudo systemctl status \
-    lums-agent.service \
-    --no-pager \
-    -l
+sudo systemctl status lums-agent.service
 ```
 
-A successful oneshot service normally returns to:
-
-```text
-inactive (dead)
-```
-
-This is expected if the service completed successfully.
-
-Verify the exit status:
+View logs:
 
 ```bash
-sudo systemctl show \
-    lums-agent.service \
-    --property=ExecMainStatus
-```
-
-Expected:
-
-```text
-ExecMainStatus=0
+sudo journalctl -u lums-agent.service -n 100 --no-pager
 ```
 
 ---
 
-# 26. Install the systemd Timer
+## 25. Reporting Timer
 
-Create the timer:
+Create the reporting timer:
 
 ```bash
 sudo tee /etc/systemd/system/lums-agent.timer > /dev/null <<'EOF'
@@ -1473,7 +1021,7 @@ Description=LUMS Linux Update Management Agent Timer
 
 [Timer]
 OnBootSec=2min
-OnUnitActiveSec=15min
+OnUnitActiveSec=5min
 Persistent=true
 Unit=lums-agent.service
 
@@ -1482,778 +1030,1012 @@ WantedBy=timers.target
 EOF
 ```
 
-Reload systemd:
+Enable and start the timer:
 
 ```bash
 sudo systemctl daemon-reload
+
+sudo systemctl enable --now lums-agent.timer
+```
+
+Check the timer:
+
+```bash
+systemctl status lums-agent.timer
+```
+
+List scheduled timers:
+
+```bash
+systemctl list-timers --all | grep lums
+```
+
+The reporting interval is approximately:
+
+```text
+5 minutes
+```
+
+The timer is responsible for regular client reporting.
+
+Update execution is handled separately by the execution watcher.
+
+---
+
+## 26. Execution Watcher Service
+
+Create the watcher service:
+
+```bash
+sudo tee /etc/systemd/system/lums-execution-watcher.service > /dev/null <<'EOF'
+[Unit]
+Description=LUMS Execution Watcher
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/python3 /opt/lums-agent/watcher.py
+EnvironmentFile=-/etc/default/lums-agent
+EOF
+```
+
+Important:
+
+The production service must not contain simulation mode settings.
+
+Do not add:
+
+```ini
+Environment=LUMS_SIMULATE_UPDATES=1
+```
+
+to the permanent production service.
+
+---
+
+## 27. Execution Watcher Timer
+
+Create the watcher timer:
+
+```bash
+sudo tee /etc/systemd/system/lums-execution-watcher.timer > /dev/null <<'EOF'
+[Unit]
+Description=LUMS Execution Watcher Timer
+
+[Timer]
+OnBootSec=30s
+OnUnitActiveSec=30s
+Unit=lums-execution-watcher.service
+Persistent=true
+
+[Install]
+WantedBy=timers.target
+EOF
 ```
 
 Enable and start the timer:
 
 ```bash
-sudo systemctl enable --now \
-    lums-agent.timer
+sudo systemctl daemon-reload
+
+sudo systemctl enable --now lums-execution-watcher.timer
 ```
 
 Check the timer:
 
 ```bash
-sudo systemctl status \
-    lums-agent.timer \
-    --no-pager \
-    -l
+systemctl status lums-execution-watcher.timer
 ```
 
-List the timer:
+List LUMS timers:
 
 ```bash
-systemctl list-timers --all | grep lums-agent
+systemctl list-timers --all | grep lums
 ```
 
-The timer configuration means:
-
-| Setting | Meaning |
-|---|---|
-| `OnBootSec=2min` | First execution approximately two minutes after boot |
-| `OnUnitActiveSec=15min` | Repeat approximately every 15 minutes |
-| `Persistent=true` | Attempt to run after a missed execution |
-| `Unit=lums-agent.service` | Start the agent service |
-
-The timer starts the oneshot service:
+The watcher runs approximately every:
 
 ```text
-lums-agent.timer
-       |
-       v
-lums-agent.service
-       |
-       v
-agent.py
+30 seconds
 ```
-
-The service itself does not need to be permanently active. The timer starts it when required.
 
 ---
 
-# 27. Verify Automatic Execution
+## 28. Manual Watcher Execution
 
-Check the next scheduled execution:
-
-```bash
-systemctl list-timers \
-    --all | grep lums-agent
-```
-
-Check the timer configuration:
+Run the watcher manually:
 
 ```bash
-systemctl cat lums-agent.timer
+sudo systemctl start lums-execution-watcher.service
 ```
 
-Trigger a manual execution:
+Check the status:
 
 ```bash
-sudo systemctl start lums-agent.service
+sudo systemctl status lums-execution-watcher.service
 ```
 
-Read the service log:
+View logs:
 
 ```bash
 sudo journalctl \
-    -u lums-agent.service \
-    -n 100 \
-    --no-pager
+  -u lums-execution-watcher.service \
+  -n 100 \
+  --no-pager
 ```
 
-Follow the service log:
+Follow the logs:
 
 ```bash
 sudo journalctl \
-    -u lums-agent.service \
-    -f
+  -u lums-execution-watcher.service \
+  -f
 ```
 
-Press `Ctrl+C` to stop following the log.
-
-Look for:
-
-```text
-REPORT ACCEPTED
-CLIENT AUTHENTICATED
-```
-
-Check the last execution:
-
-```bash
-sudo systemctl status \
-    lums-agent.service \
-    --no-pager \
-    -l
-```
-
-Check the timer:
-
-```bash
-sudo systemctl is-active \
-    lums-agent.timer
-```
-
-Expected:
-
-```text
-active
-```
+A manual execution is useful for controlled testing and troubleshooting.
 
 ---
 
-# 28. Update Job Workflow
+## 29. Simulation Mode
 
-The general update workflow is:
+Simulation mode is intended for testing the execution workflow without changing installed packages.
 
-```text
-LUMS Web UI
-     |
-     v
-LUMS API
-     |
-     v
-Update Job Created
-     |
-     v
-Agent Retrieves Pending Job
-     |
-     v
-Agent Executes APT Operation
-     |
-     v
-Agent Reports Result
-     |
-     v
-LUMS Stores Result
+Simulation mode must be enabled temporarily.
+
+Create a runtime-only override:
+
+```bash
+sudo systemctl edit --runtime lums-execution-watcher.service
 ```
 
-Possible job states include:
+Add:
 
-```text
-pending
-running
-success
-failed
+```ini
+[Service]
+Environment=LUMS_SIMULATE_UPDATES=1
 ```
 
-Before testing an update job:
+Run the watcher:
 
-1. Confirm the client is online.
-2. Confirm the agent authentication works.
-3. Confirm the client has reported its inventory.
-4. Confirm the agent timer is active.
-5. Confirm the package manager is available.
+```bash
+sudo systemctl start lums-execution-watcher.service
+```
 
-Create an update job through the LUMS web interface.
+Inspect the logs:
 
-The agent retrieves pending jobs during its execution cycle.
+```bash
+sudo journalctl \
+  -u lums-execution-watcher.service \
+  -n 100 \
+  --no-pager
+```
 
-The result should be reported to the server.
+Remove the runtime override:
 
-> Only test update jobs on systems where package updates are approved and where a recovery plan exists.
+```bash
+sudo systemctl revert --runtime lums-execution-watcher.service
+sudo systemctl daemon-reload
+```
+
+Verify that simulation mode is disabled:
+
+```bash
+sudo systemctl cat lums-execution-watcher.service
+```
+
+### Simulation requirements
+
+Simulation mode still requires:
+
+- A valid client configuration
+- A valid client token
+- A reachable LUMS server
+- A pending update job
+- Supported idle detection
+- A sufficient idle period
+
+Simulation mode must never be left enabled unintentionally.
 
 ---
 
-# 29. Backup
+## 30. Update Job API
 
-The most important LUMS data is stored in the Docker volume:
+The following API routes are used by the update job workflow.
+
+### Create an update job
+
+```http
+POST /api/clients/<client_id>/update-jobs
+```
+
+### List update jobs for a client
+
+```http
+GET /api/clients/<client_id>/update-jobs
+```
+
+### List pending jobs
+
+```http
+GET /api/clients/<client_id>/update-jobs/pending
+```
+
+### List running jobs
+
+```http
+GET /api/clients/<client_id>/update-jobs/running
+```
+
+### Claim a job
+
+```http
+POST /api/clients/<client_id>/update-jobs/<job_id>/claim
+```
+
+### Get job status
+
+```http
+GET /api/update-jobs/<job_id>
+```
+
+### Submit job result
+
+```http
+POST /api/update-jobs/<job_id>/result
+```
+
+All protected routes must validate authentication and authorization.
+
+A client must only be allowed to access jobs belonging to that client.
+
+---
+
+## 31. Job Claiming
+
+Job claiming must be atomic.
+
+The watcher must not execute a job merely because it appears in a list of pending jobs.
+
+The expected workflow is:
+
+```text
+1. Find pending job
+2. Verify client identity
+3. Verify idle state
+4. Attempt atomic claim
+5. Confirm claim success
+6. Execute the job
+7. Submit the result
+```
+
+If another watcher or process claims the job first, the current watcher must not execute it.
+
+This prevents duplicate execution in environments with multiple workers or repeated timer runs.
+
+---
+
+## 32. Job Recovery
+
+A job may remain in the `running` state if:
+
+- The client loses power
+- The watcher process is terminated
+- The network connection fails
+- The operating system reboots
+- The package manager process crashes
+
+The watcher must support recovery logic for interrupted jobs.
+
+Recovery must be implemented carefully to avoid:
+
+- Duplicate package operations
+- Incorrect success states
+- Permanent running jobs
+- Unclear audit records
+
+Recovery behavior should always be documented when it changes.
+
+---
+
+## 33. Package Manager Safety
+
+Complete APT and dpkg collision prevention is not fully implemented.
+
+The current LUMS lock mechanism does not automatically force arbitrary user-issued APT commands to honor the LUMS lock.
+
+Therefore, the following situation remains possible:
+
+```text
+LUMS watcher starts an operation
+        +
+User manually runs apt or dpkg
+        =
+Potential package manager collision
+```
+
+This is an important hardening topic for future development.
+
+The system must not claim that all package manager collisions are already prevented.
+
+Future improvements may include:
+
+- Explicit package manager lock checks
+- Detection of active APT or dpkg processes
+- Deferral when the package manager is busy
+- Stronger execution coordination
+- Better recovery handling
+- Clear user-facing status messages
+- Additional audit events
+
+Until complete coordination is implemented, update execution should be tested carefully in controlled environments.
+
+---
+
+## 34. Backup Strategy
+
+The LUMS database is stored inside the Docker volume:
 
 ```text
 lums-data
 ```
 
-The SQLite database is located inside the container at:
+Backups must be created before:
 
-```text
-/var/lib/lums/lums.db
-```
+- Major application updates
+- Database migrations
+- Authentication changes
+- Destructive maintenance
+- Restore tests
+- Large architectural changes
 
-## 29.1 Create a Database Backup
-
-Create a backup directory:
+Create the backup directory:
 
 ```bash
 sudo mkdir -p /var/backups/lums
+sudo chmod 700 /var/backups/lums
 ```
 
-Copy the database from the container:
+---
+
+## 35. SQLite-Aware Backup
+
+A SQLite-aware backup is preferred over copying an active database file directly.
+
+Example:
 
 ```bash
-sudo docker cp \
-    lums:/var/lib/lums/lums.db \
-    /var/backups/lums/lums.db.backup
+sudo docker run --rm \
+  -v lums-data:/var/lib/lums:ro \
+  -v /var/backups/lums:/backup \
+  lums:latest \
+  python3 -c '
+import sqlite3
+
+source = sqlite3.connect("/var/lib/lums/lums.db")
+target = sqlite3.connect("/backup/lums.db.backup")
+
+with target:
+    source.backup(target)
+
+target.close()
+source.close()
+
+print("SQLite backup completed")
+'
 ```
 
 Protect the backup:
 
 ```bash
-sudo chmod 600 \
-    /var/backups/lums/lums.db.backup
+sudo chmod 600 /var/backups/lums/lums.db.backup
 ```
 
-Verify the backup:
+Verify the backup file:
 
 ```bash
-sudo ls -lh \
-    /var/backups/lums/lums.db.backup
+sudo ls -lh /var/backups/lums/lums.db.backup
 ```
 
-## 29.2 Verify the Backup Database
+---
+
+## 36. Backup Verification
+
+A backup is not considered reliable until it has been tested.
+
+Example verification:
 
 ```bash
-sudo python3 -c '
+sudo docker run --rm \
+  -v /var/backups/lums:/backup:ro \
+  lums:latest \
+  python3 -c '
 import sqlite3
 
-db = sqlite3.connect(
-    "/var/backups/lums/lums.db.backup"
-)
+db = sqlite3.connect("file:/backup/lums.db.backup?mode=ro", uri=True)
 
-print("Backup database readable")
+result = db.execute(
+    "PRAGMA integrity_check"
+).fetchone()[0]
 
-tables = db.execute(
-    "SELECT name FROM sqlite_master WHERE type=\"table\""
-).fetchall()
+print("Integrity check:", result)
 
-print("Tables:", len(tables))
 db.close()
 '
 ```
 
-## 29.3 Backup Important Configuration
-
-Back up the following files through a secure backup process:
+Expected result:
 
 ```text
-/etc/lums/docker/lums.env
-/etc/lums/tls/lums.crt
-/etc/lums/tls/lums.key
+Integrity check: ok
 ```
 
-The following files may contain authentication secrets:
-
-```text
-/etc/default/lums-agent
-```
-
-Do not store these files in a public Git repository.
+The backup should also be tested in an isolated restore environment.
 
 ---
 
-# 30. Restore
+## 37. Restore Considerations
 
-> Perform restoration only after verifying the backup and ensuring that the LUMS container is stopped.
+A restore must not be performed while the production container is actively writing to the database.
 
-Stop the container:
+Before restoring:
 
-```bash
-docker stop lums
-```
+1. Confirm the correct backup.
+2. Stop the LUMS container.
+3. Preserve the current database.
+4. Restore the backup.
+5. Start the container.
+6. Check the application logs.
+7. Verify clients, jobs, and authentication.
+8. Perform an integrity check.
 
-Copy the database backup into the Docker volume using a temporary container:
-
-```bash
-docker run --rm \
-    -v lums-data:/var/lib/lums \
-    -v /var/backups/lums:/backup:ro \
-    lums:latest \
-    sh -c '
-        cp /backup/lums.db.backup \
-           /var/lib/lums/lums.db
-    '
-```
-
-Start the container:
+Example:
 
 ```bash
-docker start lums
+sudo docker stop lums
 ```
 
-Check the logs:
+Do not overwrite the production database without creating a safety copy first.
 
-```bash
-docker logs --tail 100 lums
-```
-
-Verify the database:
-
-```bash
-docker exec lums \
-    python3 -c '
-import sqlite3
-
-db = sqlite3.connect("/var/lib/lums/lums.db")
-print("Users:", db.execute("SELECT COUNT(*) FROM users").fetchone()[0])
-db.close()
-'
-```
-
-> Always verify the restored database before using the application.
+A restore procedure must be tested before it is considered operationally reliable.
 
 ---
 
-# 31. Security Checklist
+## 38. Service Verification
 
-## 31.1 Server Security
-
-```text
-[ ] System is updated
-[ ] Docker is installed from a trusted source
-[ ] Nginx is enabled
-[ ] HTTPS is enabled
-[ ] TLS private key is protected
-[ ] Port 5000 is not publicly exposed
-[ ] Port 5050 is not publicly exposed
-[ ] Firewall is enabled
-[ ] SSH access is protected
-[ ] LUMS secret key is stored outside the image
-[ ] Database uses persistent storage
-```
-
-## 31.2 Agent Security
-
-```text
-[ ] Agent configuration is protected
-[ ] Client token is not published
-[ ] HTTPS is used
-[ ] CA certificate is configured
-[ ] Agent script is owned by root
-[ ] Agent service uses a protected environment file
-[ ] Timer is active
-[ ] Authentication was tested
-```
-
-## 31.3 Secrets That Must Not Be Committed
-
-```text
-/etc/lums/docker/lums.env
-/etc/default/lums-agent
-/etc/lums/tls/lums.key
-Client authentication tokens
-Administrator passwords
-Private backup files
-```
-
-Review the Git status:
+Check all LUMS services:
 
 ```bash
-git status --short
+systemctl status lums-agent.service
+systemctl status lums-agent.timer
+systemctl status lums-execution-watcher.service
+systemctl status lums-execution-watcher.timer
 ```
 
-Review ignored files:
+List timers:
 
 ```bash
-git check-ignore -v \
-    /etc/lums/docker/lums.env
+systemctl list-timers --all | grep lums
 ```
 
-System configuration files outside the repository should never be copied into the repository for convenience.
+Check recent agent logs:
+
+```bash
+sudo journalctl \
+  -u lums-agent.service \
+  -n 100 \
+  --no-pager
+```
+
+Check recent watcher logs:
+
+```bash
+sudo journalctl \
+  -u lums-execution-watcher.service \
+  -n 100 \
+  --no-pager
+```
 
 ---
 
-# 32. Troubleshooting
+## 39. Network Verification
 
-The most important troubleshooting rule is:
-
-> Do not reinstall everything immediately. Find the layer where the problem occurs.
-
-## 32.1 Check Docker
+Check DNS or hostname resolution:
 
 ```bash
-docker ps
+getent hosts <LUMS_SERVER_IP>
+```
+
+Test HTTPS connectivity:
+
+```bash
+curl \
+  --cacert /opt/lums-agent/lums-ca.crt \
+  https://<LUMS_SERVER_IP>/
+```
+
+Test certificate information:
+
+```bash
+openssl s_client \
+  -connect <LUMS_SERVER_IP>:443 \
+  -servername lums \
+  -CAfile /opt/lums-agent/lums-ca.crt
+```
+
+Do not disable TLS verification as a permanent solution.
+
+Avoid using:
+
+```bash
+curl -k
+```
+
+in production automation.
+
+The option may be useful for controlled diagnostics, but it disables certificate verification.
+
+---
+
+## 40. Manual Agent Test
+
+Run the agent directly:
+
+```bash
+sudo /usr/bin/python3 /opt/lums-agent/agent.py
+```
+
+The agent should:
+
+- Load the configuration
+- Contact the LUMS server
+- Authenticate using the configured token
+- Collect client information
+- Submit the report
+- Return a clear result
+
+The agent reporting process and execution watcher are separate workflows.
+
+A successful agent report does not automatically mean that update execution is working.
+
+---
+
+## 41. Troubleshooting Strategy
+
+Troubleshoot LUMS layer by layer.
+
+```text
+Layer 1: Client operating system
+Layer 2: Python and local files
+Layer 3: Client configuration
+Layer 4: TLS certificate trust
+Layer 5: Network connectivity
+Layer 6: Nginx
+Layer 7: Docker container
+Layer 8: Flask application
+Layer 9: Authentication
+Layer 10: Database
+Layer 11: Update job workflow
+Layer 12: Package manager execution
+```
+
+Do not reinstall all components immediately.
+
+First identify the layer where the problem occurs.
+
+---
+
+## 42. Common Problems
+
+### 42.1 Agent returns 401
+
+Possible causes:
+
+- Invalid client token
+- Incorrect token hash
+- Wrong client ID
+- Incorrect Authorization header
+- Missing Bearer prefix
+- Incorrect server URL
+- Server-side authorization failure
+
+Check the configuration permissions:
+
+```bash
+sudo stat -c '%U:%G %a %n' /etc/default/lums-agent
+```
+
+Check the service logs:
+
+```bash
+sudo journalctl \
+  -u lums-agent.service \
+  -n 100 \
+  --no-pager
+```
+
+Never print the complete token during troubleshooting.
+
+---
+
+### 42.2 TLS Certificate Error
+
+Possible causes:
+
+- Wrong CA certificate
+- Incorrect certificate path
+- Expired certificate
+- Hostname mismatch
+- Missing Subject Alternative Name
+- Incorrect server certificate
+- Certificate not installed on the client
+
+Check the configured path:
+
+```bash
+grep -E '^LUMS_CA_FILE=' /etc/default/lums-agent
+```
+
+Expected path:
+
+```text
+/opt/lums-agent/lums-ca.crt
+```
+
+Check the certificate:
+
+```bash
+sudo openssl x509 \
+  -in /opt/lums-agent/lums-ca.crt \
+  -noout \
+  -subject \
+  -issuer \
+  -dates
+```
+
+---
+
+### 42.3 Nginx Returns 502
+
+Possible causes:
+
+- Docker container is stopped
+- Flask application is not listening
+- Incorrect proxy port
+- Docker port mapping is missing
+- Container startup failure
+
+Check Docker:
+
+```bash
+sudo docker ps
+```
+
+Check the container logs:
+
+```bash
+sudo docker logs --tail 100 lums
+```
+
+Check the local proxy target:
+
+```bash
+curl -I http://127.0.0.1:5050
+```
+
+Check Nginx:
+
+```bash
+sudo nginx -t
+sudo journalctl -u nginx -n 100 --no-pager
+```
+
+---
+
+### 42.4 Watcher Does Not Execute a Job
+
+Possible causes:
+
+- No pending job exists
+- Client token is invalid
+- Idle detection is unsupported
+- Idle threshold has not been reached
+- Job has already been claimed
+- Job is not assigned to the client
+- The package manager is busy
+- The watcher is not running
+- The job state is invalid
+
+Check the watcher logs:
+
+```bash
+sudo journalctl \
+  -u lums-execution-watcher.service \
+  -n 100 \
+  --no-pager
+```
+
+Check the timer:
+
+```bash
+systemctl status lums-execution-watcher.timer
+```
+
+Check the client idle information:
+
+```bash
+w -h
+```
+
+Do not assume that a connected SSH session always represents an active user, or that the current idle detection supports every desktop environment.
+
+---
+
+### 42.5 Job Remains Running
+
+Possible causes:
+
+- Client shutdown
+- Watcher interruption
+- Network failure
+- Package manager process still running
+- Recovery logic not triggered
+- Result submission failed
+
+Review:
+
+```bash
+sudo journalctl \
+  -u lums-execution-watcher.service \
+  --since "1 hour ago" \
+  --no-pager
+```
+
+Check the job state using the LUMS API or web interface.
+
+Do not manually mark jobs as successful without verifying whether the package operation actually completed.
+
+---
+
+### 42.6 Agent Reports Successfully but No Job Executes
+
+The reporting agent and execution watcher are separate.
+
+A successful report only confirms that the reporting workflow completed.
+
+Check the watcher independently:
+
+```bash
+systemctl status lums-execution-watcher.timer
 ```
 
 ```bash
-docker logs lums
+sudo systemctl start lums-execution-watcher.service
+```
+
+Then inspect:
+
+```bash
+sudo journalctl \
+  -u lums-execution-watcher.service \
+  -n 100 \
+  --no-pager
+```
+
+---
+
+## 43. Security Checklist
+
+### Server
+
+- [ ] Docker container is not publicly exposed on port 5000
+- [ ] Host port 5050 is bound to localhost
+- [ ] Nginx provides HTTPS
+- [ ] TLS private key is protected
+- [ ] Firewall is enabled
+- [ ] SSH access is restricted
+- [ ] Environment files are not committed
+- [ ] Database volume is persistent
+- [ ] Backups are created
+- [ ] Backups are verified
+- [ ] Logs do not expose secrets
+
+### Client
+
+- [ ] Client token is unique
+- [ ] Client configuration is owned by root
+- [ ] Client configuration has mode 600
+- [ ] TLS certificate is installed
+- [ ] TLS verification is enabled
+- [ ] Agent files are owned by root
+- [ ] Watcher files are owned by root
+- [ ] Simulation mode is disabled after testing
+- [ ] Update execution is tested in a controlled environment
+
+### Application
+
+- [ ] Bearer authentication is enforced
+- [ ] Authorization is checked for every client-specific endpoint
+- [ ] Job claiming is atomic
+- [ ] Job results are validated
+- [ ] Invalid job states are rejected
+- [ ] Audit events are recorded
+- [ ] Error messages do not disclose secrets
+- [ ] Database access is protected
+- [ ] Recovery behavior is tested
+
+---
+
+## 44. Current Limitations
+
+The following limitations must be considered during development.
+
+### 44.1 Idle Detection
+
+The current idle detection is based on `w -h`.
+
+It is primarily suitable for terminal, server, and SSH-oriented environments.
+
+It is not a universal desktop idle detection mechanism.
+
+### 44.2 Package Manager Coordination
+
+Complete collision prevention between LUMS and arbitrary user-issued APT or dpkg commands is not fully implemented.
+
+The custom LUMS lock does not force every external package manager process to honor it.
+
+This remains an important security and reliability development topic.
+
+### 44.3 Self-Signed Certificates
+
+Self-signed certificates require explicit trust configuration on clients.
+
+They are suitable for controlled laboratory environments but may not be appropriate for every deployment scenario.
+
+### 44.4 SQLite Scaling
+
+SQLite is suitable for the current project scope and laboratory development.
+
+Larger deployments may require a different database architecture depending on:
+
+- Number of clients
+- Job volume
+- Concurrent requests
+- Audit log size
+- Backup requirements
+- High availability requirements
+
+---
+
+## 45. Recommended Development Priorities
+
+Recommended future development areas:
+
+1. Complete Bearer authentication enforcement on every protected endpoint.
+2. Strengthen client authorization checks.
+3. Improve package manager collision prevention.
+4. Improve watcher recovery behavior.
+5. Add better job timeout handling.
+6. Improve desktop idle detection support.
+7. Add more detailed audit events.
+8. Improve backup and restore automation.
+9. Add database migration handling.
+10. Add automated integration tests.
+11. Add security regression tests.
+12. Improve API documentation.
+13. Add structured logging.
+14. Add monitoring and alerting.
+15. Review the complete update execution workflow before production use.
+
+---
+
+## 46. Final Validation
+
+Perform the following validation after installation or an update:
+
+```bash
+sudo docker ps
 ```
 
 ```bash
-docker inspect lums
+sudo docker logs --tail 100 lums
 ```
-
-Check the container state:
-
-```bash
-docker inspect lums \
-    --format '{{.State.Status}}'
-```
-
-## 32.2 Check Nginx
 
 ```bash
 sudo nginx -t
 ```
 
 ```bash
-sudo systemctl status nginx --no-pager
+systemctl status nginx
+```
+
+```bash
+systemctl status lums-agent.timer
+```
+
+```bash
+systemctl status lums-execution-watcher.timer
+```
+
+```bash
+systemctl list-timers --all | grep lums
 ```
 
 ```bash
 sudo journalctl \
-    -u nginx \
-    -n 100 \
-    --no-pager
+  -u lums-agent.service \
+  -n 50 \
+  --no-pager
 ```
-
-## 32.3 Check HTTPS
-
-```bash
-curl -k -I \
-    https://<LUMS_SERVER_IP>/login
-```
-
-Check the certificate:
-
-```bash
-openssl s_client \
-    -connect <LUMS_SERVER_IP>:443 \
-    -servername lums \
-    </dev/null
-```
-
-Verify the SAN:
-
-```bash
-openssl x509 \
-    -in /etc/lums/tls/lums.crt \
-    -noout \
-    -ext subjectAltName
-```
-
-## 32.4 Agent Token Errors
-
-If the agent reports:
-
-```text
-LUMS_TOKEN ist nicht gesetzt.
-```
-
-Check the configuration:
-
-```bash
-sudo grep -q '^LUMS_TOKEN=.' \
-    /etc/default/lums-agent \
-    && echo "Token vorhanden"
-```
-
-For a direct Python test, explicitly load the environment file:
-
-```bash
-sudo bash -c '
-    source /etc/default/lums-agent
-    export LUMS_BASE LUMS_TOKEN LUMS_CA_FILE
-    exec /usr/bin/python3 /opt/lums-agent/agent.py
-'
-```
-
-The systemd service loads the environment file automatically.
-
-## 32.5 TLS Errors
-
-Check the CA file:
-
-```bash
-sudo ls -l \
-    /etc/lums/ca.crt
-```
-
-Check the configured path:
-
-```bash
-sudo grep '^LUMS_CA_FILE=' \
-    /etc/default/lums-agent
-```
-
-Check the certificate:
-
-```bash
-openssl x509 \
-    -in /etc/lums/ca.crt \
-    -noout \
-    -subject \
-    -dates
-```
-
-The certificate must match the server certificate and contain the correct server IP in its SAN.
-
-## 32.6 Agent Service Errors
-
-Check the service:
-
-```bash
-sudo systemctl status \
-    lums-agent.service \
-    --no-pager \
-    -l
-```
-
-Check the logs:
 
 ```bash
 sudo journalctl \
-    -u lums-agent.service \
-    -n 100 \
-    --no-pager
+  -u lums-execution-watcher.service \
+  -n 50 \
+  --no-pager
 ```
 
-Run the agent directly with its environment:
+Verify:
 
-```bash
-sudo bash -c '
-    source /etc/default/lums-agent
-    export LUMS_BASE LUMS_TOKEN LUMS_CA_FILE
-    exec /usr/bin/python3 /opt/lums-agent/agent.py
-'
-```
-
-## 32.7 Timer Errors
-
-Check the timer:
-
-```bash
-sudo systemctl status \
-    lums-agent.timer \
-    --no-pager \
-    -l
-```
-
-List all timers:
-
-```bash
-systemctl list-timers --all
-```
-
-Reload systemd:
-
-```bash
-sudo systemctl daemon-reload
-```
-
-Restart the timer:
-
-```bash
-sudo systemctl restart \
-    lums-agent.timer
-```
-
-Check the timer configuration:
-
-```bash
-systemctl cat lums-agent.timer
-```
-
-## 32.8 Database Errors
-
-Check the volume:
-
-```bash
-docker volume inspect lums-data
-```
-
-Check the database:
-
-```bash
-docker exec lums \
-    python3 -c '
-import sqlite3
-
-db = sqlite3.connect("/var/lib/lums/lums.db")
-print("Database readable")
-print("Users:", db.execute("SELECT COUNT(*) FROM users").fetchone()[0])
-db.close()
-'
-```
-
-Do not delete the Docker volume as a first troubleshooting step.
-
-## 32.9 Network Errors
-
-Check connectivity:
-
-```bash
-ping -c 4 <LUMS_SERVER_IP>
-```
-
-Check HTTPS connectivity:
-
-```bash
-curl -k -I \
-    https://<LUMS_SERVER_IP>/login
-```
-
-Check listening ports:
-
-```bash
-sudo ss -tulpn
-```
-
-Check the firewall:
-
-```bash
-sudo ufw status verbose
-```
+- HTTPS is accessible
+- The LUMS container is running
+- The database volume is mounted
+- The agent can report
+- The watcher can reach the server
+- Authentication works
+- Pending jobs are visible
+- Job claiming is atomic
+- Simulation mode is disabled
+- Backups exist
+- No sensitive data is present in Git
 
 ---
 
-# 33. Final Verification
+## 47. Operational Principle
 
-The installation is complete when the following checks are successful.
+LUMS should be developed and operated with controlled changes.
 
-## Server
-
-```text
-[ ] Ubuntu server is installed
-[ ] System is updated
-[ ] Docker is installed
-[ ] Docker service is active
-[ ] Nginx is installed
-[ ] Git is installed
-[ ] LUMS repository is cloned
-[ ] Docker image builds successfully
-[ ] lums-data volume exists
-[ ] Database is initialized
-[ ] Security migration completed
-[ ] Administrator account exists
-[ ] LUMS container is running
-[ ] Container restart policy is configured
-[ ] Database is persistent
-```
-
-## HTTPS
+The preferred workflow is:
 
 ```text
-[ ] TLS certificate was generated
-[ ] Server IP exists in the SAN
-[ ] TLS private key is protected
-[ ] Nginx configuration is valid
-[ ] HTTP redirects to HTTPS
-[ ] HTTPS reaches the LUMS application
-[ ] Port 5000 is not exposed
-[ ] Port 5050 is not exposed
+Observe
+   |
+   v
+Understand
+   |
+   v
+Change one layer
+   |
+   v
+Test
+   |
+   v
+Document
+   |
+   v
+Deploy
 ```
 
-## Agent
+The goal is not to hide complexity.
 
-```text
-[ ] Agent directory exists
-[ ] Agent script is installed
-[ ] CA certificate is installed
-[ ] LUMS_BASE is configured
-[ ] LUMS_TOKEN is configured
-[ ] LUMS_CA_FILE is configured
-[ ] Configuration permissions are protected
-[ ] Manual agent test succeeds
-[ ] Report is accepted
-[ ] Client authentication succeeds
-[ ] Client information appears in the web interface
-```
-
-## Timer
-
-```text
-[ ] Service file exists
-[ ] Timer file exists
-[ ] systemd daemon was reloaded
-[ ] Timer is enabled
-[ ] Timer is active
-[ ] Next execution is visible
-[ ] Service executes successfully
-[ ] Journal contains successful report
-```
-
-## Update Management
-
-```text
-[ ] Client is registered
-[ ] Package inventory is reported
-[ ] Available updates are detected
-[ ] Update job can be created
-[ ] Agent retrieves pending jobs
-[ ] Update result is reported
-[ ] Update history is stored
-[ ] Post-update inventory is reported
-```
-
-## Backup
-
-```text
-[ ] Database backup was created
-[ ] Backup is readable
-[ ] Backup permissions are protected
-[ ] Configuration backup strategy exists
-[ ] Restore procedure is documented
-```
+The goal is to make complexity visible, manageable, and auditable.
 
 ---
 
-# Final Architecture
+## 48. Project Statement
 
-```text
-                    LUMS SERVER
-                Ubuntu Linux Host
-                         |
-          +--------------+--------------+
-          |                             |
-        Nginx                         Docker
-       HTTPS :443                  LUMS :5000
-          |                             |
-          |                       +-----+-----+
-          |                       | Flask     |
-          |                       | Web UI    |
-          |                       | REST API  |
-          |                       +-----+-----+
-          |                             |
-          |                        lums-data
-          |                             |
-          +--------------+--------------+
-                         |
-                    HTTPS + Token
-                         |
-          +--------------+--------------+
-          |                             |
-   Linux Client                  Linux Client
-   Native Agent                  Native Agent
-          |                             |
-   systemd Timer                 systemd Timer
-          |                             |
-       APT/dpkg                      APT/dpkg
-```
+LUMS is designed around the following principle:
 
-## Final Component Summary
+> Linux Update Management without the noise.
 
-```text
-LUMS Server      -> Docker container
-Web Interface    -> Flask application
-Reverse Proxy    -> Nginx
-HTTPS            -> TLS certificate
-Database         -> Persistent Docker volume
-Agent            -> Native Python application
-Scheduling       -> systemd timer
-Package Manager  -> APT/dpkg
-Authentication    -> Client Bearer Token
-System Inventory -> Agent report
-```
+The project combines centralized reporting, controlled update jobs, idle-aware execution, and security-oriented infrastructure practices.
+
+The system remains under active development.
+
+All production-oriented functionality must be tested, reviewed, and documented before being considered reliable for critical environments.
 
 ---
 
-# Installation Complete
+**LUMS**
 
-LUMS is designed to provide centralized Linux update management while keeping the managed agent lightweight and native to the operating system.
-
-The server manages the platform.
-
-The agent manages communication and local system operations.
-
-The Docker volume preserves the database.
-
-Nginx provides HTTPS access.
-
-The systemd timer schedules periodic agent execution.
-
-> **LUMS — Linux Update Management without the noise.**
->
-> `segfault // override`
+**Linux Update Management without the noise.**
