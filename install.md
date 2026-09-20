@@ -162,7 +162,7 @@ Example:
 
 ```text
 LUMS server IP:
-192.168.2.138
+IP Address
 ```
 
 Throughout this document, replace:
@@ -811,7 +811,7 @@ ip route
 Example:
 
 ```text
-192.168.2.138
+IP Address
 ```
 
 Use the IP address that is reachable by the managed clients.
