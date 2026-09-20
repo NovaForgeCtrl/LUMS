@@ -1232,8 +1232,8 @@ The repository identity is:
 
 | Setting | Value |
 |---|---|
-| Name | `NovaForgeCtrl` |
-| Email | `232026481+NovaForgeCtrl@users.noreply.github.com` |
+| Name | `xxxxx` |
+| Email | `xxxxx` |
 
 Check the configured identity:
 
