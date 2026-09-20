@@ -164,7 +164,7 @@ The current laboratory deployment uses:
 
 ```text
 Server IP:
-    192.168.2.138
+    ID Address
 
 Repository:
     /opt/lums-public
@@ -203,7 +203,7 @@ TLS private key:
 The server can be accessed through:
 
 ```text
-https://192.168.2.138/
+https://ID Address/
 ```
 
 When deploying LUMS to another environment, replace the IP address with the appropriate server address.
@@ -729,7 +729,7 @@ https://<LUMS-SERVER>/api/report
 The current laboratory endpoint is:
 
 ```text
-https://192.168.2.138/
+https://ID Address/
 ```
 
 The TLS certificate is:
@@ -765,7 +765,7 @@ This is preferable to disabling certificate verification.
 The following is acceptable for diagnostic testing:
 
 ```bash
-curl -k https://192.168.2.138/api/health
+curl -k https://ID Address/api/health
 ```
 
 However, `-k` disables certificate verification and should not be used as the normal security model.
@@ -783,7 +783,7 @@ The LUMS API provides a health endpoint:
 Test through HTTPS:
 
 ```bash
-curl -k https://192.168.2.138/api/health
+curl -k https://ID Address/api/health
 ```
 
 The health endpoint can be used to verify that:
@@ -1752,13 +1752,13 @@ before investigating TLS or the browser.
 Test the complete HTTPS path:
 
 ```bash
-curl -k -I https://192.168.2.138/
+curl -k -I https://ID Address/
 ```
 
 Health endpoint:
 
 ```bash
-curl -k https://192.168.2.138/api/health
+curl -k https://ID Address/api/health
 ```
 
 If the local backend works but HTTPS does not, investigate:
@@ -2336,13 +2336,13 @@ sudo nginx -t
 Check HTTPS:
 
 ```bash
-curl -k -I https://192.168.2.138/
+curl -k -I https://ID Address/
 ```
 
 Check API:
 
 ```bash
-curl -k https://192.168.2.138/api/health
+curl -k https://ID Address/api/health
 ```
 
 Run the client agent:
@@ -2708,7 +2708,7 @@ sudo systemctl status nginx --no-pager
 ## LUMS API
 
 ```bash
-curl -k https://192.168.2.138/api/health
+curl -k https://ID Address/api/health
 ```
 
 ---
