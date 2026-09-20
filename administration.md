@@ -168,7 +168,7 @@ Container database path:
 
 | Component | Current configuration |
 |---|---|
-| Server IP | `192.168.2.138` |
+| Server IP | `IP Address` |
 | Source repository | `/opt/lums-public` |
 | Docker container | `lums` |
 | Docker image | `lums:latest` |
@@ -183,7 +183,7 @@ Container database path:
 | Private key | `/etc/nginx/ssl/lums/lums.key` |
 
 > [!NOTE]
-> `192.168.2.138` is the current laboratory server address.
+> `IP Address` is the current laboratory server address.
 >
 > When reusing this documentation on another installation, replace the address with the actual LUMS server address.
 
@@ -492,7 +492,7 @@ curl -k https://SERVER_IP/api/health
 Current laboratory server:
 
 ```bash
-curl -k https://192.168.2.138/api/health
+curl -k https://IP Address/api/health
 ```
 
 Expected response:
@@ -578,7 +578,7 @@ sudo openssl x509 \
 The current laboratory certificate should contain:
 
 ```text
-IP Address:192.168.2.138
+IP Address:IP Address
 ```
 
 The client must connect using an address contained in the certificate SAN.
@@ -713,7 +713,7 @@ LUMS_CA_FILE=/opt/lums-agent/lums-ca.crt
 Current laboratory server:
 
 ```ini
-LUMS_BASE=https://192.168.2.138
+LUMS_BASE=https://IP Address
 ```
 
 The real token must never be placed in documentation.
