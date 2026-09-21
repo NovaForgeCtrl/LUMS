@@ -4,8 +4,8 @@
 >
 > Security principles, operational requirements, and responsible handling of sensitive information in LUMS.
 
-**Version:** 2.1  
-**Project:** LUMS  
+**Version:** 2.1
+**Project:** LUMS
 **Slogan:** Linux Update Management without the noise.
 
 ---
@@ -75,35 +75,35 @@ A weakness in one layer must never be used as a reason to disable another securi
 
 This document covers:
 
-- Docker deployment security
-- Server authentication
-- Client authentication
-- Authorization
-- TLS certificates
-- Secret management
-- SQLite database protection
-- Nginx configuration
-- systemd agent services
-- Execution watcher security
-- Git repository security
-- Update execution
-- Logging
-- Backup protection
-- Incident handling
-- Security maintenance
+* Docker deployment security
+* Server authentication
+* Client authentication
+* Authorization
+* TLS certificates
+* Secret management
+* SQLite database protection
+* Nginx configuration
+* systemd agent services
+* Execution watcher security
+* Git repository security
+* Update execution
+* Logging
+* Backup protection
+* Incident handling
+* Security maintenance
 
 This document does not replace the official security documentation of:
 
-- Ubuntu
-- Debian
-- Docker
-- Python
-- Flask
-- Nginx
-- SQLite
-- APT
-- dpkg
-- systemd
+* Ubuntu
+* Debian
+* Docker
+* Python
+* Flask
+* Nginx
+* SQLite
+* APT
+* dpkg
+* systemd
 
 ---
 
@@ -111,13 +111,13 @@ This document does not replace the official security documentation of:
 
 The current LUMS deployment uses:
 
-- Flask inside a Docker container
-- SQLite in a persistent Docker volume
-- Nginx as an HTTPS reverse proxy
-- A Linux reporting agent
-- A separate execution watcher
-- Bearer-token authentication
-- systemd timers for scheduled execution
+* Flask inside a Docker container
+* SQLite in a persistent Docker volume
+* Nginx as an HTTPS reverse proxy
+* A Linux reporting agent
+* A separate execution watcher
+* Bearer-token authentication
+* systemd timers for scheduled execution
 
 ```text
 Client
@@ -149,25 +149,25 @@ The Flask application must not be directly exposed to the network.
 
 ## 4. Current Installation
 
-| Component | Configuration |
-|---|---|
-| Repository | `/opt/lums-public` |
-| Docker container | `lums` |
-| Docker image | `lums:latest` |
-| Docker volume | `lums-data` |
-| Internal Flask port | `5000` |
-| Host binding | `127.0.0.1:5050` |
-| HTTP port | `80` |
-| HTTPS port | `443` |
-| Database | `/var/lib/lums/lums.db` |
-| Server environment file | `/etc/lums/docker/lums.env` |
-| Server certificate | `/etc/lums/tls/lums.crt` |
-| Server private key | `/etc/lums/tls/lums.key` |
-| Agent directory | `/opt/lums-agent` |
-| Agent configuration | `/etc/default/lums-agent` |
-| Agent CA certificate | `/opt/lums-agent/lums-ca.crt` |
-| Reporting agent version | `1.6.0` |
-| Execution watcher version | `1.2.1` |
+| Component               | Configuration                 |
+| ----------------------- | ----------------------------- |
+| Repository              | `/opt/lums-public`            |
+| Docker container        | `lums`                        |
+| Docker image            | `lums:latest`                 |
+| Docker volume           | `lums-data`                   |
+| Internal Flask port     | `5000`                        |
+| Host binding            | `127.0.0.1:5050`              |
+| HTTP port               | `80`                          |
+| HTTPS port              | `443`                         |
+| Database                | `/var/lib/lums/lums.db`       |
+| Server environment file | `/etc/lums/docker/lums.env`   |
+| Server certificate      | `/etc/lums/tls/lums.crt`      |
+| Server private key      | `/etc/lums/tls/lums.key`      |
+| Agent directory         | `/opt/lums-agent`             |
+| Agent configuration     | `/etc/default/lums-agent`     |
+| Agent CA certificate    | `/opt/lums-agent/lums-ca.crt` |
+| Reporting agent         | `/opt/lums-agent/agent.py`    |
+| Execution watcher       | `/opt/lums-agent/watcher.py`  |
 
 The configuration values in this document are examples. Actual secrets, tokens, passwords, and internal addresses must never be published.
 
@@ -211,14 +211,14 @@ lums-data:/var/lib/lums
 
 Sensitive information must also be removed from:
 
-- Screenshots
-- Terminal output
-- GitHub issues
-- Pull requests
-- Public documentation
-- Chat messages
-- Support requests
-- Log exports
+* Screenshots
+* Terminal output
+* GitHub issues
+* Pull requests
+* Public documentation
+* Chat messages
+* Support requests
+* Log exports
 
 ---
 
@@ -285,13 +285,13 @@ LUMS_CA_FILE="/opt/lums-agent/lums-ca.crt"
 
 The real token must never appear in:
 
-- Git commits
-- README files
-- Documentation
-- Screenshots
-- Public issue reports
-- Log files
-- Chat messages
+* Git commits
+* README files
+* Documentation
+* Screenshots
+* Public issue reports
+* Log files
+* Chat messages
 
 Use placeholders:
 
@@ -335,11 +335,11 @@ Database
 
 The token hashing format must remain consistent between:
 
-- Token creation
-- Token storage
-- Token verification
-- Token rotation
-- Client registration
+* Token creation
+* Token storage
+* Token verification
+* Token rotation
+* Client registration
 
 Do not replace the expected hash format with another format unless the application implementation is updated and tested accordingly.
 
@@ -349,12 +349,12 @@ SHA-256 is a deterministic digest and is not a password-hashing algorithm.
 
 For future security improvements, consider a design based on:
 
-- Token hashing with a suitable keyed or password-hashing approach
-- Token identifiers
-- Token rotation
-- Token expiration
-- Token revocation
-- Reduced token exposure
+* Token hashing with a suitable keyed or password-hashing approach
+* Token identifiers
+* Token rotation
+* Token expiration
+* Token revocation
+* Reduced token exposure
 
 Any change must be implemented consistently across the server and clients.
 
@@ -378,12 +378,12 @@ A valid token must not automatically grant access to every client or job.
 
 The server must validate:
 
-- Authenticated client identity
-- Requested client ID
-- Job ownership
-- Job assignment
-- Administrative permissions
-- Result submission permissions
+* Authenticated client identity
+* Requested client ID
+* Job ownership
+* Job assignment
+* Administrative permissions
+* Result submission permissions
 
 Example:
 
@@ -416,11 +416,11 @@ The server must not rely solely on client-supplied identifiers.
 
 Do not trust:
 
-- Client IDs from request bodies
-- URL parameters
-- Hidden form fields
-- Frontend restrictions
-- User-controlled metadata
+* Client IDs from request bodies
+* URL parameters
+* Hidden form fields
+* Frontend restrictions
+* User-controlled metadata
 
 The server must validate the relationship between:
 
@@ -458,11 +458,11 @@ The server must verify that the authenticated client is authorized to access the
 
 A client must not be able to:
 
-- Read another client's inventory
-- Retrieve another client's jobs
-- Claim another client's job
-- Submit results for another client
-- Modify unauthorized job states
+* Read another client's inventory
+* Retrieve another client's jobs
+* Claim another client's job
+* Submit results for another client
+* Modify unauthorized job states
 
 ---
 
@@ -494,11 +494,11 @@ sudo chmod 644 /etc/lums/tls/lums.crt
 
 The private key must never be:
 
-- Committed to Git
-- Copied into the repository
-- Included in backups intended for public distribution
-- Printed in terminal output
-- Shared through public issue reports
+* Committed to Git
+* Copied into the repository
+* Included in backups intended for public distribution
+* Printed in terminal output
+* Shared through public issue reports
 
 ---
 
@@ -538,11 +538,11 @@ Certificate verification must remain enabled during normal operation.
 
 Do not permanently solve TLS problems by:
 
-- Disabling certificate verification
-- Ignoring certificate errors
-- Using unencrypted HTTP
-- Removing the CA configuration
-- Using insecure client settings
+* Disabling certificate verification
+* Ignoring certificate errors
+* Using unencrypted HTTP
+* Removing the CA configuration
+* Using insecure client settings
 
 Diagnostic example:
 
@@ -574,11 +574,11 @@ Nginx is the public-facing reverse proxy.
 
 Responsibilities:
 
-- TLS termination
-- HTTP-to-HTTPS redirection
-- Forwarding requests to Docker
-- Preventing direct external access to Flask
-- Providing the external HTTPS endpoint
+* TLS termination
+* HTTP-to-HTTPS redirection
+* Forwarding requests to Docker
+* Preventing direct external access to Flask
+* Providing the external HTTPS endpoint
 
 Validate the configuration:
 
@@ -775,10 +775,10 @@ sudo chmod 600 /etc/lums/docker/lums.env
 
 Do not copy the environment file into:
 
-- The Git repository
-- Public documentation directories
-- Web server document roots
-- Unprotected temporary directories
+* The Git repository
+* Public documentation directories
+* Web server document roots
+* Unprotected temporary directories
 
 ---
 
@@ -790,22 +790,22 @@ The reporting agent and execution watcher perform different tasks.
 
 The reporting agent is responsible for:
 
-- Collecting system information
-- Detecting installed packages
-- Detecting available updates
-- Reporting client information
-- Communicating with the LUMS server
+* Collecting system information
+* Detecting installed packages
+* Detecting available updates
+* Reporting client information
+* Communicating with the LUMS server
 
 ### Execution watcher
 
 The execution watcher is responsible for:
 
-- Checking pending jobs
-- Checking idle status
-- Claiming jobs
-- Executing configured update operations
-- Recovering interrupted jobs
-- Submitting execution results
+* Checking pending jobs
+* Checking idle status
+* Claiming jobs
+* Executing configured update operations
+* Recovering interrupted jobs
+* Submitting execution results
 
 The separation of responsibilities makes the execution workflow easier to review and troubleshoot.
 
@@ -963,7 +963,7 @@ sudo journalctl \
     --no-pager
 ```
 
-The reporting interval is approximately five minutes.
+The installed systemd timer configuration is authoritative for the reporting schedule.
 
 ---
 
@@ -994,10 +994,10 @@ The current watcher uses `w -h` for idle detection.
 
 This is primarily suitable for:
 
-- Server environments
-- Terminal sessions
-- Console sessions
-- SSH-oriented environments
+* Server environments
+* Terminal sessions
+* Console sessions
+* SSH-oriented environments
 
 It is not a universal desktop idle detection mechanism.
 
@@ -1019,12 +1019,12 @@ The configured idle threshold is:
 
 The watcher should only execute jobs when:
 
-- Idle detection is supported.
-- The idle threshold has been reached.
-- A pending job exists.
-- The job is assigned to the authenticated client.
-- The job is successfully claimed.
-- The package manager is available for execution.
+* Idle detection is supported.
+* The idle threshold has been reached.
+* A pending job exists.
+* The job is assigned to the authenticated client.
+* The job is successfully claimed.
+* The package manager is available for execution.
 
 The watcher must not execute update jobs while active user activity is detected.
 
@@ -1051,11 +1051,11 @@ If another watcher claims the job first, the current watcher must not execute it
 
 This prevents duplicate execution caused by:
 
-- Repeated timer runs
-- Multiple workers
-- Concurrent requests
-- Network retries
-- Multiple watcher instances
+* Repeated timer runs
+* Multiple workers
+* Concurrent requests
+* Network retries
+* Multiple watcher instances
 
 ---
 
@@ -1071,12 +1071,12 @@ failed
 
 The server must validate:
 
-- Job existence
-- Client authorization
-- Current job state
-- Result format
-- Result ownership
-- Allowed state transitions
+* Job existence
+* Client authorization
+* Current job state
+* Result format
+* Result ownership
+* Allowed state transitions
 
 A client must not be able to submit an arbitrary successful result for a job it did not execute.
 
@@ -1086,22 +1086,22 @@ A client must not be able to submit an arbitrary successful result for a job it 
 
 A job may remain in the `running` state if:
 
-- The client loses power
-- The watcher is terminated
-- The system reboots
-- The network connection fails
-- The package manager process crashes
-- Result submission fails
+* The client loses power
+* The watcher is terminated
+* The system reboots
+* The network connection fails
+* The package manager process crashes
+* Result submission fails
 
 Recovery logic must prevent permanent running jobs.
 
 Recovery must be designed carefully to avoid:
 
-- Duplicate package operations
-- Incorrect success states
-- Missing audit information
-- Permanent job locks
-- Unclear execution results
+* Duplicate package operations
+* Incorrect success states
+* Missing audit information
+* Permanent job locks
+* Unclear execution results
 
 Recovery behavior must be tested before being used in critical environments.
 
@@ -1129,14 +1129,14 @@ LUMS must not claim that all package manager collisions are already prevented.
 
 Potential future improvements include:
 
-- Detecting active APT or dpkg processes
-- Deferring jobs while the package manager is busy
-- Stronger execution coordination
-- Better lock handling
-- Job timeout handling
-- Improved recovery logic
-- Clearer audit events
-- Additional integration tests
+* Detecting active APT or dpkg processes
+* Deferring jobs while the package manager is busy
+* Stronger execution coordination
+* Better lock handling
+* Job timeout handling
+* Improved recovery logic
+* Clearer audit events
+* Additional integration tests
 
 Until this is fully addressed, update execution must be tested carefully in controlled environments.
 
@@ -1191,11 +1191,11 @@ Simulation mode must not be permanently enabled in production.
 
 Simulation mode still requires:
 
-- A valid client token
-- A reachable LUMS server
-- A valid pending job
-- Supported idle detection
-- A sufficient idle period
+* A valid client token
+* A reachable LUMS server
+* A valid pending job
+* Supported idle detection
+* A sufficient idle period
 
 ---
 
@@ -1215,20 +1215,20 @@ Database path:
 
 The database may contain:
 
-- Client records
-- Authentication hashes
-- Inventory information
-- Installed packages
-- Available updates
-- Update jobs
-- Job results
-- Audit information
+* Client records
+* Authentication hashes
+* Inventory information
+* Installed packages
+* Available updates
+* Update jobs
+* Job results
+* Audit information
 
 Database access must be restricted to:
 
-- The LUMS application
-- Authorized administrators
-- Controlled maintenance procedures
+* The LUMS application
+* Authorized administrators
+* Controlled maintenance procedures
 
 The database must not be published or copied into the public repository.
 
@@ -1516,13 +1516,13 @@ sudo journalctl \
 
 Logs must not contain:
 
-- Plaintext tokens
-- Passwords
-- Server secrets
-- Private keys
-- Session secrets
-- Complete authorization headers
-- Sensitive inventory information
+* Plaintext tokens
+* Passwords
+* Server secrets
+* Private keys
+* Session secrets
+* Complete authorization headers
+* Sensitive inventory information
 
 Redact sensitive information before sharing logs.
 
@@ -1552,12 +1552,12 @@ Backup database files:   0600
 
 Permissions must be reviewed after:
 
-- Installation
-- Updates
-- Manual changes
-- File transfers
-- Restores
-- Deployment operations
+* Installation
+* Updates
+* Manual changes
+* File transfers
+* Restores
+* Deployment operations
 
 ---
 
@@ -1691,16 +1691,16 @@ The Flask development server is suitable only for the current controlled laborat
 
 A production-oriented deployment should consider:
 
-- A production WSGI server
-- Process supervision
-- Resource limits
-- Container hardening
-- Dedicated service accounts
-- Dependency updates
-- Monitoring
-- Centralized logging
-- Network segmentation
-- Regular security reviews
+* A production WSGI server
+* Process supervision
+* Resource limits
+* Container hardening
+* Dedicated service accounts
+* Dependency updates
+* Monitoring
+* Centralized logging
+* Network segmentation
+* Regular security reviews
 
 The current laboratory deployment must not automatically be considered production-ready.
 
@@ -1772,73 +1772,73 @@ If a database or backup becomes exposed:
 
 ### Server
 
-- [ ] Docker container is running
-- [ ] Docker volume is mounted
-- [ ] Application binds only to localhost
-- [ ] Port `5000` is not externally exposed
-- [ ] Port `5050` is not externally exposed
-- [ ] Nginx configuration passes validation
-- [ ] HTTPS is enabled
-- [ ] HTTP redirects to HTTPS
-- [ ] TLS certificate contains the correct SAN
-- [ ] Private key permissions are restricted
-- [ ] Environment file permissions are restricted
-- [ ] Firewall rules are reviewed
+* [ ] Docker container is running
+* [ ] Docker volume is mounted
+* [ ] Application binds only to localhost
+* [ ] Port `5000` is not externally exposed
+* [ ] Port `5050` is not externally exposed
+* [ ] Nginx configuration passes validation
+* [ ] HTTPS is enabled
+* [ ] HTTP redirects to HTTPS
+* [ ] TLS certificate contains the correct SAN
+* [ ] Private key permissions are restricted
+* [ ] Environment file permissions are restricted
+* [ ] Firewall rules are reviewed
 
 ### Authentication
 
-- [ ] Administrator authentication works
-- [ ] Invalid credentials are rejected
-- [ ] Invalid client tokens are rejected
-- [ ] Client tokens are not logged
-- [ ] Token hashes use the expected format
-- [ ] Protected endpoints require authentication
-- [ ] Token rotation has been tested
+* [ ] Administrator authentication works
+* [ ] Invalid credentials are rejected
+* [ ] Invalid client tokens are rejected
+* [ ] Client tokens are not logged
+* [ ] Token hashes use the expected format
+* [ ] Protected endpoints require authentication
+* [ ] Token rotation has been tested
 
 ### Authorization
 
-- [ ] Clients cannot access other clients' data
-- [ ] Client IDs are validated server-side
-- [ ] Update jobs are restricted to authorized clients
-- [ ] Job claims are restricted to authorized clients
-- [ ] Job results are restricted to authorized clients
-- [ ] Administrative endpoints are protected
-- [ ] Unauthorized state changes are rejected
+* [ ] Clients cannot access other clients' data
+* [ ] Client IDs are validated server-side
+* [ ] Update jobs are restricted to authorized clients
+* [ ] Job claims are restricted to authorized clients
+* [ ] Job results are restricted to authorized clients
+* [ ] Administrative endpoints are protected
+* [ ] Unauthorized state changes are rejected
 
 ### Agent
 
-- [ ] Agent uses HTTPS
-- [ ] TLS verification is enabled
-- [ ] CA certificate is available
-- [ ] Agent configuration is protected
-- [ ] Reporting timer is enabled
-- [ ] Watcher timer is enabled
-- [ ] Inventory reporting works
-- [ ] Update job retrieval works
-- [ ] Atomic job claiming works
-- [ ] Job result reporting works
-- [ ] Simulation mode is disabled after testing
+* [ ] Agent uses HTTPS
+* [ ] TLS verification is enabled
+* [ ] CA certificate is available
+* [ ] Agent configuration is protected
+* [ ] Reporting timer is enabled
+* [ ] Watcher timer is enabled
+* [ ] Inventory reporting works
+* [ ] Update job retrieval works
+* [ ] Atomic job claiming works
+* [ ] Job result reporting works
+* [ ] Simulation mode is disabled after testing
 
 ### Database
 
-- [ ] Database integrity check returns `ok`
-- [ ] Backups are created
-- [ ] Backups are protected
-- [ ] Backups are verified
-- [ ] Restore procedure is documented
-- [ ] Database files are not committed to Git
-- [ ] Backup files are not committed to Git
+* [ ] Database integrity check returns `ok`
+* [ ] Backups are created
+* [ ] Backups are protected
+* [ ] Backups are verified
+* [ ] Restore procedure is documented
+* [ ] Database files are not committed to Git
+* [ ] Backup files are not committed to Git
 
 ### Git
 
-- [ ] No secrets are committed
-- [ ] No private keys are committed
-- [ ] No tokens are committed
-- [ ] No database files are committed
-- [ ] No backups are committed
-- [ ] Changes are reviewed before pushing
-- [ ] Documentation uses placeholders
-- [ ] Git history is reviewed after accidental exposure
+* [ ] No secrets are committed
+* [ ] No private keys are committed
+* [ ] No tokens are committed
+* [ ] No database files are committed
+* [ ] No backups are committed
+* [ ] Changes are reviewed before pushing
+* [ ] Documentation uses placeholders
+* [ ] Git history is reviewed after accidental exposure
 
 ---
 
@@ -1878,12 +1878,12 @@ SQLite is suitable for the current project scope and laboratory development.
 
 Larger deployments may require a different database architecture depending on:
 
-- Number of clients
-- Concurrent requests
-- Job volume
-- Audit log size
-- Backup requirements
-- High availability requirements
+* Number of clients
+* Concurrent requests
+* Job volume
+* Audit log size
+* Backup requirements
+* High availability requirements
 
 ---
 
@@ -1918,24 +1918,24 @@ Security issues should be reported responsibly.
 
 A security report should contain:
 
-- Short description
-- Affected component
-- Reproduction steps
-- Expected behavior
-- Actual behavior
-- Potential impact
-- Suggested mitigation
-- Relevant logs with secrets removed
+* Short description
+* Affected component
+* Reproduction steps
+* Expected behavior
+* Actual behavior
+* Potential impact
+* Suggested mitigation
+* Relevant logs with secrets removed
 
 Never include:
 
-- Passwords
-- Client tokens
-- Private keys
-- Server secrets
-- Personal information
-- Complete production databases
-- Unredacted inventory data
+* Passwords
+* Client tokens
+* Private keys
+* Server secrets
+* Personal information
+* Complete production databases
+* Unredacted inventory data
 
 Always redact sensitive information before sharing logs or screenshots.
 
@@ -1945,16 +1945,16 @@ Always redact sensitive information before sharing logs or screenshots.
 
 Security reviews should be performed after:
 
-- Application changes
-- Authentication changes
-- Authorization changes
-- Docker changes
-- Nginx changes
-- Certificate changes
-- Database schema changes
-- Agent changes
-- Watcher changes
-- Deployment changes
+* Application changes
+* Authentication changes
+* Authorization changes
+* Docker changes
+* Nginx changes
+* Certificate changes
+* Database schema changes
+* Agent changes
+* Watcher changes
+* Deployment changes
 
 Regularly review:
 
@@ -2006,13 +2006,13 @@ LUMS is designed to centralize Linux update management without removing operatio
 
 The system should remain:
 
-- Transparent
-- Auditable
-- Controlled
-- Secure
-- Documented
-- Maintainable
+* Transparent
+* Auditable
+* Controlled
+* Secure
+* Documented
+* Maintainable
 
 > **LUMS — Linux Update Management without the noise.**
->
+
 > **Secure the management plane. Keep execution controlled.**
