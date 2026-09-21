@@ -1058,8 +1058,8 @@ git push origin main
 Use the configured LUMS Git identity:
 
 ```text
-Name:  NovaForgeCtrl
-Email: 232026481+NovaForgeCtrl@users.noreply.github.com
+Name:  xxxxx
+Email: xxxxx
 ```
 
 Never commit:
