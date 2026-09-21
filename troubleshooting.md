@@ -2278,12 +2278,12 @@ Current LUMS Git identity:
 
 ```text
 Name:
-NovaForgeCtrl
+xxxxxx
 ```
 
 ```text
 Email:
-232026481+NovaForgeCtrl@users.noreply.github.com
+xxxxx
 ```
 
 Check:
