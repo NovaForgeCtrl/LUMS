@@ -1245,6 +1245,225 @@ document
 
 
 /*
+ * Client-Token rotieren
+ */
+async function rotateClientToken() {
+
+    const hostname =
+        document.getElementById("hostname").textContent.trim();
+
+    const confirmed = window.confirm(
+        `Token für Client "${hostname}" wirklich rotieren?\n\n` +
+        "Der bisherige Token wird sofort ungültig.\n\n" +
+        "Der LUMS-Agent muss anschließend mit dem neuen Token " +
+        "konfiguriert werden.\n\n" +
+        "Fortfahren?"
+    );
+
+    if (!confirmed) {
+        return;
+    }
+
+
+    const button =
+        document.getElementById(
+            "rotate-client-token-button"
+        );
+
+
+    button.disabled = true;
+    button.textContent = "Wird rotiert...";
+
+
+    try {
+
+        const csrfToken =
+            document.querySelector(
+                'meta[name="csrf-token"]'
+            )?.content;
+
+
+        if (!csrfToken) {
+
+            throw new Error(
+                "CSRF-Token konnte nicht gefunden werden."
+            );
+        }
+
+
+        const response =
+            await fetch(
+                `/api/clients/${clientId}/token/rotate`,
+                {
+                    method: "POST",
+
+                    headers: {
+                        "X-CSRF-Token": csrfToken
+                    }
+                }
+            );
+
+
+        const data =
+            await response.json();
+
+
+        if (!response.ok) {
+
+            throw new Error(
+                data.error ||
+                "Client-Token konnte nicht rotiert werden."
+            );
+        }
+
+
+        const token =
+            data.token;
+
+
+        if (!token) {
+
+            throw new Error(
+                "Server hat keinen neuen Token zurückgegeben."
+            );
+        }
+
+
+        const tokenResult =
+            document.getElementById(
+                "token-rotation-result"
+            );
+
+
+        const tokenDisplay =
+            document.getElementById(
+                "rotated-client-token"
+            );
+
+
+        tokenDisplay.textContent = token;
+
+
+        tokenResult.hidden = false;
+
+
+        tokenResult.scrollIntoView({
+            behavior: "smooth",
+            block: "start"
+        });
+
+
+        button.textContent = "🔐 Token rotiert";
+
+
+    } catch (error) {
+
+        console.error(error);
+
+
+        alert(
+            "Client-Token konnte nicht rotiert werden.\n\n" +
+            error.message
+        );
+
+
+        button.textContent = "🔐 Token rotieren";
+
+
+    } finally {
+
+        button.disabled = false;
+    }
+}
+
+
+const rotateClientTokenButton =
+    document.getElementById(
+        "rotate-client-token-button"
+    );
+
+
+if (rotateClientTokenButton) {
+
+    rotateClientTokenButton.addEventListener(
+        "click",
+        rotateClientToken
+    );
+}
+
+
+/*
+ * Rotierten Client-Token kopieren
+ */
+const copyRotatedClientTokenButton =
+    document.getElementById(
+        "copy-rotated-client-token"
+    );
+
+
+if (copyRotatedClientTokenButton) {
+
+    copyRotatedClientTokenButton.addEventListener(
+        "click",
+        async () => {
+
+            const tokenElement =
+                document.getElementById(
+                    "rotated-client-token"
+                );
+
+
+            const token =
+                tokenElement?.textContent.trim();
+
+
+            if (!token) {
+
+                alert(
+                    "Kein Client-Token zum Kopieren vorhanden."
+                );
+
+                return;
+            }
+
+
+            try {
+
+                await navigator.clipboard.writeText(
+                    token
+                );
+
+
+                copyRotatedClientTokenButton.textContent =
+                    "✓ Token kopiert";
+
+
+                window.setTimeout(
+                    () => {
+
+                        copyRotatedClientTokenButton.textContent =
+                            "📋 Token kopieren";
+
+                    },
+                    2000
+                );
+
+
+            } catch (error) {
+
+                console.error(error);
+
+
+                alert(
+                    "Token konnte nicht in die Zwischenablage kopiert werden."
+                );
+            }
+        }
+    );
+}
+
+
+/*
  * Client entfernen
  */
 async function deleteClient() {

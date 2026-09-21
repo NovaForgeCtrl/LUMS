@@ -40,10 +40,61 @@
 
             <button
                 type="button"
+                id="rotate-client-token-button"
+                class="button button-primary"
+            >
+                🔐 Token rotieren
+            </button>
+
+            <button
+                type="button"
                 id="delete-client-button"
                 class="button button-danger"
             >
                 🗑️ Client entfernen
+            </button>
+
+        </div>
+
+    </section>
+
+
+    <!-- Token Rotation Result -->
+    <section
+        id="token-rotation-result"
+        class="panel token-rotation-result"
+        hidden
+    >
+
+        <div class="panel-header">
+
+            <div>
+                <h2>Neuer Client-Token</h2>
+
+                <div class="panel-description">
+                    Der neue Token wurde erfolgreich erstellt.
+                </div>
+            </div>
+
+        </div>
+
+        <div class="token-warning">
+            <strong>⚠️ Wichtig:</strong>
+            Dieser Token wird nur jetzt angezeigt.
+            Speichere ihn sicher und aktualisiere anschließend
+            die Token-Konfiguration des LUMS-Agenten.
+        </div>
+
+        <div class="token-display">
+
+            <code id="rotated-client-token"></code>
+
+            <button
+                type="button"
+                id="copy-rotated-client-token"
+                class="button"
+            >
+                📋 Token kopieren
             </button>
 
         </div>
@@ -164,11 +215,13 @@
         <div class="panel-header">
 
             <div>
+
                 <h2>Update-Verlauf</h2>
 
                 <div class="panel-description">
                     Vergangene Update-Vorgänge
                 </div>
+
             </div>
 
         </div>
@@ -190,11 +243,13 @@
         <div class="panel-header software-header">
 
             <div>
+
                 <h2>Software</h2>
 
                 <div class="panel-description">
                     Installierte Software und Systempakete
                 </div>
+
             </div>
 
         </div>
@@ -242,8 +297,10 @@
 
         <!-- Package count -->
         <div class="package-summary">
+
             <span id="visible-package-count">0</span>
             Einträge angezeigt
+
         </div>
 
 
@@ -253,19 +310,26 @@
             <table class="data-table">
 
                 <thead>
+
                     <tr>
                         <th>Paket / Software</th>
                         <th>Installierte Version</th>
                         <th>Status</th>
                     </tr>
+
                 </thead>
 
                 <tbody id="packages-table">
 
                     <tr>
-                        <td colspan="3" class="empty-state">
+
+                        <td
+                            colspan="3"
+                            class="empty-state"
+                        >
                             Lade Pakete...
                         </td>
+
                     </tr>
 
                 </tbody>
@@ -281,7 +345,7 @@
 
 <script src="/static/client.js"></script>
 <script src="{{ url_for('static', filename='network.js') }}"></script>
+<script src="/static/theme.js"></script>
 
-    <script src="/static/theme.js"></script>
 </body>
 </html>

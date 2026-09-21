@@ -89,6 +89,7 @@ CREATE TABLE IF NOT EXISTS update_jobs (
     started_at TEXT,
     finished_at TEXT,
     reboot_required INTEGER NOT NULL DEFAULT 0,
+    recovery_reason TEXT,
     FOREIGN KEY (client_id) REFERENCES clients(id)
 )
 """)

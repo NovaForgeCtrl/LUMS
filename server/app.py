@@ -1,10 +1,8 @@
 from flask import Flask, request, jsonify, render_template, url_for, redirect
 import os
+from pathlib import Path
 import sqlite3
 from datetime import datetime, timezone
-
-# Initialize and migrate the LUMS database before the Flask app starts.
-import init_db
 
 from security import (
     configure_session,
@@ -32,14 +30,30 @@ app = Flask(__name__)
 
 # Security foundation
 #
-# Secret key is supplied externally and must never be stored in Git.
-app.secret_key = os.environ.get("LUMS_SECRET_KEY")
-
-if not app.secret_key:
-    raise RuntimeError(
-        "LUMS_SECRET_KEY is not configured. "
-        "Refusing to start without a secure Flask secret."
+# The Flask secret is preferably supplied through a root-managed
+# Docker secret file. The environment variable remains available
+# only as a temporary compatibility fallback.
+def load_secret_key():
+    secret_file = os.environ.get(
+        "LUMS_SECRET_KEY_FILE",
+        "/run/secrets/lums_secret",
     )
+
+    try:
+        secret = Path(secret_file).read_text().strip()
+    except FileNotFoundError:
+        secret = os.environ.get("LUMS_SECRET_KEY")
+
+    if not secret:
+        raise RuntimeError(
+            "LUMS secret is not configured. "
+            "Provide LUMS_SECRET_KEY_FILE or LUMS_SECRET_KEY."
+        )
+
+    return secret
+
+
+app.secret_key = load_secret_key()
 
 configure_session(app)
 
@@ -475,6 +489,84 @@ def create_client():
     finally:
         connection.close()
 
+
+
+
+@app.route(
+    "/api/clients/<int:client_id>/token/rotate",
+    methods=["POST"],
+)
+@login_required
+@csrf_required
+def rotate_client_token(client_id):
+    connection = get_connection()
+
+    try:
+        client = connection.execute(
+            """
+            SELECT
+                id,
+                hostname,
+                enabled
+            FROM clients
+            WHERE id = ?
+            """,
+            (client_id,),
+        ).fetchone()
+
+        if client is None:
+            return jsonify({
+                "error": "client_not_found"
+            }), 404
+
+        token = generate_client_token()
+        token_hash = hash_client_token(token)
+        now = datetime.now(timezone.utc).isoformat()
+
+        connection.execute(
+            """
+            UPDATE clients
+            SET
+                client_token_hash = ?,
+                token_created_at = ?,
+                token_revoked_at = NULL
+            WHERE id = ?
+            """,
+            (
+                token_hash,
+                now,
+                client_id,
+            ),
+        )
+
+        audit_log(
+            connection,
+            actor_type="user",
+            actor_id=current_user_id(),
+            action="client.token.rotate",
+            target=f"client:{client_id}",
+            result="success",
+            details=f"hostname={client['hostname']}",
+        )
+
+        connection.commit()
+
+        return jsonify({
+            "status": "rotated",
+            "client": {
+                "id": client["id"],
+                "hostname": client["hostname"],
+                "enabled": bool(client["enabled"]),
+            },
+            "token": token,
+        }), 200
+
+    except Exception:
+        connection.rollback()
+        raise
+
+    finally:
+        connection.close()
 
 
 @app.route("/api/clients/<int:client_id>", methods=["DELETE"])
@@ -1171,6 +1263,128 @@ def update_job_result(job_id):
         "failed_count": failed_count,
         "reboot_required": bool(reboot_required)
     })
+
+
+@app.route(
+    "/api/update-jobs/<int:job_id>/abandon",
+    methods=["POST"]
+)
+@client_auth_required
+def abandon_update_job(job_id):
+
+    client = authenticated_client()
+
+    connection = get_connection()
+
+    try:
+        cursor = connection.cursor()
+
+        cursor.execute("""
+            SELECT
+                id,
+                client_id,
+                status,
+                created_at,
+                started_at,
+                reboot_required
+            FROM update_jobs
+            WHERE id = ?
+        """, (job_id,))
+
+        job = cursor.fetchone()
+
+        if job is None:
+            return jsonify({
+                "error": "job_not_found"
+            }), 404
+
+        if job["client_id"] != client["id"]:
+            return jsonify({
+                "error": "client_access_denied"
+            }), 403
+
+        if job["status"] != "running":
+            return jsonify({
+                "error": "job_not_running"
+            }), 409
+
+        now = datetime.now(timezone.utc).isoformat()
+
+        cursor.execute("""
+            SELECT COUNT(*) AS package_count
+            FROM update_job_packages
+            WHERE job_id = ?
+        """, (job_id,))
+
+        package_count = cursor.fetchone()["package_count"]
+
+        recovery_reason = "Agent did not submit a final result."
+
+        cursor.execute("""
+            UPDATE update_jobs
+            SET status = ?,
+                finished_at = ?,
+                recovery_reason = ?
+            WHERE id = ?
+              AND client_id = ?
+              AND status = 'running'
+        """, (
+            "abandoned",
+            now,
+            recovery_reason,
+            job_id,
+            client["id"]
+        ))
+
+        if cursor.rowcount != 1:
+            connection.rollback()
+
+            return jsonify({
+                "error": "job_recovery_conflict"
+            }), 409
+
+        cursor.execute("""
+            INSERT INTO update_history (
+                client_id,
+                job_id,
+                status,
+                package_count,
+                successful_count,
+                failed_count,
+                reboot_required,
+                started_at,
+                finished_at
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """, (
+            job["client_id"],
+            job_id,
+            "abandoned",
+            package_count,
+            0,
+            0,
+            job["reboot_required"],
+            job["started_at"],
+            now
+        ))
+
+        connection.commit()
+
+        return jsonify({
+            "status": "abandoned",
+            "job_id": job_id,
+            "client_id": client["id"],
+            "package_count": package_count,
+            "recovery_reason": recovery_reason
+        }), 200
+
+    except Exception:
+        connection.rollback()
+        raise
+
+    finally:
+        connection.close()
+
 
 
 @app.route(
