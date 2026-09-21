@@ -2544,10 +2544,10 @@ The repository uses:
 
 ```text
 Name:
-    NovaForgeCtrl
+   xxxxx
 
 Email:
-    232026481+NovaForgeCtrl@users.noreply.github.com
+   xxxxx
 ```
 
 Check:
@@ -2561,10 +2561,10 @@ Configure locally:
 
 ```bash
 git config user.name \
-    "NovaForgeCtrl"
+xxxx
 
 git config user.email \
-    "232026481+NovaForgeCtrl@users.noreply.github.com"
+    xxxxx
 ```
 
 ---
