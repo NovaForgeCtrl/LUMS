@@ -4,13 +4,13 @@
 >
 > Security principles, operational requirements, hardening status, and responsible handling of sensitive information in LUMS.
 
-**Version:** 2.3
+**Version:** 2.4
 **Project:** LUMS
 **Slogan:** Linux Update Management without the noise.
 
 ---
 
-## 1. Security Philosophy
+# 1. Security Philosophy
 
 LUMS follows a simple principle:
 
@@ -98,7 +98,7 @@ This document covers:
 * Security testing
 * Security maintenance
 * Current security limitations
-* Remaining container hardening work
+* Remaining hardening work
 
 This document does not replace the official security documentation of:
 
@@ -128,6 +128,7 @@ The current LUMS deployment uses:
 * A separate execution watcher
 * Bearer-token authentication
 * systemd timers for scheduled execution
+* A root-managed mounted Flask secret
 
 ```text
 Client
@@ -153,6 +154,11 @@ Gunicorn
    ▼
 Flask application
    │
+   ├── Authentication
+   ├── Authorization
+   ├── Inventory
+   └── Update Jobs
+   │
    ▼
 SQLite database
 ```
@@ -164,6 +170,26 @@ The Docker application is bound to localhost:
 ```
 
 The application is not directly exposed as a network service on ports `5000` or `5050`.
+
+The Flask secret is no longer supplied through the normal container environment.
+
+Instead, production uses:
+
+```text
+Host:
+    /etc/lums/secrets/lums_secret
+
+        │ read-only bind mount
+
+Container:
+    /run/secrets/lums_secret
+```
+
+The application reads the secret through:
+
+```text
+LUMS_SECRET_KEY_FILE=/run/secrets/lums_secret
+```
 
 ---
 
@@ -195,9 +221,14 @@ The following controls have been implemented and tested:
 | Container non-root user                          | **Completed and verified** |
 | Read-only container filesystem                   | **Completed and verified** |
 | Capability reduction                             | **Completed and verified** |
-| Docker environment secret isolation              | **Open hardening item**    |
+| Secret file isolation                            | **Completed and verified** |
+| Secret read-only mount                           | **Completed and verified** |
+| Production restart after secret isolation        | **Completed and verified** |
 | Client token lifecycle/rotation                  | **Future hardening**       |
 | Complete APT/dpkg collision prevention           | **Not yet implemented**    |
+| Full backup restore test                         | **Not yet completed**      |
+| Automated security regression tests              | **Not yet completed**      |
+| Final security review                            | **Not yet completed**      |
 
 The security status is intentionally documented as incomplete where controls have not yet been implemented.
 
@@ -205,25 +236,27 @@ The security status is intentionally documented as incomplete where controls hav
 
 # 5. Current Installation
 
-| Component                 | Configuration                 |
-| ------------------------- | ----------------------------- |
-| Repository                | `/opt/lums-public`            |
-| Docker container          | `lums`                        |
-| Docker image              | `lums:latest`                 |
-| Docker volume             | `lums-data`                   |
-| Internal application port | `5000`                        |
-| Host binding              | `127.0.0.1:5050`              |
-| HTTP port                 | `80`                          |
-| HTTPS port                | `443`                         |
-| Database                  | `/var/lib/lums/lums.db`       |
-| Server environment file   | `/etc/lums/docker/lums.env`   |
-| Server certificate        | `/etc/lums/tls/lums.crt`      |
-| Server private key        | `/etc/lums/tls/lums.key`      |
-| Agent directory           | `/opt/lums-agent`             |
-| Agent configuration       | `/etc/default/lums-agent`     |
-| Agent CA certificate      | `/opt/lums-agent/lums-ca.crt` |
-| Reporting agent           | `/opt/lums-agent/agent.py`    |
-| Execution watcher         | `/opt/lums-agent/watcher.py`  |
+| Component                 | Configuration                   |
+| ------------------------- | ------------------------------- |
+| Repository                | `/opt/lums-public`              |
+| Docker container          | `lums`                          |
+| Docker image              | `lums:latest`                   |
+| Docker volume             | `lums-data`                     |
+| Internal application port | `5000`                          |
+| Host binding              | `127.0.0.1:5050`                |
+| HTTP port                 | `80`                            |
+| HTTPS port                | `443`                           |
+| Database                  | `/var/lib/lums/lums.db`         |
+| Environment file          | `/etc/lums/docker/lums.env`     |
+| Flask secret file         | `/etc/lums/secrets/lums_secret` |
+| Container secret path     | `/run/secrets/lums_secret`      |
+| Server certificate        | `/etc/lums/tls/lums.crt`        |
+| Server private key        | `/etc/lums/tls/lums.key`        |
+| Agent directory           | `/opt/lums-agent`               |
+| Agent configuration       | `/etc/default/lums-agent`       |
+| Agent CA certificate      | `/opt/lums-agent/lums-ca.crt`   |
+| Reporting agent           | `/opt/lums-agent/agent.py`      |
+| Execution watcher         | `/opt/lums-agent/watcher.py`    |
 
 Actual secrets, tokens, passwords, private keys, internal credentials, and sensitive infrastructure information must never be published.
 
@@ -251,6 +284,7 @@ Important sensitive files include:
 
 ```text
 /etc/lums/docker/lums.env
+/etc/lums/secrets/lums_secret
 /etc/lums/tls/lums.key
 /etc/default/lums-agent
 ```
@@ -280,77 +314,248 @@ Sensitive information must also be removed from:
 
 # 7. Server Secret Management
 
-## 7.1 Environment File
+## 7.1 Secret File
 
-The server environment file is stored outside the Git repository:
+Production LUMS no longer supplies the Flask secret through the normal Docker environment.
+
+The production secret is stored on the host in:
 
 ```text
-/etc/lums/docker/lums.env
+/etc/lums/secrets/lums_secret
 ```
 
-It is loaded when the Docker container is created:
+The file is managed by root and is readable by the LUMS container user through its group permissions.
 
-```bash
-sudo docker run \
-    --env-file /etc/lums/docker/lums.env \
-    ...
+Expected production permissions:
+
+```text
+Owner: root
+Group: 10001
+Mode: 640
 ```
 
-Protect the file:
+The containing directory is additionally restricted:
 
-```bash
-sudo chown root:root /etc/lums/docker/lums.env
-sudo chmod 600 /etc/lums/docker/lums.env
+```text
+/etc/lums/secrets
+root:root
+0700
 ```
 
-Check permissions without displaying contents:
+The secret file is mounted read-only into the container:
 
-```bash
-sudo stat -c '%U:%G %a %n' \
-    /etc/lums/docker/lums.env
+```text
+/etc/lums/secrets/lums_secret
+        ↓
+/run/secrets/lums_secret
 ```
 
-Check whether the secret exists:
+The application receives only the path:
 
-```bash
-sudo grep -q '^LUMS_SECRET_KEY=' \
-    /etc/lums/docker/lums.env \
-    && echo "Secret configured" \
-    || echo "Secret missing"
+```text
+LUMS_SECRET_KEY_FILE=/run/secrets/lums_secret
 ```
 
-Never print the complete environment file.
+The actual secret value must never be displayed in documentation.
 
 ---
 
-## 7.2 Docker Environment Exposure
+## 7.2 Application Secret Loading
 
-The current deployment passes `LUMS_SECRET_KEY` through the Docker environment.
+The Flask application loads the secret using the configured secret-file path.
 
-The source file itself is protected:
+Conceptually:
 
 ```text
-/etc/lums/docker/lums.env
-root:root
-0600
+LUMS_SECRET_KEY_FILE
+        │
+        ▼
+/run/secrets/lums_secret
+        │
+        ▼
+Flask application
+        │
+        ▼
+app.secret_key
 ```
 
-However, environment variables configured on a container can be visible through Docker inspection to users with sufficient Docker privileges.
+The application supports an environment-variable fallback for controlled compatibility and development scenarios.
+
+Production, however, uses the mounted secret file.
+
+The production container does not contain:
+
+```text
+LUMS_SECRET_KEY=<secret>
+```
+
+in its normal environment.
+
+---
+
+## 7.3 Secret Isolation Architecture
+
+The production deployment uses:
+
+```text
+Host
+│
+├── /etc/lums/secrets/
+│      └── lums_secret
+│
+└── Docker
+       │
+       └── read-only bind mount
+              │
+              ▼
+       /run/secrets/lums_secret
+              │
+              ▼
+       Flask
+```
+
+This reduces exposure through:
+
+```bash
+docker inspect
+```
+
+because the secret value is no longer stored as a normal Docker environment variable.
+
+Docker administrators can still access the host secret file if they have sufficient host or Docker privileges.
 
 Therefore:
 
-> **The protected host environment file does not mean that the secret is invisible to Docker administrators.**
+> **Secret isolation reduces environment exposure; it does not eliminate the need to protect Docker and host administration privileges.**
 
-This is currently a hardening item.
+---
 
-Future improvements may include:
+## 7.4 Production Secret Mount
 
-* Docker secrets
-* A protected mounted secret file
-* A dedicated secret-management mechanism
-* Reducing the number of privileged users with Docker access
+The production container is started using:
 
-The secret must never be printed during normal diagnostics.
+```bash
+sudo docker run -d \
+    --name lums \
+    --restart unless-stopped \
+    --read-only \
+    --cap-drop=ALL \
+    --tmpfs /tmp:rw,nosuid,nodev,noexec \
+    -e LUMS_SECRET_KEY_FILE=/run/secrets/lums_secret \
+    -v /etc/lums/secrets/lums_secret:/run/secrets/lums_secret:ro \
+    -v lums-data:/var/lib/lums \
+    -p 127.0.0.1:5050:5000 \
+    lums:latest
+```
+
+The important properties are:
+
+```text
+Secret value:
+    not supplied as LUMS_SECRET_KEY
+
+Secret path:
+    supplied through LUMS_SECRET_KEY_FILE
+
+Secret storage:
+    host-managed file
+
+Container access:
+    read-only
+
+Database:
+    persistent lums-data volume
+
+Root filesystem:
+    read-only
+
+Capabilities:
+    none
+```
+
+---
+
+## 7.5 Secret Isolation Verification
+
+Production verification confirmed:
+
+```text
+LUMS_SECRET_KEY:
+    absent from container environment
+
+LUMS_SECRET_KEY_FILE:
+    /run/secrets/lums_secret
+
+Secret file:
+    readable by the application
+
+Secret mount:
+    read-only
+
+ReadonlyRootfs:
+    true
+
+CapDrop:
+    ["ALL"]
+
+Privileged:
+    false
+
+User:
+    lums
+```
+
+The application successfully:
+
+* Started Gunicorn.
+* Started both workers.
+* Initialized the database.
+* Served `/login`.
+* Served authenticated client API requests.
+* Survived container restart.
+* Preserved the persistent database.
+
+Secret isolation is therefore considered:
+
+> **Implemented and verified in production.**
+
+---
+
+## 7.6 Secret Rotation
+
+Secret isolation and secret rotation are intentionally separate security controls.
+
+The current Flask secret was retained during secret isolation to avoid unnecessarily invalidating active sessions while changing the delivery mechanism.
+
+The secret has previously appeared in diagnostic output and must therefore be treated as exposed.
+
+A future hardening step must replace the current secret with a newly generated value.
+
+Secret rotation may invalidate existing Flask sessions.
+
+The rotation procedure must therefore include:
+
+```text
+Generate new secret
+        ↓
+Protect new secret file
+        ↓
+Update production secret
+        ↓
+Restart LUMS
+        ↓
+Verify application startup
+        ↓
+Verify authentication
+        ↓
+Verify client reporting
+        ↓
+Verify update jobs
+        ↓
+Confirm old sessions are handled correctly
+```
+
+The actual secret value must never be documented.
 
 ---
 
@@ -949,7 +1154,7 @@ This is preferable to starting the application when the required database initia
 
 # 23. Docker Security
 
-The LUMS container is now hardened with three important controls:
+The LUMS container is now hardened with four important controls:
 
 ```text
 Dedicated non-root user
@@ -957,6 +1162,8 @@ Dedicated non-root user
 Drop ALL Linux capabilities
         +
 Read-only root filesystem
+        +
+Read-only mounted application secret
 ```
 
 The current production container uses:
@@ -996,6 +1203,12 @@ Persistent application data remains writable through:
 -v lums-data:/var/lib/lums
 ```
 
+The production secret is mounted read-only:
+
+```text
+-v /etc/lums/secrets/lums_secret:/run/secrets/lums_secret:ro
+```
+
 The resulting architecture is:
 
 ```text
@@ -1009,6 +1222,9 @@ Container
 │
 ├── /var/lib/lums
 │      └── persistent Docker volume / writable
+│
+├── /run/secrets/lums_secret
+│      └── read-only secret file
 │
 ├── Linux capabilities
 │      └── NONE
@@ -1146,6 +1362,12 @@ The persistent database volume remains:
 lums-data:/var/lib/lums
 ```
 
+The secret file is mounted separately as read-only:
+
+```text
+/run/secrets/lums_secret
+```
+
 Verification:
 
 ```bash
@@ -1162,9 +1384,10 @@ true
 Filesystem behavior was tested:
 
 ```text
-/tmp              writable
-/app              not writable
-/var/lib/lums     writable
+/tmp                    writable
+/app                    not writable
+/var/lib/lums           writable
+/run/secrets/lums_secret readable
 ```
 
 The application continued to provide:
@@ -1176,8 +1399,9 @@ The application continued to provide:
 * HTTPS access
 * Database persistence
 * Container restart
+* Secret-file access
 
-The read-only root filesystem was tested independently before production deployment and was subsequently verified again after a production restart.
+The read-only root filesystem was tested independently before production deployment and was subsequently verified again after production restarts.
 
 The control is therefore considered implemented and validated.
 
@@ -1194,7 +1418,8 @@ sudo docker run -d \
     --read-only \
     --cap-drop=ALL \
     --tmpfs /tmp:rw,nosuid,nodev,noexec \
-    --env-file /etc/lums/docker/lums.env \
+    -e LUMS_SECRET_KEY_FILE=/run/secrets/lums_secret \
+    -v /etc/lums/secrets/lums_secret:/run/secrets/lums_secret:ro \
     -p 127.0.0.1:5050:5000 \
     -v lums-data:/var/lib/lums \
     lums:latest
@@ -1209,6 +1434,7 @@ Capabilities:     none
 Root filesystem:  read-only
 /tmp:             writable tmpfs
 Database volume:  writable persistent volume
+Secret mount:     read-only
 Network binding:  localhost only
 ```
 
@@ -1218,7 +1444,7 @@ These properties have been verified in production.
 
 # 28. Production Hardening Verification
 
-The final production restart test verified:
+The final production restart verification confirmed:
 
 ```text
 ReadonlyRootfs=true
@@ -1244,6 +1470,19 @@ CapBnd: 0000000000000000
 CapAmb: 0000000000000000
 ```
 
+Secret configuration:
+
+```text
+LUMS_SECRET_KEY:
+    absent
+
+LUMS_SECRET_KEY_FILE:
+    /run/secrets/lums_secret
+
+Secret mount:
+    read-only
+```
+
 Database:
 
 ```text
@@ -1252,15 +1491,10 @@ users: present
 clients: present
 audit_log: present
 schema_migrations: present
+update_jobs: present
 ```
 
-Production database counts remained intact:
-
-```text
-Users: 1
-Clients: 1
-Update jobs: 1
-```
+Production database counts remained intact during the hardening deployment.
 
 HTTPS remained operational:
 
@@ -1269,9 +1503,32 @@ HTTPS status: 302
 Location: /login
 ```
 
-Security headers remained present after the restart.
+Security headers remained present after restart.
 
-This confirms that the three container hardening controls do not currently interfere with normal LUMS operation.
+Client API verification remained operational:
+
+```text
+Client authentication: working
+Client report: HTTP 200
+Pending jobs: expected response
+Running jobs: expected response
+```
+
+The container was restarted after secret isolation and successfully returned to normal operation.
+
+This confirms that:
+
+```text
+Non-root
++
+Drop ALL capabilities
++
+Read-only root filesystem
++
+Secret-file isolation
+```
+
+do not currently interfere with normal LUMS operation.
 
 ---
 
@@ -1589,7 +1846,7 @@ A job may remain in `running` if:
 * The package manager process crashes
 * Result submission fails
 
-LUMS now provides an explicit recovery mechanism:
+LUMS provides an explicit recovery mechanism:
 
 ```http
 POST /api/update-jobs/<job_id>/abandon
@@ -1893,21 +2150,15 @@ Backup SQLite integrity: ok
 
 ## Current production verification
 
-The production backup created during the read-only deployment was:
+Production backups were successfully created and verified during the container hardening work.
 
-```text
-/var/backups/lums/lums.db.backup-readonly
-```
-
-Verified properties:
+Verified properties included:
 
 ```text
 Owner:       root:root
 Permissions: 0600
 SQLite:      integrity_check = ok
 ```
-
-The backup file was successfully created before the production restart verification.
 
 A backup integrity check confirms that the SQLite backup is structurally valid.
 
@@ -1979,6 +2230,7 @@ Backup files
 Session data
 Internal credentials
 Personal information
+Secret files
 ```
 
 Use placeholders:
@@ -2099,6 +2351,7 @@ Review:
 ```bash
 sudo stat -c '%U:%G %a %n' \
     /etc/lums/docker/lums.env \
+    /etc/lums/secrets/lums_secret \
     /etc/lums/tls/lums.key \
     /etc/default/lums-agent
 ```
@@ -2106,13 +2359,23 @@ sudo stat -c '%U:%G %a %n' \
 Recommended:
 
 ```text
-Environment files:       0600
-Private keys:            0600
-Public certificates:     0644
-Agent configuration:     0600
-Backup directory:        0700
-Backup database files:   0600
+Environment file:       0600
+Secret file:            0640
+Secret directory:      0700
+Private keys:           0600
+Public certificates:    0644
+Agent configuration:    0600
+Backup directory:       0700
+Backup database files:  0600
 ```
+
+The secret file is intentionally:
+
+```text
+root:10001 0640
+```
+
+so the non-root LUMS container user can read it without making the secret world-readable.
 
 Review permissions after:
 
@@ -2202,7 +2465,8 @@ sudo docker run -d \
     --read-only \
     --cap-drop=ALL \
     --tmpfs /tmp:rw,nosuid,nodev,noexec \
-    --env-file /etc/lums/docker/lums.env \
+    -e LUMS_SECRET_KEY_FILE=/run/secrets/lums_secret \
+    -v /etc/lums/secrets/lums_secret:/run/secrets/lums_secret:ro \
     -p 127.0.0.1:5050:5000 \
     -v lums-data:/var/lib/lums \
     lums:latest
@@ -2260,6 +2524,10 @@ After container recreation verify:
 14. Root filesystem is read-only
 15. All Linux capabilities are dropped
 16. /tmp is available through tmpfs
+17. Secret path is configured
+18. Secret is not present as LUMS_SECRET_KEY
+19. Secret mount is read-only
+20. Container restart succeeds
 ```
 
 Check:
@@ -2277,10 +2545,23 @@ sudo docker inspect lums \
     --format '{{range .Mounts}}{{.Name}} -> {{.Destination}} ({{.RW}}){{"\n"}}{{end}}'
 ```
 
-Expected:
+Expected database volume:
 
 ```text
 lums-data -> /var/lib/lums (true)
+```
+
+Check the secret mount:
+
+```bash
+sudo docker inspect lums \
+    --format '{{range .Mounts}}{{.Source}} -> {{.Destination}} RW={{.RW}}{{"\n"}}{{end}}'
+```
+
+Expected:
+
+```text
+/etc/lums/secrets/lums_secret -> /run/secrets/lums_secret RW=false
 ```
 
 ---
@@ -2310,13 +2591,16 @@ If the server secret is compromised:
 
 1. Restrict access to the server.
 2. Review application logs.
-3. Rotate the secret.
-4. Restart the Docker container.
-5. Verify authentication and sessions.
-6. Review related credentials.
-7. Document the incident.
+3. Generate a new secret.
+4. Replace the protected secret file.
+5. Restart the Docker container.
+6. Verify authentication and sessions.
+7. Review related credentials.
+8. Document the incident.
 
 Changing the Flask secret may invalidate existing sessions.
+
+The production secret should be rotated separately from normal secret-isolation deployment when possible so that session impact is understood and tested.
 
 ---
 
@@ -2344,6 +2628,30 @@ If a database or backup becomes exposed:
 5. Replace compromised backups if necessary.
 6. Review access logs.
 7. Document the incident.
+
+---
+
+## 53.5 Previously Exposed Flask Secret
+
+The Flask secret was previously exposed through diagnostic output.
+
+The current secret was **not** repeated in this documentation.
+
+Secret isolation has since been implemented so that production no longer supplies the secret as a normal Docker environment variable.
+
+The remaining action is:
+
+```text
+Generate a new secret
+        ↓
+Replace /etc/lums/secrets/lums_secret
+        ↓
+Restart LUMS
+        ↓
+Verify sessions/authentication
+```
+
+Until that rotation is completed, the current secret must be treated as potentially compromised.
 
 ---
 
@@ -2383,6 +2691,7 @@ If a database or backup becomes exposed:
 * [x] Client tokens are not intentionally logged
 * [x] Protected endpoints require authentication
 * [ ] Token rotation lifecycle fully implemented
+* [ ] Flask secret rotation completed
 
 ## Authorization
 
@@ -2427,7 +2736,10 @@ If a database or backup becomes exposed:
 * [x] Container runs as non-root user
 * [x] Root filesystem is read-only
 * [x] All Linux capabilities are dropped
-* [ ] Secret removed from normal container environment where practical
+* [x] Secret is removed from normal container environment
+* [x] Secret is supplied through protected mounted file
+* [x] Secret mount is read-only
+* [x] Production restart with secret-file architecture verified
 
 ## Git
 
@@ -2438,19 +2750,22 @@ If a database or backup becomes exposed:
 * [x] Backup files excluded
 * [x] Changes reviewed before deployment
 * [x] Documentation uses placeholders
-* [ ] Historical secret exposure review where applicable
+* [x] Historical Flask secret exposure identified
+* [ ] Replacement Flask secret generated and deployed
 
 ---
 
 # 55. Current Security Limitations
 
-## 55.1 Docker Environment Secret
+## 55.1 Secret Rotation
 
-`LUMS_SECRET_KEY` is currently supplied through the Docker environment.
+Secret isolation has been implemented and verified.
 
-The host environment file is protected with `0600`, but Docker-level inspection can expose configured environment variables to sufficiently privileged users.
+The remaining issue is the current secret itself.
 
-A stronger secret-delivery mechanism remains a future hardening task.
+Because the previous secret appeared in diagnostic output, it must eventually be replaced.
+
+The rotation is intentionally a separate hardening step because changing the Flask secret may invalidate existing sessions.
 
 ---
 
@@ -2527,20 +2842,33 @@ They can be suitable for controlled laboratory environments but may not be appro
 
 The remaining hardening work should be performed incrementally.
 
-## Phase 1 — Secret Isolation
+## Phase 1 — Secret Rotation
 
-Move the Flask secret away from the normal Docker environment where practical.
+Secret isolation is complete.
 
-Potential approaches:
+The next step is to replace the currently used Flask secret because the previous value was exposed.
 
-* Protected mounted secret file
-* Docker secrets
-* External secret management
-* Reduced access to Docker administration
+Process:
 
-The existing Flask secret must be handled carefully because changing it may invalidate active sessions.
+```text
+Generate new secret
+        ↓
+Protect secret file
+        ↓
+Deploy secret
+        ↓
+Restart LUMS
+        ↓
+Verify application
+        ↓
+Verify authentication
+        ↓
+Verify client communication
+        ↓
+Verify update jobs
+```
 
-If the secret has been exposed, rotation should be treated as an incident-response action rather than merely a configuration change.
+The secret value itself must never be documented.
 
 ---
 
@@ -2678,6 +3006,7 @@ Security reviews should be performed after:
 * Agent changes
 * Watcher changes
 * Deployment changes
+* Secret changes
 
 Regularly review:
 
@@ -2699,6 +3028,7 @@ Package manager coordination
 Container privileges
 Container capabilities
 Secret handling
+Secret rotation
 ```
 
 ---
@@ -2711,9 +3041,15 @@ The current hardening state is:
 [x] Non-root container
 [x] Drop ALL capabilities
 [x] Read-only root filesystem
-[x] Production restart verification
 [x] SQLite backup verification
-[ ] Secret isolation
+[x] Interrupted-job recovery
+[x] Production restart verification
+[x] Secret isolation
+[x] Protected mounted secret file
+[x] Read-only secret mount
+[x] Production restart after secret isolation
+
+[ ] Flask secret rotation
 [ ] Client token lifecycle / rotation
 [ ] Update execution hardening
 [ ] Full backup / restore test
@@ -2721,12 +3057,14 @@ The current hardening state is:
 [ ] Final security review
 ```
 
-The container hardening phase is therefore complete.
+The current container hardening phase is complete.
+
+The secret-delivery hardening phase is also complete.
 
 The next security hardening task is:
 
 ```text
-SECRET ISOLATION
+SECRET ROTATION
 ```
 
 This should again follow the established workflow:
@@ -2743,6 +3081,8 @@ verify
 production
    ↓
 verify
+   ↓
+document
 ```
 
 No secret-handling change should be deployed blindly.
@@ -2762,17 +3102,21 @@ The following principles apply to LUMS:
 7. Protect the Docker environment file.
 8. Protect client tokens.
 9. Protect TLS private keys.
-10. Keep database backups secure.
-11. Do not remove persistent volumes during troubleshooting.
-12. Do not automatically reboot clients.
-13. Review changes before deployment.
-14. Test security-sensitive changes.
-15. Document incidents and configuration changes.
-16. Do not claim that incomplete security controls are fully implemented.
-17. Keep update execution controlled and auditable.
-18. Harden the container incrementally and test each change independently.
-19. Preserve persistent application data during frontend and container deployments.
-20. Treat security hardening as a continuous process rather than a one-time configuration.
+10. Protect the mounted Flask secret.
+11. Keep database backups secure.
+12. Do not remove persistent volumes during troubleshooting.
+13. Do not automatically reboot clients.
+14. Review changes before deployment.
+15. Test security-sensitive changes.
+16. Document incidents and configuration changes.
+17. Do not claim that incomplete security controls are fully implemented.
+18. Keep update execution controlled and auditable.
+19. Harden the container incrementally and test each change independently.
+20. Preserve persistent application data during frontend and container deployments.
+21. Treat secret isolation and secret rotation as separate controls.
+22. Treat previously exposed secrets as compromised until rotated.
+23. Keep production secrets outside Git and outside normal container environment variables where practical.
+24. Treat security hardening as a continuous process rather than a one-time configuration.
 
 ---
 
@@ -2811,6 +3155,54 @@ Execution Plane
 ```
 
 Security improvements are implemented one controlled layer at a time.
+
+The current verified security architecture is:
+
+```text
+Internet / LAN
+      │
+      ▼
+   Nginx
+   HTTPS
+      │
+      ▼
+127.0.0.1:5050
+      │
+      ▼
+ Docker
+ ┌──────────────────────────────┐
+ │ non-root                     │
+ │ UID 10001                    │
+ │ capabilities: NONE           │
+ │ root filesystem: READ-ONLY   │
+ │                              │
+ │ /tmp → tmpfs                 │
+ │ /var/lib/lums → lums-data    │
+ │ /run/secrets/lums_secret     │
+ │          → READ-ONLY         │
+ │                              │
+ │ Gunicorn → Flask             │
+ └──────────────────────────────┘
+      │
+      ▼
+ SQLite
+```
+
+The hardening workflow remains:
+
+```text
+Inspect
+   ↓
+Test
+   ↓
+Verify
+   ↓
+Production
+   ↓
+Verify
+   ↓
+Document
+```
 
 > **LUMS — Linux Update Management without the noise.**
 
