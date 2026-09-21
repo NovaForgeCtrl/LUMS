@@ -1,4 +1,3 @@
-
 # LUMS — Optional Theme System
 
 > **One LUMS · Many Interfaces · Same Backend**
@@ -11,56 +10,28 @@
 
 LUMS provides an optional client-side theme system for its web interface.
 
-Themes change only the visual presentation of LUMS:
+Themes change only the visual presentation of LUMS.
 
-- Backend
-- API
-- Database
-- Authentication
-- Agent communication
-- Update jobs
-- Audit logging
+The following components remain unchanged:
 
-remain unchanged.
+* Backend
+* API
+* Database
+* Authentication
+* Agent communication
+* Update jobs
+* Audit logging
+* Client management
+* Security mechanisms
 
-The original LUMS design remains the standard interface.
+The original LUMS design remains the `standard` interface.
 
-## Available Themes
-
-| Theme | Identifier | Character |
-|---|---|---|
-| 🖥️ Standard LUMS | `standard` | Original interface |
-| 🏈 LUMS Stadium | `LUMSStadium` | Stadium / Game-Day |
-| ⛳ Golf Club | `golf` | Golf / Club |
-| 🤓 Nerd Mode | `nerd` | Terminal / CRT |
-| 🧠 Geek Lab | `geek` | Lab / Cyber / Blueprint |
-| 🗄️ Enterprise Admin | `admin` | Enterprise control center |
-
-The theme selector is available **only on the login page**.
-
-The selected theme is stored in the browser using `localStorage` and automatically applied to subsequent LUMS pages.
-
----
-
-# 1. Design Principles
-
-The theme system follows these principles:
-
-- Standard LUMS remains the default design.
-- Themes are optional visual extensions.
-- Theme selection is available only on the login page.
-- The dashboard does not contain a theme selector.
-- Theme selection is stored client-side.
-- The backend and database are not modified.
-- No additional database structure is required.
-- Themes use HTML, CSS and JavaScript.
-- Frontend assets are version-controlled with the project.
-- Theme changes must not alter security-relevant functionality.
+The theme system does not create separate LUMS installations. All themes operate on the same application, the same backend and the same persistent database.
 
 ```text
 ONE LUMS
    │
-   ├── Standard
+   ├── Standard LUMS
    ├── LUMS Stadium
    ├── Golf Club
    ├── Nerd Mode
@@ -76,7 +47,68 @@ SAME SECURITY
 
 ---
 
-# 2. Current Architecture
+# 1. Available Themes
+
+| Theme                | Identifier    | Character                         |
+| -------------------- | ------------- | --------------------------------- |
+| 🖥️ Standard LUMS    | `standard`    | Original LUMS interface           |
+| 🏈 LUMS Stadium      | `LUMSStadium` | Stadium / Game-Day                |
+| ⛳ Golf Club          | `golf`        | Golf / Club                       |
+| 🤓 Nerd Mode         | `nerd`        | Terminal / CRT / Matrix           |
+| 🧠 Geek Lab          | `geek`        | Cyber / Network / Laboratory      |
+| 🗄️ Enterprise Admin | `admin`       | Dry Enterprise Operations Console |
+
+The identifier `admin` is the internal technical value for the **Enterprise Admin** theme.
+
+The user-facing theme name remains:
+
+```text
+Enterprise Admin
+```
+
+---
+
+# 2. Design Principles
+
+The theme system follows these principles:
+
+* Standard LUMS remains the default design.
+* Themes are optional visual extensions.
+* Theme selection is stored client-side.
+* Themes do not require additional database structures.
+* Themes do not communicate theme information to the backend.
+* Theme-specific CSS is scoped through `data-theme`.
+* Theme-specific JavaScript is limited to presentation.
+* Frontend assets are version-controlled with the project.
+* Security-relevant functionality must not depend on the selected theme.
+* Changing a theme must never modify LUMS data.
+* Themes must not modify API authorization or authentication logic.
+
+The architecture intentionally separates:
+
+```text
+Application functionality
+        │
+        ├── Backend
+        ├── API
+        ├── Database
+        ├── Authentication
+        ├── Agents
+        └── Update Jobs
+
+from
+
+Presentation
+        │
+        ├── CSS
+        ├── Theme JavaScript
+        ├── Visual effects
+        └── Theme assets
+```
+
+---
+
+# 3. Current Architecture
 
 The current LUMS installation uses Docker for the application and Nginx as the TLS reverse proxy.
 
@@ -106,16 +138,16 @@ lums-data
 
 ## Current Application Values
 
-| Component | Value |
-|---|---|
-| Repository | `/opt/lums-public` |
-| Docker image | `lums:latest` |
-| Docker container | `lums` |
-| Docker volume | `lums-data` |
-| Internal Flask port | `5000` |
-| Host binding | `127.0.0.1:5050` |
-| External HTTPS | Nginx on port `443` |
-| Environment file | `/etc/lums/docker/lums.env` |
+| Component           | Value                       |
+| ------------------- | --------------------------- |
+| Repository          | `/opt/lums-public`          |
+| Docker image        | `lums:latest`               |
+| Docker container    | `lums`                      |
+| Docker volume       | `lums-data`                 |
+| Internal Flask port | `5000`                      |
+| Host binding        | `127.0.0.1:5050`            |
+| External HTTPS      | Nginx on port `443`         |
+| Environment file    | `/etc/lums/docker/lums.env` |
 
 The container is published using:
 
@@ -123,11 +155,17 @@ The container is published using:
 127.0.0.1:5050 → 5000/tcp
 ```
 
-Port `5000` is not directly exposed to the network.
+Port `5000` is internal to the container.
+
+Port `5050` is bound only to localhost.
+
+Neither port should be directly exposed to the network.
 
 ---
 
-# 3. Theme Architecture
+# 4. Theme Architecture
+
+The theme system is implemented entirely on the client side.
 
 ```text
 Login Page
@@ -145,7 +183,7 @@ localStorage
 document.documentElement.dataset.theme
     │
     ▼
-Theme CSS
+Theme-specific CSS / JavaScript
     │
     ├── Standard
     ├── LUMS Stadium
@@ -155,9 +193,27 @@ Theme CSS
     └── Enterprise Admin
 ```
 
-## Browser Storage
+The currently selected theme is represented on the root HTML element.
 
-The storage key is:
+Example:
+
+```html
+<html data-theme="geek">
+```
+
+The CSS then scopes theme-specific rules:
+
+```css
+html[data-theme="geek"] ...
+```
+
+This prevents one theme from unintentionally changing another theme.
+
+---
+
+# 5. Browser Storage
+
+The theme storage key is:
 
 ```javascript
 const STORAGE_KEY = "lums-theme";
@@ -172,10 +228,18 @@ localStorage.getItem("lums-theme");
 Possible result:
 
 ```text
-"golf"
+"geek"
 ```
 
-## Supported Values
+The stored value is local to the browser.
+
+The backend does not need to know which theme the user selected.
+
+---
+
+# 6. Supported Theme Values
+
+The current `theme.js` contains:
 
 ```javascript
 const THEMES = [
@@ -188,7 +252,13 @@ const THEMES = [
 ];
 ```
 
-The selected theme is applied to the HTML root element:
+The `admin` identifier represents:
+
+```text
+Enterprise Admin
+```
+
+The theme value is applied through:
 
 ```javascript
 document.documentElement.dataset.theme = theme;
@@ -197,12 +267,12 @@ document.documentElement.dataset.theme = theme;
 Example:
 
 ```html
-<html data-theme="golf">
+<html data-theme="admin">
 ```
 
 ---
 
-# 4. Standard Fallback
+# 7. Standard Fallback
 
 If no theme has been stored or an unknown value is detected, LUMS falls back to:
 
@@ -210,98 +280,28 @@ If no theme has been stored or an unknown value is detected, LUMS falls back to:
 standard
 ```
 
-This prevents invalid browser state from creating an undefined theme.
-
-The fallback should be implemented in `theme.js`.
+The fallback prevents invalid browser state from producing an undefined interface.
 
 Example:
 
 ```javascript
-const theme = THEMES.includes(savedTheme)
-    ? savedTheme
-    : "standard";
+applyTheme(
+    THEMES.includes(savedTheme)
+        ? savedTheme
+        : "standard"
+);
 ```
 
-The `standard` theme must remain the default when:
+The `standard` theme therefore remains the default when:
 
-- No theme has been selected.
-- `localStorage` is empty.
-- An invalid theme value is stored.
-- The browser blocks access to local storage.
-- Theme initialization fails.
+* no theme has been selected,
+* `localStorage` is empty,
+* an invalid theme value is stored,
+* or theme initialization falls back to the default.
 
 ---
 
-# 5. Login Theme Selector
-
-The selector exists only on the login page.
-
-## Source
-
-```text
-/opt/lums-public/server/templates/login.html
-```
-
-The login template must be included in the Docker image during deployment.
-
-Example:
-
-```html
-<div class="login-theme-selector">
-    <label for="login-theme-select">Theme</label>
-
-    <select id="login-theme-select">
-        <option value="standard">🖥️ Standard LUMS</option>
-        <option value="LUMSStadium">🏈 LUMS Stadium</option>
-        <option value="golf">⛳ Golf Club</option>
-        <option value="nerd">🤓 Nerd Mode</option>
-        <option value="geek">🧠 Geek Lab</option>
-        <option value="admin">🗄️ Enterprise Admin</option>
-    </select>
-</div>
-```
-
-The central theme script is loaded through Flask:
-
-```html
-<script src="{{ url_for('static', filename='theme.js') }}"></script>
-```
-
-The selector must not be added to the dashboard.
-
----
-
-# 6. Dashboard Theme Element
-
-The dashboard does not contain a theme selector.
-
-It may contain a dynamic title element:
-
-```html
-<div class="theme-day-title" aria-hidden="true"></div>
-```
-
-The element is used for theme-specific presentation.
-
-For the following themes, it remains empty:
-
-- Standard
-- Nerd
-- Geek Lab
-- Enterprise Admin
-
-Theme-specific titles:
-
-| Theme | Title |
-|---|---|
-| `LUMSStadium` | `GAMEDAY` |
-| `golf` | `CLUB DAY` |
-
-The title is generated through CSS and does not affect backend functionality.
-
----
-
-# 7. Theme JavaScript
+# 8. Theme JavaScript
 
 ## Source
 
@@ -309,78 +309,120 @@ The title is generated through CSS and does not affect backend functionality.
 /opt/lums-public/server/static/theme.js
 ```
 
-The file is included in the Docker image during the build process.
+The theme JavaScript is included in the Docker image during the build process.
 
-The JavaScript is responsible for:
+It is responsible for:
 
-- Reading the saved theme.
-- Validating the theme value.
-- Applying the fallback.
-- Updating `data-theme`.
-- Saving user selections.
-- Synchronizing the login selector.
+* Reading the saved theme.
+* Validating the theme.
+* Applying the fallback.
+* Updating `data-theme`.
+* Saving the selected theme.
+* Synchronizing available theme selectors.
+* Starting and stopping theme-specific visual effects.
 
 The theme system must not:
 
-- Send theme data to the backend.
-- Modify the SQLite database.
-- Modify authentication.
-- Modify API requests.
-- Modify client tokens.
-- Modify update jobs.
+* modify the SQLite database,
+* modify authentication,
+* modify client tokens,
+* modify API authorization,
+* modify update jobs,
+* modify agent communication,
+* send theme data to the backend.
 
 ---
 
-# 8. Theme CSS
+# 9. Theme Selection
 
-## Source
+The theme selector is available through the LUMS frontend theme selection mechanism.
 
-```text
-/opt/lums-public/server/static/style.css
+The login selector uses:
+
+```html
+<select id="login-theme-select">
 ```
 
-Theme-specific rules should be scoped through the HTML root element.
+The theme JavaScript also supports:
 
-Example:
+```html
+<select id="theme-select">
+```
+
+when such a selector is present on a page.
+
+Both selectors are synchronized by `theme.js`.
+
+The selected value is written to:
+
+```text
+localStorage
+```
+
+and then applied through:
+
+```javascript
+document.documentElement.dataset.theme
+```
+
+---
+
+# 10. Theme-Day Titles
+
+Some themes can provide additional presentation elements through CSS.
+
+The relevant dashboard element is:
+
+```html
+<div class="theme-day-title" aria-hidden="true"></div>
+```
+
+Examples:
 
 ```css
-html[data-theme="golf"] body {
-    background:
-        linear-gradient(
-            rgba(18, 42, 24, 0.28),
-            rgba(18, 42, 24, 0.55)
-        ),
-        url("/static/images/golf.jpg")
-        center top / cover
-        fixed
-        no-repeat;
+html[data-theme="LUMSStadium"] .theme-day-title::after {
+    content: "GAMEDAY";
+}
+
+html[data-theme="golf"] .theme-day-title::after {
+    content: "CLUB DAY";
 }
 ```
 
-The Standard theme should not require additional overrides.
+These elements are purely visual.
 
-Theme-specific CSS must not change:
+They do not affect:
 
-- API URLs.
-- Form actions.
-- Authentication behavior.
-- JavaScript security checks.
-- Client-side authorization logic.
-- Update-management functionality.
+* backend functionality,
+* authentication,
+* client management,
+* update jobs,
+* database operations,
+* API requests.
+
+Themes that do not require a theme-day title leave the element visually empty.
 
 ---
 
-# 9. LUMS Stadium
+# 11. LUMS Stadium
 
 The Stadium theme provides a Game-Day visual presentation.
 
+Typical elements include:
+
+* stadium background,
+* sports-inspired colors,
+* Game-Day title,
+* football animation,
+* reduced-motion handling.
+
 ## Background
+
+Example asset:
 
 ```text
 server/static/images/lumsstadium.jpg
 ```
-
-The asset is included in the Docker image and served through Flask.
 
 Example:
 
@@ -408,30 +450,30 @@ html[data-theme="LUMSStadium"] .theme-day-title::after {
 ```css
 html[data-theme="LUMSStadium"] .topbar::after {
     content: "🏈";
-    animation: lums-football-flight 7s linear infinite;
 }
 ```
 
-The animation is visual only.
+The animation is presentation-only.
 
-## Reduced Motion
-
-```css
-@media (prefers-reduced-motion: reduce) {
-    html[data-theme="LUMSStadium"] .topbar::after {
-        animation: none !important;
-        opacity: 0 !important;
-    }
-}
-```
+Reduced-motion settings must be respected.
 
 ---
 
-# 10. Golf Club
+# 12. Golf Club
 
 The Golf theme provides a relaxed club-style presentation.
 
+Typical elements include:
+
+* golf background,
+* club-style presentation,
+* `CLUB DAY`,
+* golf-ball animation,
+* reduced-motion handling.
+
 ## Background
+
+Example asset:
 
 ```text
 server/static/images/golf.jpg
@@ -463,14 +505,7 @@ html[data-theme="golf"] .theme-day-title::after {
 
 ## Golf Animation
 
-```css
-html[data-theme="golf"] .topbar::after {
-    content: "⚪";
-    animation: lums-golf-ball-flight 6s linear infinite;
-}
-```
-
-The animation must respect:
+The golf-ball animation is purely visual and must respect:
 
 ```text
 prefers-reduced-motion
@@ -478,102 +513,450 @@ prefers-reduced-motion
 
 ---
 
-# 11. Nerd Mode
+# 13. Nerd Mode
 
-Nerd Mode is the dedicated Nerdseite of LUMS.
+Nerd Mode is the dedicated terminal/CRT-inspired interface.
 
-Typical visual elements:
+Typical visual elements include:
 
-- Monospace fonts.
-- Terminal-inspired styling.
-- CRT scanlines.
-- Green accents.
-- Dark interface.
-- Technical presentation.
-- Subtle glow effects.
-- Console-inspired design.
+* monospace fonts,
+* terminal-inspired styling,
+* dark interface,
+* green accents,
+* CRT effects,
+* Matrix-style rain,
+* technical presentation.
 
-The Nerd theme remains purely visual.
+The Matrix layer is created by `theme.js` and styled through CSS.
 
-The following remain unchanged:
+The visual layer is only activated when:
 
-- Authentication.
-- Dashboard functionality.
-- Client management.
-- API communication.
-- Update jobs.
-- Agent reporting.
-- Database operations.
-- Audit logging.
+```text
+data-theme="nerd"
+```
+
+The Nerd theme does not modify LUMS functionality.
 
 > **The Nerdseite changes the interface — not the infrastructure.**
 
 ---
 
-# 12. Geek Lab
+# 14. Geek Lab
 
-Geek Lab uses a technical laboratory and blueprint-inspired visual style.
+Geek Lab represents the technical laboratory / cyber-oriented interface.
 
-Typical elements:
+Typical visual elements include:
 
-- Dark background.
-- Blue and purple accents.
-- Grid effects.
-- Blueprint styling.
-- Technical glow effects.
-- Laboratory and engineering presentation.
+* dark interface,
+* technical blue/purple accents,
+* blueprint-inspired presentation,
+* grid effects,
+* laboratory styling,
+* technical visual effects.
 
-Only the visual presentation is changed.
-
----
-
-# 13. Enterprise Admin
-
-Enterprise Admin uses a classic light administration interface.
-
-Design goals:
-
-- Neutral appearance.
-- Light background.
-- Subtle colors.
-- High readability.
-- Enterprise control-center character.
-
-The theme does not change administrative functionality or permissions.
+The Geek theme also contains the **The Living Network** background animation.
 
 ---
 
-# 14. Theme-Day Titles
+# 15. The Living Network
 
-Theme titles are generated through CSS.
+**The Living Network** is the animated network background of the Geek theme.
+
+It is implemented separately from the normal theme CSS.
+
+## JavaScript Source
+
+```text
+/opt/lums-public/server/static/network.js
+```
+
+The script exposes:
+
+```javascript
+window.LumsNetwork = {
+    start,
+    stop,
+    destroy
+};
+```
+
+The animation consists of:
+
+* slowly moving network nodes,
+* connections between nearby nodes,
+* animated blue network packets,
+* a fixed fullscreen canvas,
+* transparent background,
+* application content above the network.
+
+The network canvas is:
+
+```html
+<canvas id="lums-network-canvas"></canvas>
+```
+
+The CSS restricts it to the Geek theme:
 
 ```css
-html[data-theme="LUMSStadium"] .theme-day-title::after {
-    content: "GAMEDAY";
+html[data-theme="geek"] #lums-network-canvas {
+    display: block;
 }
 
-html[data-theme="golf"] .theme-day-title::after {
-    content: "CLUB DAY";
+html:not([data-theme="geek"]) #lums-network-canvas {
+    display: none;
 }
 ```
 
-Example positioning:
+The network animation is started by `theme.js` only when:
+
+```javascript
+theme === "geek"
+```
+
+For every other theme:
+
+```javascript
+window.LumsNetwork.stop();
+```
+
+Therefore:
+
+```text
+Geek
+  │
+  └── The Living Network → ACTIVE
+
+Enterprise Admin
+  │
+  └── The Living Network → OFF
+
+Standard
+  │
+  └── The Living Network → OFF
+
+LUMS Stadium
+  │
+  └── The Living Network → OFF
+
+Golf
+  │
+  └── The Living Network → OFF
+
+Nerd
+  │
+  └── The Living Network → OFF
+```
+
+## Reduced Motion
+
+The network canvas is disabled when the browser requests reduced motion:
 
 ```css
-html[data-theme="LUMSStadium"] .theme-day-title,
-html[data-theme="golf"] .theme-day-title {
-    position: absolute;
-    left: 50%;
-    top: 18px;
-    transform: translateX(-50%);
+@media (prefers-reduced-motion: reduce) {
+    #lums-network-canvas {
+        display: none !important;
+    }
 }
 ```
 
-The title element must exist in the currently deployed dashboard template.
+The Geek network therefore remains a visual enhancement only.
 
 ---
 
-# 15. Frontend Assets
+# 16. Enterprise Admin
+
+Enterprise Admin is intentionally designed as a **dry Enterprise Operations Console**.
+
+The objective is not to create another modern SaaS dashboard.
+
+The visual character is:
+
+> **Infrastructure Management Console**
+
+or:
+
+> **Enterprise software that exists to manage infrastructure, not to impress marketing departments.**
+
+😂
+
+## Design Goals
+
+Enterprise Admin uses:
+
+* light gray background,
+* white panels,
+* dark blue/gray header,
+* classic blue accent color,
+* thin borders,
+* compact spacing,
+* small corner radius,
+* dense information presentation,
+* conventional tables,
+* restrained status indicators,
+* minimal shadows,
+* no decorative gradients,
+* no neon effects,
+* no glow,
+* no unnecessary animation.
+
+The theme deliberately avoids:
+
+* glassmorphism,
+* oversized cards,
+* marketing-style layouts,
+* large decorative icons,
+* neon effects,
+* animated backgrounds,
+* cyber effects,
+* unnecessary visual motion.
+
+---
+
+# 17. Enterprise Admin Identifier
+
+The internal identifier remains:
+
+```text
+admin
+```
+
+The user-facing name is:
+
+```text
+Enterprise Admin
+```
+
+This distinction is intentional.
+
+The existing theme architecture therefore continues to use:
+
+```html
+<html data-theme="admin">
+```
+
+Enterprise-specific CSS is scoped using:
+
+```css
+html[data-theme="admin"] ...
+```
+
+---
+
+# 18. Enterprise Admin CSS Architecture
+
+Enterprise Admin is implemented as a dedicated CSS override layer at the end of:
+
+```text
+server/static/style.css
+```
+
+The section is clearly marked:
+
+```css
+/* =========================================================
+   LUMS // ENTERPRISE ADMIN
+   Operations Console
+   ========================================================= */
+```
+
+This approach avoids rewriting the complete LUMS stylesheet.
+
+Existing styles remain available as the base layer.
+
+Enterprise-specific rules override only the visual presentation when:
+
+```text
+data-theme="admin"
+```
+
+is active.
+
+---
+
+# 19. Enterprise Admin Visual Language
+
+## Background
+
+```text
+Light gray
+```
+
+## Panels
+
+```text
+White
+1px border
+Small radius
+Minimal shadow
+```
+
+## Header
+
+```text
+Dark blue/gray
+White text
+Thin bottom border
+```
+
+## Accent
+
+```text
+Classic administrative blue
+```
+
+## Tables
+
+Enterprise tables use:
+
+* compact rows,
+* clear borders,
+* neutral header background,
+* restrained hover states,
+* small uppercase column headings where appropriate.
+
+The goal is information density rather than visual decoration.
+
+---
+
+# 20. Enterprise Admin Status Display
+
+Status indicators remain simple and readable.
+
+Typical presentation:
+
+```text
+● Online
+● Offline
+● Unknown
+```
+
+The status presentation must not change the underlying status logic.
+
+The theme only changes how the status is displayed.
+
+---
+
+# 21. Enterprise Admin Controls
+
+Buttons and form controls use a conventional administrative design.
+
+Typical characteristics:
+
+* rectangular controls,
+* small radius,
+* blue primary buttons,
+* thin borders,
+* white input fields,
+* compact controls,
+* no glow,
+* no animated hover effects.
+
+The underlying actions remain unchanged.
+
+A button that performs an update job remains the same update-job action regardless of the selected theme.
+
+---
+
+# 22. Enterprise Admin Client View
+
+The client page follows the same administrative visual language.
+
+Affected visual areas include:
+
+* client header,
+* client IP information,
+* status,
+* statistics,
+* system information,
+* update tables,
+* update jobs,
+* update history,
+* software/package tables.
+
+The Enterprise Admin theme does not modify the underlying client data.
+
+---
+
+# 23. Enterprise Admin Software View
+
+The software/package section uses a compact administrative layout.
+
+Visual characteristics include:
+
+* thin table borders,
+* compact rows,
+* neutral tab styling,
+* classic blue active state,
+* white content areas,
+* restrained controls.
+
+The package information itself is unchanged.
+
+---
+
+# 24. Enterprise Admin and Other Themes
+
+Enterprise Admin must remain isolated from the other themes.
+
+The following themes must not inherit Enterprise-specific visual changes:
+
+```text
+standard
+LUMSStadium
+golf
+nerd
+geek
+```
+
+Enterprise CSS therefore uses scoped selectors such as:
+
+```css
+html[data-theme="admin"] .panel
+```
+
+rather than global rules such as:
+
+```css
+.panel
+```
+
+This is an important architectural rule.
+
+> **Enterprise Admin changes Enterprise Admin only.**
+
+---
+
+# 25. Theme Isolation
+
+Each visual effect must be restricted to its intended theme.
+
+Examples:
+
+```css
+html[data-theme="nerd"] ...
+```
+
+```css
+html[data-theme="geek"] ...
+```
+
+```css
+html[data-theme="admin"] ...
+```
+
+The Living Network specifically uses:
+
+```css
+html[data-theme="geek"] #lums-network-canvas
+```
+
+and is hidden for all other themes.
+
+This prevents visual effects from leaking between themes.
+
+---
+
+# 26. Frontend Assets
 
 Theme assets are part of the version-controlled frontend.
 
@@ -600,26 +983,37 @@ Example assets:
 ```text
 server/static/images/lumsstadium.jpg
 server/static/images/golf.jpg
-server/static/images/example.svg
+server/static/images/*.svg
+server/static/network.js
 ```
 
-The Docker build must include the required static files.
+The Docker build copies the server source into the application image.
 
-The runtime application serves these assets from its internal Flask static directory.
+Theme assets therefore become part of the resulting Docker image.
 
-## Attribution
+---
 
-If an image or graphic was created using an external service or AI system, its origin should be documented where appropriate.
+# 27. Asset Attribution
 
-Current theme attribution:
+If external or AI-generated assets are used, their origin should be documented where appropriate.
+
+Existing theme attribution:
 
 > **Pictures by leonardo.ai**
 
 Only assets that are legally usable and appropriate for the project should be committed.
 
+Theme assets must not introduce:
+
+* tracking,
+* analytics,
+* external scripts,
+* unexpected network requests,
+* malicious active content.
+
 ---
 
-# 16. Git Asset Management
+# 28. Git Asset Management
 
 Check the repository:
 
@@ -629,28 +1023,30 @@ cd /opt/lums-public
 git status
 ```
 
-Check theme assets:
+Check frontend assets:
 
 ```bash
-git status --short server/static/images/
+git status --short server/static/
 ```
 
-Add a new asset:
+Review changes:
 
 ```bash
-git add server/static/images/example.svg
+git diff
 ```
 
-Review the staged changes:
+Check whitespace:
 
 ```bash
-git diff --cached --check
+git diff --check
 ```
 
-Commit:
+Commit only intended changes:
 
 ```bash
-git commit -m "Add theme visual asset"
+git add server/static/
+git add server/templates/
+git commit -m "Update LUMS theme system"
 ```
 
 Push:
@@ -668,21 +1064,21 @@ Email: 232026481+NovaForgeCtrl@users.noreply.github.com
 
 Never commit:
 
-- Passwords.
-- API tokens.
-- Private keys.
-- Environment files.
-- Database files.
-- Session secrets.
-- Personal data.
+* passwords,
+* API tokens,
+* private keys,
+* environment files,
+* database files,
+* session secrets,
+* personal data.
 
 ---
 
-# 17. Current Docker Deployment
+# 29. Current Docker Deployment
 
-The current LUMS application runs in Docker.
+The LUMS application runs inside Docker.
 
-The source directory is:
+The source repository is:
 
 ```text
 /opt/lums-public
@@ -694,57 +1090,78 @@ The Docker image is:
 lums:latest
 ```
 
-The runtime application is not updated by copying files into `/opt/lums-api`.
-
-Frontend changes must be included in a newly built Docker image.
-
-## Deployment Sequence
+The running container is:
 
 ```text
-Git repository
-      ↓
-Review changes
-      ↓
-Syntax and whitespace checks
-      ↓
-SQLite-aware backup
-      ↓
-Build Docker image
-      ↓
-Recreate container
-      ↓
-Test local application
-      ↓
-Test HTTPS through Nginx
-      ↓
-Browser refresh
+lums
+```
+
+The persistent database is stored in:
+
+```text
+lums-data
+```
+
+The runtime application is not updated simply by modifying files inside the running container.
+
+Frontend changes must therefore be:
+
+```text
+Source
+  ↓
+Docker build
+  ↓
+New image
+  ↓
+Container recreation
 ```
 
 ---
 
-# 18. Safe Frontend Deployment
+# 30. Important Source/Runtime Separation
 
-Check the repository:
+The current architecture separates:
+
+```text
+Git source
+    ≠
+Docker image
+    ≠
+Running container
+    ≠
+Persistent database volume
+    ≠
+Secret configuration
+```
+
+| Component                 | Location                    |
+| ------------------------- | --------------------------- |
+| Git source                | `/opt/lums-public`          |
+| Docker image              | `lums:latest`               |
+| Running container         | `lums`                      |
+| Persistent database       | Docker volume `lums-data`   |
+| Environment configuration | `/etc/lums/docker/lums.env` |
+| Nginx TLS configuration   | `/etc/nginx/`               |
+
+The repository contains source code and frontend assets.
+
+Runtime state and secrets remain outside the Git repository.
+
+---
+
+# 31. Safe Frontend Deployment
+
+Before deployment:
 
 ```bash
 cd /opt/lums-public
 
 git status
-```
-
-Review changes:
-
-```bash
 git diff
-```
-
-Check whitespace:
-
-```bash
 git diff --check
 ```
 
-Build the image:
+Build the new image:
 
 ```bash
 sudo docker build \
@@ -759,13 +1176,15 @@ sudo docker image inspect \
     lums:latest
 ```
 
-Before recreating the container, create a database backup.
+Building the image does not automatically update the running container.
 
-> **Important:** Building a Docker image does not automatically update the running container.
+The running container must be recreated.
 
 ---
 
-# 19. SQLite-Aware Backup Before Deployment
+# 32. SQLite-Aware Backup
+
+Before recreating the production container, create a database backup.
 
 Create the backup directory:
 
@@ -774,7 +1193,7 @@ sudo mkdir -p /var/backups/lums
 sudo chmod 700 /var/backups/lums
 ```
 
-Create a backup using the Docker volume:
+Create a SQLite-aware backup:
 
 ```bash
 sudo docker run --rm \
@@ -804,13 +1223,13 @@ sudo chmod 600 \
     /var/backups/lums/lums.db.backup
 ```
 
-The backup should be verified before major changes.
+The backup must not be committed to Git.
 
 ---
 
-# 20. Recreate the Docker Container
+# 33. Recreate the Docker Container
 
-Confirm that the persistent volume exists:
+Confirm the persistent volume:
 
 ```bash
 sudo docker volume inspect \
@@ -831,7 +1250,7 @@ sudo docker rm \
     lums
 ```
 
-Recreate the container using the existing volume:
+Recreate the container:
 
 ```bash
 sudo docker run -d \
@@ -843,6 +1262,18 @@ sudo docker run -d \
     lums:latest
 ```
 
+The important persistent component is:
+
+```text
+-v lums-data:/var/lib/lums
+```
+
+The Docker volume must not be removed during a normal frontend deployment.
+
+---
+
+# 34. Container Verification
+
 Check the container:
 
 ```bash
@@ -850,7 +1281,7 @@ sudo docker ps \
     --filter "name=^lums$"
 ```
 
-Check logs:
+Check the logs:
 
 ```bash
 sudo docker logs \
@@ -858,7 +1289,7 @@ sudo docker logs \
     lums
 ```
 
-Test the local application:
+Check the local application:
 
 ```bash
 curl -i \
@@ -867,11 +1298,9 @@ curl -i \
 
 A redirect to `/login` can be an expected result.
 
-> **Never remove the `lums-data` volume during a normal frontend deployment.**
-
 ---
 
-# 21. Nginx and HTTPS Verification
+# 35. Nginx and HTTPS Verification
 
 Test the Nginx configuration:
 
@@ -879,13 +1308,13 @@ Test the Nginx configuration:
 sudo nginx -t
 ```
 
-Reload Nginx only after a successful test:
+Only after a successful configuration test:
 
 ```bash
 sudo systemctl reload nginx
 ```
 
-Test HTTPS locally:
+Test HTTPS:
 
 ```bash
 curl -k -i \
@@ -910,7 +1339,7 @@ The theme system must not require direct exposure of ports `5000` or `5050`.
 
 ---
 
-# 22. Browser Cache
+# 36. Browser Cache
 
 After frontend deployment:
 
@@ -918,7 +1347,7 @@ After frontend deployment:
 Ctrl + F5
 ```
 
-If the old design remains visible:
+If the old theme remains visible:
 
 1. Confirm the Docker image was rebuilt.
 2. Confirm the container was recreated.
@@ -931,7 +1360,7 @@ Do not immediately delete the database or reinstall LUMS.
 
 ---
 
-# 23. Browser Verification
+# 37. Browser Verification
 
 Open the browser developer console.
 
@@ -947,37 +1376,134 @@ localStorage.getItem("lums-theme");
 document.documentElement.dataset.theme;
 ```
 
+Example:
+
+```text
+admin
+```
+
+means:
+
+```text
+Enterprise Admin
+```
+
 ## Theme Element
 
 ```javascript
 document.querySelector(".theme-day-title")?.outerHTML;
 ```
 
-Expected result:
-
-```html
-<div class="theme-day-title" aria-hidden="true"></div>
-```
-
-If the result is:
-
-```text
-undefined
-```
-
-the currently loaded page does not contain the element.
-
-## Current Dashboard HTML
+## Current Dashboard
 
 ```javascript
 document.querySelector("header.topbar")?.innerHTML;
 ```
 
-This helps identify whether an old dashboard template is being served.
+These checks help distinguish between:
+
+* browser state,
+* loaded HTML,
+* theme state,
+* CSS state,
+* deployed application state.
 
 ---
 
-# 24. Common Problems
+# 38. Enterprise Admin Verification
+
+When Enterprise Admin is selected:
+
+```javascript
+document.documentElement.dataset.theme
+```
+
+should return:
+
+```text
+admin
+```
+
+The interface should show:
+
+* light gray background,
+* white panels,
+* dark blue/gray header,
+* classic blue controls,
+* thin borders,
+* compact tables,
+* minimal shadows,
+* small corner radii,
+* no Geek network animation,
+* no Matrix rain,
+* no neon effects.
+
+The Enterprise theme should feel like:
+
+```text
+Operations Console
+```
+
+rather than:
+
+```text
+Modern SaaS Dashboard
+```
+
+---
+
+# 39. Geek Verification
+
+When Geek is selected:
+
+```javascript
+document.documentElement.dataset.theme
+```
+
+should return:
+
+```text
+geek
+```
+
+The Living Network should be active.
+
+The canvas should exist:
+
+```javascript
+document.getElementById("lums-network-canvas");
+```
+
+Enterprise-specific styling must not appear.
+
+The Geek theme remains independent from Enterprise Admin.
+
+---
+
+# 40. Theme Isolation Test
+
+Test all themes after major frontend changes:
+
+```text
+Standard
+LUMS Stadium
+Golf Club
+Nerd Mode
+Geek Lab
+Enterprise Admin
+```
+
+The important rule is:
+
+> Changing Enterprise Admin must not change the appearance or functionality of any other theme.
+
+Likewise:
+
+> Adding a Geek visual effect must not activate that effect in Enterprise Admin.
+
+---
+
+# 41. Common Problems
 
 ## Theme Is Not Saved
 
@@ -987,9 +1513,13 @@ Check:
 localStorage.getItem("lums-theme");
 ```
 
-If the result is `null`, no theme has been stored.
+If the result is:
 
-Check whether the browser allows local storage.
+```text
+null
+```
+
+no theme has been stored.
 
 ---
 
@@ -1009,161 +1539,167 @@ standard
 
 ---
 
-## Golf Shows GAMEDAY
+## Enterprise Admin Does Not Look Different
 
-Check the stored theme:
+Check:
+
+```javascript
+document.documentElement.dataset.theme;
+```
+
+Expected:
+
+```text
+admin
+```
+
+Then check the deployed CSS inside the container:
+
+```bash
+sudo docker exec \
+    lums \
+    grep -n -A10 -B4 \
+    'LUMS // ENTERPRISE ADMIN' \
+    /app/server/static/style.css
+```
+
+If the path differs, inspect the container:
+
+```bash
+sudo docker exec \
+    lums \
+    find /app -maxdepth 4 \
+    -type f \
+    \( -name "style.css" -o -name "theme.js" \)
+```
+
+---
+
+## Enterprise Shows Geek Network Animation
+
+Check:
+
+```javascript
+document.documentElement.dataset.theme;
+```
+
+The network animation should only be active for:
+
+```text
+geek
+```
+
+Check that:
+
+```html
+html[data-theme="geek"]
+```
+
+is the only theme selector enabling the network canvas.
+
+---
+
+## Geek Does Not Show The Living Network
+
+Check:
+
+```javascript
+document.getElementById("lums-network-canvas");
+```
+
+Check:
+
+```javascript
+window.LumsNetwork
+```
+
+The network script should be present in:
+
+```text
+server/static/network.js
+```
+
+Check the deployed container:
+
+```bash
+sudo docker exec \
+    lums \
+    ls -l /app/server/static/network.js
+```
+
+---
+
+## Old Theme Still Appears
+
+Use:
+
+```text
+Ctrl + F5
+```
+
+Then verify:
 
 ```javascript
 localStorage.getItem("lums-theme");
 ```
 
-Check the applied theme:
+and:
 
 ```javascript
 document.documentElement.dataset.theme;
 ```
 
-Check the dashboard element:
-
-```javascript
-document.querySelector(".theme-day-title")?.outerHTML;
-```
-
-Then inspect the deployed CSS inside the Docker container:
-
-```bash
-sudo docker exec \
-    lums \
-    grep -n -A12 -B4 \
-    'theme-day-title' \
-    /app/static/style.css
-```
-
-If the application uses another internal static path, inspect the container configuration first.
-
----
-
-## Old GAMEDAY Element Is Visible
-
-Inspect the actual topbar:
-
-```javascript
-document.querySelector("header.topbar")?.innerHTML;
-```
-
-If this appears:
-
-```html
-<div class="gameday-title">
-    GAMEDAY
-</div>
-```
-
-an older dashboard template may still be loaded.
-
-Corrective sequence:
+If the source is correct but the browser still displays an old interface:
 
 ```text
-1. Check the Git source template.
-2. Rebuild the Docker image.
-3. Recreate the container.
-4. Test the application.
-5. Reload with Ctrl + F5.
+1. Check Git source.
+2. Rebuild Docker image.
+3. Recreate container.
+4. Check container logs.
+5. Test localhost.
+6. Reload browser.
 ```
 
 ---
 
-## Source Is Correct but Browser Is Outdated
-
-Check the source template:
-
-```bash
-grep -n -A2 -B2 \
-    'theme-day-title\|gameday-title' \
-    /opt/lums-public/server/templates/index.html
-```
-
-Rebuild the image:
-
-```bash
-sudo docker build \
-    -t lums:latest \
-    .
-```
-
-Recreate the container using the existing volume.
-
-Then refresh the browser.
-
----
-
-## CSS Is Present but the Theme Does Not Change
-
-Check the applied theme:
-
-```javascript
-document.documentElement.dataset.theme;
-```
-
-Check whether the CSS file is loaded in the browser.
-
-Check the Docker image contents:
-
-```bash
-sudo docker exec \
-    lums \
-    ls -l /app/static/
-```
-
-Inspect the relevant CSS rules inside the container.
-
-Possible causes:
-
-- Wrong `data-theme` value.
-- CSS selector mismatch.
-- Old Docker image.
-- Old running container.
-- Browser cache.
-- Missing static asset.
-- Incorrect template deployment.
-
----
-
-# 25. Security
+# 42. Security
 
 The theme system is client-side and does not modify security-relevant functionality.
 
 The following remain unchanged:
 
-- Flask authentication.
-- Session management.
-- CSRF protection.
-- API authentication.
-- Agent tokens.
-- SQLite database.
-- Password hashing.
-- Audit logging.
-- API endpoints.
-- Update jobs.
-- Client reporting.
+* Flask authentication.
+* Session management.
+* CSRF protection.
+* API authentication.
+* Agent tokens.
+* SQLite database.
+* Password hashing.
+* Audit logging.
+* API endpoints.
+* Update jobs.
+* Client reporting.
 
 The stored theme value is not a security-sensitive setting.
 
-Users can change their local theme value through browser developer tools.
+A user can change their own local theme value through browser developer tools.
 
-However, all theme assets must still be reviewed for:
+That does not grant additional permissions.
 
-- External tracking.
-- Untrusted scripts.
-- Embedded active content.
-- Unexpected remote requests.
-- Copyright and licensing issues.
+Theme assets must still be reviewed for:
 
-Theme CSS and JavaScript must not disable or bypass security controls.
+* external tracking,
+* analytics,
+* untrusted scripts,
+* embedded active content,
+* unexpected network requests,
+* copyright/licensing issues.
+
+Theme JavaScript must not bypass or disable security controls.
 
 ---
 
-# 26. Backup and Rollback
+# 43. Backup and Rollback
 
 Before major frontend changes:
 
@@ -1188,19 +1724,19 @@ A frontend rollback consists of:
 6. Refresh the browser.
 ```
 
-A theme rollback should not require:
+A theme rollback must not require:
 
-- Database deletion.
-- Database migration.
-- Token replacement.
-- TLS replacement.
-- Authentication changes.
+* database deletion,
+* database migration,
+* token replacement,
+* TLS replacement,
+* authentication changes.
 
-> **The database volume must be preserved during frontend rollback.**
+> **The ****`lums-data`**** volume must be preserved during frontend rollback.**
 
 ---
 
-# 27. Source and Runtime Separation
+# 44. Source and Runtime Separation
 
 The current architecture uses:
 
@@ -1216,89 +1752,67 @@ Persistent database volume
 Secret configuration
 ```
 
-| Component | Location |
-|---|---|
-| Git source | `/opt/lums-public` |
-| Docker image | `lums:latest` |
-| Running container | `lums` |
-| Persistent database | Docker volume `lums-data` |
+| Component            | Location                    |
+| -------------------- | --------------------------- |
+| Git source           | `/opt/lums-public`          |
+| Docker image         | `lums:latest`               |
+| Running container    | `lums`                      |
+| Persistent database  | Docker volume `lums-data`   |
 | Secret configuration | `/etc/lums/docker/lums.env` |
-| Nginx TLS key | `/etc/nginx/ssl/lums/lums.key` |
+| Nginx configuration  | `/etc/nginx/`               |
 
-The repository contains source code and frontend assets.
-
-Runtime state and secrets remain outside the Git repository.
+This separation prevents frontend deployment from accidentally replacing persistent application data.
 
 ---
 
-# 28. Files
+# 45. Files
 
-| File | Function |
-|---|---|
-| `server/templates/login.html` | Login and theme selector |
-| `server/templates/index.html` | Dashboard and theme title |
-| `server/static/theme.js` | Theme selection and storage |
-| `server/static/style.css` | Theme design and animations |
-| `server/static/images/lumsstadium.jpg` | Stadium background |
-| `server/static/images/golf.jpg` | Golf background |
-| `server/static/images/*.svg` | Theme and frontend graphics |
+| File                                   | Function                            |
+| -------------------------------------- | ----------------------------------- |
+| `server/templates/login.html`          | Login interface and theme selection |
+| `server/templates/index.html`          | Main dashboard                      |
+| `server/templates/client.html`         | Client detail interface             |
+| `server/static/theme.js`               | Theme selection and theme state     |
+| `server/static/style.css`              | Base and theme-specific styling     |
+| `server/static/network.js`             | Geek / The Living Network animation |
+| `server/static/images/lumsstadium.jpg` | Stadium background                  |
+| `server/static/images/golf.jpg`        | Golf background                     |
+| `server/static/images/*.svg`           | Theme/frontend graphics             |
 
 All required frontend files must be included in the Docker image.
 
-The exact internal container paths should be verified using:
+---
 
-```bash
-sudo docker inspect lums
-```
+# 46. Current Status
 
-and:
+Current theme functionality:
 
-```bash
-sudo docker exec \
-    lums \
-    find / -path '*static*' \
-    -maxdepth 5 \
-    2>/dev/null
-```
+* [x] Theme selector.
+* [x] Six themes.
+* [x] `localStorage` persistence.
+* [x] Automatic theme activation.
+* [x] Standard fallback.
+* [x] Standard LUMS.
+* [x] LUMS Stadium.
+* [x] Golf Club.
+* [x] Nerd Mode.
+* [x] Matrix visual layer.
+* [x] Geek Lab.
+* [x] The Living Network.
+* [x] Reduced-motion handling.
+* [x] Enterprise Admin.
+* [x] Enterprise Operations Console styling.
+* [x] Theme isolation.
+* [x] Theme-specific CSS.
+* [x] Theme-specific JavaScript.
+* [x] Git-controlled frontend assets.
+* [x] Docker-based deployment.
+* [x] Persistent Docker volume.
+* [x] SQLite-aware backup procedure.
 
 ---
 
-# 29. Current Status
-
-Implemented theme functionality:
-
-- [x] Login theme selector.
-- [x] Six themes.
-- [x] `localStorage` persistence.
-- [x] Automatic theme activation.
-- [x] No dashboard theme selector.
-- [x] Standard LUMS remains intact.
-- [x] Stadium background.
-- [x] Golf background.
-- [x] `GAMEDAY`.
-- [x] `CLUB DAY`.
-- [x] Football animation.
-- [x] Golf ball animation.
-- [x] Reduced-motion support.
-- [x] Theme-specific CSS.
-- [x] Nerd Mode / Nerdseite.
-- [x] Geek Lab.
-- [x] Enterprise Admin.
-- [x] SVG asset support.
-- [x] Git-controlled frontend assets.
-- [x] Asset attribution documentation.
-- [x] Docker-based deployment process.
-
-The theme selector requires:
-
-- No additional database structure.
-- No backend API.
-- No separate service.
-- No separate application instance.
-
----
-
-# 30. Frontend Troubleshooting Order
+# 47. Troubleshooting Order
 
 When a theme problem occurs, inspect the layers in this order:
 
@@ -1309,36 +1823,37 @@ When a theme problem occurs, inspect the layers in this order:
        ↓
 3. Loaded HTML
        ↓
-4. Docker image
+4. Git source
        ↓
-5. Running container
+5. Docker image
        ↓
-6. CSS
+6. Running container
        ↓
-7. JavaScript
+7. CSS
        ↓
-8. Static assets
+8. JavaScript
        ↓
-9. Nginx
+9. Static assets
        ↓
-10. Browser cache
+10. Nginx
+       ↓
+11. Browser cache
 ```
 
 Identify the affected layer before making changes.
 
 Do not immediately:
 
-- Delete the Docker volume.
-- Reinstall LUMS.
-- Disable TLS verification.
-- Expose port `5000`.
-- Expose port `5050`.
-- Modify the database.
-- Replace production configuration blindly.
+* delete the Docker volume,
+* reinstall LUMS,
+* expose port `5000`,
+* expose port `5050`,
+* modify the database,
+* replace production configuration blindly.
 
 ---
 
-# 31. Final Principle
+# 48. Final Principle
 
 ```text
 ONE LUMS
@@ -1351,6 +1866,20 @@ SAME SECURITY
 
 The theme system changes the visual experience without creating a separate LUMS installation.
 
-> **One LUMS. Many Interfaces. Same Backend.**
+**Geek can be alive.**
 
-> **LUMS — Linux Update Management without the noise.**
+**Nerd can be chaotic.**
+
+**Stadium can be Game-Day.**
+
+**Golf can be Club Day.**
+
+**Enterprise Admin can be deliberately boring.**
+
+But underneath all of them:
+
+```text
+ONE LUMS
+```
+
+> **Linux Update Management without the noise.**
