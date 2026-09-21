@@ -1,445 +1,656 @@
+# LUMS — Administration Guide
 
-# LUMS Administration Guide
+## Linux Update Management Server
 
-> **Linux Update Management without the noise.**
+This guide documents the administration, operation, deployment, maintenance, backup, recovery and troubleshooting of LUMS.
 
-Centralized update management, client inventory, reporting and controlled package deployment for Linux systems.
+LUMS is designed as a centralized Linux update management system with controlled execution, client reporting, job tracking and administrative visibility.
 
-This guide documents the daily administration, maintenance, deployment and recovery of LUMS.
+The system separates:
 
----
+* central management
+* client reporting
+* update job creation
+* controlled execution
+* execution monitoring
+* persistent application data
+* frontend presentation
+* infrastructure services
 
-## Table of Contents
+The central principle is:
 
-- [1. Purpose](#1-purpose)
-- [2. Architecture](#2-architecture)
-- [3. Runtime Configuration](#3-runtime-configuration)
-- [4. Client Paths](#4-client-paths)
-- [5. Docker Administration](#5-docker-administration)
-- [6. Docker Logs](#6-docker-logs)
-- [7. Nginx Administration](#7-nginx-administration)
-- [8. Network and Health Checks](#8-network-and-health-checks)
-- [9. TLS Administration](#9-tls-administration)
-- [10. Server Environment](#10-server-environment)
-- [11. Agent Configuration](#11-agent-configuration)
-- [12. Agent Service and Timer](#12-agent-service-and-timer)
-- [13. Execution Watcher](#13-execution-watcher)
-- [14. Idle-Aware Execution](#14-idle-aware-execution)
-- [15. Update Job Lifecycle](#15-update-job-lifecycle)
-- [16. Simulation Mode](#16-simulation-mode)
-- [17. Package Manager Safety](#17-package-manager-safety)
-- [18. Database Administration](#18-database-administration)
-- [19. Database Backup and Restore](#19-database-backup-and-restore)
-- [20. Git Administration](#20-git-administration)
-- [21. Docker Deployment](#21-docker-deployment)
-- [22. Agent and Watcher Deployment](#22-agent-and-watcher-deployment)
-- [23. Post-Deployment Validation](#23-post-deployment-validation)
-- [24. Troubleshooting](#24-troubleshooting)
-- [25. Security Administration](#25-security-administration)
-- [26. Backup Strategy](#26-backup-strategy)
-- [27. Recovery Strategy](#27-recovery-strategy)
-- [28. Operational Principles](#28-operational-principles)
-- [29. Final Checklist](#29-final-checklist)
+> **Do not change multiple layers at once. Identify the layer first, then change only what is required.**
 
 ---
 
 # 1. Purpose
 
-This guide covers the daily administration of LUMS:
+LUMS provides a central management interface for Linux update operations.
 
-- Docker administration
-- Nginx administration
-- Client and agent management
-- Reporting and execution watchers
-- Idle-aware update jobs
-- Database maintenance
-- Database backups and recovery
-- TLS and authentication
-- Git-based deployment
-- Troubleshooting
-- Security administration
+The system is designed to provide:
 
-LUMS centralizes management while package execution remains on the individual Linux client.
+* client inventory
+* client status reporting
+* update information
+* update job management
+* controlled execution
+* execution tracking
+* simulation mode
+* administrative visibility
+* audit information
+* centralized configuration
+* TLS-protected external access
 
-!!! note
+LUMS does not replace the underlying Linux package manager.
 
-    LUMS does not automatically reboot clients. Reboots remain an administrative decision.
+The package manager remains responsible for the actual package operation.
+
+LUMS controls when and where an update operation is requested and records the resulting state.
 
 ---
 
 # 2. Architecture
 
-## 2.1 Server Architecture
+The current deployment consists of the following logical layers:
 
 ```text
-Web Browser
-    |
-    | HTTPS :443
-    v
-Nginx
-    |
-    | HTTP localhost
-    v
-127.0.0.1:5050
-    |
-    | Docker port mapping
-    v
-Docker Container: lums
-    |
-    | Flask :5000
-    v
-LUMS Application
-    |
-    v
-Docker Volume: lums-data
-    |
-    v
-/var/lib/lums/lums.db
+                         Browser
+                            |
+                            | HTTPS
+                            v
+                    +----------------+
+                    |     Nginx      |
+                    | TLS / Reverse  |
+                    |     Proxy      |
+                    +-------+--------+
+                            |
+                            | HTTP localhost
+                            v
+                    +----------------+
+                    | Docker: lums   |
+                    |                |
+                    | Flask          |
+                    | Templates      |
+                    | Static Assets  |
+                    | SQLite         |
+                    +-------+--------+
+                            |
+                            | Docker Volume
+                            v
+                    +----------------+
+                    |   lums-data    |
+                    |                |
+                    | /var/lib/lums  |
+                    | lums.db        |
+                    +----------------+
+
+                            ^
+                            |
+                       HTTPS / TLS
+                            |
+                    +-------+--------+
+                    | LUMS Agent     |
+                    |                |
+                    | agent.py       |
+                    | watcher.py     |
+                    +----------------+
+                            |
+                            v
+                    Linux Package Manager
 ```
 
-The Flask application is accessible externally through Nginx.
+The application itself is not directly exposed to the network.
 
-The Docker application is bound to localhost:
+Docker publishes the Flask application only on localhost:
 
 ```text
-127.0.0.1:5050 → Container port 5000
+127.0.0.1:5050 -> container:5000
 ```
 
-Port `5000` must not be directly exposed to the network.
-
-## 2.2 Client Architecture
-
-```text
-lums-agent.timer
-    |
-    v
-lums-agent.service
-    |
-    v
-agent.py
-    |
-    +--> Inventory
-    +--> Reporting
-    +--> Client state
-    +--> Update information
-
-
-lums-execution-watcher.timer
-    |
-    v
-lums-execution-watcher.service
-    |
-    v
-watcher.py
-    |
-    +--> Idle detection
-    +--> Pending-job lookup
-    +--> Atomic claim
-    +--> Package execution
-    +--> Result reporting
-```
-
-Reporting and update execution are separate processes.
+Nginx provides the externally accessible HTTPS endpoint.
 
 ---
 
-# 3. Runtime Configuration
+# 3. Current Runtime Configuration
 
-| Component | Value |
-|---|---|
-| Repository | `/opt/lums-public` |
-| Docker container | `lums` |
-| Docker image | `lums:latest` |
-| Docker volume | `lums-data` |
-| Flask port | `5000` |
-| Host binding | `127.0.0.1:5050` |
-| HTTP | `80` |
-| HTTPS | `443` |
-| Server environment | `/etc/lums/docker/lums.env` |
-| Database | `/var/lib/lums/lums.db` |
-| TLS certificate | `/etc/lums/tls/lums.crt` |
-| TLS private key | `/etc/lums/tls/lums.key` |
+## 3.1 Repository
 
-## 3.1 Generic Placeholders
-
-Use placeholders in documentation and examples:
+The application source repository is located at:
 
 ```text
-<LUMS_SERVER_IP>
-<CLIENT_IP>
-<CLIENT_ID>
-<CLIENT_TOKEN>
-<ADMIN_PASSWORD>
+/opt/lums-public
 ```
 
-!!! danger
+This directory contains the source tree used to build the Docker image.
 
-    Never publish real credentials, client tokens, private keys, session secrets or production database files.
+Important distinction:
+
+```text
+/opt/lums-public
+        |
+        +-- Git source
+        |
+        +-- Docker build context
+        |
+        +-- frontend source
+        |
+        +-- server source
+
+Docker image
+        |
+        +-- lums:latest
+
+Docker container
+        |
+        +-- lums
+
+Docker volume
+        |
+        +-- lums-data
+        +-- /var/lib/lums/lums.db
+```
+
+The Git repository is not the database.
+
+The Docker image is not the persistent database.
+
+The container itself should not be treated as persistent application storage.
+
+Persistent application data belongs in the Docker volume.
 
 ---
 
-# 4. Client Paths
+# 4. Important Paths
 
-| Component | Path |
-|---|---|
-| Agent source | `/opt/lums-public/agent/agent.py` |
-| Watcher source | `/opt/lums-public/agent/watcher.py` |
-| Installed agent | `/opt/lums-agent/agent.py` |
-| Installed watcher | `/opt/lums-agent/watcher.py` |
-| Agent configuration | `/etc/default/lums-agent` |
-| CA certificate | `/opt/lums-agent/lums-ca.crt` |
-| Agent service | `lums-agent.service` |
-| Agent timer | `lums-agent.timer` |
-| Watcher service | `lums-execution-watcher.service` |
-| Watcher timer | `lums-execution-watcher.timer` |
+## 4.1 Application source
 
-The source files are maintained in Git.
+```text
+/opt/lums-public
+```
 
-The installed client files are deployed to the individual Linux clients.
+## 4.2 Docker configuration
+
+```text
+/etc/lums/docker/lums.env
+```
+
+## 4.3 TLS
+
+```text
+/etc/lums/tls/lums.crt
+/etc/lums/tls/lums.key
+```
+
+Do not place private keys or environment secrets inside Git.
 
 ---
 
-# 5. Docker Administration
+# 5. Frontend Structure
 
-## 5.1 Check the Running Container
+The frontend is part of the application source tree.
+
+Current runtime paths inside the container are:
+
+```text
+/app/server/templates/
+/app/server/static/
+```
+
+Important frontend files include:
+
+```text
+/app/server/templates/index.html
+/app/server/templates/client.html
+
+/app/server/static/style.css
+/app/server/static/theme.js
+/app/server/static/network.js
+```
+
+The frontend contains:
+
+* HTML templates
+* CSS
+* JavaScript
+* theme handling
+* network visualization
+* dashboard presentation
+
+The frontend is served by the Flask application and therefore becomes part of the Docker image during deployment.
+
+---
+
+# 6. Theme System
+
+LUMS currently provides the following theme identifiers:
+
+```text
+standard
+LUMSStadium
+golf
+nerd
+geek
+admin
+```
+
+The `admin` identifier represents the user-facing:
+
+```text
+Enterprise Admin
+```
+
+theme.
+
+Theme selection is handled by:
+
+```text
+server/static/theme.js
+```
+
+The selected theme is stored in the browser using:
+
+```text
+localStorage
+```
+
+with the key:
+
+```text
+lums-theme
+```
+
+Theme selection therefore does not require a database entry.
+
+---
+
+# 7. Enterprise Admin Theme
+
+The Enterprise Admin theme is intentionally designed as an operational management console.
+
+Its design principles are:
+
+* light gray background
+* white panels
+* dark blue/gray header
+* restrained blue accents
+* thin borders
+* compact spacing
+* small corner radius
+* minimal shadows
+* no gradients
+* no neon effects
+* no large decorative icons
+* no unnecessary animations
+* information-dense tables
+* simple status indicators
+
+The Enterprise Admin theme is deliberately separated from the other themes.
+
+The other themes should not be modified when making Enterprise Admin-specific changes.
+
+The dedicated CSS section is located at the end of:
+
+```text
+server/static/style.css
+```
+
+and is marked:
+
+```text
+/* =========================================================
+   LUMS // ENTERPRISE ADMIN
+   Operations Console
+   ========================================================= */
+```
+
+---
+
+# 8. Geek Network Visualization
+
+The Geek theme provides the:
+
+```text
+The Living Network
+```
+
+visualization.
+
+Its JavaScript implementation is located in:
+
+```text
+server/static/network.js
+```
+
+The network visualization contains:
+
+* drifting nodes
+* connection lines
+* moving packets
+* dynamic network activity
+
+The script exposes:
+
+```javascript
+window.LumsNetwork
+```
+
+with:
+
+```text
+start
+stop
+destroy
+```
+
+The network effect is started only when the Geek theme is active.
+
+Reduced-motion preferences are respected.
+
+---
+
+# 9. Nerd Theme
+
+The Nerd theme provides a terminal/CRT/Matrix-style visual presentation.
+
+The Matrix-style effect is controlled by:
+
+```text
+server/static/theme.js
+```
+
+It is only activated when:
+
+```text
+lums-theme = nerd
+```
+
+The Nerd theme should remain independent from the Geek network visualization.
+
+---
+
+# 10. Docker Administration
+
+## 10.1 Check container
 
 ```bash
-sudo docker ps \
-    --filter "name=^/lums$"
+sudo docker ps
 ```
 
-## 5.2 Check All Containers
+Expected container:
+
+```text
+lums
+```
+
+---
+
+## 10.2 Check all containers
 
 ```bash
 sudo docker ps -a
 ```
 
-## 5.3 Check Container State
+---
 
-```bash
-sudo docker inspect \
-    --format '{{.State.Status}}' \
-    lums
-```
-
-Expected result:
-
-```text
-running
-```
-
-## 5.4 Check Restart Policy
-
-```bash
-sudo docker inspect \
-    --format '{{.HostConfig.RestartPolicy.Name}}' \
-    lums
-```
-
-Expected result:
-
-```text
-unless-stopped
-```
-
-## 5.5 Start, Stop and Restart
-
-```bash
-sudo docker start lums
-sudo docker stop lums
-sudo docker restart lums
-```
-
-Stopping or restarting the container interrupts the web interface and API.
-
-The database remains persistent as long as the `lums-data` volume is preserved.
-
-!!! danger
-
-    Do not remove `lums-data` during normal application maintenance.
-
-## 5.6 Inspect the Container Configuration
+## 10.3 Inspect container
 
 ```bash
 sudo docker inspect lums
 ```
 
-Check the published ports:
+---
+
+## 10.4 Check container status
 
 ```bash
-sudo docker port lums
-```
-
-Check the mounted volumes:
-
-```bash
-sudo docker inspect \
-    --format '{{json .Mounts}}' \
-    lums
+sudo docker inspect -f '{{.State.Status}}' lums
 ```
 
 ---
 
-# 6. Docker Logs
-
-## 6.1 View Recent Logs
+## 10.5 Check container restart policy
 
 ```bash
-sudo docker logs \
-    --tail 100 \
-    lums
+sudo docker inspect -f '{{.HostConfig.RestartPolicy.Name}}' lums
 ```
 
-## 6.2 View Recent Time Range
+Expected:
 
-```bash
-sudo docker logs \
-    --since 10m \
-    lums
+```text
+unless-stopped
 ```
-
-## 6.3 Follow Logs
-
-```bash
-sudo docker logs \
-    --follow \
-    lums
-```
-
-## 6.4 Search for Errors
-
-```bash
-sudo docker logs lums 2>&1 \
-    | grep -iE 'error|exception|traceback|failed'
-```
-
-!!! warning
-
-    Review logs before sharing them. Remove tokens, session information, personal data and other sensitive content.
 
 ---
 
-# 7. Nginx Administration
+# 11. Docker Image
 
-## 7.1 Validate Configuration
+The application image is:
 
-```bash
-sudo nginx -t
+```text
+lums:latest
 ```
 
-Only continue when the configuration test succeeds.
-
-## 7.2 Reload Configuration
+Build it from the repository:
 
 ```bash
-sudo systemctl reload nginx
+cd /opt/lums-public
+sudo docker build -t lums:latest .
 ```
 
-## 7.3 Check Service Status
+Check the image:
 
 ```bash
-sudo systemctl status \
-    nginx \
-    --no-pager
+sudo docker images lums
 ```
 
-## 7.4 View Logs
+---
+
+# 12. Container Recreation
+
+Recreating the container does not remove the persistent database as long as the Docker volume is preserved.
+
+Current recreation procedure:
 
 ```bash
-sudo journalctl \
-    -u nginx \
-    -n 100 \
-    --no-pager
+sudo docker stop lums
+
+sudo docker rm lums
+
+sudo docker run -d \
+    --name lums \
+    --restart unless-stopped \
+    --env-file /etc/lums/docker/lums.env \
+    -p 127.0.0.1:5050:5000 \
+    -v lums-data:/var/lib/lums \
+    lums:latest
+```
+
+Verify:
+
+```bash
+sudo docker ps
+```
+
+Then check logs:
+
+```bash
+sudo docker logs --tail 100 lums
+```
+
+---
+
+# 13. Critical Docker Rule
+
+Never remove the persistent database volume as part of a normal application deployment.
+
+The following command is destructive:
+
+```bash
+sudo docker volume rm lums-data
+```
+
+It removes the persistent application data.
+
+Do not execute it unless a complete reset is intentionally required and the database is no longer needed.
+
+---
+
+# 14. Docker Logs
+
+View recent logs:
+
+```bash
+sudo docker logs --tail 100 lums
 ```
 
 Follow logs:
 
 ```bash
-sudo journalctl \
-    -u nginx \
-    -f
+sudo docker logs -f lums
 ```
 
-## 7.5 Restart Nginx
+View logs with timestamps:
 
 ```bash
-sudo systemctl restart nginx
+sudo docker logs --timestamps --tail 200 lums
 ```
 
-Restart Nginx only when required.
+For troubleshooting, start with:
 
-A configuration reload is normally preferable after a configuration change.
+```bash
+sudo docker ps
+sudo docker logs --tail 100 lums
+```
+
+before changing configuration.
 
 ---
 
-# 8. Network and Health Checks
+# 15. Nginx Administration
 
-## 8.1 Check Listening Ports
+Nginx provides the external HTTPS endpoint.
 
-```bash
-sudo ss -lntp
-```
-
-## 8.2 Check Docker Port Mapping
-
-```bash
-sudo docker port lums
-```
-
-Expected mapping:
+The architecture is:
 
 ```text
-5000/tcp -> 127.0.0.1:5050
+Internet / LAN Client
+        |
+        v
+      HTTPS
+        |
+        v
+      Nginx
+        |
+        v
+127.0.0.1:5050
+        |
+        v
+Docker:5000
+        |
+        v
+Flask
 ```
 
-## 8.3 Test the Local Application
-
-```bash
-curl -I \
-    http://127.0.0.1:5050/
-```
-
-A redirect to `/login` may be expected.
-
-## 8.4 Test HTTPS
-
-```bash
-curl -k -I \
-    https://<LUMS_SERVER_IP>/
-```
-
-## 8.5 Test the API
-
-```bash
-curl -k \
-    https://<LUMS_SERVER_IP>/api/health
-```
-
-!!! warning
-
-    The `-k` option disables certificate verification and is intended only for diagnostics.
-
-Normal agent operation must use certificate verification.
+Flask is therefore not directly exposed to the network.
 
 ---
 
-# 9. TLS Administration
+# 16. Nginx Configuration Test
 
-## 9.1 Certificate Paths
+Before reloading Nginx:
 
-Certificate:
+```bash
+sudo nginx -t
+```
+
+Only reload after the configuration test succeeds:
+
+```bash
+sudo systemctl reload nginx
+```
+
+Check status:
+
+```bash
+sudo systemctl status nginx --no-pager
+```
+
+---
+
+# 17. Nginx Logs
+
+Error log:
+
+```bash
+sudo tail -n 100 /var/log/nginx/error.log
+```
+
+Access log:
+
+```bash
+sudo tail -n 100 /var/log/nginx/access.log
+```
+
+Follow errors:
+
+```bash
+sudo tail -f /var/log/nginx/error.log
+```
+
+---
+
+# 18. Network and Health Checks
+
+## 18.1 Check local Flask binding
+
+```bash
+sudo ss -lntp | grep ':5050'
+```
+
+The expected binding is localhost only:
+
+```text
+127.0.0.1:5050
+```
+
+---
+
+## 18.2 Test local application endpoint
+
+```bash
+curl -I http://127.0.0.1:5050/
+```
+
+---
+
+## 18.3 Test HTTPS endpoint
+
+Use the configured LUMS hostname:
+
+```bash
+curl -kI https://<LUMS_HOST>/
+```
+
+The `-k` option is intended only for testing certificates that are not trusted by the local system.
+
+Do not use it as a replacement for proper certificate trust configuration.
+
+---
+
+# 19. TLS Administration
+
+TLS certificates are stored outside the Git repository.
+
+Current paths:
 
 ```text
 /etc/lums/tls/lums.crt
-```
-
-Private key:
-
-```text
 /etc/lums/tls/lums.key
 ```
 
-## 9.2 Inspect Certificate Information
+Private keys must never be committed to Git.
+
+Check certificate information:
 
 ```bash
 sudo openssl x509 \
@@ -450,41 +661,23 @@ sudo openssl x509 \
     -dates
 ```
 
-## 9.3 Inspect Subject Alternative Names
+Check file permissions:
 
 ```bash
-sudo openssl x509 \
-    -in /etc/lums/tls/lums.crt \
-    -noout \
-    -ext subjectAltName
+sudo stat /etc/lums/tls/lums.crt
+sudo stat /etc/lums/tls/lums.key
 ```
 
-The address used by the agent must be represented in the certificate SAN.
-
-## 9.4 Protect the Private Key
+After certificate changes:
 
 ```bash
-sudo chown root:root \
-    /etc/lums/tls/lums.key
-
-sudo chmod 600 \
-    /etc/lums/tls/lums.key
+sudo nginx -t
+sudo systemctl reload nginx
 ```
-
-Recommended certificate permissions:
-
-```bash
-sudo chmod 644 \
-    /etc/lums/tls/lums.crt
-```
-
-!!! danger
-
-    Never permanently disable TLS verification.
 
 ---
 
-# 10. Server Environment
+# 20. Server Environment
 
 The Docker environment file is:
 
@@ -492,201 +685,238 @@ The Docker environment file is:
 /etc/lums/docker/lums.env
 ```
 
-## 10.1 Protect the Environment File
+This file may contain sensitive configuration.
 
-```bash
-sudo chown root:root \
-    /etc/lums/docker/lums.env
+It must not be committed to Git.
 
-sudo chmod 600 \
-    /etc/lums/docker/lums.env
+When documenting the configuration, use placeholders.
+
+For example:
+
+```text
+LUMS_BASE=https://<LUMS_HOST>
+LUMS_TOKEN=<CLIENT_TOKEN>
+LUMS_CA_FILE=/opt/lums-agent/lums-ca.crt
 ```
 
-## 10.2 Check Whether a Variable Exists
-
-The value is not displayed:
-
-```bash
-sudo grep -q '^LUMS_SECRET_KEY=' \
-    /etc/lums/docker/lums.env \
-    && echo "Secret vorhanden" \
-    || echo "Secret fehlt"
-```
-
-## 10.3 Inspect Variable Names Only
-
-```bash
-sudo sed \
-    -E 's/=.*$/=<redacted>/' \
-    /etc/lums/docker/lums.env
-```
-
-!!! warning
-
-    Do not commit the environment file to Git or include it in screenshots.
+Never place an actual token into documentation.
 
 ---
 
-# 11. Agent Configuration
+# 21. Agent Configuration
 
-The actual client configuration is stored in:
+The agent is installed outside the Docker container.
+
+Current paths include:
 
 ```text
+/opt/lums-agent/agent.py
+/opt/lums-agent/watcher.py
+/opt/lums-agent/lums-ca.crt
 /etc/default/lums-agent
 ```
 
-Example configuration:
+The agent configuration contains the LUMS server endpoint and authentication information.
 
-```dotenv
-LUMS_BASE="https://<LUMS_SERVER_IP>"
-LUMS_TOKEN="<CLIENT_TOKEN>"
-LUMS_CA_FILE="/opt/lums-agent/lums-ca.crt"
-```
-
-## 11.1 Protect the Configuration
-
-```bash
-sudo chown root:root \
-    /etc/default/lums-agent
-
-sudo chmod 600 \
-    /etc/default/lums-agent
-```
-
-## 11.2 Display Safe Values
-
-```bash
-sudo awk -F= '
-/^LUMS_BASE=/ {
-    print $1 "=" $2
-}
-/^LUMS_CA_FILE=/ {
-    print $1 "=" $2
-}
-/^LUMS_TOKEN=/ {
-    print "LUMS_TOKEN=<redacted>"
-}
-' /etc/default/lums-agent
-```
-
-Never display the real client token in shared logs or screenshots.
-
----
-
-# 12. Agent Service and Timer
-
-## 12.1 Check the Service
-
-```bash
-sudo systemctl status \
-    lums-agent.service \
-    --no-pager
-```
-
-## 12.2 Run One Reporting Cycle
-
-```bash
-sudo systemctl start \
-    lums-agent.service
-```
-
-## 12.3 View Logs
-
-```bash
-sudo journalctl \
-    -u lums-agent.service \
-    -n 100 \
-    --no-pager
-```
-
-## 12.4 Enable the Timer
-
-```bash
-sudo systemctl enable \
-    --now \
-    lums-agent.timer
-```
-
-## 12.5 Check Scheduled Execution
-
-```bash
-systemctl list-timers \
-    --all \
-    | grep lums-agent
-```
-
-The agent service is a `oneshot` service.
-
-After a successful run, the service may show `inactive (dead)`. This can be normal because the timer starts it again.
-
-The current reporting interval is approximately five minutes.
-
----
-
-# 13. Execution Watcher
-
-The execution watcher is separate from reporting.
-
-## 13.1 Current Versions
-
-| Component | Version |
-|---|---|
-| Agent | `1.6.0` |
-| Watcher | `1.2.1` |
-
-## 13.2 Watcher Workflow
+A documented example should therefore use:
 
 ```text
-1. Check for a running job
-2. Recover a running job if present
-3. Request pending jobs
-4. Determine local idle state
-5. Verify idle support
-6. Verify the configured idle threshold
-7. Atomically claim a pending job
-8. Execute only the claimed job
-9. Submit the result
+LUMS_BASE=https://<LUMS_HOST>
+LUMS_TOKEN=<CLIENT_TOKEN>
+LUMS_CA_FILE=/opt/lums-agent/lums-ca.crt
 ```
 
-## 13.3 Enable the Watcher Timer
+Do not print the real token when troubleshooting.
+
+A safe check is:
 
 ```bash
-sudo systemctl daemon-reload
-
-sudo systemctl enable \
-    --now \
-    lums-execution-watcher.timer
+sudo grep -E '^[[:space:]]*LUMS_(BASE|CA_FILE)=' /etc/default/lums-agent
 ```
 
-## 13.4 Check the Timer
-
-```bash
-sudo systemctl status \
-    lums-execution-watcher.timer \
-    --no-pager
-```
-
-## 13.5 Run One Watcher Cycle
-
-```bash
-sudo systemctl start \
-    lums-execution-watcher.service
-```
-
-## 13.6 View Watcher Logs
-
-```bash
-sudo journalctl \
-    -u lums-execution-watcher.service \
-    -n 100 \
-    --no-pager
-```
-
-The current laboratory timer runs approximately every 30 seconds.
+For the token, verify presence without displaying its value.
 
 ---
 
-# 14. Idle-Aware Execution
+# 22. Agent Authentication
+
+The current LUMS implementation uses a client token that is stored in the database as a SHA-256 hexadecimal digest.
+
+This is an authentication token representation.
+
+It must not be described as a password hashing scheme.
+
+The distinction is important:
+
+```text
+Password
+    |
+    +-- password-specific password hashing
+
+Client token
+    |
+    +-- SHA-256 digest used by the current implementation
+```
+
+Future hardening may change this mechanism.
+
+Authentication failures should therefore be diagnosed against the currently installed implementation rather than against assumptions about how tokens "should" be stored.
+
+---
+
+# 23. Agent Service
+
+Check the service:
+
+```bash
+sudo systemctl status lums-agent --no-pager
+```
+
+Start:
+
+```bash
+sudo systemctl start lums-agent
+```
+
+Stop:
+
+```bash
+sudo systemctl stop lums-agent
+```
+
+Restart:
+
+```bash
+sudo systemctl restart lums-agent
+```
+
+Enable:
+
+```bash
+sudo systemctl enable lums-agent
+```
+
+---
+
+# 24. Agent Timer
+
+The agent execution schedule is controlled by systemd.
+
+Do not assume a fixed interval from documentation.
+
+Check the actual installed schedule:
+
+```bash
+systemctl list-timers --all | grep lums-agent
+```
+
+Inspect the timer:
+
+```bash
+sudo systemctl cat lums-agent.timer
+```
+
+Check its status:
+
+```bash
+sudo systemctl status lums-agent.timer --no-pager
+```
+
+This makes the installed configuration the authoritative source.
+
+---
+
+# 25. Agent Logs
+
+View recent logs:
+
+```bash
+sudo journalctl -u lums-agent --no-pager -n 100
+```
+
+Follow logs:
+
+```bash
+sudo journalctl -u lums-agent -f
+```
+
+When troubleshooting authentication, look for:
+
+```text
+401
+403
+authentication
+token
+report
+```
+
+Do not paste real authentication tokens into logs, documentation or GitHub issues.
+
+---
+
+# 26. Execution Watcher
+
+The execution watcher monitors update execution and related job state.
+
+Current files:
+
+```text
+/opt/lums-agent/watcher.py
+```
+
+Systemd units:
+
+```text
+lums-execution-watcher.service
+lums-execution-watcher.timer
+```
+
+Check the service:
+
+```bash
+sudo systemctl status lums-execution-watcher --no-pager
+```
+
+Check the timer:
+
+```bash
+sudo systemctl status lums-execution-watcher.timer --no-pager
+```
+
+Inspect the installed timer schedule:
+
+```bash
+sudo systemctl cat lums-execution-watcher.timer
+```
+
+List timers:
+
+```bash
+systemctl list-timers --all | grep lums
+```
+
+---
+
+# 27. Execution Watcher Logs
+
+```bash
+sudo journalctl \
+    -u lums-execution-watcher \
+    --no-pager \
+    -n 100
+```
+
+Follow:
+
+```bash
+sudo journalctl -u lums-execution-watcher -f
+```
+
+---
+
+# 28. Idle-Aware Execution
+
+LUMS can use system activity information when determining whether controlled execution should take place.
 
 The current implementation uses:
 
@@ -694,347 +924,226 @@ The current implementation uses:
 w -h
 ```
 
-for server, terminal and SSH-oriented idle detection.
+for the relevant server/terminal/SSH-oriented activity detection.
 
-The configured idle threshold is:
+This should not be interpreted as a universal desktop-idle detection system.
 
-```text
-300 seconds
-5 minutes
-```
+The mechanism is intended to provide an operational activity signal for the LUMS execution workflow.
 
-The watcher must not execute a job when:
-
-- Idle detection is unsupported.
-- The idle threshold has not been reached.
-- The job cannot be claimed atomically.
-- The client is not properly authenticated.
-- No valid pending job exists.
-
-!!! note
-
-    The current implementation is not a universal desktop-idle provider. Desktop environments may require an additional idle-detection provider in the future.
-
-## 14.1 Idle Metadata
-
-The agent reports fields similar to:
-
-```json
-{
-  "idle": false,
-  "idle_seconds": 5,
-  "idle_threshold_seconds": 300,
-  "idle_source": "w",
-  "idle_supported": true
-}
-```
-
-If idle detection is unavailable:
-
-```json
-{
-  "idle": false,
-  "idle_seconds": 0,
-  "idle_threshold_seconds": 300,
-  "idle_source": "w",
-  "idle_supported": false
-}
-```
-
-Unsupported idle detection must result in safe non-execution.
+When diagnosing unexpected execution behavior, inspect the actual installed implementation and logs.
 
 ---
 
-# 15. Update Job Lifecycle
+# 29. Update Job Lifecycle
+
+A typical LUMS update workflow is:
 
 ```text
-pending
-   |
-   v
-Idle check
-   |
-   v
-Atomic claim
-   |
-   v
-running
-   |
-   +--> success
-   +--> partial
-   +--> failed
+Client reports
+      |
+      v
+LUMS records client state
+      |
+      v
+Administrator creates update job
+      |
+      v
+Job enters pending state
+      |
+      v
+Client claims job
+      |
+      v
+Client executes operation
+      |
+      v
+Client reports result
+      |
+      v
+LUMS records result
+      |
+      v
+Job becomes completed / failed
 ```
 
-A pending job is not executed simply because it exists.
+The exact state transitions are determined by the application implementation.
 
-The watcher first checks the local idle state and then performs an atomic claim.
-
-Only the successfully claimed job may be executed.
-
-## 15.1 Atomic Claiming
-
-Claim endpoint:
-
-```text
-POST /api/clients/<CLIENT_ID>/update-jobs/<JOB_ID>/claim
-```
-
-The server uses an atomic database operation to prevent multiple agents or watcher cycles from claiming the same pending job.
-
-If the job is no longer pending, the claim must fail safely.
-
-The request must not execute a job that it failed to claim.
-
-## 15.2 Running-Job Recovery
-
-The watcher checks for an existing running job before requesting a new pending job.
-
-This supports recovery after:
-
-- Service interruption
-- Watcher restart
-- SSH disconnection
-- System restart
-- Interrupted execution workflow
-
-A recovered running job is resumed without claiming it a second time.
-
-## 15.3 Update Results
-
-Result endpoint:
-
-```text
-POST /api/update-jobs/<JOB_ID>/result
-```
-
-A result may contain:
-
-- Overall status
-- Package results
-- Successful package count
-- Failed package count
-- Timeout information
-- Reboot requirement
-
-Supported statuses:
-
-```text
-success
-partial
-failed
-```
-
-The server validates that:
-
-- The job belongs to the authenticated client.
-- The job is currently running.
-- The result status is valid.
+The database should therefore be treated as the authoritative application state.
 
 ---
 
-# 16. Simulation Mode
+# 30. Job Claiming
 
-Simulation mode is intended for safe end-to-end testing.
+The client-side execution workflow uses the LUMS API to obtain work assigned to the client.
 
-It:
+Relevant API routes should be verified against the installed application before troubleshooting or documenting an API contract.
 
-- Does not execute real APT updates.
-- Does not modify installed packages.
-- Simulates package results.
-- Tests job claiming.
-- Tests watcher behavior.
-- Tests result reporting.
-- Tests UI state changes.
+A typical operational flow is:
 
-The setting is:
+```text
+GET pending work
+        |
+        v
+claim job
+        |
+        v
+execute job
+        |
+        v
+submit result
+```
+
+Do not manually modify job state in SQLite unless performing a controlled recovery procedure.
+
+---
+
+# 31. Job Result Reporting
+
+After execution, the client reports the result back to LUMS.
+
+A result should contain the information required by the server to determine the outcome of the requested operation.
+
+Typical information includes:
+
+* job identifier
+* client identifier
+* execution state
+* result information
+* timestamps
+* relevant package information
+
+Never insert fabricated success information into the database simply to make the dashboard appear healthy.
+
+---
+
+# 32. Simulation Mode
+
+LUMS supports simulation behavior for update operations.
+
+The relevant environment configuration may include:
 
 ```text
 LUMS_SIMULATE_UPDATES
 ```
 
-## 16.1 Inspect the Service
+When simulation mode is enabled, the update workflow can be tested without performing the intended real update operation.
 
-```bash
-sudo systemctl cat \
-    lums-execution-watcher.service
-```
+This is useful for:
 
-Temporary simulation mode:
+* development
+* frontend testing
+* job lifecycle testing
+* agent testing
+* deployment validation
+* troubleshooting
 
-```bash
-sudo systemctl edit \
-    --runtime \
-    lums-execution-watcher.service
-```
-
-Add:
-
-```ini
-[Service]
-Environment=LUMS_SIMULATE_UPDATES=1
-```
-
-Run a test cycle:
-
-```bash
-sudo systemctl start \
-    lums-execution-watcher.service
-```
-
-Remove the temporary setting:
-
-```bash
-sudo systemctl revert \
-    --runtime \
-    lums-execution-watcher.service
-
-sudo systemctl daemon-reload
-```
-
-!!! danger
-
-    Simulation mode must not remain enabled outside testing.
-
-A successful simulation does not prove that real APT/dpkg collisions are fully prevented.
+Always verify the actual environment value before assuming simulation mode is active.
 
 ---
 
-# 17. Package Manager Safety
+# 33. Package Manager Safety
 
-The current project does not provide complete coordination with arbitrary manual APT or dpkg commands.
+LUMS does not replace the Linux package manager.
 
-Current limitations:
+The underlying package manager remains responsible for:
 
-- A custom LUMS lock does not automatically control manual APT commands.
-- An external package-manager process may already be active.
-- Removing lock files is unsafe.
-- Full coordination requires additional detection, waiting and operational policy.
+* dependency resolution
+* package installation
+* package removal
+* package configuration
+* repository interaction
+* transaction execution
 
-Future hardening may include:
+LUMS provides centralized orchestration and visibility.
 
-- LUMS execution lock
-- Active process detection
-- APT/dpkg lock checks
-- Wait-and-retry behavior
-- Execution timeouts
-- Deferred job states
-- Maintenance windows
+The update execution layer must therefore be treated as privileged infrastructure.
 
-!!! danger
-
-    Never delete foreign APT or dpkg lock files.
-
-## 17.1 APT Administration
-
-The client performs package operations locally.
-
-Update package metadata:
-
-```bash
-sudo apt update
-```
-
-List available updates:
-
-```bash
-apt list --upgradable
-```
-
-Inspect a package:
-
-```bash
-apt-cache policy <PACKAGE_NAME>
-```
-
-Inspect installation state:
-
-```bash
-dpkg -l <PACKAGE_NAME>
-```
-
-The current update operation is designed for package updates rather than a complete distribution upgrade.
-
-If APT or dpkg is already broken, resolve the client-side package-manager problem first.
-
-## 17.2 Reboot Handling
-
-LUMS does not automatically reboot clients.
-
-Check whether a reboot is required:
-
-```bash
-test -f /var/run/reboot-required \
-    && echo "Reboot required" \
-    || echo "No reboot required"
-```
-
-A reboot remains an administrative decision.
+Testing should begin with simulation mode whenever possible.
 
 ---
 
-# 18. Database Administration
+# 34. Database Administration
 
-The database is:
+The application database is:
 
 ```text
 /var/lib/lums/lums.db
 ```
 
-It is stored in the Docker volume:
+inside the container.
+
+The directory is persistent through:
 
 ```text
 lums-data
 ```
 
-## 18.1 Check Database Integrity
+Docker volume.
+
+Check the volume:
 
 ```bash
-sudo docker exec \
-    lums \
-    python3 -c '
-import sqlite3
-
-db = sqlite3.connect("/var/lib/lums/lums.db")
-result = db.execute("PRAGMA integrity_check;").fetchone()[0]
-print(result)
-db.close()
-'
+sudo docker volume inspect lums-data
 ```
 
-Expected result:
+---
+
+# 35. Accessing the Database
+
+The database can be inspected from inside the running container.
+
+Example:
+
+```bash
+sudo docker exec -it lums \
+    sqlite3 /var/lib/lums/lums.db
+```
+
+Useful SQLite commands:
+
+```sql
+.tables
+.schema
+.quit
+```
+
+Always prefer application-level operations for normal administration.
+
+Direct database modifications should be reserved for controlled recovery or maintenance.
+
+---
+
+# 36. Database Integrity Check
+
+A basic SQLite integrity check:
+
+```bash
+sudo docker exec lums \
+    sqlite3 /var/lib/lums/lums.db \
+    'PRAGMA integrity_check;'
+```
+
+A healthy database should return:
 
 ```text
 ok
 ```
 
-!!! danger
-
-    Do not remove the Docker volume as a first troubleshooting action.
-
-## 18.2 Check the Database File
-
-```bash
-sudo docker exec \
-    lums \
-    ls -lh \
-    /var/lib/lums/lums.db
-```
-
 ---
 
-# 19. Database Backup and Restore
+# 37. Database Backup
 
-## 19.1 Create Backup Directory
+The database is persistent application state and must be backed up.
+
+Create a backup directory on the host:
 
 ```bash
-sudo install \
-    -d \
-    -m 700 \
-    /var/backups/lums
+sudo mkdir -p /var/backups/lums
 ```
 
-## 19.2 Create a SQLite-Aware Backup
+A safe online SQLite backup can be created through a temporary container.
 
-The following method uses SQLite's online backup mechanism from a temporary container.
+Example:
 
 ```bash
 sudo docker run --rm \
@@ -1043,199 +1152,146 @@ sudo docker run --rm \
     lums:latest \
     python3 -c '
 import sqlite3
-
 source = sqlite3.connect("/var/lib/lums/lums.db")
-target = sqlite3.connect("/backup/lums-$(date +%F-%H%M%S).db")
-
-with target:
-    source.backup(target)
-
+target = sqlite3.connect("/backup/lums-backup.db")
+source.backup(target)
 target.close()
 source.close()
-
-print("SQLite backup completed")
 '
 ```
 
-!!! warning
-
-    Shell command substitution does not occur inside the Python string. For a timestamped filename, define the filename in the shell before running the container.
-
-Recommended version:
+Verify:
 
 ```bash
-BACKUP_FILE="/var/backups/lums/lums-$(date +%F-%H%M%S).db"
+sudo ls -lh /var/backups/lums/
+```
+
+---
+
+# 38. Timestamped Database Backup
+
+For operational backups, use a timestamped filename:
+
+```bash
+BACKUP="/var/backups/lums/lums-$(date +%F-%H%M%S).db"
 
 sudo docker run --rm \
     -v lums-data:/var/lib/lums:ro \
     -v /var/backups/lums:/backup \
     lums:latest \
-    python3 -c '
+    python3 -c "
 import sqlite3
-
-source = sqlite3.connect("/var/lib/lums/lums.db")
-target = sqlite3.connect("/backup/backup.db")
-
-with target:
-    source.backup(target)
-
+source = sqlite3.connect('/var/lib/lums/lums.db')
+target = sqlite3.connect('/backup/$(basename "$BACKUP")')
+source.backup(target)
 target.close()
 source.close()
-
-print("SQLite backup completed")
-'
-
-sudo mv \
-    /var/backups/lums/backup.db \
-    "$BACKUP_FILE"
-
-sudo chmod 600 \
-    "$BACKUP_FILE"
+"
 ```
 
-## 19.3 Verify the Backup
+Verify the resulting file:
 
 ```bash
-sudo python3 -c '
-import sqlite3
-import sys
-
-path = sys.argv[1]
-db = sqlite3.connect(path)
-result = db.execute("PRAGMA integrity_check;").fetchone()[0]
-print(result)
-db.close()
-' "$BACKUP_FILE"
+sudo ls -lh "$BACKUP"
 ```
 
-Expected result:
+---
+
+# 39. Backup Verification
+
+A backup is only useful if it can be read.
+
+Test a backup:
+
+```bash
+sqlite3 /var/backups/lums/<BACKUP_FILE>.db \
+    'PRAGMA integrity_check;'
+```
+
+Expected:
 
 ```text
 ok
 ```
 
-## 19.4 Restore Principles
-
-Before restoring:
-
-1. Stop normal administrative changes.
-2. Create a backup of the current database.
-3. Verify the restore source.
-4. Stop the LUMS container.
-5. Restore the database.
-6. Check ownership and permissions.
-7. Start the container.
-8. Run `PRAGMA integrity_check`.
-9. Test administrator authentication.
-10. Test client authentication.
-11. Test reporting and update jobs.
-
-!!! danger
-
-    Never overwrite the only available database copy.
-
-A database restore should be tested in a controlled environment whenever possible.
+A backup that has never been tested should not be considered a verified recovery source.
 
 ---
 
-# 20. Git Administration
+# 40. Database Restore
 
-Repository:
+Before restoring a database:
+
+1. Stop LUMS.
+2. Preserve the existing database.
+3. Verify the backup.
+4. Restore the database.
+5. Start LUMS.
+6. Check logs.
+7. Check application functionality.
+
+Stop the container:
+
+```bash
+sudo docker stop lums
+```
+
+Create a safety copy of the current database before replacing it.
+
+Then restore the verified database into the persistent volume using a controlled maintenance procedure.
+
+Do not overwrite the database blindly.
+
+---
+
+# 41. Git Administration
+
+The Git repository is:
 
 ```text
 /opt/lums-public
 ```
 
-## 20.1 Check Status
+Check status:
 
 ```bash
 cd /opt/lums-public
-
-git status
+git status -sb
 ```
 
-## 20.2 Check Latest Commit
-
-```bash
-git log \
-    -1 \
-    --oneline \
-    --decorate
-```
-
-## 20.3 Check Remote
-
-```bash
-git remote -v
-```
-
-## 20.4 Fetch Changes
+Fetch:
 
 ```bash
 git fetch origin
 ```
 
-## 20.5 Update a Clean Working Tree
+Check recent commits:
 
 ```bash
-git pull \
-    --ff-only \
-    origin main
+git log --oneline --decorate -5
 ```
 
-## 20.6 Check Synchronization
+Check remote:
 
 ```bash
-git rev-list \
-    --left-right \
-    --count \
-    HEAD...origin/main
+git remote -v
 ```
-
-Expected after synchronization:
-
-```text
-0       0
-```
-
-Do not use `git reset --hard` without first reviewing local changes and confirming that no required work will be lost.
 
 ---
 
-# 21. Git Validation
+# 42. Git Identity
 
-Before deployment:
+The LUMS repository uses the project identity:
 
-```bash
-cd /opt/lums-public
+```text
+Name:
+NovaForgeCtrl
 
-git status
-
-git diff --check
+Email:
+232026481+NovaForgeCtrl@users.noreply.github.com
 ```
 
-## 21.1 Validate Python Syntax
-
-```bash
-python3 -m py_compile \
-    server/app.py \
-    server/init_db.py \
-    agent/agent.py \
-    agent/watcher.py
-```
-
-Do not deploy if validation fails.
-
-## 21.2 Git Identity
-
-The repository identity is:
-
-| Setting | Value |
-|---|---|
-| Name | `xxxxx` |
-| Email | `xxxxx` |
-
-Check the configured identity:
+Check:
 
 ```bash
 git config user.name
@@ -1244,69 +1300,70 @@ git config user.email
 
 ---
 
-# 22. Docker Deployment
+# 43. Git Deployment Workflow
 
-A deployment should follow this order:
+A normal source update should follow this order:
 
 ```text
-Review Git changes
-       |
-       v
-Validate source
-       |
-       v
-Create SQLite backup
-       |
-       v
+Git
+ |
+ v
+Fetch
+ |
+ v
+Review
+ |
+ v
+Pull / checkout
+ |
+ v
+Inspect changes
+ |
+ v
 Build Docker image
-       |
-       v
+ |
+ v
 Recreate container
-       |
-       v
-Test local application
-       |
-       v
-Test Nginx and HTTPS
-       |
-       v
-Validate browser interface
+ |
+ v
+Validate
 ```
 
-## 22.1 Build the Image
+Example:
 
 ```bash
 cd /opt/lums-public
 
-sudo docker build \
-    -t lums:latest \
-    .
+git fetch origin
+
+git status -sb
+
+git log --oneline --decorate -5
 ```
 
-## 22.2 Verify the Image
+Only after reviewing the changes:
 
 ```bash
-sudo docker image inspect \
-    lums:latest
+git pull --ff-only
 ```
 
-## 22.3 Recreate the Container
+Then:
 
-!!! warning
+```bash
+sudo docker build -t lums:latest .
+```
 
-    Confirm that the database backup exists and that the `lums-data` volume will be reused.
+---
+
+# 44. Docker Deployment
+
+After building a new image:
 
 ```bash
 sudo docker stop lums
 
 sudo docker rm lums
-```
 
-Do not remove the volume.
-
-Start the new container:
-
-```bash
 sudo docker run -d \
     --name lums \
     --restart unless-stopped \
@@ -1316,685 +1373,1104 @@ sudo docker run -d \
     lums:latest
 ```
 
-## 22.4 Verify the Container
+Check:
 
 ```bash
-sudo docker ps \
-    --filter "name=^/lums$"
+sudo docker ps
 ```
+
+Then:
 
 ```bash
-sudo docker logs \
-    --tail 100 \
-    lums
+sudo docker logs --tail 100 lums
 ```
-
-!!! note
-
-    `docker restart lums` restarts the existing container but does not load newly built image files. Source and frontend changes require an image rebuild and container recreation.
 
 ---
 
-# 23. Agent and Watcher Deployment
+# 45. Deployment Rule
 
-After changing the agent or watcher source files, install both files on the client.
+A deployment consists of separate layers:
 
-## 23.1 Install Agent
-
-```bash
-cd /opt/lums-public
-
-sudo install \
-    -o root \
-    -g root \
-    -m 0750 \
-    agent/agent.py \
-    /opt/lums-agent/agent.py
+```text
+SOURCE
+  |
+  v
+IMAGE
+  |
+  v
+CONTAINER
+  |
+  v
+PERSISTENT DATA
 ```
 
-## 23.2 Install Watcher
+These layers must not be confused.
 
-```bash
-sudo install \
-    -o root \
-    -g root \
-    -m 0750 \
-    agent/watcher.py \
-    /opt/lums-agent/watcher.py
+Changing source code:
+
+```text
+/opt/lums-public
 ```
 
-## 23.3 Validate the Installed Files
+does not automatically change the running container.
 
-```bash
-sudo python3 -m py_compile \
-    /opt/lums-agent/agent.py \
-    /opt/lums-agent/watcher.py
+Building an image:
+
+```text
+lums:latest
 ```
 
-## 23.4 Reload Systemd
+does not automatically recreate the container.
 
-Only required when unit files or service configuration changed:
+Recreating the container does not remove:
+
+```text
+lums-data
+```
+
+unless the volume is explicitly removed.
+
+---
+
+# 46. Agent and Watcher Deployment
+
+Agent and watcher updates are separate from the Docker application deployment.
+
+The relevant files are located under:
+
+```text
+/opt/lums-agent/
+```
+
+Systemd units manage execution.
+
+After changing agent code:
 
 ```bash
 sudo systemctl daemon-reload
 ```
 
-Trigger a reporting cycle:
+when unit files were changed.
+
+Then restart the relevant services:
 
 ```bash
-sudo systemctl start \
-    lums-agent.service
+sudo systemctl restart lums-agent
+sudo systemctl restart lums-execution-watcher
 ```
 
-Trigger a watcher cycle:
+Check:
 
 ```bash
-sudo systemctl start \
-    lums-execution-watcher.service
+sudo systemctl status lums-agent --no-pager
+sudo systemctl status lums-execution-watcher --no-pager
 ```
 
-Review the corresponding logs after execution.
+If timer definitions changed:
+
+```bash
+sudo systemctl daemon-reload
+```
+
+and verify:
+
+```bash
+systemctl list-timers --all | grep lums
+```
 
 ---
 
-# 24. Post-Deployment Validation
+# 47. Post-Deployment Validation
 
-## 24.1 Check Container State
+After a deployment, validate each layer separately.
 
-```bash
-sudo docker inspect \
-    --format '{{.State.Status}}' \
-    lums
-```
-
-## 24.2 Test Local Application
+## Layer 1 — Docker
 
 ```bash
-curl -I \
-    http://127.0.0.1:5050/
+sudo docker ps
 ```
 
-## 24.3 Test HTTPS
+Expected:
+
+```text
+lums
+```
+
+---
+
+## Layer 2 — Application logs
 
 ```bash
-curl -k -I \
-    https://<LUMS_SERVER_IP>/
+sudo docker logs --tail 100 lums
 ```
 
-## 24.4 Test API
+Look for startup errors.
+
+---
+
+## Layer 3 — Local application
 
 ```bash
-curl -k \
-    https://<LUMS_SERVER_IP>/api/health
+curl -I http://127.0.0.1:5050/
 ```
 
-## 24.5 Validate Nginx
+---
+
+## Layer 4 — Nginx
+
+```bash
+sudo nginx -t
+sudo systemctl status nginx --no-pager
+```
+
+---
+
+## Layer 5 — HTTPS
+
+```bash
+curl -kI https://<LUMS_HOST>/
+```
+
+---
+
+## Layer 6 — Agent
+
+```bash
+sudo systemctl status lums-agent --no-pager
+```
+
+---
+
+## Layer 7 — Watcher
+
+```bash
+sudo systemctl status lums-execution-watcher --no-pager
+```
+
+---
+
+## Layer 8 — Database
+
+```bash
+sudo docker exec lums \
+    sqlite3 /var/lib/lums/lums.db \
+    'PRAGMA integrity_check;'
+```
+
+Expected:
+
+```text
+ok
+```
+
+---
+
+# 48. Frontend Deployment Validation
+
+After frontend changes, verify that the new source is actually inside the running container.
+
+For example:
+
+```bash
+sudo docker exec lums \
+    sh -c 'grep -n "Enterprise Admin" /app/server/static/style.css'
+```
+
+Check theme JavaScript:
+
+```bash
+sudo docker exec lums \
+    sh -c 'grep -n "lums-theme" /app/server/static/theme.js'
+```
+
+Check network JavaScript:
+
+```bash
+sudo docker exec lums \
+    sh -c 'test -f /app/server/static/network.js && echo OK'
+```
+
+This helps distinguish:
+
+```text
+source problem
+```
+
+from:
+
+```text
+Docker deployment problem
+```
+
+---
+
+# 49. Browser Cache
+
+Frontend changes may not become visible immediately because the browser can cache:
+
+* CSS
+* JavaScript
+* HTML
+* localStorage theme selection
+
+If the application is running the expected image but the browser shows an old frontend:
+
+1. reload the page
+2. perform a hard refresh
+3. verify the selected theme
+4. inspect browser developer tools
+5. verify the running container files
+
+Do not rebuild the server repeatedly before verifying whether the browser is displaying cached frontend assets.
+
+---
+
+# 50. Theme Troubleshooting
+
+If the wrong theme is displayed, check:
+
+```text
+Browser localStorage
+        |
+        v
+lums-theme
+        |
+        v
+theme.js
+        |
+        v
+document.documentElement.dataset.theme
+        |
+        v
+style.css
+```
+
+The selected theme can be inspected from browser developer tools.
+
+The important HTML attribute is:
+
+```text
+data-theme
+```
+
+The CSS uses selectors such as:
+
+```css
+html[data-theme="geek"]
+```
+
+and:
+
+```css
+html[data-theme="admin"]
+```
+
+---
+
+# 51. Theme Isolation
+
+When modifying Enterprise Admin:
+
+```text
+html[data-theme="admin"]
+```
+
+should be the primary scope.
+
+When modifying Geek:
+
+```text
+html[data-theme="geek"]
+```
+
+should be the primary scope.
+
+When modifying Nerd:
+
+```text
+html[data-theme="nerd"]
+```
+
+should be the primary scope.
+
+Avoid global CSS changes unless the change is intentionally shared by every theme.
+
+The goal is:
+
+```text
+Theme A
+   |
+   +-- own visual rules
+
+Theme B
+   |
+   +-- own visual rules
+
+Theme C
+   |
+   +-- own visual rules
+```
+
+rather than allowing one theme to accidentally change another.
+
+---
+
+# 52. Troubleshooting Strategy
+
+When something fails, do not immediately reinstall LUMS.
+
+Use the following order:
+
+```text
+1. Browser
+2. Nginx
+3. Docker
+4. Flask application
+5. Database
+6. Agent
+7. Watcher
+8. Package manager
+```
+
+Identify the first layer where the expected behavior disappears.
+
+---
+
+# 53. Common Problem: LUMS Container Not Running
+
+Check:
+
+```bash
+sudo docker ps -a
+```
+
+Then:
+
+```bash
+sudo docker logs --tail 200 lums
+```
+
+Check the image:
+
+```bash
+sudo docker images lums
+```
+
+Check the volume:
+
+```bash
+sudo docker volume inspect lums-data
+```
+
+Do not delete the volume as a first troubleshooting step.
+
+---
+
+# 54. Common Problem: Browser Shows Old Frontend
+
+Check:
+
+```bash
+sudo docker ps
+```
+
+Then:
+
+```bash
+sudo docker inspect lums \
+    --format '{{.Image}}'
+```
+
+Compare with the current image:
+
+```bash
+sudo docker images lums
+```
+
+Verify the actual frontend files:
+
+```bash
+sudo docker exec lums \
+    sh -c 'grep -n "Enterprise Admin" /app/server/static/style.css'
+```
+
+If the container contains the expected source, perform a browser hard refresh before rebuilding again.
+
+---
+
+# 55. Common Problem: Agent Returns HTTP 401
+
+Check agent configuration:
+
+```bash
+sudo grep -E \
+    '^[[:space:]]*LUMS_(BASE|CA_FILE)=' \
+    /etc/default/lums-agent
+```
+
+Do not print the token.
+
+Check service logs:
+
+```bash
+sudo journalctl \
+    -u lums-agent \
+    --no-pager \
+    -n 100
+```
+
+Check server logs:
+
+```bash
+sudo docker logs --tail 200 lums
+```
+
+Verify:
+
+* client identity
+* token presence
+* token correctness
+* database token digest
+* configured server URL
+* TLS trust
+* API authorization logic
+
+The previous known authentication issue involved an incorrect token digest representation in the database.
+
+The current implementation uses SHA-256 hexadecimal token digests.
+
+---
+
+# 56. Common Problem: Agent Cannot Reach LUMS
+
+Check DNS or hostname resolution:
+
+```bash
+getent hosts <LUMS_HOST>
+```
+
+Test HTTPS:
+
+```bash
+curl -I https://<LUMS_HOST>/
+```
+
+If a private CA is used, verify the configured CA file:
+
+```bash
+sudo test -f /opt/lums-agent/lums-ca.crt \
+    && echo "CA file present"
+```
+
+Check the agent configuration without exposing secrets.
+
+---
+
+# 57. Common Problem: Jobs Are Not Executing
+
+Check:
+
+```bash
+sudo systemctl status lums-agent --no-pager
+```
+
+Then:
+
+```bash
+sudo systemctl status lums-agent.timer --no-pager
+```
+
+Check timer schedule:
+
+```bash
+systemctl list-timers --all | grep lums-agent
+```
+
+Check logs:
+
+```bash
+sudo journalctl -u lums-agent --no-pager -n 200
+```
+
+Then check:
+
+```bash
+sudo systemctl status lums-execution-watcher --no-pager
+```
+
+and:
+
+```bash
+sudo journalctl \
+    -u lums-execution-watcher \
+    --no-pager \
+    -n 200
+```
+
+Only after checking the agent and watcher should the package manager itself be investigated.
+
+---
+
+# 58. Common Problem: Jobs Have Unexpected State
+
+Inspect the job through the LUMS interface first.
+
+If database inspection is required:
+
+```bash
+sudo docker exec -it lums \
+    sqlite3 /var/lib/lums/lums.db
+```
+
+Use:
+
+```sql
+.tables
+.schema
+```
+
+before querying tables.
+
+Do not modify state until the cause has been identified.
+
+---
+
+# 59. Common Problem: Nginx Fails After a Change
+
+Run:
 
 ```bash
 sudo nginx -t
 ```
 
-## 24.6 Test Reporting Agent
+If the test fails, do not reload Nginx.
+
+Inspect the error message and correct the configuration.
+
+Then:
 
 ```bash
-sudo systemctl start \
-    lums-agent.service
+sudo nginx -t
 ```
 
-## 24.7 Test Watcher
+again.
+
+Only after success:
 
 ```bash
-sudo systemctl start \
-    lums-execution-watcher.service
-```
-
-## 24.8 Review Logs
-
-```bash
-sudo journalctl \
-    -u lums-agent.service \
-    -n 100 \
-    --no-pager
-```
-
-```bash
-sudo journalctl \
-    -u lums-execution-watcher.service \
-    -n 100 \
-    --no-pager
-```
-
-After frontend changes, refresh the browser using:
-
-```text
-Ctrl + F5
+sudo systemctl reload nginx
 ```
 
 ---
 
-# 25. Troubleshooting
+# 60. Common Problem: TLS Failure
 
-## 25.1 Troubleshooting Method
+Check certificate:
 
-> **Do not reinstall everything immediately. Find the layer where the problem occurs.**
+```bash
+sudo openssl x509 \
+    -in /etc/lums/tls/lums.crt \
+    -noout \
+    -subject \
+    -issuer \
+    -dates
+```
 
-Troubleshoot in this order:
+Check Nginx:
+
+```bash
+sudo nginx -t
+```
+
+Check Nginx errors:
+
+```bash
+sudo tail -n 100 /var/log/nginx/error.log
+```
+
+Check certificate trust on the client.
+
+Do not disable TLS verification as a permanent solution.
+
+---
+
+# 61. Security Administration
+
+LUMS should be treated as infrastructure software.
+
+Important security boundaries include:
 
 ```text
-Network
+Browser
    |
+   | HTTPS
    v
-Nginx / TLS
+Nginx
    |
+   | localhost
    v
-Docker / Flask
+Flask
    |
    v
 SQLite
+```
+
+and:
+
+```text
+LUMS
    |
+   | authenticated API
    v
 Agent
    |
    v
+Package Manager
+```
+
+The agent therefore represents a privileged execution component.
+
+---
+
+# 62. Secrets
+
+The following values must never be committed to Git:
+
+* client tokens
+* passwords
+* private TLS keys
+* production secrets
+* environment files containing credentials
+
+Documentation should use placeholders:
+
+```text
+<LUMS_HOST>
+<CLIENT_ID>
+<CLIENT_TOKEN>
+<JOB_ID>
+<PACKAGE>
+```
+
+Never document:
+
+```text
+real-token-value
+real-password
+real-private-key
+```
+
+---
+
+# 63. Logs and Sensitive Data
+
+Logs may contain operational information.
+
+Before publishing logs:
+
+```text
+remove tokens
+remove passwords
+remove private keys
+remove internal credentials
+remove unnecessary personal data
+```
+
+A useful troubleshooting report contains:
+
+* component
+* timestamp
+* error message
+* relevant configuration state
+* software version where relevant
+* command used
+
+without exposing secrets.
+
+---
+
+# 64. Database Security
+
+The SQLite database contains application state and potentially sensitive operational information.
+
+Access should therefore be restricted to the LUMS host administrators.
+
+Do not expose:
+
+```text
+/var/lib/lums
+```
+
+through Nginx.
+
+Do not publish the SQLite database as a downloadable web resource.
+
+Do not place the database in the Git repository.
+
+---
+
+# 65. Backup Strategy
+
+A practical LUMS backup strategy should cover:
+
+```text
+1. SQLite database
+2. TLS material
+3. Docker environment configuration
+4. Agent configuration
+5. Agent CA certificate
+6. Source repository
+```
+
+The source repository alone is not a complete backup.
+
+The persistent application state must also be protected.
+
+---
+
+# 66. Recovery Strategy
+
+A basic recovery sequence is:
+
+```text
+Restore host
+      |
+      v
+Restore LUMS configuration
+      |
+      v
+Restore TLS material
+      |
+      v
+Restore Docker image/source
+      |
+      v
+Restore lums-data
+      |
+      v
+Start container
+      |
+      v
+Validate database
+      |
+      v
+Validate Nginx
+      |
+      v
+Validate HTTPS
+      |
+      v
+Validate agent
+      |
+      v
+Validate watcher
+```
+
+Recovery should be performed layer by layer.
+
+---
+
+# 67. Full Application Reset
+
+A complete LUMS reset is different from a normal redeployment.
+
+Normal redeployment:
+
+```text
+replace container
+keep volume
+```
+
+Full reset:
+
+```text
+replace container
+remove persistent data
+initialize new database
+```
+
+The second operation is destructive.
+
+Before a full reset, create a database backup.
+
+A reset should therefore never be performed casually as a troubleshooting shortcut.
+
+---
+
+# 68. Controlled Cleanup
+
+Unused Docker objects can be inspected:
+
+```bash
+sudo docker system df
+```
+
+Do not blindly execute:
+
+```bash
+docker system prune -a
+```
+
+on a production-like lab system.
+
+Review what is no longer needed first.
+
+The same principle applies to Docker volumes.
+
+Persistent data must be treated separately from disposable containers and images.
+
+---
+
+# 69. Operational Principles
+
+The following principles should guide LUMS administration.
+
+### Principle 1 — Find the layer
+
+Do not reinstall everything because one component failed.
+
+---
+
+### Principle 2 — Preserve state
+
+The database is persistent application state.
+
+Protect it.
+
+---
+
+### Principle 3 — Separate source from runtime
+
+Git source, Docker image, container and database volume are different things.
+
+---
+
+### Principle 4 — Verify before changing
+
+Use:
+
+```bash
+docker ps
+docker logs
+systemctl status
+journalctl
+nginx -t
+sqlite integrity_check
+```
+
+before changing configuration.
+
+---
+
+### Principle 5 — Do not expose secrets
+
+Logs, screenshots, documentation and Git commits must not contain credentials.
+
+---
+
+### Principle 6 — Test deployment in layers
+
+```text
+Build
+    |
+    v
+Container
+    |
+    v
+Local HTTP
+    |
+    v
+Nginx
+    |
+    v
+HTTPS
+    |
+    v
+Frontend
+    |
+    v
+Agent
+    |
+    v
+Execution
+```
+
+---
+
+### Principle 7 — Simulation before execution
+
+When testing update workflows, simulation mode should be used whenever possible.
+
+---
+
+### Principle 8 — Do not confuse a working UI with a working backend
+
+The dashboard can render while another layer is broken.
+
+Always validate:
+
+```text
+Frontend
+Backend
+Database
+Agent
 Watcher
-   |
-   v
-APT / dpkg
 ```
 
-## 25.2 Basic Diagnostic Sequence
-
-```bash
-ping <LUMS_SERVER_IP>
-
-sudo ss -lntp
-
-sudo nginx -t
-
-sudo docker ps -a
-
-sudo docker logs \
-    --tail 100 \
-    lums
-
-curl -I \
-    http://127.0.0.1:5050/
-
-curl -k -I \
-    https://<LUMS_SERVER_IP>/
-
-curl -k \
-    https://<LUMS_SERVER_IP>/api/health
-
-sudo systemctl status \
-    lums-agent.timer \
-    --no-pager
-
-sudo systemctl status \
-    lums-execution-watcher.timer \
-    --no-pager
-```
-
-## 25.3 Container Is Not Running
-
-```bash
-sudo docker ps -a \
-    --filter "name=^/lums$"
-```
-
-```bash
-sudo docker logs \
-    --tail 200 \
-    lums
-```
-
-```bash
-sudo docker inspect \
-    lums
-```
-
-Check:
-
-- Container exit code.
-- Environment configuration.
-- Port conflicts.
-- Image availability.
-- Volume mounting.
-- Application startup errors.
-
-## 25.4 Port 5050 Is Unavailable
-
-```bash
-sudo ss -lntp \
-    | grep ':5050'
-```
-
-```bash
-sudo docker port \
-    lums
-```
-
-```bash
-curl -I \
-    http://127.0.0.1:5050/
-```
-
-Check whether another process is using port `5050`.
-
-## 25.5 Nginx Failure
-
-```bash
-sudo nginx -t
-```
-
-```bash
-sudo systemctl status \
-    nginx \
-    --no-pager
-```
-
-```bash
-sudo journalctl \
-    -u nginx \
-    -n 100 \
-    --no-pager
-```
-
-Check:
-
-- Configuration syntax.
-- Upstream address.
-- TLS certificate paths.
-- TLS private key permissions.
-- Docker availability.
-- Port `5050`.
-
-## 25.6 Agent Authentication Failure
-
-Display safe configuration values:
-
-```bash
-sudo awk -F= '
-/^LUMS_BASE=/ {
-    print $1 "=" $2
-}
-/^LUMS_CA_FILE=/ {
-    print $1 "=" $2
-}
-/^LUMS_TOKEN=/ {
-    print "LUMS_TOKEN=<redacted>"
-}
-' /etc/default/lums-agent
-```
-
-Inspect agent logs:
-
-```bash
-sudo journalctl \
-    -u lums-agent.service \
-    -n 100 \
-    --no-pager
-```
-
-Inspect server logs:
-
-```bash
-sudo docker logs \
-    --tail 200 \
-    lums
-```
-
-Possible causes:
-
-- Invalid token.
-- Incorrect server URL.
-- Missing CA certificate.
-- TLS SAN mismatch.
-- Client not registered.
-- Server unavailable.
-- Incorrect token hash.
-- Authentication or authorization failure.
-
-## 25.7 Client Appears Offline
-
-Run one reporting cycle:
-
-```bash
-sudo systemctl start \
-    lums-agent.service
-```
-
-Review logs:
-
-```bash
-sudo journalctl \
-    -u lums-agent.service \
-    -n 100 \
-    --no-pager
-```
-
-Possible causes:
-
-- Timer is inactive.
-- Network failure.
-- TLS failure.
-- Invalid token.
-- Server unavailable.
-- Agent exception.
-- Database issue.
-
-## 25.8 Update Job Is Not Executed
-
-Check:
-
-- Client is enabled.
-- Client token is valid.
-- Pending job exists.
-- Idle detection is supported.
-- Idle threshold is reached.
-- Watcher timer is active.
-- APT repositories work.
-- No conflicting package manager is running.
-
-Run a watcher cycle:
-
-```bash
-sudo systemctl start \
-    lums-execution-watcher.service
-```
-
-Inspect logs:
-
-```bash
-sudo journalctl \
-    -u lums-execution-watcher.service \
-    -n 100 \
-    --no-pager
-```
-
-## 25.9 Theme or Frontend Problem
-
-Check the browser theme:
-
-```javascript
-localStorage.getItem("lums-theme");
-```
-
-Check the applied theme:
-
-```javascript
-document.documentElement.dataset.theme;
-```
-
-Then verify:
-
-1. Git source files.
-2. Docker image build.
-3. Running container.
-4. Static assets.
-5. Nginx response.
-6. Browser cache.
-
-Refresh the browser:
-
-```text
-Ctrl + F5
-```
+independently.
 
 ---
 
-# 26. Security Administration
-
-## 26.1 Files That Must Not Be Committed
-
-Never commit:
-
-```text
-/etc/lums/docker/lums.env
-/etc/default/lums-agent
-TLS private keys
-Client tokens
-Production databases
-Database backups
-Private certificates
-```
-
-## 26.2 Recommended Permissions
-
-| Resource | Permission |
-|---|---|
-| Server environment | `0600` |
-| Agent configuration | `0600` |
-| TLS private key | `0600` |
-| Public certificate | `0644` |
-| Database backups | `0600` |
-
-## 26.3 Review Permissions
-
-```bash
-sudo ls -l \
-    /etc/lums/docker/lums.env
-```
-
-```bash
-sudo ls -l \
-    /etc/default/lums-agent
-```
-
-```bash
-sudo ls -l \
-    /etc/lums/tls/
-```
-
-## 26.4 Search Repository for Sensitive Files
-
-Run from the repository root:
-
-```bash
-cd /opt/lums-public
-
-find . -type f \
-    \( \
-        -name "*.env" \
-        -o -name "*.key" \
-        -o -name "*.pem" \
-        -o -name "*.db" \
-    \)
-```
-
-Review the results before committing.
-
-## 26.5 Security Principles
-
-- Keep Flask behind Nginx.
-- Bind the application to localhost.
-- Use HTTPS for client/server communication.
-- Keep TLS verification enabled.
-- Store client token hashes rather than plaintext tokens.
-- Keep secrets outside Git.
-- Do not expose sensitive logs.
-- Preserve authentication and authorization boundaries.
-- Test security-sensitive changes before deployment.
-
----
-
-# 27. Backup Strategy
-
-A recoverable installation requires more than Git.
-
-Back up the following components:
-
-- SQLite database.
-- Docker environment file.
-- Nginx configuration.
-- TLS certificate.
-- TLS private key.
-- Agent configuration.
-- CA certificate.
-- Git repository.
-- Deployment documentation.
-
-Git contains source code and documentation, but not runtime secrets or database state.
-
-## 27.1 Recommended Sequence
-
-```text
-Backup
-   |
-   v
-Change
-   |
-   v
-Validate
-   |
-   v
-Test
-   |
-   v
-Document
-```
-
-## 27.2 Backup Considerations
-
-Protect backups because they may contain:
-
-- Client information.
-- Inventory data.
-- Administrative data.
-- Configuration information.
-- Historical update information.
-
-Store backups outside the Git repository.
-
-Restrict permissions and test restoration periodically.
-
----
-
-# 28. Recovery Strategy
-
-A complete recovery process may include:
-
-1. Restore or reinstall the operating system.
-2. Install Docker and Nginx.
-3. Restore the Git repository.
-4. Restore the environment configuration.
-5. Restore TLS configuration.
-6. Restore the database or Docker volume.
-7. Build the Docker image.
-8. Start the LUMS container.
-9. Configure Nginx.
-10. Test HTTPS.
-11. Test administrator authentication.
-12. Test client authentication.
-13. Test reporting.
-14. Test the execution watcher.
-15. Test update-job handling.
-16. Review logs.
-17. Document the recovery.
-
-Recovery should be tested against a known backup.
-
-!!! warning
-
-    A backup that has never been restored should not be treated as fully verified.
-
----
-
-# 29. Operational Principles
-
-- Identify the failing layer before reinstalling.
-- Keep persistent data outside the Docker image.
-- Keep secrets outside Git.
-- Keep Flask behind Nginx.
-- Bind the application to localhost only.
-- Use HTTPS for client/server communication.
-- Keep TLS verification enabled.
-- Separate authentication and authorization.
-- Store client token hashes rather than plaintext tokens.
-- Keep update execution on the client.
-- Do not automatically reboot clients.
-- Back up before database changes.
-- Validate configuration before restarting services.
-- Use `git pull --ff-only` for routine synchronization.
-- Preserve `lums-data` during deployments.
-- Test security-sensitive changes.
-- Document configuration changes.
-- Do not expose secrets in logs or screenshots.
-- Keep simulation mode disabled outside testing.
-- Treat APT/dpkg coordination as an explicit operational concern.
-- Verify recovery procedures regularly.
-
----
-
-# 30. Final Checklist
-
-## Git and Source
-
-- [ ] Git working tree reviewed.
-- [ ] Repository synchronized.
-- [ ] `git diff --check` passes.
-- [ ] Python syntax checks pass.
-- [ ] No secrets are present in Git.
-- [ ] Documentation matches the current deployment.
+# 70. Final Administration Checklist
 
 ## Docker
 
-- [ ] Docker image builds successfully.
-- [ ] Container `lums` is running.
-- [ ] Volume `lums-data` exists.
-- [ ] Container restart policy is `unless-stopped`.
-- [ ] Port `5000` is not directly exposed.
-- [ ] Application is bound to `127.0.0.1:5050`.
-- [ ] Container logs contain no unresolved startup errors.
+```bash
+sudo docker ps
+sudo docker logs --tail 100 lums
+```
 
-## Nginx and TLS
+## Persistent storage
 
-- [ ] Nginx configuration passes.
-- [ ] HTTPS works.
-- [ ] TLS SAN is correct.
-- [ ] TLS private key permissions are restricted.
-- [ ] Certificate paths are correct.
-- [ ] TLS verification remains enabled.
+```bash
+sudo docker volume inspect lums-data
+```
 
-## Authentication and Security
+## Database
 
-- [ ] Environment file permissions are restricted.
-- [ ] Agent configuration permissions are restricted.
-- [ ] Administrator authentication works.
-- [ ] Client authentication works.
-- [ ] Client authorization works.
-- [ ] Agent CA certificate is available.
-- [ ] Client token configuration is valid.
-- [ ] No sensitive information is exposed in logs.
+```bash
+sudo docker exec lums \
+    sqlite3 /var/lib/lums/lums.db \
+    'PRAGMA integrity_check;'
+```
 
-## Agent and Watcher
+## Nginx
 
-- [ ] `lums-agent.timer` is active.
-- [ ] `lums-execution-watcher.timer` is active.
-- [ ] Agent reporting works.
-- [ ] Idle detection works.
-- [ ] Unsupported idle detection prevents execution.
-- [ ] Update jobs can be created.
-- [ ] Jobs are claimed atomically.
-- [ ] Running jobs can be recovered.
-- [ ] Results can be submitted.
-- [ ] Simulation mode is disabled outside testing.
+```bash
+sudo nginx -t
+sudo systemctl status nginx --no-pager
+```
 
-## Database and Recovery
+## HTTPS
 
-- [ ] Database integrity check returns `ok`.
-- [ ] Database backup exists.
-- [ ] Backup permissions are restricted.
-- [ ] Backup restoration procedure is documented.
-- [ ] Recovery has been tested or scheduled for testing.
-- [ ] The Docker volume is preserved during deployment.
+```bash
+curl -kI https://<LUMS_HOST>/
+```
+
+## Agent
+
+```bash
+sudo systemctl status lums-agent --no-pager
+```
+
+## Agent timer
+
+```bash
+systemctl list-timers --all | grep lums-agent
+```
+
+## Watcher
+
+```bash
+sudo systemctl status lums-execution-watcher --no-pager
+```
+
+## Watcher timer
+
+```bash
+systemctl list-timers --all | grep lums-execution
+```
+
+## Git
+
+```bash
+cd /opt/lums-public
+git status -sb
+```
+
+## Image
+
+```bash
+sudo docker images lums
+```
+
+## Frontend
+
+Verify:
+
+```text
+/app/server/static/style.css
+/app/server/static/theme.js
+/app/server/static/network.js
+/app/server/templates/index.html
+/app/server/templates/client.html
+```
 
 ---
 
-> **LUMS — Linux Update Management without the noise.**
+# 71. Final Principle
 
-> Centralize the management. Keep execution controlled.
+LUMS is intentionally built as a layered system.
 
-> Know what changed. Know where it happened.
+```text
+Source
+  |
+  v
+Docker Image
+  |
+  v
+Container
+  |
+  v
+Flask
+  |
+  +---- SQLite
+  |
+  +---- Frontend
+  |
+  v
+Nginx
+  |
+  v
+HTTPS
 
-> **One LUMS. Same Backend. Controlled Execution.**
+        +
+        
+Agent
+  |
+  v
+Watcher
+  |
+  v
+Package Manager
+```
+
+When something breaks, the goal is not to rebuild everything.
+
+The goal is to identify exactly where the chain breaks.
+
+That is the difference between:
+
+```text
+"I'll reinstall it."
+```
+
+and:
+
+```text
+"I know which layer failed."
+```
+
+---
+
+# LUMS
+
+**LUMS — Linux Update Management without the noise.**
+
+Centralize the management.
+Keep execution controlled.
+
+Know what changed.
+Know where it happened.
+
+**One LUMS. Same Backend. Controlled Execution.**
