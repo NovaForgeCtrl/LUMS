@@ -147,6 +147,14 @@
         );
 
         updateMatrixEffect(theme);
+
+        if (window.LumsNetwork) {
+            if (theme === "geek") {
+                window.LumsNetwork.start();
+            } else {
+                window.LumsNetwork.stop();
+            }
+        }
     }
 
     function loadTheme() {
