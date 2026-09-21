@@ -769,8 +769,8 @@ sudo openssl req \
   -keyout /etc/lums/tls/lums.key \
   -out /etc/lums/tls/lums.crt \
   -days 365 \
-  -subj "/C=DE/ST=NRW/L=Essen/O=NovaForgeCtrl/OU=LUMS/CN=192.168.2.138" \
-  -addext "subjectAltName=IP:192.168.2.138"
+  -subj "/C=DE/ST=xxxx/L=xxxxx/O=xxxxx/OU=LUMS/CN=IP" \
+  -addext "subjectAltName=IP:IP"
 ```
 
 Set permissions:
@@ -819,7 +819,7 @@ server {
     listen 80;
     listen [::]:80;
 
-    server_name 192.168.2.138;
+    server_name IP;
 
     return 301 https://$host$request_uri;
 }
@@ -828,7 +828,7 @@ server {
     listen 443 ssl;
     listen [::]:443 ssl;
 
-    server_name 192.168.2.138;
+    server_name IP;
 
     ssl_certificate     /etc/lums/tls/lums.crt;
     ssl_certificate_key /etc/lums/tls/lums.key;
@@ -880,7 +880,7 @@ sudo systemctl status nginx --no-pager
 Test HTTPS locally:
 
 ```bash
-curl -k -I https://192.168.2.138/
+curl -k -I https://IP/
 ```
 
 The `-k` option disables certificate verification and should only be used for controlled diagnostics.
