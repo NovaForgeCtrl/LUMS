@@ -1,12 +1,10 @@
-
 # LUMS Installation Guide
 
 ## Linux Update Management Server
 
-**Version:** 2.2  
+**Version:** 2.3  
 **Project:** LUMS  
-**Slogan:** Linux Update Management without the noise.  
-**Repository:** https://github.com/NovaForgeCtrl/LUMS
+**Slogan:** Linux Update Management without the noise.
 
 ---
 
@@ -30,13 +28,13 @@ LUMS currently includes:
 - Audit logging
 - Idle-aware update execution
 
-The project follows a security-oriented troubleshooting principle:
+The project follows this troubleshooting principle:
 
 > Do not reinstall everything immediately. Find the layer where the problem occurs.
 
 ### Current deployment status
 
-The following components have been tested in the current laboratory deployment:
+The following components have been tested in the laboratory deployment:
 
 - Docker image build
 - Persistent Docker database volume
@@ -48,8 +46,13 @@ The following components have been tested in the current laboratory deployment:
 - Nginx reverse proxy
 - HTTPS connectivity
 - Security response headers
+- Linux agent installation
+- Client token authentication
+- Client system reporting
+- Client database synchronization
+- systemd reporting timer
 
-The reporting agent, execution watcher, and complete update execution workflow require separate validation.
+The execution watcher and complete update execution workflow require separate validation.
 
 ---
 
@@ -65,7 +68,7 @@ The reporting agent, execution watcher, and complete update execution workflow r
                     | HTTPS Reverse Proxy  |
                     +----------+-----------+
                                |
-                               | HTTP :5050
+                               | HTTP localhost
                                |
                     +----------v-----------+
                     |      Docker Host     |
@@ -102,7 +105,7 @@ External HTTPS :443
 Nginx
         |
         v
-127.0.0.1:5050
+Localhost proxy port
         |
         v
 Docker container port 5000
@@ -110,13 +113,13 @@ Docker container port 5000
 
 The Flask application is not directly exposed to the network.
 
-The Docker host port is bound to localhost:
+The Docker host port should be bound to localhost:
 
 ```text
-127.0.0.1:5050:5000
+127.0.0.1:<HOST_PORT>:5000
 ```
 
-Ports `5000` and `5050` must not be exposed externally.
+Ports `5000` and the internal proxy port must not be exposed externally.
 
 ---
 
@@ -124,7 +127,7 @@ Ports `5000` and `5050` must not be exposed externally.
 
 ### 3.1 LUMS Server
 
-The LUMS server provides the following functionality:
+The LUMS server provides:
 
 - Web interface
 - Client registration
@@ -140,7 +143,9 @@ The LUMS server provides the following functionality:
 
 The Flask application runs inside a Docker container.
 
-The current container starts the Flask application through its built-in server. A production-grade WSGI server has not yet been integrated and validated.
+The current container starts Flask through its built-in development server.
+
+A production-grade WSGI server has not yet been integrated and validated.
 
 ---
 
@@ -154,7 +159,7 @@ Nginx provides:
 - Reverse proxying to Flask
 - External access through port 443
 
-The current laboratory configuration uses a self-signed TLS certificate.
+The laboratory configuration uses a self-signed TLS certificate.
 
 Self-signed certificates require explicit trust configuration on clients and browsers.
 
@@ -173,7 +178,7 @@ The LUMS agent is responsible for:
 
 The reporting agent and execution watcher are separate components.
 
-The agent must not be considered a complete validation of the update execution workflow.
+A successful report does not automatically validate update execution.
 
 ---
 
@@ -207,7 +212,7 @@ A job should only be executed when:
 4. The job can be claimed successfully.
 5. The package manager is not already being used by another process.
 
-The current idle threshold is:
+The default idle threshold is:
 
 ```text
 300 seconds
@@ -288,25 +293,30 @@ Recovery logic must prevent:
 - Permanent running jobs
 - Unclear audit records
 
-Only implemented and tested states should be presented as production-ready.
+Only implemented and tested states should be considered production-ready.
 
 ---
 
 ## 6. Repository Structure
 
-The current repository contains the following relevant structure:
+The repository contains the following relevant structure:
 
 ```text
 LUMS/
 ├── agent/
 │   ├── agent.py
-│   └── watcher.py
+│   ├── watcher.py
+│   ├── lums-agent.service
+│   ├── lums-agent.timer
+│   └── lums-agent.env.example
 ├── server/
 │   ├── app.py
 │   ├── init_db.py
 │   ├── security.py
 │   ├── security_migration.py
 │   ├── create_admin.py
+│   ├── static/
+│   ├── templates/
 │   └── requirements.txt
 ├── Dockerfile
 ├── README.md
@@ -327,14 +337,7 @@ The server dependencies are defined in:
 server/requirements.txt
 ```
 
-Current dependencies include:
-
-```text
-Flask==3.1.3
-argon2-cffi==25.1.0
-```
-
-A Docker Compose file is not currently required by the tested deployment procedure.
+A Docker Compose file is not required by the current tested deployment procedure.
 
 ---
 
@@ -351,7 +354,12 @@ Recommended requirements:
 - Backup storage
 - Python tooling inside the Docker image
 
-Docker Compose is optional for the current deployment procedure because the installation uses `docker build` and `docker run`.
+Docker Compose is optional because the current installation uses:
+
+```text
+docker build
+docker run
+```
 
 The server must have sufficient storage for:
 
@@ -391,15 +399,13 @@ Recommended directory layout:
 └── lums-ca.crt
 ```
 
-The exact deployment structure may differ depending on the environment.
-
-The current Docker deployment uses:
+The current Docker deployment uses the persistent volume:
 
 ```text
 lums-data
 ```
 
-as the persistent database volume.
+The volume contains the application database.
 
 ---
 
@@ -412,7 +418,7 @@ sudo mkdir -p /opt
 cd /opt
 
 sudo git clone \
-  https://github.com/NovaForgeCtrl/LUMS.git \
+  <REPOSITORY_URL> \
   lums-public
 ```
 
@@ -458,14 +464,6 @@ sudo chown root:root /etc/lums/docker/lums.env
 sudo chmod 600 /etc/lums/docker/lums.env
 ```
 
-The current configuration uses:
-
-```dotenv
-FLASK_ENV=production
-LUMS_SECRET_KEY=<GENERATED_SECRET>
-LUMS_DB_PATH=/var/lib/lums/lums.db
-```
-
 Generate a secret key:
 
 ```bash
@@ -490,19 +488,25 @@ sudo chown root:root /etc/lums/docker/lums.env
 sudo chmod 600 /etc/lums/docker/lums.env
 ```
 
+Remove the secret from the current shell:
+
+```bash
+unset SECRET_KEY
+```
+
 Never print or publish the secret key.
 
 ### Database configuration
 
-The current `app.py` implementation uses the fixed path:
+The database path used by the deployment is:
 
 ```text
 /var/lib/lums/lums.db
 ```
 
-The `LUMS_DB_PATH` environment variable is used by the database initialization and security migration scripts.
+The database initialization and security migration scripts use the configured database path.
 
-Future development should make database path handling consistent across all components.
+All application components should use a consistent database configuration.
 
 ---
 
@@ -527,16 +531,16 @@ The current Dockerfile:
 - Uses Python 3.13 Slim
 - Installs server requirements
 - Copies the server application
-- Exposes port 5000
-- Starts `python3 app.py`
+- Uses port 5000 inside the container
+- Starts the Flask application
 
 ### Current limitation
 
-The Docker build currently uses the legacy builder on some installations.
+Some Docker installations may display a legacy builder warning.
 
 A future improvement is to integrate and validate Docker BuildKit/buildx.
 
-This warning does not prevent the current image from being built.
+The warning does not necessarily prevent the image from being built.
 
 ---
 
@@ -582,9 +586,7 @@ unless:
 
 ## 13. Database Initialization
 
-The database is initialized inside the Docker volume.
-
-Run the initialization script:
+Initialize the database inside the Docker volume:
 
 ```bash
 sudo docker run --rm \
@@ -598,11 +600,11 @@ The initialization script creates the base database tables and applies its suppo
 
 ### Security migration
 
-The security migration creates:
+The security migration creates or updates:
 
-- `users`
-- `audit_log`
-- `schema_migrations`
+- User records
+- Audit logging
+- Schema migration tracking
 - Client token fields
 - Client enablement fields
 
@@ -623,14 +625,12 @@ Do not place the administrator password in the repository or environment file.
 
 ### Validation
 
-The migration should report:
+Verify that:
 
-```text
-[OK] Admin user 'admin' created
-[OK] Migration 001-security-foundation completed
-```
-
-The exact output may differ if the migration has already been applied.
+- The migration completes successfully.
+- The administrator account exists.
+- The database is stored in the persistent volume.
+- The migration is not repeatedly applied unnecessarily.
 
 ---
 
@@ -643,7 +643,7 @@ sudo docker run -d \
   --name lums \
   --restart unless-stopped \
   --env-file /etc/lums/docker/lums.env \
-  -p 127.0.0.1:5050:5000 \
+  -p 127.0.0.1:<HOST_PORT>:5000 \
   -v lums-data:/var/lib/lums \
   lums:latest
 ```
@@ -679,7 +679,7 @@ The application should:
 - Initialize the database
 - Start Flask
 - Listen on port 5000 inside the container
-- Be reachable through `127.0.0.1:5050` on the host
+- Be reachable through the localhost port on the host
 
 The current Flask development-server warning is expected.
 
@@ -692,7 +692,7 @@ A production WSGI server must be integrated and tested before production-oriente
 Test the local HTTP endpoint:
 
 ```bash
-curl -i http://127.0.0.1:5050/
+curl -i http://127.0.0.1:<HOST_PORT>/
 ```
 
 Expected behavior:
@@ -705,7 +705,7 @@ Location: /login
 Test the login page:
 
 ```bash
-curl -i http://127.0.0.1:5050/login
+curl -i http://127.0.0.1:<HOST_PORT>/login
 ```
 
 The response should contain:
@@ -716,9 +716,9 @@ The response should contain:
 - Security response headers
 - Session cookie
 
-The session cookie should use secure attributes when configured by the application.
+Test the login workflow through HTTPS.
 
-The login must be tested through HTTPS because the session cookie is configured with the `Secure` attribute.
+The session cookie should use appropriate security attributes when configured by the application.
 
 ---
 
@@ -751,15 +751,15 @@ sudo chmod 644 /etc/lums/tls/lums.crt
 sudo chmod 600 /etc/lums/tls/lums.key
 ```
 
-The private key must never be committed to GitHub.
+The private key must never be committed to Git.
 
 ---
 
 ## 17. Laboratory TLS Certificate
 
-The current laboratory deployment uses a self-signed certificate.
+The laboratory deployment uses a self-signed certificate.
 
-Example:
+Replace the placeholders with environment-specific values:
 
 ```bash
 sudo openssl req \
@@ -769,8 +769,8 @@ sudo openssl req \
   -keyout /etc/lums/tls/lums.key \
   -out /etc/lums/tls/lums.crt \
   -days 365 \
-  -subj "/C=DE/ST=xxxx/L=xxxxx/O=xxxxx/OU=LUMS/CN=IP" \
-  -addext "subjectAltName=IP:IP"
+  -subj "/C=<COUNTRY>/ST=<STATE>/L=<CITY>/O=<ORGANIZATION>/OU=<UNIT>/CN=<SERVER_NAME>" \
+  -addext "subjectAltName=IP:<SERVER_IP>"
 ```
 
 Set permissions:
@@ -797,9 +797,9 @@ Self-signed certificates are suitable for controlled laboratory environments.
 
 Clients must explicitly trust the correct certificate or certificate authority.
 
-For broader deployments, use a trusted internal certificate authority or another appropriate certificate management solution.
-
 The certificate must contain a valid Subject Alternative Name for the hostname or IP address used by the client.
+
+For broader deployments, use an appropriate internal or public certificate authority.
 
 ---
 
@@ -819,7 +819,7 @@ server {
     listen 80;
     listen [::]:80;
 
-    server_name IP;
+    server_name <SERVER_NAME_OR_IP>;
 
     return 301 https://$host$request_uri;
 }
@@ -828,7 +828,7 @@ server {
     listen 443 ssl;
     listen [::]:443 ssl;
 
-    server_name IP;
+    server_name <SERVER_NAME_OR_IP>;
 
     ssl_certificate     /etc/lums/tls/lums.crt;
     ssl_certificate_key /etc/lums/tls/lums.key;
@@ -836,7 +836,7 @@ server {
     ssl_protocols TLSv1.2 TLSv1.3;
 
     location / {
-        proxy_pass http://127.0.0.1:5050;
+        proxy_pass http://127.0.0.1:<HOST_PORT>;
 
         proxy_http_version 1.1;
 
@@ -877,10 +877,10 @@ sudo systemctl status nginx --no-pager
 
 ### Validation
 
-Test HTTPS locally:
+Test HTTPS:
 
 ```bash
-curl -k -I https://IP/
+curl -k -I https://<SERVER_NAME_OR_IP>/
 ```
 
 The `-k` option disables certificate verification and should only be used for controlled diagnostics.
@@ -903,7 +903,7 @@ sudo apt install -y ufw
 Allow SSH before enabling the firewall:
 
 ```bash
-sudo ufw allow 22/tcp
+sudo ufw allow <SSH_PORT>/tcp
 ```
 
 Allow HTTP and HTTPS:
@@ -919,7 +919,7 @@ Review the rules:
 sudo ufw status verbose
 ```
 
-Enable the firewall only after verifying that required access is permitted:
+Enable the firewall only after verifying required access:
 
 ```bash
 sudo ufw enable
@@ -929,12 +929,10 @@ Do not expose these ports externally:
 
 ```text
 5000
-5050
+<HOST_PORT>
 ```
 
 The Flask application should only be reachable through the Nginx reverse proxy.
-
-The exact firewall policy must be adapted to the local network and administrative access requirements.
 
 ---
 
@@ -994,7 +992,7 @@ Verify:
 sudo ls -l /opt/lums-agent
 ```
 
-The files must be reviewed and tested before they are used for update execution.
+The files must be reviewed and tested before update execution is enabled.
 
 ---
 
@@ -1022,13 +1020,13 @@ sudo openssl x509 \
   -dates
 ```
 
-The configured certificate path should be:
+The configured certificate path is:
 
 ```text
 /opt/lums-agent/lums-ca.crt
 ```
 
-The certificate must correspond to the trusted server certificate or certificate authority used by the client.
+The certificate must correspond to the trusted server certificate or certificate authority.
 
 ---
 
@@ -1046,7 +1044,7 @@ sudo chmod 600 /etc/default/lums-agent
 Example:
 
 ```dotenv
-LUMS_BASE="https://<LUMS_SERVER_IP>"
+LUMS_BASE="https://<LUMS_SERVER_NAME_OR_IP>"
 LUMS_TOKEN="<CLIENT_TOKEN>"
 LUMS_CA_FILE="/opt/lums-agent/lums-ca.crt"
 ```
@@ -1090,7 +1088,7 @@ Tokens must be:
 
 The server must validate authentication on every protected endpoint.
 
-Authorization must also verify that a client can only access its own data and jobs.
+Authorization must verify that a client can only access its own data and jobs.
 
 The following areas require consistent authentication and authorization:
 
@@ -1141,7 +1139,7 @@ sudo systemctl start lums-agent.service
 Check the result:
 
 ```bash
-sudo systemctl status lums-agent.service
+sudo systemctl status lums-agent.service --no-pager
 ```
 
 View logs:
@@ -1187,7 +1185,7 @@ sudo systemctl enable --now lums-agent.timer
 Check the timer:
 
 ```bash
-systemctl status lums-agent.timer
+systemctl status lums-agent.timer --no-pager
 ```
 
 List scheduled timers:
@@ -1272,7 +1270,7 @@ sudo systemctl enable --now lums-execution-watcher.timer
 Check the timer:
 
 ```bash
-systemctl status lums-execution-watcher.timer
+systemctl status lums-execution-watcher.timer --no-pager
 ```
 
 List timers:
@@ -1302,7 +1300,7 @@ sudo systemctl start lums-execution-watcher.service
 Check the status:
 
 ```bash
-sudo systemctl status lums-execution-watcher.service
+sudo systemctl status lums-execution-watcher.service --no-pager
 ```
 
 View logs:
@@ -1330,9 +1328,7 @@ Manual execution is useful for controlled testing and troubleshooting.
 
 Simulation mode is intended to test the execution workflow without changing installed packages.
 
-Simulation mode must be enabled temporarily.
-
-Create a runtime-only override:
+Enable it temporarily:
 
 ```bash
 sudo systemctl edit --runtime lums-execution-watcher.service
@@ -1388,7 +1384,7 @@ Simulation mode must not be left enabled unintentionally.
 
 ## 31. Update Job API
 
-The following routes are part of the intended update job workflow.
+The following routes are part of the intended update job workflow:
 
 ```text
 POST /api/clients/<client_id>/update-jobs
@@ -1436,7 +1432,7 @@ If another process claims the job first, the current watcher must not execute it
 
 This prevents duplicate execution when multiple workers or repeated timer runs are present.
 
-The atomic claim behavior must be verified through integration tests.
+Atomic claim behavior must be verified through integration tests.
 
 ---
 
@@ -1480,8 +1476,6 @@ User manually runs apt or dpkg
         =
 Potential package manager collision
 ```
-
-This remains an important reliability and security development topic.
 
 Possible future improvements include:
 
@@ -1566,7 +1560,7 @@ sudo ls -lh /var/backups/lums/lums.db.backup
 
 The backup process should be performed with awareness of concurrent database writes.
 
-For higher reliability, test the backup and restore procedure regularly.
+The backup and restore procedure should be tested regularly.
 
 ---
 
@@ -1640,10 +1634,10 @@ The restore process must be tested before it is considered operationally reliabl
 Check the LUMS services:
 
 ```bash
-systemctl status lums-agent.service
-systemctl status lums-agent.timer
-systemctl status lums-execution-watcher.service
-systemctl status lums-execution-watcher.timer
+systemctl status lums-agent.service --no-pager
+systemctl status lums-agent.timer --no-pager
+systemctl status lums-execution-watcher.service --no-pager
+systemctl status lums-execution-watcher.timer --no-pager
 ```
 
 List timers:
@@ -1681,15 +1675,15 @@ Test HTTPS connectivity:
 ```bash
 curl \
   --cacert /opt/lums-agent/lums-ca.crt \
-  https://<LUMS_SERVER_IP>/
+  https://<LUMS_SERVER_NAME_OR_IP>/
 ```
 
 Test certificate information:
 
 ```bash
 openssl s_client \
-  -connect <LUMS_SERVER_IP>:443 \
-  -servername lums \
+  -connect <LUMS_SERVER_NAME_OR_IP>:443 \
+  -servername <SERVER_NAME> \
   -CAfile /opt/lums-agent/lums-ca.crt
 ```
 
@@ -1870,13 +1864,14 @@ sudo docker logs --tail 100 lums
 Check the local proxy target:
 
 ```bash
-curl -I http://127.0.0.1:5050
+curl -I http://127.0.0.1:<HOST_PORT>
 ```
 
 Check Nginx:
 
 ```bash
 sudo nginx -t
+
 sudo journalctl \
   -u nginx \
   -n 100 \
@@ -1984,7 +1979,7 @@ sudo journalctl \
 ### Server
 
 - [ ] Docker container is not publicly exposed on port 5000
-- [ ] Host port 5050 is bound to localhost
+- [ ] Host proxy port is bound to localhost
 - [ ] Nginx provides HTTPS
 - [ ] TLS private key is protected
 - [ ] Firewall rules have been reviewed
@@ -2066,9 +2061,13 @@ Larger deployments may require a different database architecture depending on:
 
 ### 45.6 Deployment Configuration Consistency
 
-The database initialization scripts support `LUMS_DB_PATH`, while the current application uses a fixed database path.
+Database path handling must remain consistent across:
 
-This should be unified in a future development step.
+- Application code
+- Initialization scripts
+- Migration scripts
+- Backup procedures
+- Restore procedures
 
 ---
 
@@ -2116,11 +2115,11 @@ systemctl status nginx --no-pager
 ```
 
 ```bash
-curl -I http://127.0.0.1:5050
+curl -I http://127.0.0.1:<HOST_PORT>
 ```
 
 ```bash
-curl -k -I https://<LUMS_SERVER_IP>/
+curl -k -I https://<LUMS_SERVER_NAME_OR_IP>/
 ```
 
 ```bash
