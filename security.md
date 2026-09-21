@@ -1487,10 +1487,10 @@ The configured project identity is:
 
 ```text
 Name:
-    NovaForgeCtrl
+    xxxxx
 
 Email:
-    232026481+NovaForgeCtrl@users.noreply.github.com
+    xxxxx
 ```
 
 ---
