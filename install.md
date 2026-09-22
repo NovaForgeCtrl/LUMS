@@ -11,7 +11,8 @@
 
 ## 1. Overview
 
-LUMS is a centralized Linux update management platform designed for controlled update distribution, client reporting, job management, and auditable execution.
+LUMS is a centralized Linux update management platform designed for controlled update distribution,
+client reporting, job management, and auditable execution.
 
 The project is intended for:
 
