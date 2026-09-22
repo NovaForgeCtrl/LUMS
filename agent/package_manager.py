@@ -186,6 +186,51 @@ class AptPackageManager:
             package
         ]
 
+    def remove_package(self, package):
+        """
+        Build the APT command for removing a package.
+
+        This method does not execute the command.
+        Execution remains the responsibility of the agent/job layer.
+        """
+
+        return [
+            "apt-get",
+            "remove",
+            "-y",
+            package
+        ]
+
+    def update_package(self, package):
+        """
+        Build the APT command for updating an installed package.
+
+        This method does not execute the command.
+        Execution remains the responsibility of the agent/job layer.
+        """
+
+        return [
+            "apt-get",
+            "install",
+            "--only-upgrade",
+            "-y",
+            package
+        ]
+
+    def update_system(self):
+        """
+        Build the APT command for updating the complete system.
+
+        This method does not execute the command.
+        Execution remains the responsibility of the agent/job layer.
+        """
+
+        return [
+            "apt-get",
+            "upgrade",
+            "-y"
+        ]
+
     def get_candidate_version(self, package):
         """
         Return the currently available APT candidate version.
