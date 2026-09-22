@@ -171,6 +171,21 @@ class AptPackageManager:
             "raw": output
         }
 
+    def install_package(self, package):
+        """
+        Build the APT command for installing a package.
+
+        This method does not execute the command.
+        Execution remains the responsibility of the agent/job layer.
+        """
+
+        return [
+            "apt-get",
+            "install",
+            "-y",
+            package
+        ]
+
     def get_candidate_version(self, package):
         """
         Return the currently available APT candidate version.
