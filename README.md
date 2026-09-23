@@ -3510,3 +3510,5 @@ Always review the current source code and configuration examples before deployin
 > **Linux Update Management without the noise.**
 >
 > **One LUMS. Many clients. Same backend. Controlled execution.**
+> 
+> [💬 Guestbook](https://github.com/NovaForgeCtrl/whoami/issues/new?template=guestbook.md)
