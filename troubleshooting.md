@@ -10,6 +10,8 @@ The most important rule is:
 
 LUMS consists of several independent layers. A failure in one layer does not automatically mean that the complete installation is broken.
 
+The purpose of this guide is to identify the affected layer, verify the underlying assumption, make the smallest necessary change, and verify the result.
+
 ---
 
 # 1. Golden Rule
@@ -37,7 +39,7 @@ Authentication / Authorization
    ↓
 Agent
    ↓
-APT / dpkg
+Package Manager
    ↓
 Job execution
    ↓
@@ -55,20 +57,32 @@ CSS
    ↓
 theme.js
    ↓
-network.js
+network.js / client.js
    ↓
 Selected Theme
    ↓
-Browser Cache / localStorage
+localStorage
+   ↓
+Browser Cache
 ```
 
 Do not skip layers unless there is already clear evidence that the lower layers are working.
+
+Example:
+
+If:
+
+```bash
+curl -I http://127.0.0.1:5050/
+```
+
+already fails, debugging browser JavaScript is premature.
 
 ---
 
 # 2. Current Architecture
 
-Current LUMS deployment:
+The current LUMS deployment consists of:
 
 ```text
                          Browser
@@ -98,41 +112,184 @@ Current LUMS deployment:
                        lums-data
 ```
 
-The persistent database is stored in:
-
-```text
-lums-data
-```
-
 The application source repository is:
 
 ```text
 /opt/lums-public
 ```
 
-The running application is inside:
+The application source inside the image is:
 
 ```text
 /app
 ```
 
-The frontend files inside the container are located under:
+The server application is located under:
+
+```text
+/app/server/
+```
+
+Frontend assets are located under:
 
 ```text
 /app/server/static/
 ```
 
-The corresponding source files are located under:
+Persistent application data is stored in:
 
 ```text
-/opt/lums-public/server/static/
+/var/lib/lums/
+```
+
+The database is:
+
+```text
+/var/lib/lums/lums.db
+```
+
+The persistent Docker volume is:
+
+```text
+lums-data
 ```
 
 ---
 
-# 3. Current Container Security State
+# 3. Client Architecture
 
-The production LUMS container currently runs with:
+A LUMS client consists of:
+
+```text
+systemd
+   │
+   ├── lums-agent.service
+   │
+   ├── lums-agent.timer
+   │
+   └── execution watcher
+          │
+          ▼
+       agent.py
+          │
+          ▼
+   HTTPS / TLS
+          │
+          ▼
+       LUMS API
+```
+
+The agent detects the available package manager.
+
+Currently supported package managers are:
+
+```text
+APT / dpkg
+pacman
+```
+
+The abstraction is implemented through:
+
+```text
+agent/package_manager.py
+```
+
+The agent therefore does not assume that every Linux client is Debian-based.
+
+---
+
+# 4. Current Agent Version
+
+The current tested agent version is:
+
+```text
+1.6.0
+```
+
+Verify:
+
+```bash
+grep -n \
+    'AGENT_VERSION' \
+    /opt/lums-agent/agent.py
+```
+
+Expected:
+
+```text
+AGENT_VERSION = "1.6.0"
+```
+
+The installed client should use the same agent implementation as the repository version intended for deployment.
+
+---
+
+# 5. Current Tested Distributions
+
+LUMS has been tested end-to-end with:
+
+```text
+Debian 13
+Arch Linux
+```
+
+The Debian client uses:
+
+```text
+APT / dpkg
+```
+
+The Arch client uses:
+
+```text
+pacman
+```
+
+A successful test includes more than package detection.
+
+The complete chain is:
+
+```text
+Client
+   ↓
+Agent
+   ↓
+TLS
+   ↓
+Authentication
+   ↓
+Report
+   ↓
+Database
+   ↓
+Frontend
+```
+
+For update jobs:
+
+```text
+LUMS
+   ↓
+Job
+   ↓
+Agent
+   ↓
+Package Manager
+   ↓
+Execution
+   ↓
+Result
+   ↓
+LUMS
+```
+
+---
+
+# 6. Current Container Security State
+
+The production LUMS container is hardened.
+
+Expected configuration:
 
 ```text
 User:
@@ -156,7 +313,7 @@ Temporary filesystem:
 Persistent data:
     lums-data
 
-Flask secret:
+Secret:
     read-only secret file
 ```
 
@@ -176,11 +333,11 @@ sudo docker run -d \
     lums:latest
 ```
 
-Do not use an older insecure recreation command from previous documentation.
+Do not use older insecure container commands from previous documentation.
 
 ---
 
-# 4. Troubleshooting Order
+# 7. Troubleshooting Order
 
 Use this order whenever possible:
 
@@ -195,33 +352,25 @@ Use this order whenever possible:
 8. Authentication
 9. Authorization
 10. Agent connectivity
-11. Agent authentication
-12. Agent reporting
-13. Job creation
-14. Job recovery
-15. Job execution
-16. APT / dpkg
-17. Job result
-18. Frontend
-19. Theme system
-20. Browser cache
+11. Agent TLS
+12. Agent authentication
+13. Agent reporting
+14. Job creation
+15. Job claiming
+16. Job recovery
+17. Package manager
+18. Job execution
+19. Job result
+20. Frontend
+21. Theme system
+22. Browser cache
 ```
 
 If a lower layer is broken, do not spend time debugging a higher layer yet.
 
-Example:
-
-If:
-
-```bash
-curl -I http://127.0.0.1:5050
-```
-
-already fails, debugging browser JavaScript is premature.
-
 ---
 
-# 5. Important Paths
+# 8. Important Paths
 
 ## Source Repository
 
@@ -256,17 +405,21 @@ Important frontend files:
 /opt/lums-public/server/static/client.js
 ```
 
-## Runtime Frontend Files
+## Runtime Application
 
 Inside the container:
+
+```text
+/app
+```
+
+## Runtime Frontend
 
 ```text
 /app/server/static/
 ```
 
 ## Persistent Database
-
-Inside the container:
 
 ```text
 /var/lib/lums/lums.db
@@ -284,15 +437,15 @@ lums-data
 /etc/lums/docker/lums.env
 ```
 
-The Flask secret is no longer stored as a normal environment variable.
-
 ## Flask Secret
+
+Host:
 
 ```text
 /etc/lums/secrets/lums_secret
 ```
 
-Inside the container:
+Container:
 
 ```text
 /run/secrets/lums_secret
@@ -316,27 +469,23 @@ Inside the container:
 
 ---
 
-# 6. Docker Diagnostics
+# 9. Docker Diagnostics
 
 Check whether the container exists:
 
 ```bash
-sudo docker ps -a --filter name=lums
+sudo docker ps -a \
+    --filter name=lums
 ```
 
-Expected:
-
-```text
-lums
-```
-
-Check the running container:
+Check whether it is running:
 
 ```bash
-sudo docker ps --filter name=lums
+sudo docker ps \
+    --filter name=lums
 ```
 
-Check the container status:
+Check the state:
 
 ```bash
 sudo docker inspect \
@@ -358,13 +507,13 @@ sudo docker logs \
     lums
 ```
 
-Follow live logs:
+Follow logs:
 
 ```bash
 sudo docker logs -f lums
 ```
 
-Stop following logs with:
+Stop following:
 
 ```text
 Ctrl+C
@@ -372,9 +521,9 @@ Ctrl+C
 
 ---
 
-# 7. Docker Image
+# 10. Docker Image Diagnostics
 
-Check available LUMS images:
+List LUMS images:
 
 ```bash
 sudo docker images lums
@@ -402,7 +551,7 @@ sudo docker inspect \
     lums
 ```
 
-After source changes, rebuild the image:
+After source changes:
 
 ```bash
 cd /opt/lums-public
@@ -419,31 +568,21 @@ sudo docker image inspect \
     lums:latest
 ```
 
-A successful build does not automatically mean that the running container uses the new image.
+Important:
 
-The container must be recreated if application files changed.
+> Building a new image does not automatically update an existing container.
+
+The container must be recreated when application files inside the image have changed.
 
 ---
 
-# 8. Gunicorn Diagnostics
+# 11. Gunicorn Diagnostics
 
-The production application server is:
+The production application server is Gunicorn.
 
-```text
-Gunicorn 23.0.0
-```
+The Flask development server is not used for production operation.
 
-The current configuration uses:
-
-```text
-2 workers
-2 threads
-120 second timeout
-```
-
-The Flask development server is not used in production.
-
-Check the container logs:
+Check:
 
 ```bash
 sudo docker logs \
@@ -451,23 +590,33 @@ sudo docker logs \
     lums
 ```
 
-Expected startup pattern:
+Look for:
 
 ```text
-=== LUMS database initialization ===
-=== Starting Gunicorn ===
-Starting gunicorn 23.0.0
+Starting Gunicorn
 Listening at: http://0.0.0.0:5000
-Using worker: gthread
-Booting worker
 Booting worker
 ```
 
 If Gunicorn does not start, investigate the container logs before changing Nginx.
 
+Typical failure chain:
+
+```text
+Docker
+   ↓
+Gunicorn
+   ↓
+Flask import
+   ↓
+Application initialization
+```
+
+A Python import error can therefore appear as an apparently broken web server.
+
 ---
 
-# 9. Docker Port Diagnostics
+# 12. Docker Port Diagnostics
 
 Current architecture:
 
@@ -479,10 +628,11 @@ Container:
 5000
 ```
 
-Check the port:
+Check:
 
 ```bash
-sudo ss -lntp | grep ':5050'
+sudo ss -lntp | \
+    grep ':5050'
 ```
 
 Expected pattern:
@@ -491,7 +641,7 @@ Expected pattern:
 127.0.0.1:5050
 ```
 
-Test the application directly:
+Test directly:
 
 ```bash
 curl -I \
@@ -505,22 +655,38 @@ HTTP/1.1 302 FOUND
 Location: /login
 ```
 
-If this works but HTTPS does not, investigate Nginx/TLS.
+If this works but HTTPS does not:
 
-If this fails, investigate Docker/Gunicorn/Flask before Nginx.
+```text
+Docker
+   ↓
+working
+
+Nginx / TLS
+   ↓
+investigate
+```
+
+If this fails:
+
+```text
+Docker / Gunicorn / Flask
+   ↓
+investigate first
+```
 
 ---
 
-# 10. Docker Volume Diagnostics
+# 13. Docker Volume Diagnostics
 
-Check the persistent volume:
+Inspect the volume:
 
 ```bash
 sudo docker volume inspect \
     lums-data
 ```
 
-Check that the volume is attached:
+Check container mounts:
 
 ```bash
 sudo docker inspect lums \
@@ -540,9 +706,9 @@ Do not delete the volume during normal container recreation.
 
 ---
 
-# 11. Container Hardening Diagnostics
+# 14. Container Hardening Diagnostics
 
-Verify the current security state:
+Verify:
 
 ```bash
 sudo docker inspect lums \
@@ -559,11 +725,11 @@ CapDrop=["ALL"]
 Privileged=false
 ```
 
-If any of these values unexpectedly differ after a deployment, stop and investigate before treating the deployment as complete.
+If these values unexpectedly differ after deployment, investigate before considering the deployment complete.
 
 ---
 
-# 12. Secret Diagnostics
+# 15. Secret Diagnostics
 
 The production Flask secret is loaded from:
 
@@ -577,7 +743,7 @@ The host source is:
 /etc/lums/secrets/lums_secret
 ```
 
-Verify configuration without displaying the secret:
+Verify without displaying the secret:
 
 ```bash
 sudo docker exec lums sh -c '
@@ -605,17 +771,28 @@ LUMS_SECRET_KEY_FILE=/run/secrets/lums_secret
 SECRET_FILE=READABLE
 ```
 
-Never print:
+Never run:
 
 ```bash
 cat /etc/lums/secrets/lums_secret
 ```
 
-and never include the secret in diagnostic output.
+during normal diagnostics.
+
+Never put the secret into:
+
+```text
+logs
+screenshots
+documentation
+Git
+bug reports
+chat messages
+```
 
 ---
 
-# 13. Secret File Permissions
+# 16. Secret File Permissions
 
 Check:
 
@@ -625,43 +802,37 @@ sudo stat \
     /etc/lums/secrets/lums_secret
 ```
 
-The expected file ownership is:
+Expected:
 
 ```text
 root:10001
 ```
 
-with mode:
+with:
 
 ```text
 640
 ```
 
-The containing directory should be restricted to root:
+The containing directory should be restricted:
 
 ```text
 /etc/lums/secrets
 ```
 
-with mode:
+Expected directory mode:
 
 ```text
 700
 ```
 
-If the secret file cannot be read by the container, verify permissions before changing application code.
+If the secret cannot be read by the container, verify permissions before changing application code.
 
 ---
 
-# 14. Environment Diagnostics
+# 17. Environment Diagnostics
 
-The environment file is:
-
-```text
-/etc/lums/docker/lums.env
-```
-
-Do not print the complete file.
+Do not print the complete environment file.
 
 Use:
 
@@ -676,18 +847,19 @@ Inside the container:
 
 ```bash
 sudo docker exec lums sh -c '
-env | grep -E "^(LUMS_|FLASK_|PYTHON)" |
+env |
+grep -E "^(LUMS_|FLASK_|PYTHON)" |
 sed "s/=.*$/=<set>/"
 '
 ```
 
-The production Flask secret should not appear as:
+The production Flask secret should not be present as:
 
 ```text
 LUMS_SECRET_KEY=<value>
 ```
 
-The expected configuration is:
+The expected secret configuration is:
 
 ```text
 LUMS_SECRET_KEY_FILE=/run/secrets/lums_secret
@@ -695,9 +867,9 @@ LUMS_SECRET_KEY_FILE=/run/secrets/lums_secret
 
 ---
 
-# 15. Flask Diagnostics
+# 18. Flask Diagnostics
 
-Check container logs:
+Check:
 
 ```bash
 sudo docker logs \
@@ -705,7 +877,7 @@ sudo docker logs \
     lums
 ```
 
-Look for:
+Search for:
 
 ```text
 Traceback
@@ -718,14 +890,14 @@ Gunicorn
 worker
 ```
 
-Check the application directory:
+Check application files:
 
 ```bash
 sudo docker exec lums \
     ls -la /app
 ```
 
-Check the server directory:
+Check server:
 
 ```bash
 sudo docker exec lums \
@@ -734,9 +906,9 @@ sudo docker exec lums \
 
 ---
 
-# 16. Nginx Diagnostics
+# 19. Nginx Diagnostics
 
-Check Nginx configuration:
+Check configuration:
 
 ```bash
 sudo nginx -t
@@ -749,7 +921,7 @@ syntax is ok
 test is successful
 ```
 
-Check Nginx status:
+Check service:
 
 ```bash
 sudo systemctl status \
@@ -757,7 +929,7 @@ sudo systemctl status \
     --no-pager
 ```
 
-Check recent logs:
+Check logs:
 
 ```bash
 sudo journalctl \
@@ -766,7 +938,7 @@ sudo journalctl \
     --no-pager
 ```
 
-Check access log:
+Access log:
 
 ```bash
 sudo tail \
@@ -774,7 +946,7 @@ sudo tail \
     /var/log/nginx/access.log
 ```
 
-Check error log:
+Error log:
 
 ```bash
 sudo tail \
@@ -784,29 +956,24 @@ sudo tail \
 
 ---
 
-# 17. Nginx 502 Bad Gateway
+# 20. Nginx 502 Bad Gateway
 
-A `502 Bad Gateway` normally means Nginx cannot successfully reach the upstream application.
+A `502 Bad Gateway` normally means that Nginx cannot successfully reach the upstream application.
 
-Check the application directly:
+First test:
 
 ```bash
 curl -I \
     http://127.0.0.1:5050/
 ```
 
-If this fails:
+If this fails, investigate:
 
 ```text
-Browser
-  ↓
-Nginx
-  ↓
-X
-Docker / Gunicorn / Flask
+Docker
+Gunicorn
+Flask
 ```
-
-the problem is below Nginx.
 
 Check:
 
@@ -826,21 +993,24 @@ sudo docker logs \
 And:
 
 ```bash
-sudo ss -lntp | grep ':5050'
+sudo ss -lntp | \
+    grep ':5050'
 ```
+
+Only if these work should the investigation move to Nginx.
 
 ---
 
-# 18. HTTPS / TLS
+# 21. HTTPS / TLS
 
-Check configured certificate files:
+Check certificates:
 
 ```bash
 sudo ls -l \
     /etc/lums/tls/
 ```
 
-Check the certificate:
+Inspect the certificate:
 
 ```bash
 sudo openssl x509 \
@@ -851,29 +1021,26 @@ sudo openssl x509 \
     -dates
 ```
 
-Do not publish private key contents.
+Never publish:
 
-Never use:
-
-```bash
-sudo cat \
-    /etc/lums/tls/lums.key
+```text
+/etc/lums/tls/lums.key
 ```
 
-for public diagnostics.
+Do not display the private key during normal troubleshooting.
 
 ---
 
-# 19. TLS Certificate Diagnostics
+# 22. TLS Connection Diagnostics
 
-Test the HTTPS endpoint:
+Test HTTPS:
 
 ```bash
 curl -kI \
     https://<LUMS_SERVER_IP>/
 ```
 
-For certificate inspection:
+Inspect the TLS handshake:
 
 ```bash
 openssl s_client \
@@ -882,31 +1049,25 @@ openssl s_client \
     </dev/null
 ```
 
-The current production configuration supports:
-
-```text
-TLS 1.2
-TLS 1.3
-```
-
-Older TLS versions must remain disabled.
-
-Check:
+Check configured protocols:
 
 ```bash
 sudo nginx -T | \
     grep -n 'ssl_protocols'
 ```
 
-Expected:
+The expected configuration is:
 
 ```text
-ssl_protocols TLSv1.2 TLSv1.3;
+TLSv1.2
+TLSv1.3
 ```
+
+Older TLS versions should not be enabled.
 
 ---
 
-# 20. HTTP Redirect
+# 23. HTTP Redirect
 
 HTTP should redirect to HTTPS.
 
@@ -924,13 +1085,13 @@ HTTP/1.1 301 Moved Permanently
 Location: https://...
 ```
 
-If HTTP serves the application directly instead of redirecting, investigate the Nginx configuration.
+If HTTP serves the application directly, investigate Nginx configuration.
 
 ---
 
-# 21. Security Headers
+# 24. Security Headers
 
-Test:
+Check:
 
 ```bash
 curl -kI \
@@ -945,38 +1106,25 @@ X-Frame-Options: DENY
 Referrer-Policy: no-referrer
 ```
 
-and:
+The current application also uses a restrictive permissions policy and Content Security Policy.
+
+If security headers unexpectedly disappear after deployment:
 
 ```text
-Permissions-Policy:
-camera=(),
-microphone=(),
-geolocation=(),
-payment=()
+Check Nginx
+   ↓
+Check response handling
+   ↓
+Check Flask security-header middleware
 ```
 
-The Content Security Policy should include:
-
-```text
-default-src 'self';
-script-src 'self';
-style-src 'self';
-img-src 'self' data:;
-font-src 'self';
-connect-src 'self';
-object-src 'none';
-base-uri 'self';
-frame-ancestors 'none';
-form-action 'self'
-```
-
-If security headers disappear after a deployment, investigate Nginx and response handling before modifying application authentication.
+Do not immediately modify authentication code.
 
 ---
 
-# 22. Agent TLS Problems
+# 25. Agent TLS Problems
 
-The agent uses:
+The agent trusts:
 
 ```text
 /opt/lums-agent/lums-ca.crt
@@ -991,7 +1139,7 @@ sudo test -f \
     || echo "CA file missing"
 ```
 
-Check certificate metadata:
+Inspect:
 
 ```bash
 sudo openssl x509 \
@@ -1002,13 +1150,13 @@ sudo openssl x509 \
     -dates
 ```
 
-Never publish private client credentials.
+If the CA file is missing or invalid, the agent may fail before authentication is even attempted.
 
 ---
 
-# 23. Agent Connectivity
+# 26. Agent Connectivity
 
-Check the agent service:
+Check service:
 
 ```bash
 sudo systemctl status \
@@ -1016,7 +1164,7 @@ sudo systemctl status \
     --no-pager
 ```
 
-Check recent logs:
+Check logs:
 
 ```bash
 sudo journalctl \
@@ -1025,46 +1173,42 @@ sudo journalctl \
     --no-pager
 ```
 
-Check connectivity:
+Test HTTPS:
 
 ```bash
 curl -kI \
     https://<LUMS_SERVER_IP>/
 ```
 
-If the agent cannot connect:
+Break connectivity problems into:
 
 ```text
 Agent
-  ↓
-Network / DNS
-  ↓
+   ↓
+Network
+   ↓
 TLS
-  ↓
+   ↓
 Nginx
-  ↓
+   ↓
 LUMS
 ```
 
-Check each layer separately.
-
 ---
 
-# 24. Agent Authentication
+# 27. Agent Authentication
 
-LUMS currently stores the client token as a SHA-256 hexadecimal digest.
+LUMS stores client authentication tokens as SHA-256 hexadecimal digests.
 
-This is an authentication-token representation.
+This must not be confused with the password hashing mechanism.
 
-It must not be confused with the password hashing mechanism used for administrative passwords.
-
-The agent sends:
+Client authentication uses:
 
 ```text
 Authorization: Bearer <CLIENT_TOKEN>
 ```
 
-If authentication fails with:
+If the server returns:
 
 ```text
 401 Unauthorized
@@ -1075,95 +1219,62 @@ check:
 ```text
 1. Client exists
 2. Client is enabled
-3. Token is present in the agent configuration
+3. Token is configured
 4. Token corresponds to the registered client
 5. Token has not been revoked
-6. Server receives the Authorization header
-7. Client authentication succeeds
+6. Authorization header reaches the server
+7. Token authentication succeeds
 ```
 
-Do not display the token or stored token digest.
+Never display the token.
 
 ---
 
-# 25. Client Token Rotation
+# 28. Client Token Rotation
 
 LUMS supports authenticated client-token rotation.
-
-The frontend provides:
-
-```text
-🔐 Token rotieren
-```
-
-The endpoint is:
-
-```text
-POST /api/clients/<client_id>/token/rotate
-```
 
 The operation requires:
 
 ```text
-Authenticated administrator session
+Administrator authentication
 +
 CSRF validation
 ```
 
-After successful rotation:
+After rotation:
 
 ```text
 Old token
     ↓
-401 Unauthorized
+Invalid
 
 New token
     ↓
-Authenticated
+Valid
 ```
 
-The new token is shown only once by the frontend.
+The new token is displayed only as part of the controlled rotation workflow.
 
-It must then be securely transferred to the affected agent.
+The plaintext token must not be stored in the audit log.
 
 ---
 
-# 26. Token Rotation Troubleshooting
+# 29. Token Rotation Troubleshooting
 
-If a client stops authenticating immediately after token rotation:
+If a client stops authenticating immediately after rotation:
 
 ```text
 1. Verify the correct client was rotated.
 2. Obtain the newly generated token.
-3. Update /etc/default/lums-agent.
+3. Update the agent configuration.
 4. Restart the agent.
-5. Check agent logs.
-6. Check LUMS container logs.
-7. Verify the client reports again.
+5. Inspect agent logs.
+6. Inspect LUMS logs.
+7. Verify a new report.
 ```
 
-Do not rotate the token repeatedly while troubleshooting.
-
-Repeated rotations make it harder to determine which token is currently valid.
-
-The rotation event is recorded in the audit log.
-
-The plaintext token must never appear in the audit log.
-
----
-
-# 27. Agent Environment
-
-Check that the configuration exists:
-
-```bash
-sudo test -f \
-    /etc/default/lums-agent \
-    && echo "Agent configuration present" \
-    || echo "Agent configuration missing"
-```
-
-Check variable names without values:
+Check configuration without displaying the token:
 
 ```bash
 sudo awk -F= '
@@ -1172,7 +1283,33 @@ sudo awk -F= '
 }' /etc/default/lums-agent
 ```
 
-Expected variable names:
+Do not repeatedly rotate the same token during troubleshooting.
+
+The rotation event is audited.
+
+---
+
+# 30. Agent Environment
+
+Verify the file:
+
+```bash
+sudo test -f \
+    /etc/default/lums-agent \
+    && echo "Agent configuration present" \
+    || echo "Agent configuration missing"
+```
+
+Verify variable names:
+
+```bash
+sudo awk -F= '
+/^(LUMS_BASE|LUMS_TOKEN|LUMS_CA_FILE)=/ {
+    print $1 "=<set>"
+}' /etc/default/lums-agent
+```
+
+Expected:
 
 ```text
 LUMS_BASE
@@ -1180,28 +1317,26 @@ LUMS_TOKEN
 LUMS_CA_FILE
 ```
 
-Never print:
+Never print the value of:
 
 ```text
 LUMS_TOKEN
 ```
 
-with its actual value.
-
 ---
 
-# 28. Manual Agent Execution
+# 31. Manual Agent Execution
 
-Use the installed service configuration rather than manually exposing credentials.
+Prefer the systemd service configuration.
 
-Restart the service:
+Restart:
 
 ```bash
 sudo systemctl restart \
     lums-agent.service
 ```
 
-Then inspect:
+Inspect:
 
 ```bash
 sudo journalctl \
@@ -1210,7 +1345,7 @@ sudo journalctl \
     --no-pager
 ```
 
-Check:
+Check status:
 
 ```bash
 sudo systemctl status \
@@ -1218,126 +1353,21 @@ sudo systemctl status \
     --no-pager
 ```
 
----
-
-# 29. Agent Returns 403
-
-A `403 Forbidden` means authentication may have succeeded but authorization rejected the request.
-
-Investigate:
+A oneshot service may correctly return to:
 
 ```text
-Authentication
-        ↓
-Authorization
-        ↓
-Endpoint permissions
+inactive (dead)
 ```
 
-Check the server logs:
+after successful execution.
 
-```bash
-sudo docker logs \
-    --tail 200 \
-    lums
-```
-
-Check the agent logs:
-
-```bash
-sudo journalctl \
-    -u lums-agent.service \
-    --since "30 minutes ago" \
-    --no-pager
-```
-
-Do not immediately replace the token.
-
-First determine which endpoint returned `403`.
+This does not mean the timer is broken.
 
 ---
 
-# 30. Agent Reporting
-
-If the client appears online but does not report correctly:
-
-```text
-Agent service
-    ↓
-HTTPS
-    ↓
-Authentication
-    ↓
-Report endpoint
-    ↓
-Database
-    ↓
-Frontend
-```
-
-Check recent agent logs:
-
-```bash
-sudo journalctl \
-    -u lums-agent.service \
-    --since "30 minutes ago" \
-    --no-pager
-```
-
-Check server logs:
-
-```bash
-sudo docker logs \
-    --tail 200 \
-    lums
-```
-
-Check the client list:
-
-```bash
-sudo docker exec lums \
-    sqlite3 /var/lib/lums/lums.db \
-    "SELECT id, hostname, ip, enabled FROM clients;"
-```
-
-Do not query or print token columns in public diagnostics.
-
----
-
-# 31. Agent Timers
-
-List relevant timers:
-
-```bash
-systemctl list-timers --all | \
-    grep -E 'lums|update'
-```
-
-Inspect:
-
-```bash
-sudo systemctl cat \
-    lums-agent.timer
-```
-
-and:
-
-```bash
-sudo systemctl cat \
-    lums-execution-watcher.timer
-```
-
-The actual schedule must always be taken from the installed timer configuration.
+# 32. Agent Timer
 
 Check:
-
-```bash
-systemctl list-timers \
-    lums-agent.timer \
-    --no-pager
-```
-
-Check timer state:
 
 ```bash
 sudo systemctl status \
@@ -1345,21 +1375,30 @@ sudo systemctl status \
     --no-pager
 ```
 
-A oneshot service can show:
+List schedule:
 
-```text
-inactive (dead)
+```bash
+systemctl list-timers \
+    lums-agent.timer \
+    --no-pager
 ```
 
-after completing successfully.
+Inspect configuration:
 
-That does not automatically mean the timer is broken.
+```bash
+sudo systemctl cat \
+    lums-agent.timer
+```
+
+The actual installed schedule is authoritative.
+
+Do not assume that documentation and local timer configuration are identical.
 
 ---
 
-# 32. Execution Watcher
+# 33. Execution Watcher
 
-Check:
+If the execution watcher is installed, check:
 
 ```bash
 sudo systemctl status \
@@ -1384,31 +1423,303 @@ sudo journalctl \
     --no-pager
 ```
 
-The timer should be checked separately from the oneshot service.
+The timer and the oneshot service must be checked separately.
 
 ---
 
-# 33. Simulation Mode
+# 34. Agent 401 vs 403
 
-If simulation mode is enabled for testing, verify its state before diagnosing a real update problem.
+A useful first distinction is:
 
-Simulation mode is useful for:
+```text
+401 Unauthorized
+    ↓
+Authentication problem
+```
 
-* job lifecycle testing
-* agent testing
-* frontend testing
-* deployment validation
-* troubleshooting
+versus:
 
-Simulation is not proof that a real package update succeeds.
+```text
+403 Forbidden
+    ↓
+Authorization problem
+```
 
-After testing, disable temporary simulation settings.
+This is not an absolute diagnostic rule for every HTTP implementation, but it is the correct first branch for LUMS troubleshooting.
+
+Always identify the exact endpoint and response before replacing credentials.
 
 ---
 
-# 34. Update Jobs
+# 35. Agent Reporting
 
-When a job does not execute, determine where it stopped.
+If a client appears online but does not report correctly:
+
+```text
+Agent
+   ↓
+TLS
+   ↓
+Authentication
+   ↓
+Report endpoint
+   ↓
+Database
+   ↓
+Frontend
+```
+
+Check:
+
+```bash
+sudo journalctl \
+    -u lums-agent.service \
+    --since "30 minutes ago" \
+    --no-pager
+```
+
+Then:
+
+```bash
+sudo docker logs \
+    --tail 200 \
+    lums
+```
+
+Inspect clients without exposing tokens:
+
+```bash
+sudo docker exec lums \
+    sqlite3 /var/lib/lums/lums.db \
+    "SELECT id, hostname, ip, enabled FROM clients;"
+```
+
+Do not select token columns for public diagnostics.
+
+---
+
+# 36. Idle Detection
+
+LUMS does not use the old `w -h` based idle detection.
+
+The current implementation uses:
+
+```text
+systemd-logind
+loginctl
+```
+
+The agent checks user sessions and evaluates:
+
+```text
+Class
+Type
+TTY
+State
+IdleHint
+IdleSinceHintMonotonic
+```
+
+Relevant user sessions are considered instead of relying on `w`.
+
+This is important because:
+
+```text
+w -h
+```
+
+can be unreliable for determining whether a local graphical or terminal session is actually idle.
+
+---
+
+# 37. Idle Detection Diagnostics
+
+Check available sessions:
+
+```bash
+loginctl list-sessions \
+    --no-legend \
+    --no-pager
+```
+
+Inspect a session:
+
+```bash
+loginctl show-session <SESSION_ID>
+```
+
+Useful fields include:
+
+```text
+Class
+Type
+TTY
+State
+IdleHint
+IdleSinceHintMonotonic
+```
+
+The current agent reports:
+
+```text
+idle_source=loginctl
+idle_supported=True
+```
+
+when systemd-logind is available.
+
+A currently active user session should result in:
+
+```text
+idle = false
+```
+
+An unsupported or failed idle-detection mechanism must not silently be treated as an active idle state.
+
+---
+
+# 38. Package Manager Detection
+
+The agent automatically detects the installed package manager.
+
+Current abstraction:
+
+```text
+detect_package_manager()
+        │
+        ├── apt      → AptPackageManager
+        │
+        └── pacman   → PacmanPackageManager
+```
+
+Check the repository implementation:
+
+```bash
+sed -n '1,120p' \
+    /opt/lums-public/agent/package_manager.py
+```
+
+Compile-check:
+
+```bash
+cd /opt/lums-public
+
+python3 -m py_compile \
+    agent/package_manager.py
+```
+
+The command should return without an error.
+
+---
+
+# 39. Debian / APT Diagnostics
+
+On Debian-based clients:
+
+```bash
+command -v apt
+command -v dpkg
+```
+
+Expected:
+
+```text
+/usr/bin/apt
+/usr/bin/dpkg
+```
+
+Check package database:
+
+```bash
+dpkg --audit
+```
+
+Check APT:
+
+```bash
+sudo apt-get check
+```
+
+List updates:
+
+```bash
+apt list --upgradable
+```
+
+Only perform repair operations when there is evidence that the package system is actually damaged.
+
+---
+
+# 40. Arch / pacman Diagnostics
+
+On Arch clients:
+
+```bash
+command -v pacman
+```
+
+Expected:
+
+```text
+/usr/bin/pacman
+```
+
+Check installed packages:
+
+```bash
+pacman -Q
+```
+
+Check available updates:
+
+```bash
+pacman -Qu
+```
+
+Check package state:
+
+```bash
+pacman -Q <PACKAGE>
+```
+
+Do not use Debian-specific commands on an Arch client.
+
+The agent's package-manager abstraction is specifically intended to prevent such assumptions.
+
+---
+
+# 41. Package Manager Locks
+
+On Debian-based systems, check package-manager locks before attempting repair:
+
+```bash
+sudo lsof \
+    /var/lib/dpkg/lock-frontend
+```
+
+and:
+
+```bash
+sudo lsof \
+    /var/lib/dpkg/lock
+```
+
+Do not blindly delete lock files.
+
+On Arch:
+
+```bash
+sudo lsof \
+    /var/lib/pacman/db.lck
+```
+
+If another package operation is active, determine whether it is legitimate before taking corrective action.
+
+---
+
+# 42. Update Jobs
+
+When a job does not execute, determine where it stopped:
 
 ```text
 Job created
@@ -1421,7 +1732,7 @@ Agent claims job
     ↓
 Agent executes job
     ↓
-APT / dpkg
+Package Manager
     ↓
 Result generated
     ↓
@@ -1443,7 +1754,7 @@ failed
 abandoned
 ```
 
-Check the server logs:
+Check server logs:
 
 ```bash
 sudo docker logs \
@@ -1451,7 +1762,7 @@ sudo docker logs \
     lums
 ```
 
-Check agent logs:
+Check agent:
 
 ```bash
 sudo journalctl \
@@ -1460,7 +1771,7 @@ sudo journalctl \
     --no-pager
 ```
 
-Check watcher logs:
+Check watcher:
 
 ```bash
 sudo journalctl \
@@ -1471,50 +1782,128 @@ sudo journalctl \
 
 ---
 
-# 35. Interrupted Job Recovery
+# 43. Supported Update Actions
+
+The current agent update engine supports:
+
+```text
+UPDATE_SYSTEM
+UPDATE_PACKAGE
+INSTALL_PACKAGE
+REMOVE_PACKAGE
+```
+
+The actual command depends on the detected package manager.
+
+Conceptually:
+
+```text
+LUMS action
+      │
+      ▼
+Package manager abstraction
+      │
+      ├── APT
+      │
+      └── pacman
+```
+
+Do not troubleshoot an Arch failure using only APT commands.
+
+Likewise, do not assume pacman semantics on a Debian client.
+
+---
+
+# 44. System Update Diagnostics
+
+For Debian:
+
+```text
+UPDATE_SYSTEM
+    ↓
+apt-get upgrade -y
+```
+
+For Arch:
+
+```text
+UPDATE_SYSTEM
+    ↓
+pacman -Syu --noconfirm
+```
+
+The exact command is implemented by the package-manager abstraction.
+
+When a system update fails, inspect the agent logs first.
+
+Then determine whether the failure came from:
+
+```text
+LUMS
+Agent
+Package Manager
+Network / repository
+Package dependency
+Reboot requirement
+```
+
+---
+
+# 45. Simulation Mode
+
+If simulation mode is enabled for testing, verify its state before diagnosing a real package-update problem.
+
+Simulation can be useful for:
+
+```text
+job lifecycle testing
+agent testing
+frontend testing
+deployment validation
+troubleshooting
+```
+
+Simulation is not proof that a real package operation succeeds.
+
+After testing, disable temporary simulation settings.
+
+---
+
+# 46. Interrupted Job Recovery
 
 A running job can become interrupted because of:
 
-* client shutdown
-* power loss
-* network failure
-* operating system restart
-* package manager failure
-* failed result submission
-* agent interruption
-
-LUMS provides:
-
 ```text
-POST /api/update-jobs/<job_id>/abandon
+client shutdown
+power loss
+network failure
+operating system restart
+package-manager failure
+agent interruption
+failed result submission
 ```
 
-The server verifies:
+LUMS provides controlled recovery for interrupted jobs.
+
+The recovery process verifies:
 
 ```text
 1. Job exists
-2. Authenticated client owns the job
+2. Client ownership is correct
 3. Job is currently running
-4. State transition has not already happened
+4. State transition is valid
+5. The job has not already been completed or abandoned
 ```
 
-The job is then changed to:
+The job can then transition to:
 
 ```text
 abandoned
 ```
 
-The recovery process records:
+The recovery information includes the relevant job history and recovery reason.
 
-```text
-finished_at
-recovery_reason
-update_history
-package statistics
-reboot state
-```
-
-The current recovery reason is:
+The current recovery reason identifies that:
 
 ```text
 Agent did not submit a final result.
@@ -1522,7 +1911,7 @@ Agent did not submit a final result.
 
 ---
 
-# 36. Recovery Failure Behavior
+# 47. Recovery Failure Behavior
 
 The agent must not silently continue to a new job if recovery of an existing running job fails.
 
@@ -1530,28 +1919,26 @@ Expected behavior:
 
 ```text
 Existing running job
-        |
-        v
+        │
+        ▼
 Attempt recovery
-        |
-        +---- failure ---> STOP
-        |
-        v
+        │
+        ├── failure ──► STOP
+        │
+        ▼
 Recovery successful
-        |
-        v
-Continue to pending jobs
+        │
+        ▼
+Continue processing
 ```
 
-This prevents an unresolved job from being silently ignored.
+This prevents an unresolved running job from being silently ignored.
 
 ---
 
-# 37. Job Recovery Diagnostics
+# 48. Job Recovery Diagnostics
 
 If an agent repeatedly finds an existing running job:
-
-Check:
 
 ```bash
 sudo journalctl \
@@ -1569,9 +1956,7 @@ sudo journalctl \
     --no-pager
 ```
 
-Inspect the job through the LUMS interface.
-
-If necessary, inspect the database:
+Inspect jobs:
 
 ```bash
 sudo docker exec lums \
@@ -1579,53 +1964,15 @@ sudo docker exec lums \
     "SELECT id, client_id, status, started_at, finished_at, recovery_reason FROM update_jobs;"
 ```
 
-Do not manually change the status unless controlled recovery requires database-level intervention.
+Do not manually modify database state unless controlled database-level recovery is explicitly required.
 
 ---
 
-# 38. APT / dpkg Problems
+# 49. Reboot Requirement
 
-On the client, check package state:
+Some updates require a reboot.
 
-```bash
-dpkg --audit
-```
-
-Check APT:
-
-```bash
-apt-get check
-```
-
-Only run repair commands when the package manager is actually in a broken state.
-
-If package configuration is incomplete:
-
-```bash
-sudo dpkg --configure -a
-```
-
-Do not blindly delete APT lock files.
-
-First determine which process owns the lock:
-
-```bash
-sudo lsof \
-    /var/lib/dpkg/lock-frontend
-
-sudo lsof \
-    /var/lib/dpkg/lock
-```
-
-If another package operation is active, allow it to finish whenever possible.
-
----
-
-# 39. Reboot Requirement
-
-Some package updates require a reboot.
-
-Check:
+Debian-based systems may expose:
 
 ```bash
 test -f /var/run/reboot-required \
@@ -1633,21 +1980,23 @@ test -f /var/run/reboot-required \
     || echo "No reboot flag present"
 ```
 
-Check package-specific restart information if available:
+Some distributions provide additional restart-detection tools.
+
+For example:
 
 ```bash
 sudo needs-restarting -r
 ```
 
-The availability of `needs-restarting` depends on the installed distribution and packages.
+may be available depending on the distribution and installed packages.
 
-Do not assume that every successful package installation requires a reboot.
+Do not assume that every successful update requires a reboot.
 
 ---
 
-# 40. Database Diagnostics
+# 50. Database Diagnostics
 
-Check the database:
+Check SQLite integrity:
 
 ```bash
 sudo docker exec lums \
@@ -1661,7 +2010,7 @@ Expected:
 ok
 ```
 
-Check database tables:
+List tables:
 
 ```bash
 sudo docker exec lums \
@@ -1677,17 +2026,17 @@ sudo docker exec lums \
     /var/lib/lums/lums.db
 ```
 
-Do not dump the complete database into public bug reports.
+Do not publish complete database dumps.
 
-The database contains operational and authentication-related data.
+The database contains operational information and authentication-related data.
 
 ---
 
-# 41. SQLite-Aware Database Backup
+# 51. SQLite-Aware Backup
 
-Use SQLite-aware backups.
+Use SQLite-aware backups rather than blindly copying a live database file.
 
-Create a backup directory:
+Create backup directory:
 
 ```bash
 sudo mkdir -p \
@@ -1697,7 +2046,7 @@ sudo chmod 700 \
     /var/backups/lums
 ```
 
-Create a backup:
+Create backup:
 
 ```bash
 sudo docker run --rm \
@@ -1746,11 +2095,9 @@ Never publish a production database backup.
 
 ---
 
-# 42. Database Restore Warning
+# 52. Database Restore
 
 A database restore is a controlled maintenance operation.
-
-Do not overwrite the production database immediately.
 
 Before restoring:
 
@@ -1768,38 +2115,51 @@ Before restoring:
 11. Check HTTPS
 ```
 
-A full isolated backup/restore test remains a separate validation task.
+A complete isolated backup-and-restore validation should be treated as its own test.
 
 ---
 
-# 43. Frontend / Theme Diagnostics
+# 53. Frontend Architecture
 
-LUMS currently contains:
-
-```text
-standard
-LUMSStadium
-golf
-nerd
-geek
-admin
-```
-
-The user-facing name of:
+The current frontend uses:
 
 ```text
-admin
+HTML
+CSS
+JavaScript
+localStorage
 ```
 
-is:
+Important source files:
 
 ```text
-Enterprise Admin
+style.css
+theme.js
+network.js
+client.js
 ```
+
+The frontend is deployed as part of the Docker image.
+
+Therefore:
+
+```text
+Source change
+   ↓
+Docker build
+   ↓
+New image
+   ↓
+Container recreation
+   ↓
+Browser
+```
+
+Changing a source file does not change an already-running container automatically.
 
 ---
 
-# 44. Frontend Source Paths
+# 54. Frontend Source Paths
 
 Source:
 
@@ -1832,17 +2192,9 @@ sudo docker exec lums \
 
 ---
 
-# 45. Browser Theme Selection
+# 55. Current Themes
 
-Open the browser developer console.
-
-Check:
-
-```javascript
-document.documentElement.dataset.theme
-```
-
-Expected values:
+The current theme identifiers are:
 
 ```text
 standard
@@ -1853,27 +2205,62 @@ geek
 admin
 ```
 
-Check stored theme:
+The user-facing name of:
+
+```text
+admin
+```
+
+is:
+
+```text
+Enterprise Admin
+```
+
+---
+
+# 56. Browser Theme Selection
+
+Open the browser developer console.
+
+Check:
+
+```javascript
+document.documentElement.dataset.theme
+```
+
+Expected:
+
+```text
+standard
+LUMSStadium
+golf
+nerd
+geek
+admin
+```
+
+Check localStorage:
 
 ```javascript
 localStorage.getItem("lums-theme")
 ```
 
-To remove the stored theme:
+Remove the stored theme:
 
 ```javascript
 localStorage.removeItem("lums-theme")
 ```
 
-Reload the page.
+Then reload the page.
 
 The Standard theme should act as the fallback.
 
 ---
 
-# 46. Theme JavaScript
+# 57. Theme JavaScript
 
-Check:
+Check runtime file:
 
 ```bash
 sudo docker exec lums \
@@ -1891,11 +2278,11 @@ sudo docker exec lums \
     /app/server/static/theme.js
 ```
 
-If a theme selector shows an incorrect option, verify the runtime JavaScript rather than only the Git source.
+If a theme selector contains an incorrect option, verify the runtime JavaScript rather than only the repository source.
 
 ---
 
-# 47. Geek / The Living Network
+# 58. Geek / The Living Network
 
 The Geek theme uses:
 
@@ -1932,10 +2319,10 @@ Check:
 document.getElementById("lums-network-canvas")
 ```
 
-The network effect should only run when:
+The network effect should only run for:
 
 ```text
-theme = geek
+geek
 ```
 
 It must not run for:
@@ -1950,7 +2337,7 @@ admin
 
 ---
 
-# 48. Geek Network Diagnostics
+# 59. Geek Network Diagnostics
 
 If the Geek background does not appear:
 
@@ -1977,11 +2364,11 @@ Then:
 window.LumsNetwork
 ```
 
-If reduced motion is enabled, the network effect may intentionally remain disabled.
+If reduced motion is enabled, the visual network effect may intentionally remain disabled.
 
 ---
 
-# 49. Nerd Theme Diagnostics
+# 60. Nerd Theme Diagnostics
 
 The Nerd theme uses the Matrix/terminal visual system.
 
@@ -1997,7 +2384,7 @@ Expected:
 nerd
 ```
 
-If the Nerd effect does not appear:
+If the effect does not appear:
 
 ```text
 1. Check theme.js
@@ -2007,17 +2394,19 @@ If the Nerd effect does not appear:
 5. Check reduced-motion behavior
 ```
 
-Do not modify Geek or Enterprise Admin CSS while troubleshooting Nerd unless there is evidence that shared base styles are involved.
+Do not modify unrelated theme CSS without evidence that shared selectors are involved.
 
 ---
 
-# 50. Enterprise Admin Diagnostics
+# 61. Enterprise Admin Diagnostics
 
 The Enterprise Admin theme uses:
 
 ```text
 admin
 ```
+
+It is intentionally restrained and information-oriented.
 
 Expected characteristics:
 
@@ -2032,14 +2421,12 @@ small radius
 minimal shadows
 no gradients
 no neon glow
-no large rounded cards
-no large decorative icons
-no unnecessary animations
+no large decorative effects
 information-dense tables
 simple status indicators
 ```
 
-Check the deployed CSS:
+Check deployed CSS:
 
 ```bash
 sudo docker exec lums \
@@ -2056,9 +2443,9 @@ html[data-theme="admin"]
 
 ---
 
-# 51. Theme Isolation
+# 62. Theme Isolation
 
-Theme changes should not unintentionally modify unrelated themes.
+Changing one theme must not unintentionally modify another theme.
 
 Examples:
 
@@ -2073,11 +2460,23 @@ Enterprise Admin
 └── restrained operations console
 ```
 
-If changing Enterprise Admin unexpectedly changes another theme, inspect CSS selectors before changing JavaScript.
+If a theme change unexpectedly affects another theme:
+
+```text
+Check CSS selectors
+   ↓
+Check theme.js
+   ↓
+Check DOM
+   ↓
+Check shared base styles
+```
+
+Do not immediately change backend code.
 
 ---
 
-# 52. Client Page / Token Rotation UI
+# 63. Client Page / Token Rotation UI
 
 The client page should contain:
 
@@ -2085,7 +2484,7 @@ The client page should contain:
 🔐 Token rotieren
 ```
 
-Check the runtime template:
+Check runtime template:
 
 ```bash
 sudo docker exec lums \
@@ -2094,7 +2493,7 @@ sudo docker exec lums \
     /app/server/templates/client.html
 ```
 
-Check the JavaScript:
+Check JavaScript:
 
 ```bash
 sudo docker exec lums \
@@ -2103,30 +2502,63 @@ sudo docker exec lums \
     /app/server/static/client.js
 ```
 
-The rotation result should display the new token only after a successful authenticated request.
+The rotation result should only be displayed after a successful authenticated request.
 
 The token must not be inserted into audit logs.
 
 ---
 
-# 53. Frontend Deployment Sequence
+# 64. Update UI
+
+The frontend supports the system-maintenance action:
+
+```text
+Systemwartung
+[System vollständig aktualisieren]
+```
+
+The corresponding API job uses:
+
+```text
+UPDATE_SYSTEM
+```
+
+If the button appears but does nothing:
+
+```text
+1. Inspect browser console
+2. Check network request
+3. Verify POST request
+4. Check server logs
+5. Check authentication
+6. Check job creation
+7. Check agent retrieval
+```
+
+A frontend button existing in the DOM does not prove that the backend job was created successfully.
+
+---
+
+# 65. Frontend Deployment Sequence
 
 After frontend changes:
 
 ```text
 1. Edit source
-2. Check source
-3. Commit to Git
-4. Build Docker image
-5. Create SQLite backup
-6. Verify backup
-7. Recreate hardened container
-8. Preserve lums-data
-9. Test localhost
-10. Test HTTPS
-11. Hard-refresh browser
-12. Verify theme behavior
-13. Verify client page
+2. Validate source
+3. Check Git diff
+4. Commit to Git
+5. Build Docker image
+6. Create SQLite backup
+7. Verify backup
+8. Recreate hardened container
+9. Preserve lums-data
+10. Test localhost
+11. Test HTTPS
+12. Hard-refresh browser
+13. Verify frontend
+14. Verify client page
+15. Verify themes
 ```
 
 Build:
@@ -2139,7 +2571,7 @@ sudo docker build \
     .
 ```
 
-Recreate with the current hardened runtime:
+Recreate:
 
 ```bash
 sudo docker stop lums
@@ -2175,18 +2607,19 @@ curl -I \
 
 ---
 
-# 54. Browser Cache
+# 66. Browser Cache
 
-If the source is correct but the browser still displays an old version:
+If the source is correct but the browser displays an old version:
 
 ```text
 1. Hard refresh
 2. Open Developer Tools
 3. Disable cache temporarily
 4. Reload
-5. Inspect loaded CSS/JS
-6. Check localStorage
-7. Check data-theme
+5. Inspect loaded CSS
+6. Inspect loaded JavaScript
+7. Check localStorage
+8. Check data-theme
 ```
 
 Firefox:
@@ -2195,24 +2628,18 @@ Firefox:
 Ctrl+Shift+R
 ```
 
-Do not immediately rebuild the application because of a browser cache problem.
+Do not rebuild the application simply because of a browser cache problem.
 
 ---
 
-# 55. Git Diagnostics
+# 67. Git Diagnostics
 
-Check repository status:
+Check status:
 
 ```bash
 cd /opt/lums-public
 
 git status -sb
-```
-
-Check remote:
-
-```bash
-git remote -v
 ```
 
 Fetch:
@@ -2221,7 +2648,13 @@ Fetch:
 git fetch origin
 ```
 
-Check recent commits:
+Check remote:
+
+```bash
+git remote -v
+```
+
+Recent commits:
 
 ```bash
 git log \
@@ -2230,7 +2663,7 @@ git log \
     -5
 ```
 
-Check differences:
+Check working-tree changes:
 
 ```bash
 git diff
@@ -2244,7 +2677,7 @@ git diff --check
 
 ---
 
-# 56. Git Deployment Checks
+# 68. Git Deployment Checks
 
 Before deployment:
 
@@ -2256,7 +2689,7 @@ git fetch origin
 git diff --check
 ```
 
-If the local tree is clean and remote changes should be deployed:
+If local changes are clean and remote changes should be deployed:
 
 ```bash
 git pull --ff-only origin main
@@ -2272,18 +2705,16 @@ Never overwrite local changes blindly.
 
 ---
 
-# 57. Git Commit Identity
+# 69. Git Identity
 
-Current LUMS Git identity:
+The current LUMS Git identity is:
 
 ```text
 Name:
-xxxxxx
-```
+NovaForgeCtrl
 
-```text
 Email:
-xxxxx
+232026481+NovaForgeCtrl@users.noreply.github.com
 ```
 
 Check:
@@ -2293,13 +2724,18 @@ git config user.name
 git config user.email
 ```
 
+Expected:
+
+```text
+NovaForgeCtrl
+232026481+NovaForgeCtrl@users.noreply.github.com
+```
+
 ---
 
-# 58. Container Recreation
+# 70. Container Recreation
 
-Recreating the container does not mean deleting the persistent database.
-
-The important separation is:
+The following components are separate:
 
 ```text
 Source:
@@ -2321,7 +2757,7 @@ TLS:
     /etc/lums/tls/
 ```
 
-Normal application deployment changes:
+Normal deployment flow:
 
 ```text
 source
@@ -2331,27 +2767,23 @@ image
 container
 ```
 
-while:
+Persistent data remains:
 
 ```text
 lums-data
 ```
 
-remains persistent.
-
-Never add:
+Never include this in normal deployment:
 
 ```bash
 sudo docker volume rm lums-data
 ```
 
-to normal deployment procedures.
-
 That command is destructive.
 
 ---
 
-# 59. Port Diagnostics
+# 71. Port Diagnostics
 
 Check relevant ports:
 
@@ -2373,10 +2805,10 @@ HTTP / redirect
 HTTPS / Nginx
 
 5050
-LUMS host-side binding
+LUMS host-side application binding
 
 5000
-Flask/Gunicorn inside Docker
+Gunicorn inside Docker
 ```
 
 Port `5050` should normally be bound only to:
@@ -2385,13 +2817,13 @@ Port `5050` should normally be bound only to:
 127.0.0.1
 ```
 
-Port `5000` is internal to the container.
+Port `5000` should remain internal to the Docker container.
 
 ---
 
-# 60. Firewall Diagnostics
+# 72. Firewall Diagnostics
 
-Check firewall state:
+Check UFW:
 
 ```bash
 sudo ufw status verbose
@@ -2407,23 +2839,23 @@ Do not change firewall rules while diagnosing an application problem unless ther
 
 ---
 
-# 61. Permission Diagnostics
+# 73. Permission Diagnostics
 
-Check source permissions:
+Source:
 
 ```bash
 ls -la \
     /opt/lums-public
 ```
 
-Check TLS permissions:
+TLS:
 
 ```bash
 sudo ls -la \
     /etc/lums/tls/
 ```
 
-Check secret permissions:
+Secret:
 
 ```bash
 sudo stat \
@@ -2431,28 +2863,26 @@ sudo stat \
     /etc/lums/secrets/lums_secret
 ```
 
-Check agent files:
+Agent:
 
 ```bash
 sudo ls -la \
     /opt/lums-agent/
 ```
 
-Do not make sensitive files world-readable as a troubleshooting workaround.
-
-Avoid:
+Do not use:
 
 ```bash
 chmod 777
 ```
 
-as a generic fix.
+as a generic troubleshooting solution.
 
-Determine which process actually needs access and correct that permission specifically.
+Determine which process requires access and correct that specific permission.
 
 ---
 
-# 62. Diagnostic Log Reference
+# 74. Diagnostic Log Reference
 
 ## Docker
 
@@ -2499,7 +2929,7 @@ sudo journalctl \
 
 ---
 
-# 63. Server Diagnostic Sequence
+# 75. Server Diagnostic Sequence
 
 Run the following sequence when the server appears broken:
 
@@ -2521,11 +2951,14 @@ sudo docker inspect lums \
 
 echo
 echo "=== Docker Logs ==="
-sudo docker logs --tail 50 lums
+sudo docker logs \
+    --tail 50 \
+    lums
 
 echo
 echo "=== Port 5050 ==="
-sudo ss -lntp | grep ':5050' || true
+sudo ss -lntp | \
+    grep ':5050' || true
 
 echo
 echo "=== Flask / Gunicorn ==="
@@ -2566,11 +2999,11 @@ sudo docker exec lums \
     "PRAGMA integrity_check;"
 ```
 
-This sequence does not expose the actual secret.
+This sequence deliberately does not expose the actual Flask secret.
 
 ---
 
-# 64. Client Diagnostic Sequence
+# 76. Client Diagnostic Sequence
 
 On the client:
 
@@ -2614,13 +3047,13 @@ sudo journalctl \
     --no-pager
 ```
 
-The token value is intentionally never displayed.
+The token value is never displayed.
 
 ---
 
-# 65. Public Bug Reports
+# 77. Public Bug Reports
 
-Before publishing logs or screenshots, remove:
+Before publishing diagnostics, remove:
 
 ```text
 passwords
@@ -2659,11 +3092,216 @@ or:
 cat /etc/default/lums-agent
 ```
 
-Use presence-only diagnostics instead.
+Use presence-only diagnostics.
 
 ---
 
-# 66. Known Installation Lessons
+# 78. Common HTTP Errors
+
+## 301
+
+Usually:
+
+```text
+HTTP → HTTPS redirect
+```
+
+Check Nginx redirect configuration.
+
+---
+
+## 302
+
+Usually:
+
+```text
+Unauthenticated browser request
+        ↓
+/login
+```
+
+This can be normal.
+
+---
+
+## 401
+
+Usually:
+
+```text
+Authentication failed
+```
+
+Check:
+
+```text
+session
+credentials
+client token
+Authorization header
+token validity
+```
+
+---
+
+## 403
+
+Usually:
+
+```text
+Authorization denied
+```
+
+Check:
+
+```text
+authenticated identity
+permissions
+CSRF validation
+endpoint authorization
+```
+
+---
+
+## 404
+
+Check:
+
+```text
+URL
+route
+HTTP method
+frontend request
+Nginx configuration
+```
+
+A 404 does not automatically mean that Flask is unavailable.
+
+---
+
+## 500
+
+Check:
+
+```bash
+sudo docker logs \
+    --tail 200 \
+    lums
+```
+
+Look for the corresponding request and traceback.
+
+---
+
+## 502
+
+Check:
+
+```text
+Nginx
+   ↓
+127.0.0.1:5050
+   ↓
+Docker
+   ↓
+Gunicorn
+```
+
+---
+
+# 79. Common Deployment Mistakes
+
+## Image rebuilt but container not recreated
+
+Symptom:
+
+```text
+Source contains new code.
+Browser still shows old behavior.
+```
+
+Check:
+
+```bash
+sudo docker inspect \
+    -f '{{.Image}}' \
+    lums
+```
+
+Then compare against:
+
+```bash
+sudo docker image inspect \
+    lums:latest \
+    -f '{{.Id}}'
+```
+
+---
+
+## Container recreated without persistent volume
+
+Symptom:
+
+```text
+Database appears empty.
+```
+
+Check:
+
+```bash
+sudo docker inspect lums \
+    --format \
+    '{{range .Mounts}}{{println .Name .Destination}}{{end}}'
+```
+
+Expected:
+
+```text
+lums-data /var/lib/lums
+```
+
+---
+
+## Secret configuration lost
+
+Symptom:
+
+```text
+Application starts but sessions/authentication behave unexpectedly.
+```
+
+Check:
+
+```bash
+sudo docker exec lums sh -c '
+echo "FILE=${LUMS_SECRET_KEY_FILE}"
+test -r /run/secrets/lums_secret \
+    && echo "SECRET_FILE=READABLE" \
+    || echo "SECRET_FILE=NOT_READABLE"
+'
+```
+
+---
+
+## Hardened runtime lost
+
+Symptom:
+
+```text
+Application works, but deployment security changed.
+```
+
+Check:
+
+```bash
+sudo docker inspect lums \
+    --format \
+    'User={{.Config.User}} ReadonlyRootfs={{.HostConfig.ReadonlyRootfs}} CapDrop={{json .HostConfig.CapDrop}} Privileged={{.HostConfig.Privileged}}'
+```
+
+---
+
+# 80. Known Installation Lessons
 
 ## Lesson 1 — Find the failing layer
 
@@ -2695,9 +3333,9 @@ Building:
 docker build
 ```
 
-does not automatically update an already running container.
+does not automatically update an existing container.
 
-After rebuilding, verify which image the container actually uses.
+After rebuilding, verify the image actually used by the running container.
 
 ---
 
@@ -2721,19 +3359,19 @@ Always identify the exact endpoint before changing credentials.
 
 ## Lesson 5 — Token digest and password hash are different concepts
 
-LUMS currently stores client authentication tokens as SHA-256 hexadecimal digests.
+LUMS stores client authentication tokens as SHA-256 hexadecimal digests.
 
-This is not the same mechanism used for password storage.
+Administrative passwords use the application's password hashing mechanism.
 
-Passwords continue to use the application's password hashing mechanism.
+These are different security mechanisms serving different purposes.
 
 ---
 
 ## Lesson 6 — Do not expose secrets while troubleshooting
 
-A diagnostic command is not safe merely because it is run locally.
+A local diagnostic command is not automatically safe.
 
-Logs can later be copied into:
+Logs may later be copied into:
 
 ```text
 GitHub issues
@@ -2827,7 +3465,7 @@ The complete workflow is:
 ```text
 Rotate
    ↓
-Store replacement
+Receive replacement
    ↓
 Previous token invalid
    ↓
@@ -2844,7 +3482,106 @@ Verify client online
 
 ---
 
-# 67. Final Checklist
+## Lesson 11 — Package manager is platform-specific
+
+LUMS currently supports:
+
+```text
+APT / dpkg
+pacman
+```
+
+Therefore:
+
+```text
+Debian
+   ↓
+APT / dpkg
+
+Arch
+   ↓
+pacman
+```
+
+Do not diagnose all Linux clients as though they were Debian systems.
+
+---
+
+## Lesson 12 — Idle detection is session-aware
+
+LUMS uses:
+
+```text
+systemd-logind
+loginctl
+```
+
+rather than relying on:
+
+```text
+w -h
+```
+
+The session-aware implementation is important for correctly identifying active user sessions.
+
+---
+
+# 81. Current Security-Relevant Troubleshooting Checks
+
+The following checks should be performed after security-sensitive deployment changes.
+
+## Container
+
+```text
+[ ] Non-root user
+[ ] UID 10001
+[ ] Read-only root filesystem
+[ ] ALL capabilities dropped
+[ ] Privileged=false
+[ ] /tmp is tmpfs
+```
+
+## Secret
+
+```text
+[ ] Secret is file-based
+[ ] Secret mount is read-only
+[ ] LUMS_SECRET_KEY is absent
+[ ] LUMS_SECRET_KEY_FILE is configured
+[ ] Secret is not logged
+```
+
+## Network
+
+```text
+[ ] Application binds to 127.0.0.1:5050
+[ ] Container port 5000 is not unnecessarily exposed
+[ ] HTTPS terminates at Nginx
+[ ] HTTP redirects to HTTPS
+```
+
+## Authentication
+
+```text
+[ ] Administrator authentication works
+[ ] Client authentication works
+[ ] Token rotation works
+[ ] Previous token is invalidated
+[ ] Rotation is audited
+```
+
+## Database
+
+```text
+[ ] SQLite integrity check passes
+[ ] Persistent volume is mounted
+[ ] Backup is created
+[ ] Backup integrity is verified
+```
+
+---
+
+# 82. Final Checklist
 
 ## Server
 
@@ -2906,9 +3643,9 @@ Verify client online
 ## Agent
 
 ```text
-[ ] lums-agent active
+[ ] lums-agent.service works
 [ ] lums-agent.timer active
-[ ] watcher timer active
+[ ] Execution watcher checked
 [ ] CA file exists
 [ ] LUMS_BASE configured
 [ ] LUMS_TOKEN configured
@@ -2916,6 +3653,29 @@ Verify client online
 [ ] Agent can reach LUMS
 [ ] Agent authenticates
 [ ] Agent reports successfully
+[ ] Agent version verified
+[ ] Package manager detected
+```
+
+## Debian / APT
+
+```text
+[ ] apt available
+[ ] dpkg available
+[ ] Package database healthy
+[ ] apt-get check succeeds
+[ ] Updates can be detected
+[ ] Package operations complete
+```
+
+## Arch / pacman
+
+```text
+[ ] pacman available
+[ ] Package database healthy
+[ ] pacman -Qu works
+[ ] Updates can be detected
+[ ] Package operations complete
 ```
 
 ## Jobs
@@ -2927,7 +3687,7 @@ Verify client online
 [ ] Job ownership verified
 [ ] Agent claims job
 [ ] Agent executes job
-[ ] APT/dpkg succeeds
+[ ] Package manager succeeds
 [ ] Result generated
 [ ] Result reported
 [ ] Server stores result
@@ -2939,7 +3699,7 @@ Verify client online
 ```text
 [ ] Interrupted jobs can be identified
 [ ] Running job ownership verified
-[ ] Recovery endpoint available
+[ ] Recovery available
 [ ] Abandon operation audited
 [ ] Recovery history recorded
 [ ] Agent stops if recovery fails
@@ -2963,6 +3723,7 @@ Verify client online
 [ ] Geek works
 [ ] Enterprise Admin works
 [ ] Token rotation button visible
+[ ] System maintenance button works
 ```
 
 ## Geek
@@ -2992,14 +3753,226 @@ Verify client online
 [ ] SQLite-aware backup created
 [ ] Backup permissions restricted
 [ ] Backup integrity verified
-[ ] Full isolated restore test still tracked
+[ ] Full isolated restore test tracked
 ```
 
 ---
 
-# 68. Final Principles
+# 83. Server Recovery Decision Tree
 
-LUMS troubleshooting should follow a simple principle:
+When LUMS appears completely unavailable:
+
+```text
+                    LUMS unavailable
+                           │
+                           ▼
+                Is Docker running?
+                     /          \
+                   NO            YES
+                   │              │
+                   ▼              ▼
+             Docker issue    Is port 5050 open?
+                              /          \
+                            NO            YES
+                            │              │
+                            ▼              ▼
+                    Container /       Does curl work?
+                    Gunicorn /          /       \
+                    Flask              NO        YES
+                                       │          │
+                                       ▼          ▼
+                                App/container   Nginx /
+                                investigation   TLS issue
+```
+
+If:
+
+```bash
+curl -I http://127.0.0.1:5050/
+```
+
+works, the application stack is at least reachable locally.
+
+Continue with:
+
+```text
+HTTPS
+   ↓
+Nginx
+   ↓
+Certificate
+   ↓
+Headers
+   ↓
+Browser
+```
+
+---
+
+# 84. Client Recovery Decision Tree
+
+When a client appears offline:
+
+```text
+                    Client offline
+                          │
+                          ▼
+                  Is agent service OK?
+                     /          \
+                   NO            YES
+                   │              │
+                   ▼              ▼
+              systemd issue   Is timer active?
+                                /       \
+                              NO         YES
+                              │           │
+                              ▼           ▼
+                         timer issue   Can HTTPS
+                                      reach LUMS?
+                                      /       \
+                                    NO         YES
+                                    │           │
+                                    ▼           ▼
+                                Network /   Authentication
+                                TLS issue    / reporting
+```
+
+Then verify:
+
+```text
+Agent
+   ↓
+CA
+   ↓
+Token
+   ↓
+Report
+   ↓
+Database
+   ↓
+Frontend
+```
+
+---
+
+# 85. Job Recovery Decision Tree
+
+When a job remains:
+
+```text
+running
+```
+
+longer than expected:
+
+```text
+                 Job still running
+                         │
+                         ▼
+                Is the client online?
+                    /          \
+                  NO            YES
+                  │              │
+                  ▼              ▼
+             Check recovery   Check agent
+                              logs
+                                │
+                                ▼
+                         Did agent submit
+                         a final result?
+                           /          \
+                         YES           NO
+                         │              │
+                         ▼              ▼
+                   Check result     Recovery
+                   processing       required
+```
+
+Do not immediately delete the job.
+
+First determine whether:
+
+```text
+execution
+result submission
+server processing
+recovery
+```
+
+is the actual failing layer.
+
+---
+
+# 86. Frontend Recovery Decision Tree
+
+When the frontend looks wrong:
+
+```text
+              Frontend problem
+                     │
+                     ▼
+             Does API work?
+                /       \
+              NO         YES
+              │           │
+              ▼           ▼
+         Backend      Is correct
+         debugging    HTML loaded?
+                          │
+                          ▼
+                     Is CSS loaded?
+                          │
+                          ▼
+                    Is JS loaded?
+                          │
+                          ▼
+                    Check theme
+                          │
+                          ▼
+                    Check DOM
+                          │
+                          ▼
+                  Check localStorage
+                          │
+                          ▼
+                    Hard refresh
+```
+
+This prevents backend changes from being made for a browser-side problem.
+
+---
+
+# 87. Documentation Rule
+
+When troubleshooting produces a verified result, document:
+
+```text
+Problem
+    ↓
+Observed behavior
+    ↓
+Affected layer
+    ↓
+Root cause
+    ↓
+Change
+    ↓
+Verification
+```
+
+Avoid documenting only:
+
+```text
+"Fixed."
+```
+
+A useful troubleshooting record should allow another administrator to understand why the change was made.
+
+---
+
+# 88. Final Principles
+
+LUMS troubleshooting should follow:
 
 ```text
 Observe
@@ -3035,7 +4008,7 @@ That is the purpose of this troubleshooting guide.
 
 ---
 
-# 69. Current Architecture Summary
+# 89. Current Architecture Summary
 
 ```text
                          ┌───────────────────┐
@@ -3056,7 +4029,7 @@ That is the purpose of this troubleshooting guide.
                          │ Gunicorn :5000    │
                          │       ↓           │
                          │ Flask             │
-                         │                   │
+                         │       ↓           │
                          │ /app/server/      │
                          │   static/         │
                          └─────────┬─────────┘
@@ -3134,6 +4107,18 @@ Agent:
 └── lums-ca.crt
 ```
 
+Package manager abstraction:
+
+```text
+                    package_manager.py
+                           │
+                    ┌──────┴──────┐
+                    │             │
+                   APT          pacman
+                    │             │
+                 Debian         Arch
+```
+
 The architecture deliberately separates:
 
 ```text
@@ -3143,6 +4128,7 @@ container
 persistent data
 secrets
 agent
+package manager
 frontend
 ```
 
@@ -3150,7 +4136,7 @@ This separation makes LUMS easier to troubleshoot, update, rebuild and recover w
 
 ---
 
-# 70. Final Rule
+# 90. Final Rule
 
 ```text
 ONE LUMS
