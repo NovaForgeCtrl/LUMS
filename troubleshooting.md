@@ -2714,7 +2714,7 @@ Name:
 NovaForgeCtrl
 
 Email:
-232026481+NovaForgeCtrl@users.noreply.github.com
+xxxxnoreply.github.com
 ```
 
 Check:
@@ -2728,7 +2728,7 @@ Expected:
 
 ```text
 NovaForgeCtrl
-232026481+NovaForgeCtrl@users.noreply.github.com
+xxxxxxnoreply.github.com
 ```
 
 ---
