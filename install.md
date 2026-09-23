@@ -477,7 +477,7 @@ Example:
 
 ```text
 HOST archlinux
-IP 192.168.2.143
+IP xxx.xxx.xxx.xxx
 
 OS Linux
 ARCH x86_64
@@ -1900,7 +1900,7 @@ Example:
 
 ```text
 archlinux
-192.168.2.143
+xxx.xxx.xxx.xxx
 online
 Idle 05:00 / 05:00
 Keine
@@ -2905,7 +2905,7 @@ Set the project Git identity:
 
 ```bash
 git config user.name "NovaForgeCtrl"
-git config user.email "232026481+NovaForgeCtrl@users.noreply.github.com"
+git config user.email "xxxxxx.noreply.github.com"
 ```
 
 Commit:
@@ -3090,7 +3090,7 @@ Debian client / LUMS server host
 192.168.2.141
 
 Arch client
-192.168.2.143
+xxx.xxx.xxx.xxx
 ```
 
 The actual IP addresses are environment-specific.
