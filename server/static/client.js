@@ -298,143 +298,200 @@ function renderUpdates() {
         document.getElementById("updates-container");
 
 
-    if (!updates.length) {
+    if (!container) {
+        return;
+    }
 
-        container.innerHTML = `
+
+    /*
+     * Systemstatus
+     */
+    const systemStatus = updates.length
+        ? `
+            <div class="update-summary">
+
+                <strong>
+                    ${updates.length}
+                    Update${updates.length === 1 ? "" : "s"}
+                    verfügbar
+                </strong>
+
+            </div>
+        `
+        : `
             <div class="success-state">
                 ✓ System aktuell
             </div>
         `;
 
-        return;
-    }
+
+    /*
+     * Verfügbare Updates
+     *
+     * Die Tabelle und Auswahlfunktionen werden
+     * nur angezeigt, wenn Updates vorhanden sind.
+     */
+    const updateList = updates.length
+        ? `
+
+            <div class="update-actions">
+
+                <button
+                    type="button"
+                    id="select-all-updates"
+                    class="secondary-button"
+                >
+                    Alle auswählen
+                </button>
+
+                <button
+                    type="button"
+                    id="clear-all-updates"
+                    class="secondary-button"
+                >
+                    Auswahl aufheben
+                </button>
+
+                <button
+                    type="button"
+                    id="install-selected-updates"
+                    class="primary-button"
+                >
+                    Ausgewählte Updates installieren
+                </button>
+
+            </div>
 
 
-    container.innerHTML = `
+            <div class="table-wrapper">
 
-        <div class="update-summary">
+                <table class="data-table update-table">
 
-            <strong>
-                ${updates.length}
-                Update${updates.length === 1 ? "" : "s"}
-                verfügbar
-            </strong>
-
-        </div>
-
-
-        <div class="update-actions">
-
-            <button
-                type="button"
-                id="select-all-updates"
-                class="secondary-button"
-            >
-                Alle auswählen
-            </button>
-
-            <button
-                type="button"
-                id="clear-all-updates"
-                class="secondary-button"
-            >
-                Auswahl aufheben
-            </button>
-
-            <button
-                type="button"
-                id="install-selected-updates"
-                class="primary-button"
-            >
-                Ausgewählte Updates installieren
-            </button>
-
-        </div>
-
-
-        <div class="table-wrapper">
-
-            <table class="data-table update-table">
-
-                <thead>
-
-                    <tr>
-
-                        <th style="width: 50px;">
-                            <input
-                                type="checkbox"
-                                id="select-all-checkbox"
-                                title="Alle Updates auswählen"
-                            >
-                        </th>
-
-                        <th>Paket</th>
-
-                        <th>Installiert</th>
-
-                        <th>Verfügbar</th>
-
-                    </tr>
-
-                </thead>
-
-                <tbody>
-
-                    ${updates.map((update, index) => `
+                    <thead>
 
                         <tr>
 
-                            <td>
-
+                            <th style="width: 50px;">
                                 <input
                                     type="checkbox"
-                                    class="update-checkbox"
-                                    data-index="${index}"
+                                    id="select-all-checkbox"
+                                    title="Alle Updates auswählen"
                                 >
+                            </th>
 
-                            </td>
+                            <th>Paket</th>
 
-                            <td>
-                                <strong>
-                                    ${escapeHtml(update.package)}
-                                </strong>
-                            </td>
+                            <th>Installiert</th>
 
-                            <td class="version">
-                                ${escapeHtml(
-                                    update.installed_version || "–"
-                                )}
-                            </td>
-
-                            <td class="version">
-                                ${escapeHtml(
-                                    update.available_version || "–"
-                                )}
-                            </td>
+                            <th>Verfügbar</th>
 
                         </tr>
 
-                    `).join("")}
+                    </thead>
 
-                </tbody>
+                    <tbody>
 
-            </table>
+                        ${updates.map((update, index) => `
 
-        </div>
+                            <tr>
+
+                                <td>
+
+                                    <input
+                                        type="checkbox"
+                                        class="update-checkbox"
+                                        data-index="${index}"
+                                    >
+
+                                </td>
+
+                                <td>
+                                    <strong>
+                                        ${escapeHtml(update.package)}
+                                    </strong>
+                                </td>
+
+                                <td class="version">
+                                    ${escapeHtml(
+                                        update.installed_version || "–"
+                                    )}
+                                </td>
+
+                                <td class="version">
+                                    ${escapeHtml(
+                                        update.available_version || "–"
+                                    )}
+                                </td>
+
+                            </tr>
+
+                        `).join("")}
+
+                    </tbody>
+
+                </table>
+
+            </div>
 
 
-        <div
-            id="update-selection-info"
-            class="package-summary"
-        >
-            0 Updates ausgewählt
+            <div
+                id="update-selection-info"
+                class="package-summary"
+            >
+                0 Updates ausgewählt
+            </div>
+
+        `
+        : "";
+
+
+    /*
+     * Systemwartung
+     *
+     * Dieser Bereich wird unabhängig davon angezeigt,
+     * ob einzelne Updates verfügbar sind.
+     */
+    const systemMaintenance = `
+
+        <div class="update-system-actions">
+
+            <div class="panel-description">
+                Systemwartung
+            </div>
+
+            <button
+                type="button"
+                id="update-system-button"
+                class="button"
+            >
+                System vollständig aktualisieren
+            </button>
+
         </div>
 
     `;
 
 
+    /*
+     * Gesamten Update-Bereich rendern
+     */
+    container.innerHTML = `
+
+        ${systemStatus}
+
+        ${updateList}
+
+        ${systemMaintenance}
+
+    `;
+
+
+    /*
+     * Event-Handler nach dem Rendern binden
+     */
     bindUpdateControls();
 }
+
 
 
 /*
@@ -561,6 +618,18 @@ function bindUpdateControls() {
     }
 
 
+    const systemUpdateButton =
+        document.getElementById("update-system-button");
+
+    if (systemUpdateButton) {
+
+        systemUpdateButton.addEventListener(
+            "click",
+            createSystemUpdateJob
+        );
+    }
+
+
     updateSelectionInfo();
 }
 
@@ -678,6 +747,92 @@ async function createUpdateJob() {
             installButton.disabled = false;
             installButton.textContent =
                 "Ausgewählte Updates installieren";
+        }
+    }
+}
+
+
+/*
+ * System-Update-Job erstellen
+ */
+async function createSystemUpdateJob() {
+
+    const button =
+        document.getElementById(
+            "update-system-button"
+        );
+
+    if (button) {
+
+        button.disabled = true;
+        button.textContent =
+            "System-Update wird erstellt...";
+    }
+
+
+    try {
+
+        const response =
+            await fetch(
+                `/api/clients/${clientId}/update-jobs`,
+                {
+                    method: "POST",
+
+                    headers: {
+                        "Content-Type":
+                            "application/json",
+
+                        "X-CSRF-Token":
+                            document.querySelector(
+                                'meta[name="csrf-token"]'
+                            ).content
+                    },
+
+                    body: JSON.stringify({
+                        action: "UPDATE_SYSTEM"
+                    })
+                }
+            );
+
+
+        const result =
+            await response.json();
+
+
+        if (!response.ok) {
+
+            throw new Error(
+                result.error ||
+                "System-Update-Job konnte nicht erstellt werden."
+            );
+        }
+
+
+        alert(
+            `System-Update-Job #${result.job_id} wurde erstellt.`
+        );
+
+
+        await loadJobs();
+
+
+    } catch (error) {
+
+        console.error(error);
+
+        alert(
+            `Fehler beim Erstellen des System-Update-Jobs:
+${error.message}`
+        );
+
+
+    } finally {
+
+        if (button) {
+
+            button.disabled = false;
+            button.textContent =
+                "System vollständig aktualisieren";
         }
     }
 }

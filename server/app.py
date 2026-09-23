@@ -918,29 +918,52 @@ def create_update_job(client_id):
             "message": "No JSON data received"
         }), 400
 
-    packages = data.get("packages")
+    action = data.get("action", "UPDATE_PACKAGE")
 
-    if not isinstance(packages, list):
+    allowed_actions = {
+        "INSTALL_PACKAGE",
+        "REMOVE_PACKAGE",
+        "UPDATE_PACKAGE",
+        "UPDATE_SYSTEM"
+    }
 
-        return jsonify({
-            "status": "error",
-            "message": "packages must be a list"
-        }), 400
-
-    packages = [
-        package
-        for package in packages
-        if isinstance(package, str) and package.strip()
-    ]
-
-    packages = list(dict.fromkeys(packages))
-
-    if not packages:
+    if action not in allowed_actions:
 
         return jsonify({
             "status": "error",
-            "message": "No packages selected"
+            "message": "Invalid package action",
+            "allowed_actions": sorted(allowed_actions)
         }), 400
+
+    if action == "UPDATE_SYSTEM":
+
+        packages = []
+
+    else:
+
+        packages = data.get("packages")
+
+        if not isinstance(packages, list):
+
+            return jsonify({
+                "status": "error",
+                "message": "packages must be a list"
+            }), 400
+
+        packages = [
+            package
+            for package in packages
+            if isinstance(package, str) and package.strip()
+        ]
+
+        packages = list(dict.fromkeys(packages))
+
+        if not packages:
+
+            return jsonify({
+                "status": "error",
+                "message": "No packages selected"
+            }), 400
 
     connection = get_connection()
     cursor = connection.cursor()
@@ -964,58 +987,85 @@ def create_update_job(client_id):
             "message": "Client not found"
         }), 404
 
-    placeholders = ",".join("?" for _ in packages)
+    update_rows = []
 
-    cursor.execute(
-        f"""
-        SELECT
-            package,
-            installed_version,
-            available_version
-        FROM available_updates
-        WHERE client_id = ?
-        AND package IN ({placeholders})
-        ORDER BY package
-        """,
-        [client_id] + packages
-    )
+    if action == "UPDATE_PACKAGE":
 
-    update_rows = cursor.fetchall()
+        placeholders = ",".join(
+            "?" for _ in packages
+        )
 
-    found_packages = {
-        row["package"]
-        for row in update_rows
-    }
+        cursor.execute(
+            f"""
+            SELECT
+                package,
+                installed_version,
+                available_version
+            FROM available_updates
+            WHERE client_id = ?
+            AND package IN ({placeholders})
+            ORDER BY package
+            """,
+            [client_id] + packages
+        )
 
-    invalid_packages = [
-        package
-        for package in packages
-        if package not in found_packages
-    ]
+        update_rows = cursor.fetchall()
 
-    if invalid_packages:
+        found_packages = {
+            row["package"]
+            for row in update_rows
+        }
 
-        connection.close()
+        invalid_packages = [
+            package
+            for package in packages
+            if package not in found_packages
+        ]
 
-        return jsonify({
-            "status": "error",
-            "message": "One or more packages are not available as updates",
-            "invalid_packages": invalid_packages
-        }), 400
+        if invalid_packages:
 
-    created_at = datetime.now(timezone.utc).isoformat()
+            connection.close()
+
+            return jsonify({
+                "status": "error",
+                "message": (
+                    "One or more packages are "
+                    "not available as updates"
+                ),
+                "invalid_packages": invalid_packages
+            }), 400
+
+    elif action in {
+        "INSTALL_PACKAGE",
+        "REMOVE_PACKAGE"
+    }:
+
+        update_rows = [
+            {
+                "package": package,
+                "installed_version": None,
+                "available_version": ""
+            }
+            for package in packages
+        ]
+
+    created_at = datetime.now(
+        timezone.utc
+    ).isoformat()
 
     cursor.execute("""
         INSERT INTO update_jobs (
             client_id,
             status,
-            created_at
+            created_at,
+            action
         )
-        VALUES (?, ?, ?)
+        VALUES (?, ?, ?, ?)
     """, (
         client_id,
         "pending",
-        created_at
+        created_at,
+        action
     ))
 
     job_id = cursor.lastrowid
@@ -1047,6 +1097,7 @@ def create_update_job(client_id):
         f"Update job created: "
         f"Job #{job_id} "
         f"Client {client_row['hostname']} "
+        f"Action: {action} "
         f"Packages: {len(update_rows)}"
     )
 
@@ -1055,6 +1106,7 @@ def create_update_job(client_id):
         "job_id": job_id,
         "client_id": client_id,
         "hostname": client_row["hostname"],
+        "action": action,
         "package_count": len(update_rows),
         "packages": [
             {
@@ -1427,7 +1479,8 @@ def get_pending_update_job(client_id):
                 id,
                 client_id,
                 created_at,
-                reboot_required
+                reboot_required,
+                action
             FROM update_jobs
             WHERE client_id = ?
             AND status = 'pending'
@@ -1462,6 +1515,7 @@ def get_pending_update_job(client_id):
             "job_id": job_id,
             "client_id": job_row["client_id"],
             "created_at": job_row["created_at"],
+            "action": job_row["action"],
             "reboot_required": bool(job_row["reboot_required"]),
             "packages": [
                 {

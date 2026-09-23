@@ -31,23 +31,11 @@ def detect_package_manager():
 class AptPackageManager:
     """
     APT package manager implementation.
-
-    This class currently provides read-only package information.
-    Package installation, removal and update operations will be
-    added in later steps.
     """
 
     name = PACKAGE_MANAGER_APT
 
     def get_installed_packages(self):
-        """
-        Return installed packages as:
-
-            {
-                "package": "version"
-            }
-        """
-
         result = subprocess.run(
             [
                 "dpkg-query",
@@ -62,19 +50,18 @@ class AptPackageManager:
         packages = {}
 
         for line in result.stdout.splitlines():
+
             parts = line.split(" ", 1)
 
             if len(parts) == 2:
+
                 package, version = parts
+
                 packages[package] = version
 
         return packages
 
     def get_updates(self):
-        """
-        Return packages for which an update is available.
-        """
-
         env = os.environ.copy()
         env["LC_ALL"] = "C"
 
@@ -108,6 +95,7 @@ class AptPackageManager:
             installed_version = None
 
             if "upgradable from:" in line:
+
                 installed_version = line.split(
                     "upgradable from:",
                     1
@@ -122,10 +110,6 @@ class AptPackageManager:
         return updates
 
     def get_package_state(self, package):
-        """
-        Return the installed state of one package.
-        """
-
         result = subprocess.run(
             [
                 "dpkg-query",
@@ -140,6 +124,7 @@ class AptPackageManager:
         output = result.stdout.strip()
 
         if result.returncode != 0:
+
             return {
                 "installed": False,
                 "status": None,
@@ -150,6 +135,7 @@ class AptPackageManager:
         parts = output.split("|", 2)
 
         if len(parts) != 2:
+
             return {
                 "installed": False,
                 "status": output,
@@ -172,13 +158,6 @@ class AptPackageManager:
         }
 
     def install_package(self, package):
-        """
-        Build the APT command for installing a package.
-
-        This method does not execute the command.
-        Execution remains the responsibility of the agent/job layer.
-        """
-
         return [
             "apt-get",
             "install",
@@ -187,13 +166,6 @@ class AptPackageManager:
         ]
 
     def remove_package(self, package):
-        """
-        Build the APT command for removing a package.
-
-        This method does not execute the command.
-        Execution remains the responsibility of the agent/job layer.
-        """
-
         return [
             "apt-get",
             "remove",
@@ -202,13 +174,6 @@ class AptPackageManager:
         ]
 
     def update_package(self, package):
-        """
-        Build the APT command for updating an installed package.
-
-        This method does not execute the command.
-        Execution remains the responsibility of the agent/job layer.
-        """
-
         return [
             "apt-get",
             "install",
@@ -218,13 +183,6 @@ class AptPackageManager:
         ]
 
     def update_system(self):
-        """
-        Build the APT command for updating the complete system.
-
-        This method does not execute the command.
-        Execution remains the responsibility of the agent/job layer.
-        """
-
         return [
             "apt-get",
             "upgrade",
@@ -232,10 +190,6 @@ class AptPackageManager:
         ]
 
     def get_candidate_version(self, package):
-        """
-        Return the currently available APT candidate version.
-        """
-
         env = os.environ.copy()
         env["LC_ALL"] = "C"
 
@@ -255,9 +209,169 @@ class AptPackageManager:
             line = line.strip()
 
             if line.startswith("Candidate:"):
+
                 return line.split(
                     ":",
                     1
                 )[1].strip()
+
+        return None
+
+
+class PacmanPackageManager:
+    """
+    pacman package manager implementation for Arch Linux.
+    """
+
+    name = PACKAGE_MANAGER_PACMAN
+
+    def get_installed_packages(self):
+        result = subprocess.run(
+            [
+                "pacman",
+                "-Q"
+            ],
+            capture_output=True,
+            text=True,
+            check=True
+        )
+
+        packages = {}
+
+        for line in result.stdout.splitlines():
+
+            parts = line.split(None, 1)
+
+            if len(parts) == 2:
+
+                package, version = parts
+
+                packages[package] = version
+
+        return packages
+
+    def get_updates(self):
+        result = subprocess.run(
+            [
+                "pacman",
+                "-Qu"
+            ],
+            capture_output=True,
+            text=True
+        )
+
+        updates = []
+
+        for line in result.stdout.splitlines():
+
+            parts = line.split()
+
+            if len(parts) < 2:
+                continue
+
+            package = parts[0]
+            available_version = parts[1]
+
+            updates.append({
+                "package": package,
+                "installed_version": None,
+                "available_version": available_version
+            })
+
+        return updates
+
+    def get_package_state(self, package):
+        result = subprocess.run(
+            [
+                "pacman",
+                "-Q",
+                package
+            ],
+            capture_output=True,
+            text=True
+        )
+
+        output = result.stdout.strip()
+
+        if result.returncode != 0:
+
+            return {
+                "installed": False,
+                "status": None,
+                "version": None,
+                "raw": output
+            }
+
+        parts = output.split(None, 1)
+
+        if len(parts) != 2:
+
+            return {
+                "installed": False,
+                "status": output,
+                "version": None,
+                "raw": output
+            }
+
+        return {
+            "installed": True,
+            "status": "installed",
+            "version": parts[1],
+            "raw": output
+        }
+
+    def install_package(self, package):
+        return [
+            "pacman",
+            "-S",
+            "--noconfirm",
+            package
+        ]
+
+    def remove_package(self, package):
+        return [
+            "pacman",
+            "-R",
+            "--noconfirm",
+            package
+        ]
+
+    def update_package(self, package):
+        return [
+            "pacman",
+            "-S",
+            "--noconfirm",
+            package
+        ]
+
+    def update_system(self):
+        return [
+            "pacman",
+            "-Syu",
+            "--noconfirm"
+        ]
+
+    def get_candidate_version(self, package):
+        result = subprocess.run(
+            [
+                "pacman",
+                "-Si",
+                package
+            ],
+            capture_output=True,
+            text=True
+        )
+
+        for line in result.stdout.splitlines():
+
+            line = line.strip()
+
+            if line.startswith("Version"):
+
+                parts = line.split(":", 1)
+
+                if len(parts) == 2:
+
+                    return parts[1].strip()
 
         return None

@@ -10,6 +10,25 @@ import sys
 import time
 import urllib.error
 import urllib.request
+from package_manager import (
+    PACKAGE_MANAGER_APT,
+    PACKAGE_MANAGER_PACMAN,
+    AptPackageManager,
+    PacmanPackageManager,
+    detect_package_manager,
+)
+
+DETECTED_PACKAGE_MANAGER = detect_package_manager()
+
+if DETECTED_PACKAGE_MANAGER == PACKAGE_MANAGER_APT:
+    PACKAGE_MANAGER = AptPackageManager()
+elif DETECTED_PACKAGE_MANAGER == PACKAGE_MANAGER_PACMAN:
+    PACKAGE_MANAGER = PacmanPackageManager()
+else:
+    raise RuntimeError(
+        "No supported package manager found. "
+        "Supported package managers: apt, pacman"
+    )
 
 
 AGENT_VERSION = "1.6.0"
@@ -490,11 +509,13 @@ def simulate_job():
             package
         )
 
+        simulated_command = PACKAGE_MANAGER.update_package(package)
+
         print(
             c(
                 DIM,
-                "  $ simulated apt-get install "
-                "--only-upgrade -y " + package
+                "  $ simulated "
+                + " ".join(simulated_command)
             )
         )
 
@@ -580,222 +601,181 @@ def get_auth_headers(extra=None):
 
 def get_idle_status():
     """
-    Determine local user inactivity.
+    Determine local user inactivity using systemd-logind.
 
-    For server/TTY/SSH clients we use `w -h` because loginctl's
-    IdleHint is not reliable for headless TTY/SSH sessions.
+    The agent uses loginctl instead of parsing `w` output.
 
     Safety rule:
-    - Any relevant active session resets the idle state.
-    - The shortest idle duration is used.
-    - Unknown or malformed activity information is treated as active.
-    - The agent itself does not create a persistent user session and
-      therefore does not artificially keep the client active.
+    - Only real user sessions are considered.
+    - systemd manager sessions are ignored.
+    - Any active user session blocks updates.
+    - For idle sessions, IdleSinceHintMonotonic determines the
+      actual idle duration.
+    - The shortest idle duration is used, so one active session
+      keeps the client blocked even when another session is idle.
+    - No relevant user session means the client is considered idle.
     """
 
     threshold_seconds = 300
 
-    def parse_idle_seconds(value):
-        """
-        Parse the IDLE column from `w`.
-
-        Supported examples:
-            0.00s
-            5.00s
-            30:16
-            1:02:03
-            2days
-            2days,01:15
-        """
-
-        value = value.strip()
-
-        if not value:
-            raise ValueError("empty idle value")
-
-        # Seconds, e.g. 0.00s / 5.00s
-        if value.endswith("s"):
-            return max(
-                0,
-                int(float(value[:-1]))
-            )
-
-        # Days, e.g. 2days
-        if value.endswith("days"):
-            days_part = value[:-4]
-            return max(
-                0,
-                int(float(days_part) * 86400)
-            )
-
-        # Optional combined format:
-        # 2days,01:15
-        if "days," in value:
-            days_part, time_part = value.split(",", 1)
-
-            days = int(days_part.replace("days", "").strip())
-
-            parts = time_part.split(":")
-
-            if len(parts) == 2:
-                hours = 0
-                minutes = int(parts[0])
-                seconds = int(parts[1])
-
-            elif len(parts) == 3:
-                hours = int(parts[0])
-                minutes = int(parts[1])
-                seconds = int(parts[2])
-
-            else:
-                raise ValueError("invalid day/time idle format")
-
-            return max(
-                0,
-                days * 86400
-                + hours * 3600
-                + minutes * 60
-                + seconds
-            )
-
-        # HH:MMm
-        # Example: 1:49m = 1 hour and 49 minutes
-        if value.endswith("m") and ":" in value:
-            time_value = value[:-1]
-            parts = time_value.split(":")
-
-            if len(parts) == 2:
-                hours = int(parts[0])
-                minutes = int(parts[1])
-
-                return max(
-                    0,
-                    hours * 3600
-                    + minutes * 60
-                )
-
-            raise ValueError(
-                f"unsupported minute idle value: {value}"
-            )
-
-        # HH:MM
-        parts = value.split(":")
-
-        if len(parts) == 2:
-            minutes = int(parts[0])
-            seconds = int(parts[1])
-
-            return max(
-                0,
-                minutes * 60 + seconds
-            )
-
-        # HH:MM:SS
-        if len(parts) == 3:
-            hours = int(parts[0])
-            minutes = int(parts[1])
-            seconds = int(parts[2])
-
-            return max(
-                0,
-                hours * 3600
-                + minutes * 60
-                + seconds
-            )
-
-        raise ValueError(
-            f"unsupported idle value: {value}"
-        )
-
     try:
         result = subprocess.run(
             [
-                "w",
-                "-h"
+                "loginctl",
+                "list-sessions",
+                "--no-legend",
+                "--no-pager"
             ],
             capture_output=True,
             text=True,
+            timeout=10,
             check=True
         )
-
-        idle_values = []
-
-        for line in result.stdout.splitlines():
-
-            if not line.strip():
-                continue
-
-            parts = line.split()
-
-            # Expected minimum:
-            #
-            # USER TTY FROM LOGIN@ IDLE JCPU PCPU WHAT
-            #
-            if len(parts) < 7:
-                continue
-
-            user = parts[0]
-            tty = parts[1]
-            idle_value = parts[4]
-
-            # Ignore non-terminal pseudo entries.
-            if not tty:
-                continue
-
-            # `w` reports the current command itself as a process
-            # but this does not represent user activity.
-            #
-            # We intentionally do not treat the presence of the
-            # session as activity. Only the IDLE column matters.
-
-            try:
-                idle_seconds = parse_idle_seconds(
-                    idle_value
-                )
-            except (ValueError, TypeError):
-                return {
-                    "idle": False,
-                    "idle_seconds": 0,
-                    "threshold_seconds": threshold_seconds,
-                    "idle_source": "w",
-                    "idle_supported": False
-                }
-
-            idle_values.append(idle_seconds)
-
-        if not idle_values:
-            return {
-                "idle": False,
-                "idle_seconds": 0,
-                "threshold_seconds": threshold_seconds,
-                "idle_source": "w",
-                "idle_supported": False
-            }
-
-        # Safety rule:
-        # The most recently active session determines the client state.
-        idle_seconds = min(idle_values)
-
-        return {
-            "idle": idle_seconds >= threshold_seconds,
-            "idle_seconds": idle_seconds,
-            "threshold_seconds": threshold_seconds,
-            "idle_source": "w",
-            "idle_supported": True
-        }
-
     except (
-        subprocess.CalledProcessError,
-        ValueError,
+        subprocess.SubprocessError,
         OSError
     ):
         return {
             "idle": False,
             "idle_seconds": 0,
             "threshold_seconds": threshold_seconds,
-            "idle_source": "w",
+            "idle_source": "loginctl",
             "idle_supported": False
         }
+
+    session_ids = []
+
+    for line in result.stdout.splitlines():
+        parts = line.split()
+
+        if not parts:
+            continue
+
+        session_id = parts[0]
+
+        if session_id.isdigit():
+            session_ids.append(session_id)
+
+    idle_values = []
+
+    for session_id in session_ids:
+
+        try:
+            session_result = subprocess.run(
+                [
+                    "loginctl",
+                    "show-session",
+                    session_id,
+                    "-p", "Class",
+                    "-p", "Type",
+                    "-p", "TTY",
+                    "-p", "State",
+                    "-p", "IdleHint",
+                    "-p", "IdleSinceHintMonotonic"
+                ],
+                capture_output=True,
+                text=True,
+                timeout=10,
+                check=True
+            )
+        except (
+            subprocess.SubprocessError,
+            OSError
+        ):
+            return {
+                "idle": False,
+                "idle_seconds": 0,
+                "threshold_seconds": threshold_seconds,
+                "idle_source": "loginctl",
+                "idle_supported": False
+            }
+
+        properties = {}
+
+        for line in session_result.stdout.splitlines():
+            if "=" in line:
+                key, value = line.split("=", 1)
+                properties[key] = value
+
+        if properties.get("Class") != "user":
+            continue
+
+        session_type = properties.get("Type", "")
+        tty = properties.get("TTY", "")
+
+        if not tty and session_type not in {
+            "x11",
+            "wayland",
+            "mir"
+        }:
+            continue
+
+        if properties.get("IdleHint") != "yes":
+            idle_values.append(0)
+            continue
+
+        idle_since_raw = properties.get(
+            "IdleSinceHintMonotonic",
+            ""
+        )
+
+        try:
+            idle_since_microseconds = int(
+                idle_since_raw
+            )
+
+            if idle_since_microseconds <= 0:
+                raise ValueError(
+                    "invalid IdleSinceHintMonotonic"
+                )
+
+            now_monotonic = time.monotonic()
+
+            idle_since_seconds = (
+                idle_since_microseconds / 1_000_000
+            )
+
+            idle_seconds = max(
+                0,
+                int(
+                    now_monotonic -
+                    idle_since_seconds
+                )
+            )
+
+        except (
+            ValueError,
+            TypeError,
+            OverflowError
+        ):
+            return {
+                "idle": False,
+                "idle_seconds": 0,
+                "threshold_seconds": threshold_seconds,
+                "idle_source": "loginctl",
+                "idle_supported": False
+            }
+
+        idle_values.append(idle_seconds)
+
+    if not idle_values:
+        return {
+            "idle": True,
+            "idle_seconds": threshold_seconds,
+            "threshold_seconds": threshold_seconds,
+            "idle_source": "loginctl",
+            "idle_supported": True
+        }
+
+    idle_seconds = min(idle_values)
+
+    return {
+        "idle": idle_seconds >= threshold_seconds,
+        "idle_seconds": idle_seconds,
+        "threshold_seconds": threshold_seconds,
+        "idle_source": "loginctl",
+        "idle_supported": True
+    }
 
 def get_ip():
     return subprocess.check_output(
@@ -813,75 +793,11 @@ def get_ip():
 # ============================================================
 
 def get_packages():
-    result = subprocess.run(
-        [
-            "dpkg-query",
-            "-W",
-            "-f=${binary:Package} ${Version}\n"
-        ],
-        capture_output=True,
-        text=True,
-        check=True
-    )
-
-    packages = {}
-
-    for line in result.stdout.splitlines():
-        parts = line.split(" ", 1)
-
-        if len(parts) == 2:
-            package, version = parts
-            packages[package] = version
-
-    return packages
+    return PACKAGE_MANAGER.get_installed_packages()
 
 
 def get_updates():
-    env = os.environ.copy()
-    env["LC_ALL"] = "C"
-
-    result = subprocess.run(
-        ["apt", "list", "--upgradable"],
-        capture_output=True,
-        text=True,
-        env=env
-    )
-
-    updates = []
-
-    for line in result.stdout.splitlines():
-
-        if "/" not in line:
-            continue
-
-        if "upgradable" not in line:
-            continue
-
-        parts = line.split()
-
-        if len(parts) < 2:
-            continue
-
-        package_info = parts[0]
-        available_version = parts[1]
-
-        package = package_info.split("/")[0]
-
-        installed_version = None
-
-        if "upgradable from:" in line:
-            installed_version = line.split(
-                "upgradable from:",
-                1
-            )[1].strip().rstrip("]")
-
-        updates.append({
-            "package": package,
-            "installed_version": installed_version,
-            "available_version": available_version
-        })
-
-    return updates
+    return PACKAGE_MANAGER.get_updates()
 
 
 def collect_data():
@@ -1056,81 +972,18 @@ def claim_job(client_id, job_id):
 # ============================================================
 
 def get_installed_package_state(package):
-    result = subprocess.run(
-        [
-            "dpkg-query",
-            "-W",
-            "-f=${Status}|${Version}",
-            package
-        ],
-        capture_output=True,
-        text=True
-    )
-
-    output = result.stdout.strip()
-
-    if result.returncode != 0:
-        return {
-            "installed": False,
-            "status": None,
-            "version": None,
-            "raw": output
-        }
-
-    parts = output.split("|", 2)
-
-    if len(parts) != 2:
-        return {
-            "installed": False,
-            "status": output,
-            "version": None,
-            "raw": output
-        }
-
-    package_status = parts[0]
-    version = parts[1]
-
-    installed = (
-        package_status == "install ok installed"
-    )
-
-    return {
-        "installed": installed,
-        "status": package_status,
-        "version": version,
-        "raw": output
-    }
+    return PACKAGE_MANAGER.get_package_state(package)
 
 
 def get_candidate_version(package):
-    result = subprocess.run(
-        [
-            "apt-cache",
-            "policy",
-            package
-        ],
-        capture_output=True,
-        text=True
-    )
-
-    for line in result.stdout.splitlines():
-
-        line = line.strip()
-
-        if line.startswith("Candidate:"):
-            return line.split(
-                ":",
-                1
-            )[1].strip()
-
-    return None
+    return PACKAGE_MANAGER.get_candidate_version(package)
 
 
 # ============================================================
 # UPDATE ENGINE
 # ============================================================
 
-def animate_update(command, package):
+def animate_package_action(command, package, action):
     env = os.environ.copy()
     env["DEBIAN_FRONTEND"] = "noninteractive"
     env["LC_ALL"] = "C"
@@ -1185,7 +1038,7 @@ def animate_update(command, package):
             hex_value = f"0x{value:02X}"
 
             sys.stdout.write(
-                f"  UPDATE {c(CYAN, package):30} "
+                f"  {action:6} {c(CYAN, package):30} "
                 f"{c(GREEN, hex_value)}"
             )
 
@@ -1217,13 +1070,7 @@ def animate_update(command, package):
 
 
 def run_package_update(package):
-    command = [
-        "apt-get",
-        "install",
-        "--only-upgrade",
-        "-y",
-        package
-    ]
+    command = PACKAGE_MANAGER.update_package(package)
 
     print()
     print(
@@ -1243,9 +1090,10 @@ def run_package_update(package):
 
     try:
 
-        returncode, output = animate_update(
+        returncode, output = animate_package_action(
             command,
-            package
+            package,
+            "UPDATE"
         )
 
     except subprocess.TimeoutExpired:
@@ -1318,7 +1166,7 @@ def run_package_update(package):
             "package": package,
             "status": "success",
             "message": (
-                "apt-get returned a non-zero code, "
+                "Package manager returned a non-zero code, "
                 "but the package is installed and the "
                 "target version is present.\n"
                 f"Returncode: {returncode}\n"
@@ -1345,7 +1193,7 @@ def run_package_update(package):
             "package": package,
             "status": "success",
             "message": (
-                "apt-get returned a non-zero code, "
+                "Package manager returned a non-zero code, "
                 "but the package is installed correctly. "
                 "No candidate version was available "
                 "for comparison.\n"
@@ -1376,6 +1224,314 @@ def run_package_update(package):
             f"Target version: "
             f"{target_version or 'unknown'}\n\n"
             f"{output[-3500:]}"
+        ),
+        "returncode": returncode
+    }
+
+
+
+def run_package_install(package):
+    command = PACKAGE_MANAGER.install_package(package)
+
+    print()
+    print(
+        c(CYAN, f"  INSTALL // {package}")
+    )
+
+    print(
+        c(DIM, "  $ " + " ".join(command))
+    )
+
+    try:
+
+        returncode, output = animate_package_action(
+            command,
+            package,
+            "INSTALL"
+        )
+
+    except subprocess.TimeoutExpired:
+
+        print_bar(
+            0.78,
+            "timeout"
+        )
+
+        print()
+
+        return {
+            "package": package,
+            "status": "timeout",
+            "message": (
+                f"Package installation timed out after "
+                f"{PACKAGE_TIMEOUT} seconds."
+            ),
+            "returncode": None
+        }
+
+    package_state = get_installed_package_state(
+        package
+    )
+
+    installed_version = package_state.get(
+        "version"
+    )
+
+    package_installed = package_state.get(
+        "installed"
+    )
+
+    if returncode == 0 and package_installed:
+
+        print_bar(
+            1.0,
+            "success"
+        )
+
+        print()
+
+        return {
+            "package": package,
+            "status": "success",
+            "message": (
+                f"Package installation completed successfully.\n"
+                f"Returncode: {returncode}\n"
+                f"Installed version: "
+                f"{installed_version or 'unknown'}\n\n"
+                f"{output[-3500:]}"
+            ),
+            "returncode": returncode
+        }
+
+    if package_installed:
+
+        print_bar(
+            1.0,
+            "success"
+        )
+
+        print()
+
+        return {
+            "package": package,
+            "status": "success",
+            "message": (
+                "Package manager returned a non-zero code, "
+                "but the package is installed.\n"
+                f"Returncode: {returncode}\n"
+                f"Installed version: "
+                f"{installed_version or 'unknown'}\n\n"
+                f"{output[-3000:]}"
+            ),
+            "returncode": returncode
+        }
+
+    print_bar(
+        0.78,
+        "failed"
+    )
+
+    print()
+
+    return {
+        "package": package,
+        "status": "failed",
+        "message": (
+            f"Package installation failed.\n"
+            f"Returncode: {returncode}\n"
+            f"Package status: "
+            f"{package_state.get('status') or 'unknown'}\n"
+            f"Installed version: "
+            f"{installed_version or 'unknown'}\n\n"
+            f"{output[-3500:]}"
+        ),
+        "returncode": returncode
+    }
+
+
+
+def run_package_remove(package):
+    command = PACKAGE_MANAGER.remove_package(package)
+
+    print()
+    print(
+        c(CYAN, f"  REMOVE // {package}")
+    )
+
+    print(
+        c(DIM, "  $ " + " ".join(command))
+    )
+
+    try:
+
+        returncode, output = animate_package_action(
+            command,
+            package,
+            "REMOVE"
+        )
+
+    except subprocess.TimeoutExpired:
+
+        print_bar(
+            0.78,
+            "timeout"
+        )
+
+        print()
+
+        return {
+            "package": package,
+            "status": "timeout",
+            "message": (
+                f"Package removal timed out after "
+                f"{PACKAGE_TIMEOUT} seconds."
+            ),
+            "returncode": None
+        }
+
+    package_state = get_installed_package_state(
+        package
+    )
+
+    package_installed = package_state.get(
+        "installed"
+    )
+
+    if returncode == 0 and not package_installed:
+
+        print_bar(
+            1.0,
+            "success"
+        )
+
+        print()
+
+        return {
+            "package": package,
+            "status": "success",
+            "message": (
+                f"Package removal completed successfully.\n"
+                f"Returncode: {returncode}\n\n"
+                f"{output[-3500:]}"
+            ),
+            "returncode": returncode
+        }
+
+    if not package_installed:
+
+        print_bar(
+            1.0,
+            "success"
+        )
+
+        print()
+
+        return {
+            "package": package,
+            "status": "success",
+            "message": (
+                "Package manager returned a non-zero code, "
+                "but the package is no longer installed.\n"
+                f"Returncode: {returncode}\n\n"
+                f"{output[-3000:]}"
+            ),
+            "returncode": returncode
+        }
+
+    print_bar(
+        0.78,
+        "failed"
+    )
+
+    print()
+
+    return {
+        "package": package,
+        "status": "failed",
+        "message": (
+            f"Package removal failed.\n"
+            f"Returncode: {returncode}\n"
+            f"Package status: "
+            f"{package_state.get('status') or 'unknown'}\n\n"
+            f"{output[-3500:]}"
+        ),
+        "returncode": returncode
+    }
+
+
+def run_system_update():
+    command = PACKAGE_MANAGER.update_system()
+
+    print()
+    print(
+        c(CYAN, "  UPDATE SYSTEM")
+    )
+
+    print(
+        c(DIM, "  $ " + " ".join(command))
+    )
+
+    try:
+
+        returncode, output = animate_package_action(
+            command,
+            "system",
+            "SYSTEM"
+        )
+
+    except subprocess.TimeoutExpired:
+
+        print_bar(
+            0.78,
+            "timeout"
+        )
+
+        print()
+
+        return {
+            "package": None,
+            "status": "timeout",
+            "message": (
+                f"System update timed out after "
+                f"{PACKAGE_TIMEOUT} seconds."
+            ),
+            "returncode": None
+        }
+
+    if returncode == 0:
+
+        print_bar(
+            1.0,
+            "success"
+        )
+
+        print()
+
+        return {
+            "package": None,
+            "status": "success",
+            "message": (
+                "System update completed successfully.\\n"
+                f"Returncode: {returncode}\\n\\n"
+                f"{output[-5000:]}"
+            ),
+            "returncode": returncode
+        }
+
+    print_bar(
+        0.78,
+        "failed"
+    )
+
+    print()
+
+    return {
+        "package": None,
+        "status": "failed",
+        "message": (
+            "System update failed.\\n"
+            f"Returncode: {returncode}\\n\\n"
+            f"{output[-5000:]}"
         ),
         "returncode": returncode
     }
@@ -1423,6 +1579,7 @@ def send_job_result(
 
 def execute_job(job):
     job_id = job["job_id"]
+    action = job.get("action", "UPDATE_PACKAGE")
     job_packages = job.get("packages", [])
 
     simulation = SIMULATE_UPDATES
@@ -1433,6 +1590,10 @@ def execute_job(job):
 
     print(
         f"  JOB        {c(CYAN, str(job_id))}"
+    )
+
+    print(
+        f"  ACTION     {c(CYAN, action)}"
     )
 
     print(
@@ -1447,7 +1608,7 @@ def execute_job(job):
         )
 
         print(
-            f"  APT        "
+            f"  PACKAGE    "
             f"{c(GREEN, "DISABLED")}"
         )
 
@@ -1466,66 +1627,132 @@ def execute_job(job):
 
     results = []
 
-    total = len(job_packages)
+    if action == "UPDATE_SYSTEM" and not simulation:
 
-    for index, item in enumerate(
-        job_packages,
-        start=1
-    ):
-
-        package = item["package"]
-
-        print(
-            c(
-                WHITE + BOLD,
-                f"[{index:02d}/{total:02d}] {package}"
-            )
-        )
-
-        if simulation:
-
-            print(
-                c(
-                    DIM,
-                    "  $ simulated apt-get install "
-                    "--only-upgrade -y " + package
-                )
-            )
-
-            time.sleep(1.0)
-
-            result = {
-                "package": package,
-                "status": "success",
-                "message": "E2E simulation success.",
-                "returncode": 0
-            }
-
-        else:
-
-            result = run_package_update(
-                package
-            )
+        result = run_system_update()
 
         results.append(result)
 
         if result["status"] == "success":
 
             status_ok(
-                f"{package} // SUCCESS"
+                "SYSTEM UPDATE // SUCCESS"
             )
 
         elif result["status"] == "timeout":
 
             status_warn(
-                f"{package} // TIMEOUT"
+                "SYSTEM UPDATE // TIMEOUT"
             )
 
         else:
 
             status_fail(
-                f"{package} // FAILED"
+                "SYSTEM UPDATE // FAILED"
             )
+
+    else:
+
+        total = len(job_packages)
+
+        for index, item in enumerate(
+            job_packages,
+            start=1
+        ):
+
+            package = item["package"]
+
+            print(
+                c(
+                    WHITE + BOLD,
+                    f"[{index:02d}/{total:02d}] {package}"
+                )
+            )
+
+            if simulation:
+
+                if action == "UPDATE_PACKAGE":
+                    simulated_command = PACKAGE_MANAGER.update_package(
+                        package
+                    )
+                elif action == "INSTALL_PACKAGE":
+                    simulated_command = PACKAGE_MANAGER.install_package(
+                        package
+                    )
+                elif action == "REMOVE_PACKAGE":
+                    simulated_command = PACKAGE_MANAGER.remove_package(
+                        package
+                    )
+                else:
+                    simulated_command = []
+
+                print(
+                    c(
+                        DIM,
+                        "  $ simulated "
+                        + " ".join(simulated_command)
+                    )
+                )
+
+                time.sleep(1.0)
+
+                result = {
+                    "package": package,
+                    "status": "success",
+                    "message": "E2E simulation success.",
+                    "returncode": 0
+                }
+
+            else:
+
+                if action == "UPDATE_PACKAGE":
+
+                    result = run_package_update(
+                        package
+                    )
+
+                elif action == "INSTALL_PACKAGE":
+
+                    result = run_package_install(
+                        package
+                    )
+
+                elif action == "REMOVE_PACKAGE":
+
+                    result = run_package_remove(
+                        package
+                    )
+
+                else:
+
+                    result = {
+                        "package": package,
+                        "status": "failed",
+                        "message": (
+                            f"Unsupported package action: {action}"
+                        ),
+                        "returncode": None
+                    }
+
+            results.append(result)
+
+            if result["status"] == "success":
+
+                status_ok(
+                    f"{package} // SUCCESS"
+                )
+
+            elif result["status"] == "timeout":
+
+                status_warn(
+                    f"{package} // TIMEOUT"
+                )
+
+            else:
+
+                status_fail(
+                    f"{package} // FAILED"
+                )
 
     successful = sum(
         1
