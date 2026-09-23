@@ -1217,7 +1217,7 @@ LUMS_CA_FILE
 Example:
 
 ```text
-LUMS_BASE="https://192.168.2.141"
+LUMS_BASE="https://Server IP"
 LUMS_TOKEN="<REDACTED>"
 LUMS_CA_FILE="/opt/lums-agent/lums-ca.crt"
 ```
@@ -2001,7 +2001,7 @@ Name:
 NovaForgeCtrl
 
 Email:
-232026481+NovaForgeCtrl@users.noreply.github.com
+xxxxnoreply.github.com
 ```
 
 ---
