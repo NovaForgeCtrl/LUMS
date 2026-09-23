@@ -4,7 +4,7 @@
 >
 > Security principles, operational requirements, hardening status, and responsible handling of sensitive information in LUMS.
 
-**Version:** 2.5
+**Version:** 3.0
 **Project:** LUMS
 **Slogan:** Linux Update Management without the noise.
 
@@ -16,36 +16,41 @@ LUMS follows a simple principle:
 
 > **Centralized management does not mean centralized trust.**
 
-LUMS manages Linux clients, receives inventory information, and distributes update jobs.
+LUMS manages Linux clients, receives inventory information, reports update status, and distributes update jobs.
 
-The actual package installation takes place on the managed Linux client.
+The actual package-management operation takes place on the managed Linux client.
+
+LUMS therefore separates the **management plane** from the **execution plane**.
 
 ```text
-                    ┌─────────────────────┐
-                    │      LUMS Server     │
-                    │                     │
-                    │ Nginx               │
-                    │ Docker              │
-                    │ Gunicorn            │
-                    │ Flask               │
-                    │ Authentication      │
-                    │ Authorization       │
-                    │ Inventory           │
-                    │ Update Jobs         │
-                    └──────────┬──────────┘
-                               │
-                         HTTPS + Token
-                               │
-                    ┌──────────▼──────────┐
-                    │    Linux Client     │
-                    │                     │
-                    │ lums-agent          │
-                    │ execution watcher   │
-                    │ APT / dpkg          │
-                    └─────────────────────┘
+                    ┌──────────────────────────┐
+                    │       LUMS Server        │
+                    │                          │
+                    │ Nginx                    │
+                    │ HTTPS                    │
+                    │ Gunicorn                 │
+                    │ Flask                    │
+                    │ Authentication           │
+                    │ Authorization            │
+                    │ Inventory                │
+                    │ Update Jobs              │
+                    │ SQLite                   │
+                    └────────────┬─────────────┘
+                                 │
+                           HTTPS + Token
+                                 │
+              ┌──────────────────┴──────────────────┐
+              │                                     │
+      ┌───────▼────────┐                   ┌────────▼───────┐
+      │ Debian Client  │                   │  Arch Client   │
+      │                │                   │                │
+      │ lums-agent     │                   │ lums-agent     │
+      │ APT / dpkg     │                   │ pacman         │
+      │ systemd        │                   │ systemd        │
+      └────────────────┘                   └────────────────┘
 ```
 
-LUMS security depends on multiple layers:
+Security is implemented in multiple layers:
 
 ```text
 Network
@@ -68,7 +73,7 @@ Database
    ↓
 Operating System
    ↓
-APT / dpkg
+Package Manager
 ```
 
 A weakness in one layer must never be used as a reason to disable another security layer.
@@ -80,30 +85,40 @@ A weakness in one layer must never be used as a reason to disable another securi
 This document covers:
 
 * Docker deployment security
-* Gunicorn application serving
-* Database initialization
-* Server authentication
-* Client authentication
-* Authorization
-* TLS certificates
+* Container privilege reduction
+* Linux capabilities
+* Read-only filesystems
 * Secret management
-* SQLite database protection
-* Nginx configuration
+* Secret rotation
+* Administrator authentication
+* Client authentication
+* Client token lifecycle
+* Authorization
+* Job ownership
+* Atomic job claiming
+* Interrupted-job recovery
+* TLS
+* Nginx
+* Security headers
+* SQLite protection
+* Backup handling
+* Restore requirements
 * systemd agent services
-* Execution watcher security
+* Idle detection
+* Package-manager abstraction
 * Update execution
 * Logging
-* Backup protection
+* Git security
+* Deployment security
 * Incident handling
 * Security testing
-* Security maintenance
-* Current security limitations
 * Remaining hardening work
 
 This document does not replace the official security documentation of:
 
 * Ubuntu
 * Debian
+* Arch Linux
 * Docker
 * Python
 * Flask
@@ -112,23 +127,37 @@ This document does not replace the official security documentation of:
 * SQLite
 * APT
 * dpkg
+* pacman
 * systemd
 
 ---
 
 # 3. Current Architecture
 
-The current LUMS deployment uses:
+The current LUMS server uses:
 
-* Flask inside a Docker container
-* Gunicorn as the WSGI application server
-* SQLite in a persistent Docker volume
-* Nginx as an HTTPS reverse proxy
-* A Linux reporting agent
-* A separate execution watcher
-* Bearer-token authentication
-* systemd timers for scheduled execution
-* A root-managed mounted Flask secret
+* Flask
+* Gunicorn
+* SQLite
+* Docker
+* Nginx
+* HTTPS
+* Bearer-token client authentication
+* Argon2 administrator password hashing
+* systemd-managed Linux agents
+* package-manager abstraction
+* audit logging
+
+The current tested client package managers are:
+
+```text
+APT
+pacman
+```
+
+The application container is not directly exposed to the network.
+
+Current network flow:
 
 ```text
 Client
@@ -143,106 +172,216 @@ Nginx
    │
    │ Docker port mapping
    ▼
-Docker container :5000
+Docker :5000
    │
    ▼
 Gunicorn
    │
-   ├── Worker 1
-   └── Worker 2
-   │
-   ▼
-Flask application
-   │
-   ├── Authentication
-   ├── Authorization
-   ├── Inventory
-   └── Update Jobs
-   │
-   ▼
-SQLite database
+   ├── Worker
+   ├── Worker
+   └── Flask application
+          │
+          ├── Authentication
+          ├── Authorization
+          ├── Inventory
+          ├── Update Jobs
+          └── Audit Logging
+                    │
+                    ▼
+                  SQLite
 ```
 
-The Docker application is bound to localhost:
+The current production application binding is:
 
 ```text
-127.0.0.1:5050 → container port 5000
+127.0.0.1:5050 → container:5000
 ```
 
-The application is not directly exposed as a network service on ports `5000` or `5050`.
+The application is therefore only reachable locally through the Docker port mapping.
 
-The Flask secret is no longer supplied through the normal container environment.
-
-Instead, production uses:
-
-```text
-Host:
-    /etc/lums/secrets/lums_secret
-
-        │ read-only bind mount
-
-Container:
-    /run/secrets/lums_secret
-```
-
-The application reads the secret through:
-
-```text
-LUMS_SECRET_KEY_FILE=/run/secrets/lums_secret
-```
+External HTTPS access is provided by Nginx.
 
 ---
 
-# 4. Current Deployment Security Status
+# 4. Management Plane and Execution Plane
 
-The following controls have been implemented and tested:
+LUMS deliberately separates two operational areas.
 
-| Security control                                         | Status   |
-| -------------------------------------------------------- | -------- |
-| Non-root Docker container                                | Verified |
-| Drop all Linux capabilities                              | Verified |
-| Read-only root filesystem                                | Verified |
-| Writable application data only through persistent volume | Verified |
-| `/tmp` isolated through tmpfs                            | Verified |
-| Secret isolation                                         | Verified |
-| Protected mounted Flask secret                           | Verified |
-| Secret mount read-only                                   | Verified |
-| Production Flask secret rotation                         | Verified |
-| Gunicorn deployment                                      | Verified |
-| HTTPS reverse proxy                                      | Verified |
-| Security headers                                         | Verified |
-| Client authentication                                    | Verified |
-| Client token lifecycle                                   | Verified |
-| Client token rotation                                    | Verified |
-| Interrupted-job recovery                                 | Verified |
-| SQLite-aware backup                                      | Verified |
-| Backup integrity verification                            | Verified |
-| Production frontend deployment                           | Verified |
-| Frontend token rotation workflow                         | Verified |
+## Management Plane
 
-Remaining hardening:
+```text
+Nginx
+   ↓
+Gunicorn
+   ↓
+Flask
+   ↓
+Authentication
+   ↓
+Authorization
+   ↓
+SQLite
+   ↓
+Job management
+```
+
+The management plane is responsible for:
+
+* administrator access,
+* client authentication,
+* inventory,
+* job creation,
+* job assignment,
+* job status,
+* audit information,
+* client management.
+
+## Execution Plane
+
+```text
+lums-agent
+   ↓
+package_manager.py
+   ↓
+APT / dpkg
+      or
+pacman
+```
+
+The execution plane is responsible for:
+
+* collecting package information,
+* detecting available updates,
+* claiming authorized jobs,
+* executing package operations,
+* reporting results.
+
+The server does not directly execute package-management commands on clients.
+
+---
+
+# 5. Current Supported Client Platforms
+
+The current package-manager abstraction supports:
+
+```text
+APT
+pacman
+```
+
+The tested environments include:
+
+```text
+Debian 13
+Arch Linux
+```
+
+The agent detects the available package manager.
+
+Current detection logic:
+
+```text
+apt available
+    ↓
+APT package manager
+
+otherwise
+
+pacman available
+    ↓
+pacman package manager
+
+otherwise
+
+unsupported system
+```
+
+The purpose of the abstraction is to keep distribution-specific package-management behavior outside the main agent execution logic.
+
+---
+
+# 6. Current Agent Version
+
+The current LUMS agent version is:
+
+```text
+1.6.0
+```
+
+The agent version is defined centrally in:
+
+```text
+agent/agent.py
+```
+
+The tested Arch client and repository copy were verified byte-for-byte identical.
+
+The agent therefore uses the same tested implementation across the current Debian and Arch environments.
+
+---
+
+# 7. Security Status
+
+The following controls are currently implemented and verified:
+
+| Security control                            | Status   |
+| ------------------------------------------- | -------- |
+| Non-root Docker container                   | Verified |
+| UID 10001 container user                    | Verified |
+| `CAP_DROP=ALL`                              | Verified |
+| Privileged container disabled               | Verified |
+| Read-only root filesystem                   | Verified |
+| `/tmp` isolated through tmpfs               | Verified |
+| Secret supplied through protected file      | Verified |
+| Secret mount read-only                      | Verified |
+| Production Flask secret rotation            | Verified |
+| Gunicorn deployment                         | Verified |
+| HTTPS reverse proxy                         | Verified |
+| Localhost-only application binding          | Verified |
+| Security headers                            | Verified |
+| Administrator authentication                | Verified |
+| Client Bearer authentication                | Verified |
+| Client token rotation                       | Verified |
+| Token invalidation                          | Verified |
+| Token rotation audit logging                | Verified |
+| CSRF protection for administrative rotation | Verified |
+| Atomic job claiming                         | Verified |
+| Job ownership validation                    | Verified |
+| Interrupted-job recovery                    | Verified |
+| Debian client reporting                     | Verified |
+| Arch client reporting                       | Verified |
+| Debian update job execution                 | Verified |
+| Arch update job execution                   | Verified |
+| APT package-manager abstraction             | Verified |
+| pacman package-manager abstraction          | Verified |
+| systemd-logind idle detection               | Verified |
+
+Remaining hardening work:
 
 ```text
 Update execution hardening
 Full backup / restore test
-Automated security tests
+Automated security regression tests
 Final security review
 ```
 
 ---
 
-# 5. Docker Security
+# 8. Docker Security
 
 The LUMS application runs as a dedicated non-root user.
 
-The container user is:
+Current container identity:
 
 ```text
-lums
-UID 10001
+User:
+    lums
+
+UID:
+    10001
 ```
 
-The Docker image must not run as root.
+The container must not run as root.
 
 Verify:
 
@@ -257,27 +396,17 @@ Expected:
 User=lums
 ```
 
-The application data directory is:
-
-```text
-/var/lib/lums
-```
-
-The persistent Docker volume is:
-
-```text
-lums-data
-```
+Running the application as a dedicated non-root user reduces the impact of an application-level compromise.
 
 ---
 
-# 6. Linux Capability Hardening
+# 9. Linux Capability Hardening
 
-The LUMS application does not require Linux capabilities.
+LUMS does not require additional Linux capabilities.
 
 Production therefore uses:
 
-```bash
+```text
 --cap-drop=ALL
 ```
 
@@ -291,10 +420,12 @@ sudo docker inspect lums \
 Expected:
 
 ```text
-CapDrop=["ALL"]
+["ALL"]
 ```
 
-The container must also not be privileged:
+The container must also not be privileged.
+
+Verify:
 
 ```bash
 sudo docker inspect lums \
@@ -304,40 +435,43 @@ sudo docker inspect lums \
 Expected:
 
 ```text
-Privileged=false
+false
 ```
 
-The application continues to function without additional Linux capabilities.
+The application must continue functioning without additional Linux capabilities.
 
 ---
 
-# 7. Read-Only Root Filesystem
+# 10. Read-Only Root Filesystem
 
 The production container uses:
 
-```bash
+```text
 --read-only
 ```
 
-The root filesystem is therefore not writable.
+The container root filesystem is therefore not writable during normal operation.
 
-Writable state is deliberately limited to:
+Persistent application state is stored separately:
 
 ```text
+lums-data
+    ↓
 /var/lib/lums
-/tmp
 ```
 
-The `/tmp` directory is provided through:
-
-```bash
---tmpfs /tmp:rw,nosuid,nodev,noexec
-```
-
-The persistent database remains on:
+Temporary writable data uses:
 
 ```text
-lums-data:/var/lib/lums
+/tmp
+    ↓
+tmpfs
+```
+
+The current tmpfs configuration is:
+
+```text
+/tmp:rw,nosuid,nodev,noexec
 ```
 
 Verify:
@@ -350,23 +484,57 @@ sudo docker inspect lums \
 Expected:
 
 ```text
-ReadonlyRootfs=true
+true
+```
+
+This prevents normal application writes from modifying the container image filesystem.
+
+---
+
+# 11. Container Filesystem Layout
+
+The security-relevant filesystem layout is:
+
+```text
+Container
+│
+├── /                    READ-ONLY
+│
+├── /tmp                 tmpfs
+│
+├── /var/lib/lums       persistent Docker volume
+│
+└── /run/secrets/
+      └── lums_secret   READ-ONLY
+```
+
+This deliberately separates:
+
+```text
+Application image
+    ≠
+Persistent database
+    ≠
+Temporary files
+    ≠
+Security secrets
 ```
 
 ---
 
-# 8. Secret Management
+# 12. Secret Management
 
-The Flask secret is security-sensitive.
+The Flask application secret is security-sensitive.
 
-The secret must never be:
+Production secrets must never be:
 
 * committed to Git,
-* documented in plaintext,
+* written into documentation,
 * printed to logs,
 * included in screenshots,
 * included in bug reports,
-* passed through normal container environment variables in production.
+* exposed through normal container environment variables,
+* copied into source files.
 
 Production uses:
 
@@ -374,44 +542,82 @@ Production uses:
 /etc/lums/secrets/lums_secret
 ```
 
-The host secret directory is protected.
+The secret is mounted into the container:
+
+```text
+Host
+/etc/lums/secrets/lums_secret
+        │
+        │ read-only bind mount
+        ▼
+Container
+/run/secrets/lums_secret
+```
+
+The application is configured with:
+
+```text
+LUMS_SECRET_KEY_FILE=/run/secrets/lums_secret
+```
+
+The actual secret value is intentionally never documented.
+
+---
+
+# 13. Secret File Permissions
+
+The host secret directory should be restricted:
+
+```text
+/etc/lums/secrets
+```
 
 Expected:
 
 ```text
-/etc/lums/secrets
-    root:root
-    0700
+root:root
+0700
 ```
 
-The secret file is:
+The secret file itself is restricted to the required host and container identities.
+
+A typical configuration is:
 
 ```text
 root:10001
 0640
 ```
 
-The container receives it through a read-only mount:
+Verify:
 
-```text
-/etc/lums/secrets/lums_secret
-        ↓
-/run/secrets/lums_secret
+```bash
+sudo stat /etc/lums/secrets/lums_secret
 ```
 
-The application is configured through:
+The secret mount inside the container must be read-only.
 
-```text
-LUMS_SECRET_KEY_FILE=/run/secrets/lums_secret
+Verify:
+
+```bash
+sudo docker inspect lums \
+    --format '{{range .Mounts}}{{.Source}} -> {{.Destination}} RW={{.RW}}{{"\n"}}{{end}}'
 ```
 
-The normal environment variable:
+Expected:
+
+```text
+/etc/lums/secrets/lums_secret -> /run/secrets/lums_secret RW=false
+```
+
+---
+
+# 14. Secret Environment Isolation
+
+The production Flask secret must not be supplied through:
 
 ```text
 LUMS_SECRET_KEY
 ```
-
-must not contain the production secret.
 
 Verify:
 
@@ -431,7 +637,13 @@ Expected:
 ABSENT
 ```
 
-Verify the file:
+The application instead reads:
+
+```text
+/run/secrets/lums_secret
+```
+
+Verify:
 
 ```bash
 sudo docker exec lums sh -c '
@@ -451,20 +663,22 @@ READABLE
 
 ---
 
-# 9. Secret Rotation
+# 15. Secret Rotation
 
-Secret isolation and secret rotation are separate controls.
+Secret isolation and secret rotation are separate security controls.
 
-The production Flask secret was previously exposed through diagnostic output.
+The Flask secret was previously exposed through diagnostic output.
 
-The value is intentionally not reproduced.
+The previous value is intentionally not reproduced.
 
-The replacement procedure was:
+The exposure was treated as a credential compromise.
+
+The rotation process was:
 
 ```text
 Identify exposure
         ↓
-Move secret outside normal environment
+Isolate secret from normal environment
         ↓
 Test rotation in isolation
         ↓
@@ -474,30 +688,74 @@ Replace protected secret file
         ↓
 Restart LUMS
         ↓
-Verify old sessions invalidated
+Verify old sessions
         ↓
 Verify new authentication
         ↓
 Remove temporary old-secret backup
 ```
 
-Production secret rotation was successfully completed.
+The replacement production secret is now active.
 
-The previous secret is no longer active.
-
-A Flask secret change invalidates existing sessions.
-
-This behavior was explicitly tested before production rotation.
+The old value must not be reused.
 
 ---
 
-# 10. Authentication
+# 16. Session Invalidation
 
-LUMS uses administrator authentication for the web interface.
+Changing the Flask secret affects existing application sessions.
 
-Passwords are protected using Argon2.
+This behavior was explicitly tested before production rotation.
 
-Client authentication uses Bearer tokens.
+The expected behavior is:
+
+```text
+Old secret
+    ↓
+Existing session
+    ↓
+Secret rotation
+    ↓
+Existing session invalidated
+```
+
+A new login establishes a valid session using the new secret.
+
+This makes secret rotation an operational event that must be planned and verified.
+
+---
+
+# 17. Administrator Authentication
+
+LUMS provides administrator authentication for the web interface.
+
+Administrator passwords are protected using Argon2.
+
+The password itself must never be stored in plaintext.
+
+The authentication boundary is:
+
+```text
+Browser
+   ↓
+HTTPS
+   ↓
+Nginx
+   ↓
+Gunicorn
+   ↓
+Flask
+   ↓
+Authentication
+```
+
+Authentication and authorization are treated as separate concepts.
+
+---
+
+# 18. Client Authentication
+
+Linux clients authenticate against the LUMS API using Bearer tokens.
 
 Example:
 
@@ -505,60 +763,29 @@ Example:
 Authorization: Bearer <CLIENT_TOKEN>
 ```
 
-The server hashes the supplied token before comparing it against the stored client token hash.
+The server hashes the supplied token and compares the resulting digest against the stored token digest.
 
-Client tokens are generated cryptographically.
+The plaintext client token is not stored as normal database state.
 
-The current token generation uses:
+The current token generation uses cryptographically secure randomness.
 
-```python
-secrets.token_urlsafe(32)
-```
-
-The token is never intentionally stored in plaintext.
-
----
-
-# 11. Client Authentication
-
-Client authentication is performed server-side.
-
-The authentication flow is:
+Conceptually:
 
 ```text
-Client
-   │
-   │ Authorization: Bearer <token>
-   ▼
-LUMS API
-   │
-   ▼
-Hash supplied token
-   │
-   ▼
-Lookup client token hash
-   │
-   ▼
-Check enabled
-   │
-   ▼
-Check token revocation state
-   │
-   ▼
-Authenticated client
+Generate random token
+        ↓
+Hash token
+        ↓
+Store hash
+        ↓
+Return token once
 ```
-
-Protected endpoints use the authenticated client identity.
-
-The client ID supplied by a request must not override the identity established by authentication.
 
 ---
 
-# 12. Client Token Lifecycle
+# 19. Client Token Lifecycle
 
-Client tokens are treated as credentials.
-
-The current lifecycle includes:
+The client-token lifecycle is:
 
 ```text
 Generate
@@ -571,7 +798,7 @@ Authenticate
    ↓
 Rotate
    ↓
-Invalidate old token
+Invalidate previous token
    ↓
 Issue replacement
    ↓
@@ -580,76 +807,73 @@ Update agent
 Verify communication
 ```
 
-The plaintext token is returned only during token creation or rotation.
+The plaintext token is only presented when required for initial configuration or rotation.
 
-The token is not written to the audit log.
+It must not be written to:
+
+* audit logs,
+* application logs,
+* Git,
+* documentation,
+* screenshots.
 
 ---
 
-# 13. Client Token Rotation
+# 20. Client Token Rotation
 
-Administrative token rotation is implemented through:
+Administrative token rotation is implemented through the client-management workflow.
 
-```text
-POST /api/clients/<client_id>/token/rotate
-```
+The rotation operation:
 
-The endpoint requires:
-
-```text
-Administrator session
-+
-CSRF validation
-```
-
-The endpoint:
-
-1. Finds the client.
-2. Generates a new cryptographically random token.
-3. Hashes the token.
-4. Replaces the stored token hash.
-5. Updates `token_created_at`.
-6. Clears the previous revocation timestamp.
-7. Creates an audit event.
-8. Returns the new token once.
+1. identifies the client,
+2. generates a new cryptographically random token,
+3. hashes the token,
+4. replaces the stored token hash,
+5. updates token metadata,
+6. invalidates the previous credential,
+7. creates an audit event,
+8. returns the new token once.
 
 The previous token becomes invalid immediately.
 
 ---
 
-# 14. Client Token Rotation Authorization
+# 21. Token Rotation Authorization
 
-The rotation endpoint rejects:
+Token rotation is an administrative operation.
+
+It requires:
+
+```text
+Valid administrator session
++
+Valid CSRF protection
+```
+
+Expected failure behavior includes:
 
 ```text
 No administrator session
+    → 401
+
+Missing/invalid CSRF token
+    → 400
+
+Unknown client
+    → 404
 ```
 
-with:
-
-```text
-401
-```
-
-A missing or invalid CSRF token is rejected with:
-
-```text
-400
-```
-
-An unknown client returns:
-
-```text
-404
-```
-
-Only a valid administrator session with valid CSRF protection can rotate a client token.
+A client token itself must never be sufficient to authorize administrative token rotation.
 
 ---
 
-# 15. Client Token Audit Logging
+# 22. Token Rotation Audit Logging
 
-Successful token rotation produces an audit event:
+Successful token rotation creates an audit event.
+
+The audit event records that the operation occurred without storing the replacement credential.
+
+Conceptually:
 
 ```text
 action:
@@ -662,76 +886,40 @@ result:
     success
 ```
 
-The audit record may contain non-sensitive client information such as:
+The actual token value is never written to the audit event.
 
-```text
-hostname=<HOSTNAME>
-```
-
-The actual token is never stored in the audit event.
-
-The audit log therefore records:
-
-```text
-that a rotation happened
-```
-
-rather than:
-
-```text
-what the new token was
-```
+This provides accountability without turning the audit log into a credential store.
 
 ---
 
-# 16. Frontend Token Rotation
+# 23. Frontend Token Rotation
 
-The client detail page provides:
+The client detail interface provides a token rotation control.
 
-```text
-🔐 Token rotieren
-```
+Before rotation, the administrator is warned that:
 
-Before rotation, the administrator receives a confirmation dialog.
-
-The warning explains:
-
-* the previous token becomes invalid,
+* the existing token becomes invalid,
 * the LUMS agent must be updated,
-* the operation continues only after confirmation.
+* the new token will only be displayed once.
 
-After successful rotation:
+After successful rotation, the replacement token can be copied.
 
-```text
-Neuer Client-Token
-```
+The token is not intended to remain permanently visible in the interface.
 
-is displayed.
-
-The interface explicitly warns:
-
-> Dieser Token wird nur jetzt angezeigt.
-
-The token can be copied using:
-
-```text
-📋 Token kopieren
-```
-
-The token is not stored in the page as persistent application state.
+The browser is treated as a presentation layer and not as a trusted authorization source.
 
 ---
 
-# 17. Token Rotation Testing
+# 24. Token Rotation Verification
 
-The token rotation lifecycle was tested in an isolated environment.
+The token lifecycle was tested independently.
 
-Verified:
+The verified flow was:
 
 ```text
 Token A
    ↓
-authenticated
+Authentication succeeds
    ↓
 Rotate
    ↓
@@ -741,69 +929,60 @@ Token B
 Then:
 
 ```text
-Token A → 401
-Token B → 200
+Token A → rejected
+Token B → accepted
 ```
 
-The test also verified:
+The tests also covered:
 
 ```text
-No admin session
-    → 401
+No administrator session
+    → rejected
 
-Admin session without CSRF
-    → 400
+Invalid/missing CSRF protection
+    → rejected
 
 Unknown client
-    → 404
+    → rejected
 ```
 
 The audit event was created successfully.
 
-The token value was not written to the audit log.
-
-The frontend was tested for:
-
-```text
-Rotation confirmation
-Token display
-Copy-to-clipboard
-Successful rotation
-```
+The token value was not stored in the audit event.
 
 ---
 
-# 18. Production Token Verification
+# 25. Production Token Verification
 
-After the token lifecycle was tested, the production agent was updated with the replacement client token.
+After token rotation testing, the production agent was updated with the replacement credential.
 
-The production agent subsequently reported successfully:
+The agent successfully reported to LUMS.
 
-```text
-✓ REPORT ACCEPTED
-✓ CLIENT AUTHENTICATED
-✓ NO UPDATE JOB
-LUMS // Agent cycle complete.
-status=0/SUCCESS
-```
-
-The client appeared online again in the LUMS interface.
-
-This confirms:
+The verified flow was:
 
 ```text
-Token rotation
-      ↓
-Agent reconfiguration
-      ↓
-Authentication
-      ↓
-Inventory reporting
+Agent
+   ↓
+HTTPS
+   ↓
+Bearer authentication
+   ↓
+Client identification
+   ↓
+System report
+   ↓
+LUMS API
+   ↓
+Database
 ```
+
+The production client subsequently appeared online again.
+
+This verified the complete credential-rotation path.
 
 ---
 
-# 19. Authorization
+# 26. Authorization
 
 Authentication answers:
 
@@ -814,52 +993,30 @@ Who are you?
 Authorization answers:
 
 ```text
-What are you allowed to access?
+What are you allowed to do?
 ```
 
-LUMS validates authenticated client ownership for client-specific job operations.
+LUMS validates authenticated client ownership for client-specific operations.
 
-A client cannot simply provide another client ID and access that client's job.
+A client must not be able to access another client's jobs merely by changing a client ID in a request.
 
-Protected job operations verify the relationship between:
+The server therefore derives the authenticated client identity from the authentication layer.
+
+---
+
+# 27. Job Ownership
+
+Client-specific job operations validate:
 
 ```text
 Authenticated client
         +
 Requested job
         +
-Owning client
+Job owner
 ```
-
----
-
-# 20. Job Claiming
-
-Job claiming is performed atomically.
-
-This prevents multiple agents from claiming the same job under normal concurrent execution.
-
-The claim operation uses a conditional state transition.
 
 Conceptually:
-
-```text
-pending
-   ↓
-running
-```
-
-Only the client that successfully claims the job can continue execution.
-
----
-
-# 21. Job Result Authorization
-
-Job result reporting validates that the authenticated client owns the job.
-
-A client must not be able to submit a result for another client's job.
-
-The server therefore checks:
 
 ```text
 authenticated_client.id
@@ -867,51 +1024,124 @@ authenticated_client.id
 job.client_id
 ```
 
-before accepting the result.
+If the relationship does not match, the operation must be rejected.
+
+This prevents cross-client job access.
 
 ---
 
-# 22. Interrupted Job Recovery
+# 28. Atomic Job Claiming
 
-An update job can become stuck in:
+Job claiming is performed using an atomic state transition.
+
+The intended transition is:
+
+```text
+pending
+   ↓
+running
+```
+
+The operation must ensure that two clients cannot successfully claim the same pending job through normal concurrent execution.
+
+Conceptually:
+
+```text
+Client A ──┐
+           ├── claim
+Client B ──┘
+           ↓
+       one winner
+```
+
+The winning client becomes responsible for executing and reporting the job.
+
+---
+
+# 29. Job Result Authorization
+
+A job result must be associated with the authenticated client that owns the job.
+
+The server therefore validates:
+
+```text
+authenticated client
+        ==
+job owner
+```
+
+before accepting a result.
+
+A client cannot legitimately submit a result for another client's job.
+
+---
+
+# 30. Interrupted Jobs
+
+An update operation can be interrupted by:
+
+* agent termination,
+* system shutdown,
+* network interruption,
+* process failure,
+* unexpected client failure.
+
+A job may therefore remain in:
 
 ```text
 running
 ```
 
-if the agent terminates unexpectedly.
+without receiving its expected final result.
 
-LUMS provides controlled recovery.
-
-The recovery endpoint is:
-
-```text
-POST /api/update-jobs/<job_id>/abandon
-```
-
-The operation:
-
-* verifies the job exists,
-* verifies client ownership,
-* only permits recovery from `running`,
-* marks the job `abandoned`,
-* records `finished_at`,
-* records a recovery reason,
-* writes update history,
-* preserves package statistics,
-* prevents accidental new job execution when recovery fails.
+LUMS provides controlled recovery for this situation.
 
 ---
 
-# 23. Recovery Reason
+# 31. Job Recovery
 
-Recovered jobs use:
+Recovery changes an interrupted job from:
+
+```text
+running
+```
+
+to:
+
+```text
+abandoned
+```
+
+The recovery operation validates:
+
+* job existence,
+* client ownership,
+* current job state,
+* valid recovery transition.
+
+The operation records:
+
+```text
+finished_at
+recovery reason
+update history
+```
+
+The job is not falsely reported as successful.
+
+---
+
+# 32. Recovery Reason
+
+The recovery reason distinguishes an interrupted execution from a normal failure or success.
+
+The current recovery reason is:
 
 ```text
 Agent did not submit a final result.
 ```
 
-This distinguishes:
+This allows the history to distinguish:
 
 ```text
 success
@@ -919,15 +1149,13 @@ failed
 abandoned
 ```
 
-rather than incorrectly representing an interrupted job as successful.
-
 ---
 
-# 24. Recovery Race Protection
+# 33. Recovery Race Protection
 
 Recovery uses a conditional state transition.
 
-If another operation has already changed the job state, the recovery operation returns a conflict rather than overwriting the newer state.
+If another operation changes the job state first, the recovery operation must not overwrite the newer state.
 
 Conceptually:
 
@@ -941,15 +1169,13 @@ running
 
 Only one valid transition should win.
 
+This prevents stale recovery requests from silently modifying already-completed jobs.
+
 ---
 
-# 25. Recovery Testing
+# 34. Recovery Testing
 
-A controlled artificial job was created.
-
-The agent encountered the `running` job and initiated recovery.
-
-Verified:
+Controlled recovery testing verified:
 
 ```text
 status:
@@ -960,186 +1186,417 @@ finished_at:
 
 recovery_reason:
     Agent did not submit a final result.
-
-update_history:
-    abandoned
-
-package count:
-    preserved
-
-successful:
-    0
-
-failed:
-    0
 ```
 
-The artificial test data was removed afterwards.
+The associated history entry was preserved.
+
+Package statistics were preserved.
+
+The test data was removed afterwards.
 
 A real update job was subsequently executed successfully.
 
-This confirmed that recovery did not break normal job execution.
+This confirmed that recovery did not break normal update execution.
 
 ---
 
-# 26. Agent Security
+# 35. Agent Security
 
-The LUMS agent communicates with the server through HTTPS.
+The LUMS agent communicates with the server using HTTPS.
 
-The agent configuration includes:
+The agent configuration contains the server endpoint, client credential, and CA configuration.
+
+Typical configuration:
 
 ```text
 LUMS_BASE
 LUMS_TOKEN
-LUMS_CA
+LUMS_CA_FILE
 ```
 
-The agent uses the configured CA for TLS verification.
+Example:
 
-TLS verification must not be disabled merely to work around certificate problems.
+```text
+LUMS_BASE="https://192.168.2.141"
+LUMS_TOKEN="<REDACTED>"
+LUMS_CA_FILE="/opt/lums-agent/lums-ca.crt"
+```
 
-The agent token must be protected as a credential.
+The actual credential is never documented.
+
+TLS verification must remain enabled.
+
+Certificate problems must be fixed rather than bypassed by disabling verification.
 
 ---
 
-# 27. Agent Configuration
+# 36. Agent Configuration Protection
 
 The agent configuration is stored outside the Git repository.
 
-Example:
+Typical location:
 
 ```text
 /etc/default/lums-agent
 ```
 
-Sensitive values must not be committed.
+The configuration should be readable only by the identities that require it.
 
-Permissions should restrict unauthorized access.
+Sensitive values must never be committed.
 
-The agent should run under its intended system account and only receive the permissions required for its functions.
+Verify:
 
----
-
-# 28. Execution Watcher
-
-The execution watcher is separate from normal inventory reporting.
-
-The separation provides:
-
-```text
-Reporting
-    ≠
-Execution supervision
+```bash
+sudo stat /etc/default/lums-agent
 ```
 
-The watcher is responsible for detecting and handling execution state.
-
-It must not bypass:
-
-* authentication,
-* authorization,
-* job ownership,
-* execution state,
-* audit requirements.
+The actual token value must not appear in diagnostic output shared publicly.
 
 ---
 
-# 29. APT / dpkg Security
+# 37. systemd Agent Service
 
-Package installation is performed on the client.
+The LUMS agent runs as a systemd service.
 
-The client uses:
+The service is designed as a `oneshot` operation.
+
+A successful execution therefore normally ends with:
+
+```text
+inactive (dead)
+```
+
+after the agent process exits successfully.
+
+This is expected behavior.
+
+The recurring execution is handled by the corresponding timer.
+
+---
+
+# 38. systemd Agent Timer
+
+The agent timer periodically starts the service.
+
+Current scheduling uses a recurring systemd timer.
+
+Conceptually:
+
+```text
+systemd timer
+      ↓
+lums-agent.service
+      ↓
+agent.py
+      ↓
+report / job execution
+      ↓
+exit
+      ↓
+wait for next timer
+```
+
+The timer remains active while the oneshot service starts and exits for each cycle.
+
+---
+
+# 39. Idle Detection
+
+The current agent does not rely on:
+
+```text
+w -h
+```
+
+for idle detection.
+
+Idle detection uses:
+
+```text
+systemd-logind
+```
+
+through:
+
+```text
+loginctl
+```
+
+The agent examines relevant user sessions and uses:
+
+```text
+Class
+Type
+TTY
+State
+IdleHint
+IdleSinceHintMonotonic
+```
+
+to determine whether an interactive user session is currently idle.
+
+---
+
+# 40. Idle Detection Security
+
+The purpose of idle detection is to avoid unnecessarily disruptive package operations while a user is actively working.
+
+The current implementation:
+
+* ignores irrelevant system sessions,
+* considers user sessions,
+* recognizes graphical and TTY sessions,
+* detects active sessions through `IdleHint`,
+* calculates idle duration using the logind monotonic timestamp,
+* reports whether idle detection is supported.
+
+The result includes:
+
+```text
+idle
+idle_seconds
+threshold_seconds
+idle_source
+idle_supported
+```
+
+The current source is:
+
+```text
+loginctl
+```
+
+---
+
+# 41. Idle Detection Failure Behavior
+
+If logind information cannot be retrieved reliably, the agent does not pretend to know that the system is idle.
+
+Failure is treated conservatively.
+
+The agent therefore avoids using an unreliable idle state as permission to perform potentially disruptive operations.
+
+This is preferable to treating an unknown state as confirmed user inactivity.
+
+---
+
+# 42. Package Manager Abstraction
+
+Package management is implemented through a dedicated abstraction.
+
+The agent detects:
 
 ```text
 APT
-dpkg
+pacman
 ```
 
-Package management is privileged and therefore represents a security-sensitive execution boundary.
+and selects the appropriate implementation.
 
-LUMS must avoid uncontrolled concurrent package operations.
-
-The current execution lock reduces collisions within LUMS-controlled operations.
-
-However, complete collision prevention against arbitrary manually started package-manager processes is not yet fully implemented.
-
-This remains a hardening task.
-
----
-
-# 30. Update Execution Principles
-
-Update execution should:
-
-* run only authorized jobs,
-* validate package information,
-* preserve job ownership,
-* record execution results,
-* handle failures explicitly,
-* detect interrupted jobs,
-* avoid unnecessary reboot operations,
-* maintain an auditable history.
-
-The agent must never treat an invalid or unauthenticated job as executable.
-
----
-
-# 31. Reboot Handling
-
-A reboot should only occur when the update operation explicitly indicates that it is required.
-
-LUMS should not automatically reboot a client merely because packages were installed.
-
-The job result must distinguish:
+Conceptually:
 
 ```text
-reboot required
+                 package_manager.py
+                         │
+             ┌───────────┴───────────┐
+             │                       │
+       AptPackageManager      PacmanPackageManager
+             │                       │
+        apt / dpkg                 pacman
+```
+
+This prevents distribution-specific package-manager commands from being duplicated throughout the main agent.
+
+---
+
+# 43. APT / dpkg
+
+On Debian-based clients, LUMS uses:
+
+```text
+apt
+apt-get
+apt-cache
+dpkg-query
+```
+
+Examples of supported operations include:
+
+```text
+Package inventory
+Update detection
+Package installation
+Package removal
+Package updates
+System updates
+```
+
+The actual package operation occurs on the client.
+
+---
+
+# 44. pacman
+
+On Arch Linux clients, LUMS uses:
+
+```text
+pacman
+```
+
+Examples of supported operations include:
+
+```text
+Package inventory
+Update detection
+Package installation
+Package removal
+Package updates
+System updates
+```
+
+System update operations use the native Arch package-management mechanism.
+
+The LUMS agent does not attempt to translate Arch package management into APT semantics.
+
+---
+
+# 45. Update Execution Security
+
+Update execution is a privileged client-side operation.
+
+LUMS therefore treats package management as a security-sensitive execution boundary.
+
+Update jobs must:
+
+* be authenticated,
+* belong to the correct client,
+* be valid jobs,
+* transition through controlled states,
+* be executed by the intended agent,
+* produce an explicit result,
+* remain auditable.
+
+The agent must not execute arbitrary unauthenticated commands received from the network.
+
+---
+
+# 46. Package Operation Abstraction
+
+The supported package operations are represented through the package-manager abstraction.
+
+Examples include:
+
+```text
+INSTALL_PACKAGE
+REMOVE_PACKAGE
+UPDATE_PACKAGE
+UPDATE_SYSTEM
+```
+
+The action is interpreted by the client agent and passed to the selected package-manager implementation.
+
+This separates:
+
+```text
+LUMS job semantics
 ```
 
 from:
 
 ```text
-reboot not required
+Distribution-specific package commands
 ```
 
 ---
 
-# 32. Nginx Security
+# 47. Package Manager Coordination
+
+Package-manager operations are security-sensitive because package managers generally require elevated privileges.
+
+LUMS therefore uses controlled execution for its own package operations.
+
+However, LUMS cannot automatically prevent every manually started package-manager process on the operating system from running concurrently.
+
+For example:
+
+```text
+LUMS
+  ↓
+apt
+
+User
+  ↓
+apt
+```
+
+may still represent an external coordination problem.
+
+The current LUMS execution lock reduces collisions within LUMS-controlled operations.
+
+Complete coordination with arbitrary external package-manager processes remains a hardening task.
+
+---
+
+# 48. Reboot Handling
+
+LUMS must not reboot a client merely because packages were installed.
+
+A reboot requirement is separate from successful package installation.
+
+The system should distinguish:
+
+```text
+Update successful
+```
+
+from:
+
+```text
+Reboot required
+```
+
+Any future automatic reboot mechanism must be explicitly designed, authorized, logged, and tested.
+
+---
+
+# 49. Nginx Security
 
 Nginx is the external HTTPS entry point.
 
-The application itself is not directly exposed.
+The Flask/Gunicorn application is not directly exposed.
 
-Expected architecture:
+Current architecture:
 
 ```text
-Internet / LAN
-      │
-      ▼
-    Nginx
-   :443 HTTPS
-      │
-      ▼
+Network
+   │
+   ▼
+Nginx :443
+   │
+   ▼
 127.0.0.1:5050
-      │
-      ▼
+   │
+   ▼
 Docker :5000
+   │
+   ▼
+Gunicorn
 ```
 
-Nginx should only proxy to the local application binding.
+The application port must remain internal.
 
 ---
 
-# 33. HTTP Redirect
+# 50. HTTP to HTTPS
 
-HTTP is redirected to HTTPS.
+HTTP access is redirected to HTTPS.
 
-Expected:
+Conceptually:
 
 ```text
 HTTP :80
    ↓
-301
+redirect
    ↓
 HTTPS :443
 ```
@@ -1150,28 +1607,75 @@ Test:
 curl -I http://127.0.0.1/
 ```
 
-or against the server's configured HTTP address.
-
-The redirect prevents normal browser access from remaining on plaintext HTTP.
+The expected result is an HTTP redirect to the HTTPS endpoint.
 
 ---
 
-# 34. HTTPS Security Headers
+# 51. TLS
 
-The application currently provides security headers including:
+LUMS uses HTTPS for client and browser communication.
+
+TLS verification must remain enabled for agents.
+
+Supported modern TLS versions should include:
+
+```text
+TLS 1.2
+TLS 1.3
+```
+
+Older insecure protocols must remain disabled.
+
+Certificates must contain the correct Subject Alternative Name.
+
+Private key permissions must be restricted.
+
+Validate the Nginx configuration:
+
+```bash
+sudo nginx -t
+```
+
+---
+
+# 52. Self-Signed Certificates
+
+Self-signed certificates may be used in controlled laboratory environments.
+
+In that case, the client must explicitly trust the appropriate CA or certificate.
+
+The LUMS agent must still verify the certificate chain.
+
+A certificate warning must not be solved by disabling TLS verification.
+
+For larger or externally accessible deployments, a certificate infrastructure appropriate to the deployment environment should be used.
+
+---
+
+# 53. Security Headers
+
+The application provides security headers intended to reduce common browser-side attack surfaces.
+
+The current policy includes:
 
 ```text
 X-Content-Type-Options: nosniff
 X-Frame-Options: DENY
 Referrer-Policy: no-referrer
-Permissions-Policy:
-    camera=(),
-    microphone=(),
-    geolocation=(),
-    payment=()
 ```
 
-The Content Security Policy includes:
+The permissions policy restricts unnecessary browser capabilities such as:
+
+```text
+camera
+microphone
+geolocation
+payment
+```
+
+The Content Security Policy restricts application resources to expected origins.
+
+The policy includes restrictions equivalent to:
 
 ```text
 default-src 'self'
@@ -1186,40 +1690,11 @@ frame-ancestors 'none'
 form-action 'self'
 ```
 
-These headers should remain present after deployment changes.
+Security headers must be rechecked after Nginx or frontend changes.
 
 ---
 
-# 35. TLS
-
-TLS should support:
-
-```text
-TLS 1.2
-TLS 1.3
-```
-
-Older protocols must remain disabled.
-
-TLS certificates must contain the correct Subject Alternative Name.
-
-Private key permissions must be restricted.
-
-Test:
-
-```bash
-sudo nginx -t
-```
-
-Then:
-
-```bash
-curl -k -I https://127.0.0.1/
-```
-
----
-
-# 36. Docker Network Exposure
+# 54. Docker Network Exposure
 
 The application uses:
 
@@ -1235,21 +1710,23 @@ Host localhost:5050
 Container :5000
 ```
 
-The service is not directly reachable through the host's LAN interface.
-
-Do not replace it with:
+It must not be casually changed to:
 
 ```text
 0.0.0.0:5050:5000
 ```
 
-unless the network architecture is intentionally redesigned and protected by an appropriate firewall or proxy layer.
+Doing so would expose the application port on the network interface.
+
+If the network architecture is changed, firewall and reverse-proxy controls must be redesigned and retested.
 
 ---
 
-# 37. Port Security
+# 55. Port Security
 
-Expected external services:
+The externally required services are expected to be limited to those required by the deployment.
+
+Typical services:
 
 ```text
 22/tcp
@@ -1257,7 +1734,7 @@ Expected external services:
 443/tcp
 ```
 
-Application ports:
+The application ports:
 
 ```text
 5000
@@ -1266,21 +1743,51 @@ Application ports:
 
 must remain internal.
 
-Check:
+Check listening sockets:
 
 ```bash
 sudo ss -lntp
 ```
 
-Expected application binding:
+The LUMS application should appear bound to:
 
 ```text
 127.0.0.1:5050
 ```
 
+rather than:
+
+```text
+0.0.0.0:5050
+```
+
 ---
 
-# 38. Database Security
+# 56. Firewall Security
+
+Only required network services should be exposed.
+
+For environments using UFW:
+
+```bash
+sudo ufw status verbose
+```
+
+Application ports should not be opened merely for troubleshooting.
+
+If temporary access is required during testing, it should be removed afterwards.
+
+Firewall configuration must be reviewed after:
+
+* network changes,
+* Nginx changes,
+* Docker changes,
+* new services,
+* port changes.
+
+---
+
+# 57. Database Security
 
 LUMS uses SQLite.
 
@@ -1296,13 +1803,19 @@ The directory is backed by:
 lums-data
 ```
 
-The database must not be stored inside the Git repository.
+The database must not be stored inside:
 
-The database must not be deleted as a troubleshooting shortcut.
+```text
+/opt/lums-public
+```
+
+or committed to Git.
+
+The persistent volume must not be removed during ordinary troubleshooting.
 
 ---
 
-# 39. Database Integrity
+# 58. Database Integrity
 
 SQLite integrity can be checked using:
 
@@ -1323,11 +1836,15 @@ Expected:
 ok
 ```
 
+An integrity check should be performed after major database-related deployment changes.
+
 ---
 
-# 40. Database Backup
+# 59. SQLite Backup
 
-SQLite backups must use a SQLite-aware backup method.
+SQLite backups should use a SQLite-aware mechanism.
+
+A backup must not simply be treated as a normal file copy while the database is actively changing.
 
 Example:
 
@@ -1353,26 +1870,46 @@ print("SQLite backup completed")
 '
 ```
 
-The temporary backup can then be moved into:
+The resulting backup should be moved to a protected backup location.
+
+Example:
 
 ```text
 /var/backups/lums/
 ```
 
-and protected:
+---
+
+# 60. Backup Protection
+
+Backup files contain sensitive application information.
+
+They may contain:
+
+* users,
+* clients,
+* audit records,
+* job information,
+* operational metadata.
+
+Backups therefore require access control.
+
+Example:
 
 ```bash
 sudo chown root:root /var/backups/lums/lums.db.backup
 sudo chmod 600 /var/backups/lums/lums.db.backup
 ```
 
+Backups must never be committed to Git.
+
 ---
 
-# 41. Backup Verification
+# 61. Backup Verification
 
 A backup is not considered valid merely because the file exists.
 
-Verify:
+Verify the SQLite integrity:
 
 ```bash
 sudo python3 - <<'PY'
@@ -1397,109 +1934,117 @@ Expected:
 integrity = ok
 ```
 
----
-
-# 42. Production Backup Before Frontend Deployment
-
-Before the current frontend production deployment, a SQLite-aware backup was created:
-
-```text
-/var/backups/lums/lums.db.backup-token-rotation
-```
-
-The backup was verified:
-
-```text
-integrity = ok
-users = 1
-clients = 1
-audit_log = 22
-update_jobs = 1
-update_history = 1
-```
-
-The backup was protected as:
-
-```text
-root:root
-0600
-```
-
-This backup provides a rollback point for the frontend deployment.
+Backup verification should be performed before relying on the backup for recovery.
 
 ---
 
-# 43. Restore
+# 62. Restore
 
-A full restore procedure must be tested separately in an isolated environment.
+A complete restore test remains outstanding.
 
-The intended restore flow is:
+The intended procedure is:
 
 ```text
 Verified backup
       ↓
 Isolated LUMS environment
       ↓
-Restore SQLite database
+Restore database
       ↓
-Integrity check
+SQLite integrity check
       ↓
 Application startup
       ↓
 Authentication test
       ↓
-Client test
+Client data verification
       ↓
-Job data verification
+Job/history verification
 ```
 
-A full restore test remains outstanding.
+A backup should not be considered fully validated until an actual restore has been tested.
 
 ---
 
-# 44. Git Security
+# 63. Git Security
 
-Never commit:
+The Git repository must never contain:
 
 ```text
 Passwords
-API tokens
 Client tokens
+Flask secrets
 TLS private keys
-Environment files
+Production environment files
 Database files
 SQLite backups
 Session secrets
-Personal data
+Unredacted production data
 ```
 
-Review:
+Before committing:
 
 ```bash
+cd /opt/lums-public
+
 git status
 git diff
 git diff --check
 ```
 
-Before committing.
+Review all changed files.
 
-The configured project identity is:
+The Git identity for LUMS commits is:
 
 ```text
 Name:
-    xxxxx
+NovaForgeCtrl
 
 Email:
-    xxxxx
+232026481+NovaForgeCtrl@users.noreply.github.com
 ```
 
 ---
 
-# 45. Docker Image Security
+# 64. Git Repository Verification
 
-The production image should be built from reviewed source.
+The repository should be checked before deployment.
 
-Before deployment:
+Example:
+
+```bash
+cd /opt/lums-public
+
+git fetch origin
+
+echo "=== STATUS ==="
+git status -sb
+
+echo "=== LOCAL HEAD ==="
+git rev-parse HEAD
+
+echo "=== GITHUB origin/main ==="
+git rev-parse origin/main
+
+echo "=== DIFFERENCE ==="
+git log --oneline --left-right HEAD...origin/main
+```
+
+A clean synchronized repository should show:
+
+```text
+## main...origin/main
+```
+
+with matching commit IDs and no left/right differences.
+
+---
+
+# 65. Docker Image Security
+
+The production image must be built from reviewed source.
+
+Build:
 
 ```bash
 sudo docker build \
@@ -1514,21 +2059,23 @@ sudo docker image inspect \
     lums:latest
 ```
 
-Verify:
+Verify that the image specifies the intended non-root user.
 
-```text
-User=lums
-```
+A successful image build does not prove:
 
-The running container must use the tested image.
+* application correctness,
+* deployment correctness,
+* database integrity,
+* security correctness,
+* client communication.
 
-A successful image build alone does not prove that the application is secure or functional.
+Those properties must be tested separately.
 
 ---
 
-# 46. Production Container
+# 66. Production Container
 
-Current production deployment:
+The hardened container configuration uses:
 
 ```bash
 sudo docker run -d \
@@ -1544,14 +2091,16 @@ sudo docker run -d \
     lums:latest
 ```
 
-This configuration provides:
+This provides:
 
 ```text
-Non-root
+Non-root execution
 +
 No Linux capabilities
 +
 Read-only root filesystem
++
+Protected secret file
 +
 Read-only secret mount
 +
@@ -1562,22 +2111,22 @@ Localhost-only application binding
 
 ---
 
-# 47. Container Restart Verification
+# 67. Container Restart Verification
 
-After production deployment:
+After deployment:
 
 ```bash
 sudo docker restart lums
 ```
 
-Then verify:
+Then:
 
 ```bash
 sudo docker ps \
     --filter "name=^lums$"
 ```
 
-Logs:
+Review logs:
 
 ```bash
 sudo docker logs \
@@ -1585,96 +2134,63 @@ sudo docker logs \
     lums
 ```
 
-The expected startup sequence includes:
+The application should start without a crash loop.
 
-```text
-LUMS database initialization
-Starting Gunicorn
-Starting gunicorn 23.0.0
-Listening at 0.0.0.0:5000
-Booting worker
-```
-
-No crash loop should occur.
+Gunicorn should successfully start the application workers.
 
 ---
 
-# 48. Browser Security
+# 68. Container Runtime Verification
 
-The browser stores the selected LUMS frontend theme locally.
-
-Theme selection is presentation-only.
-
-The theme value:
-
-```text
-lums-theme
-```
-
-does not affect:
-
-* authentication,
-* authorization,
-* database state,
-* update jobs,
-* agent communication,
-* client permissions.
-
-The browser must not be treated as a trusted authorization source.
-
----
-
-# 49. Logging
-
-Logs may contain:
-
-* HTTP requests
-* application errors
-* job identifiers
-* client identifiers
-* operational information
-
-Logs must not contain:
-
-* passwords
-* client tokens
-* Flask secrets
-* TLS private keys
-
-When sharing logs, sensitive values must be removed.
-
----
-
-# 50. Firewall Security
-
-Only required services should be exposed.
-
-Typical allowed ports:
-
-```text
-22/tcp    SSH
-80/tcp    HTTP redirect
-443/tcp   HTTPS
-```
-
-Check:
+Check the runtime configuration:
 
 ```bash
-sudo ufw status verbose
+sudo docker inspect lums \
+    --format '
+User={{.Config.User}}
+ReadonlyRootfs={{.HostConfig.ReadonlyRootfs}}
+Privileged={{.HostConfig.Privileged}}
+CapDrop={{json .HostConfig.CapDrop}}
+'
 ```
 
-Application ports must not be publicly exposed:
+Expected properties:
 
 ```text
-5000
-5050
+User=lums
+ReadonlyRootfs=true
+Privileged=false
+CapDrop=["ALL"]
 ```
-
-Firewall rules must be reviewed after network or deployment changes.
 
 ---
 
-# 51. Deployment Security
+# 69. Volume Verification
+
+Check mounts:
+
+```bash
+sudo docker inspect lums \
+    --format '{{range .Mounts}}{{.Source}} -> {{.Destination}} RW={{.RW}}{{"\n"}}{{end}}'
+```
+
+The database volume should be present:
+
+```text
+lums-data -> /var/lib/lums RW=true
+```
+
+The secret mount should be present:
+
+```text
+/etc/lums/secrets/lums_secret -> /run/secrets/lums_secret RW=false
+```
+
+Persistent application data must survive container recreation.
+
+---
+
+# 70. Deployment Security Workflow
 
 Before deployment:
 
@@ -1684,18 +2200,13 @@ cd /opt/lums-public
 git status --short
 git fetch origin
 git log --oneline --decorate -3
+git diff --check
 ```
 
-Update:
+Update only when the working tree is in the expected state:
 
 ```bash
 git pull --ff-only origin main
-```
-
-Review:
-
-```bash
-git diff --check
 ```
 
 Build:
@@ -1704,37 +2215,40 @@ Build:
 sudo docker build -t lums:latest .
 ```
 
-Before recreation:
+Before replacing a production container:
 
-```bash
-sudo docker ps
-sudo docker volume inspect lums-data
+```text
+Verify source
+   ↓
+Verify image
+   ↓
+Verify database
+   ↓
+Create SQLite backup
+   ↓
+Verify backup
+   ↓
+Replace container
+   ↓
+Verify application
+   ↓
+Verify HTTPS
+   ↓
+Verify client communication
 ```
 
-Create a verified SQLite backup before replacing a production container.
+---
 
-The current production deployment uses:
+# 71. Production Container Replacement
 
-```bash
-sudo docker run -d \
-    --name lums \
-    --restart unless-stopped \
-    --read-only \
-    --cap-drop=ALL \
-    --tmpfs /tmp:rw,nosuid,nodev,noexec \
-    -e LUMS_SECRET_KEY_FILE=/run/secrets/lums_secret \
-    -v /etc/lums/secrets/lums_secret:/run/secrets/lums_secret:ro \
-    -p 127.0.0.1:5050:5000 \
-    -v lums-data:/var/lib/lums \
-    lums:latest
-```
-
-Stop and remove only the container:
+When only the container must be replaced:
 
 ```bash
 sudo docker stop lums
 sudo docker rm lums
 ```
+
+The persistent volume must remain.
 
 Do not remove:
 
@@ -1742,643 +2256,1061 @@ Do not remove:
 lums-data
 ```
 
-Verify:
+unless intentionally performing a complete data-destruction operation with a verified backup and explicit recovery plan.
 
-```bash
-sudo docker ps
-sudo docker logs --tail 100 lums
-sudo nginx -t
-```
-
-Test HTTPS:
-
-```bash
-curl -k -I https://127.0.0.1/
-```
-
-A successful Docker build does not prove that the complete deployment is working.
+Recreate the container using the tested hardened configuration.
 
 ---
 
-# 52. Deployment Verification
+# 72. Deployment Verification
 
-After container recreation verify:
+After deployment verify:
 
 ```text
 1. Container running
 2. Correct image
-3. Correct localhost binding
-4. Persistent volume still mounted
-5. Database initialization runs once
-6. Gunicorn starts
-7. Two workers start
-8. HTTPS returns expected response
-9. Security headers remain present
-10. Login remains accessible
-11. Client reporting remains functional
-12. Update jobs remain functional
-13. Container runs as non-root
-14. Root filesystem is read-only
-15. All Linux capabilities are dropped
-16. /tmp is available through tmpfs
-17. Secret path is configured
-18. Secret is not present as LUMS_SECRET_KEY
-19. Secret mount is read-only
-20. Container restart succeeds
+3. Correct container user
+4. Localhost-only application binding
+5. Persistent volume mounted
+6. Database accessible
+7. Database integrity valid
+8. Gunicorn starts
+9. HTTPS works
+10. HTTP redirects to HTTPS
+11. Security headers remain present
+12. Administrator login works
+13. Client authentication works
+14. Client reporting works
+15. Update jobs remain available
+16. Job execution works
+17. Root filesystem is read-only
+18. All capabilities are dropped
+19. Secret environment variable is absent
+20. Secret file is readable
+21. Secret mount is read-only
+22. Container restart works
 ```
 
-Check:
+---
 
-```bash
-sudo docker ps \
-    --filter "name=^lums$" \
-    --format "table {{.Names}}\t{{.Image}}\t{{.Ports}}\t{{.Status}}"
-```
+# 73. Logging
 
-Check volume:
+Logs may contain operational information such as:
 
-```bash
-sudo docker inspect lums \
-    --format '{{range .Mounts}}{{.Name}} -> {{.Destination}} ({{.RW}}){{"\n"}}{{end}}'
-```
+* HTTP requests,
+* timestamps,
+* job identifiers,
+* client identifiers,
+* application errors,
+* package statistics,
+* execution status.
 
-Expected database volume:
+Logs must not intentionally contain:
+
+* passwords,
+* client tokens,
+* Flask secrets,
+* TLS private keys.
+
+Before sharing logs externally:
 
 ```text
-lums-data -> /var/lib/lums (true)
-```
-
-Check the secret mount:
-
-```bash
-sudo docker inspect lums \
-    --format '{{range .Mounts}}{{.Source}} -> {{.Destination}} RW={{.RW}}{{"\n"}}{{end}}'
-```
-
-Expected:
-
-```text
-/etc/lums/secrets/lums_secret -> /run/secrets/lums_secret RW=false
-```
-
----
-
-# 53. Incident Handling
-
-## 53.1 Compromised Client Token
-
-If a client token is compromised:
-
-1. Identify the affected client.
-2. Revoke or replace the token.
-3. Review recent client activity.
-4. Check server and application logs.
-5. Issue a new token.
-6. Update client configuration.
-7. Verify authentication.
-8. Document the incident.
-
-Never continue using a known-compromised token.
-
----
-
-## 53.2 Compromised Server Secret
-
-If the server secret is compromised:
-
-1. Restrict access to the server.
-2. Review application logs.
-3. Generate a new secret.
-4. Replace the protected secret file.
-5. Restart the Docker container.
-6. Verify authentication and sessions.
-7. Review related credentials.
-8. Document the incident.
-
-Changing the Flask secret may invalidate existing sessions.
-
-The production secret should be rotated separately from normal secret-isolation deployment when possible so that session impact is understood and tested.
-
----
-
-## 53.3 Compromised TLS Private Key
-
-If the TLS private key is compromised:
-
-1. Replace the certificate and private key.
-2. Update trusted certificates on clients.
-3. Reload Nginx.
-4. Verify certificate validation.
-5. Review possible unauthorized access.
-6. Document the incident.
-
----
-
-## 53.4 Exposed Database or Backup
-
-If a database or backup becomes exposed:
-
-1. Restrict access immediately.
-2. Determine which information was exposed.
-3. Review authentication-related data.
-4. Rotate affected credentials or tokens.
-5. Replace compromised backups if necessary.
-6. Review access logs.
-7. Document the incident.
-
----
-
-## 53.5 Previously Exposed Flask Secret
-
-The Flask secret was previously exposed through diagnostic output.
-
-The value is intentionally not reproduced here.
-
-The incident was handled by:
-
-```text
-Identify exposure
-        ↓
-Move secret out of normal Docker environment
-        ↓
-Test secret rotation in isolation
-        ↓
-Generate replacement secret
-        ↓
-Replace /etc/lums/secrets/lums_secret
-        ↓
-Restart production LUMS
-        ↓
-Verify old session invalidation
-        ↓
-Verify new authentication
-        ↓
-Remove temporary old-secret backup
-```
-
-The replacement secret is now active in production.
-
-> **The previously exposed Flask secret has been rotated and is no longer the active production secret.**
-
----
-
-# 54. Security Testing Checklist
-
-## Server
-
-* [x] Docker container is running
-* [x] Docker volume is mounted
-* [x] Application binds only to localhost
-* [x] Port `5000` is not externally exposed
-* [x] Port `5050` is not externally exposed
-* [x] Nginx configuration passes validation
-* [x] HTTPS is enabled
-* [x] HTTP redirects to HTTPS
-* [x] TLS certificate contains the correct SAN
-* [x] Private key permissions are restricted
-* [x] Environment file permissions are restricted
-* [x] Firewall rules reviewed as required
-
-## Application Server
-
-* [x] Flask development server removed
-* [x] Gunicorn 23.0.0 deployed
-* [x] Gunicorn workers start successfully
-* [x] Application import works
-* [x] Database initialization runs before Gunicorn
-* [x] Database initialization runs once per container start
-* [x] Gunicorn receives container signals correctly
-
-## Authentication
-
-* [x] Administrator authentication works
-* [x] Invalid credentials are rejected
-* [x] Client token authentication is implemented
-* [x] Invalid client tokens are rejected
-* [x] Client tokens are not intentionally logged
-* [x] Protected endpoints require authentication
-* [x] Token rotation lifecycle implemented and verified
-* [x] Flask secret rotation completed and verified
-
-## Authorization
-
-* [x] Client identity is authenticated server-side
-* [x] Client/job relationships are validated
-* [x] Atomic job claiming is implemented
-* [x] Job result ownership is validated
-* [x] Recovery ownership is validated
-* [ ] Full administrative role model implemented
-
-## Agent
-
-* [x] Agent uses HTTPS
-* [x] TLS verification is configured
-* [x] CA certificate is available
-* [x] Agent configuration is protected
-* [x] Reporting timer is configured
-* [x] Watcher timer is configured
-* [x] Inventory reporting works
-* [x] Update job retrieval works
-* [x] Atomic job claiming works
-* [x] Job result reporting works
-* [x] Interrupted-job recovery tested
-* [ ] Complete APT/dpkg collision prevention
-
-## Database
-
-* [x] Database integrity can be checked
-* [x] SQLite-aware backups are implemented
-* [x] Backups are protected
-* [x] Backup integrity verification tested
-* [x] Restore procedure is documented
-* [ ] Full restore test completed
-* [x] Database files are excluded from Git
-* [x] Backup files are excluded from Git
-
-## Docker
-
-* [x] Container is not privileged
-* [x] Application ports are localhost-only
-* [x] Persistent volume is used
-* [x] Container runs as non-root user
-* [x] Root filesystem is read-only
-* [x] All Linux capabilities are dropped
-* [x] Secret is removed from normal container environment
-* [x] Secret is supplied through protected mounted file
-* [x] Secret mount is read-only
-* [x] Production restart with secret-file architecture verified
-
-## Git
-
-* [x] Secrets excluded from documentation
-* [x] Private keys excluded
-* [x] Tokens excluded
-* [x] Database files excluded
-* [x] Backup files excluded
-* [x] Changes reviewed before deployment
-* [x] Documentation uses placeholders
-* [x] Historical Flask secret exposure identified
-* [x] Replacement Flask secret generated and deployed
-
----
-
-# 55. Current Security Limitations
-
-## 55.1 Secret Rotation
-
-Secret isolation and production secret rotation are complete and verified.
-
-The previous secret was treated as exposed, replaced with a newly generated value, and the production application was restarted and tested.
-
-Changing the Flask secret invalidates existing sessions. This behavior was explicitly tested before production rotation and confirmed again after production deployment.
-
----
-
-## 55.2 Client Token Lifecycle
-
-Client token rotation is implemented and verified.
-
-Current lifecycle controls include:
-
-* Cryptographically random token generation.
-* SHA-256 hexadecimal digest storage.
-* Bearer authentication.
-* Enabled/revoked checks.
-* Administrative rotation.
-* Immediate invalidation of the previous token.
-* CSRF protection for the administrative rotation endpoint.
-* Audit logging without the plaintext token.
-* One-time presentation of the replacement token.
-* Production client communication after rotation.
-
-Token expiration and a more advanced token-storage model remain possible future enhancements, but token rotation itself is no longer a pending hardening task.
-
----
-
-## 55.3 Idle Detection
-
-The current idle detection uses:
-
-```text
-w -h
-```
-
-It is primarily suitable for server, terminal, console, and SSH-oriented environments.
-
-It is not a universal desktop idle detection mechanism.
-
----
-
-## 55.4 Package Manager Coordination
-
-Complete collision prevention between LUMS and arbitrary user-issued APT or dpkg commands is not fully implemented.
-
-The LUMS execution lock does not automatically force every external package manager process to honor it.
-
----
-
-## 55.5 Administrative Roles
-
-LUMS currently has a single administrator-oriented authentication model.
-
-A full role-based administrative authorization model has not yet been implemented.
-
----
-
-## 55.6 SQLite Scaling
-
-SQLite is suitable for the current project scope and laboratory development.
-
-Larger deployments may require a different database architecture depending on:
-
-* Number of clients
-* Concurrent requests
-* Job volume
-* Audit log size
-* Backup requirements
-* High availability requirements
-
----
-
-## 55.7 Self-Signed Certificates
-
-Self-signed certificates require explicit trust configuration on clients.
-
-They can be suitable for controlled laboratory environments but may not be appropriate for every deployment scenario.
-
----
-
-# 56. Remaining Security Roadmap
-
-The remaining hardening work should be performed incrementally.
-
-## Phase 1 — Secret Isolation and Rotation — Complete
-
-The Flask secret is stored outside the normal Docker environment and mounted read-only into the container.
-
-The previously exposed secret was replaced with a newly generated production secret.
-
-Verified:
-
-* Isolated rotation test.
-* Old session invalidation.
-* New authentication.
-* Production restart.
-* HTTPS operation.
-* Database integrity.
-* Client communication.
-
-The secret value itself must never be documented.
-
----
-
-## Phase 2 — Client Token Lifecycle — Complete
-
-Implemented and verified:
-
-* Cryptographically random token generation.
-* SHA-256 digest storage.
-* Administrative token rotation.
-* Immediate invalidation of the previous token.
-* CSRF protection.
-* Audit event without token disclosure.
-* One-time token presentation.
-* Agent reconfiguration and production reporting verification.
-
-Possible future enhancements:
-
-* Token expiration.
-* Token identifiers.
-* More advanced token storage appropriate to a larger deployment threat model.
-
----
-
-## Phase 3 — Update Execution Hardening
-
-Continue improving:
-
-* APT/dpkg collision prevention
-* Job timeouts
-* Recovery handling
-* Execution auditing
-* Package-manager state detection
-* Integration testing
-
----
-
-## Phase 4 — Backup / Restore Validation
-
-Perform an isolated restore test using a verified production backup.
-
-Test:
-
-```text
-Backup
-  ↓
-Isolated restore environment
-  ↓
-SQLite integrity
-  ↓
-Security schema
-  ↓
-Application startup
-  ↓
-Authentication
-  ↓
-Client/job data
-```
-
-Only after a successful restore test should the backup/restore control be considered fully validated.
-
----
-
-## Phase 5 — Automated Security Tests
-
-Automate regression tests for:
-
-* Authentication
-* Authorization
-* Token handling
-* Job ownership
-* Job claiming
-* Job recovery
-* Security headers
-* Container hardening
-* Database integrity
-* Secret handling
-
----
-
-## Phase 6 — Final Security Review
-
-After the individual hardening phases are complete:
-
-```text
-Inspect
+Review
    ↓
-Test
+Redact
    ↓
-Verify
+Review again
    ↓
-Production
+Share
+```
+
+---
+
+# 74. Audit Logging
+
+Security-relevant administrative actions should produce audit information.
+
+Examples include:
+
+```text
+Authentication events
+Client changes
+Token rotation
+Job operations
+Recovery operations
+Security-sensitive administrative actions
+```
+
+Audit information should contain enough information to understand:
+
+```text
+what happened
+when it happened
+which object was affected
+whether the operation succeeded
+```
+
+Sensitive credentials must not be stored in audit records.
+
+---
+
+# 75. Incident Handling
+
+Security incidents should be handled systematically.
+
+General workflow:
+
+```text
+Detect
+   ↓
+Contain
+   ↓
+Investigate
+   ↓
+Rotate affected credentials
+   ↓
+Recover
    ↓
 Verify
    ↓
 Document
 ```
 
-The final review should confirm that the documented security state matches the actual deployment.
+Do not destroy evidence unnecessarily during troubleshooting.
 
 ---
 
-# 57. Responsible Security Reporting
+# 76. Compromised Client Token
+
+If a client token is compromised:
+
+1. Identify the affected client.
+2. Rotate the token.
+3. Verify the old token is invalid.
+4. Update the client configuration.
+5. Verify the new token.
+6. Review recent client activity.
+7. Review relevant logs.
+8. Document the incident.
+
+The known-compromised token must not remain active.
+
+---
+
+# 77. Compromised Flask Secret
+
+If the Flask secret is compromised:
+
+1. Restrict access if necessary.
+2. Treat the existing secret as compromised.
+3. Generate a replacement.
+4. Replace the protected secret file.
+5. Restart LUMS.
+6. Verify old sessions are invalid.
+7. Verify new authentication.
+8. Review related credentials.
+9. Remove temporary copies of the old secret.
+10. Document the incident.
+
+The compromised secret must not be reused.
+
+---
+
+# 78. Compromised TLS Private Key
+
+If a TLS private key is compromised:
+
+1. Replace the certificate/private-key pair.
+2. Update trusted certificates where required.
+3. Reload Nginx.
+4. Verify certificate validation.
+5. Review access logs.
+6. Determine the affected period.
+7. Document the incident.
+
+---
+
+# 79. Exposed Database or Backup
+
+If a database or backup becomes exposed:
+
+1. Restrict access.
+2. Determine what data was exposed.
+3. Review authentication-related information.
+4. Rotate affected credentials.
+5. Review client tokens where appropriate.
+6. Replace compromised backups if necessary.
+7. Review access logs.
+8. Document the incident.
+
+---
+
+# 80. Previously Exposed Flask Secret
+
+The previous Flask secret exposure is treated as a completed security incident.
+
+The value is intentionally not reproduced.
+
+The response was:
+
+```text
+Exposure identified
+        ↓
+Secret isolation implemented
+        ↓
+Rotation tested
+        ↓
+Replacement secret generated
+        ↓
+Protected secret file updated
+        ↓
+Production restarted
+        ↓
+Old sessions invalidated
+        ↓
+New authentication verified
+        ↓
+Temporary old-secret material removed
+```
+
+The previous value is no longer the active production secret.
+
+---
+
+# 81. Debian Client Verification
+
+The Debian client has successfully completed the LUMS agent communication flow.
+
+Verified:
+
+```text
+Agent:
+    1.6.0
+
+OS:
+    Debian
+
+Architecture:
+    x86_64
+
+Package manager:
+    APT
+
+Report:
+    accepted
+
+Authentication:
+    successful
+
+Update job:
+    successful
+```
+
+The client successfully completed both inventory reporting and update-job execution.
+
+---
+
+# 82. Arch Linux Client Verification
+
+The Arch Linux client has successfully completed the same LUMS management flow.
+
+Verified:
+
+```text
+Agent:
+    1.6.0
+
+OS:
+    Arch Linux
+
+Architecture:
+    x86_64
+
+Kernel:
+    7.2.6-arch2-1
+
+Package manager:
+    pacman
+
+systemd:
+    261.3-1
+
+Python:
+    3.14.7
+
+pacman:
+    7.1.0
+
+Report:
+    accepted
+
+Authentication:
+    successful
+
+Update job:
+    successful
+```
+
+The Arch agent was additionally verified against the repository copy.
+
+The SHA-256 checksum matched the repository version.
+
+---
+
+# 83. Cross-Distribution Update Flow
+
+The current architecture supports:
+
+```text
+                    LUMS
+                     │
+             UPDATE_SYSTEM
+                     │
+          ┌──────────┴──────────┐
+          │                     │
+       Debian                 Arch
+          │                     │
+       lums-agent            lums-agent
+          │                     │
+        APT                  pacman
+          │                     │
+        result                result
+          │                     │
+          └──────────┬──────────┘
+                     │
+                     ▼
+                  LUMS
+```
+
+The management layer therefore remains distribution-independent while the client package-manager layer remains distribution-specific.
+
+---
+
+# 84. Security Testing Checklist
+
+## Container
+
+* [x] Container runs as non-root
+* [x] UID 10001 verified
+* [x] Container is not privileged
+* [x] All Linux capabilities dropped
+* [x] Root filesystem is read-only
+* [x] `/tmp` uses tmpfs
+* [x] `/tmp` uses `nosuid`
+* [x] `/tmp` uses `nodev`
+* [x] `/tmp` uses `noexec`
+* [x] Persistent database volume is separate
+* [x] Secret mount is separate
+* [x] Secret mount is read-only
+* [x] Application binding is localhost-only
+
+## Secrets
+
+* [x] Flask secret isolated from normal environment
+* [x] Secret stored outside Git
+* [x] Secret mounted read-only
+* [x] Secret rotation tested
+* [x] Production secret rotated
+* [x] Old production secret invalidated
+* [x] Temporary old-secret material removed
+* [x] Client token generation uses cryptographically secure randomness
+* [x] Client token hash stored instead of plaintext
+* [x] Client token rotation implemented
+* [x] Previous client token invalidated
+* [x] Token rotation audit event implemented
+* [x] Token values excluded from audit records
+
+## Authentication
+
+* [x] Administrator authentication implemented
+* [x] Argon2 password hashing
+* [x] Invalid credentials rejected
+* [x] Client Bearer authentication implemented
+* [x] Invalid client token rejected
+* [x] Protected endpoints require authentication
+* [x] Token rotation requires administrator authentication
+* [x] CSRF protection for administrative token rotation
+
+## Authorization
+
+* [x] Client identity established server-side
+* [x] Client/job ownership checked
+* [x] Job result ownership checked
+* [x] Recovery ownership checked
+* [x] Atomic job claiming
+* [ ] Full role-based administrative authorization model
+
+## Agent
+
+* [x] Agent uses HTTPS
+* [x] TLS verification enabled
+* [x] CA configuration supported
+* [x] Agent credentials stored outside Git
+* [x] systemd timer configured
+* [x] Inventory reporting works
+* [x] Update detection works
+* [x] Job retrieval works
+* [x] Atomic job claiming works
+* [x] Job result reporting works
+* [x] Interrupted-job recovery tested
+* [x] APT package-manager support
+* [x] pacman package-manager support
+* [x] Debian tested
+* [x] Arch tested
+* [x] systemd-logind idle detection
+* [ ] Complete external APT/dpkg collision prevention
+
+## Database
+
+* [x] SQLite database isolated from Git
+* [x] Integrity check available
+* [x] SQLite-aware backup method
+* [x] Backup permissions restricted
+* [x] Backup integrity verification
+* [ ] Full restore test
+* [ ] Automated backup verification
+
+## Network
+
+* [x] Nginx reverse proxy
+* [x] HTTPS
+* [x] HTTP redirect
+* [x] Localhost-only application port
+* [x] Security headers
+* [x] TLS verification for agent communication
+* [x] Application ports not intentionally exposed externally
+* [ ] Final external network review
+
+## Git
+
+* [x] Production secrets excluded
+* [x] Tokens excluded
+* [x] TLS private keys excluded
+* [x] Database excluded
+* [x] Backups excluded
+* [x] Documentation uses placeholders
+* [x] Changes reviewed before deployment
+* [x] Git working tree checked before deployment
+
+---
+
+# 85. Current Security Limitations
+
+## 85.1 Package Manager Coordination
+
+LUMS controls its own package-management operations but cannot automatically prevent arbitrary manually started package-manager processes from running simultaneously.
+
+Further coordination remains a hardening task.
+
+---
+
+## 85.2 Administrative Roles
+
+The current administrative model is intentionally simple.
+
+A full role-based access-control model has not yet been implemented.
+
+---
+
+## 85.3 SQLite Scaling
+
+SQLite is appropriate for the current project scope and laboratory deployment.
+
+Larger environments may eventually require a dedicated database service depending on:
+
+* client count,
+* concurrency,
+* job volume,
+* audit volume,
+* availability requirements,
+* backup requirements.
+
+---
+
+## 85.4 Restore Validation
+
+SQLite backup creation and integrity verification are implemented.
+
+A complete isolated restore test remains outstanding.
+
+---
+
+## 85.5 Automated Security Testing
+
+Security checks currently exist at multiple manual and operational layers.
+
+A comprehensive automated security regression suite remains future work.
+
+---
+
+# 86. Remaining Security Roadmap
+
+## Phase 1 — Container Hardening
+
+**Status: Complete**
+
+Implemented and verified:
+
+* non-root container,
+* UID 10001,
+* dropped capabilities,
+* non-privileged runtime,
+* read-only root filesystem,
+* tmpfs `/tmp`,
+* persistent database volume,
+* protected secret mount,
+* localhost-only application binding.
+
+---
+
+## Phase 2 — Secret Isolation and Rotation
+
+**Status: Complete**
+
+Implemented and verified:
+
+* protected host secret,
+* read-only secret mount,
+* no production secret in normal environment,
+* isolated rotation testing,
+* production secret replacement,
+* old session invalidation,
+* new authentication,
+* production restart.
+
+---
+
+## Phase 3 — Client Token Lifecycle
+
+**Status: Complete**
+
+Implemented and verified:
+
+* cryptographically secure token generation,
+* token hashing,
+* Bearer authentication,
+* administrative rotation,
+* immediate old-token invalidation,
+* CSRF protection,
+* audit event,
+* one-time replacement-token presentation,
+* production agent reconfiguration,
+* successful production communication.
+
+---
+
+## Phase 4 — Multi-Distribution Package Management
+
+**Status: Complete**
+
+Implemented and tested:
+
+```text
+APT
+pacman
+```
+
+The package-manager abstraction is used by the agent rather than embedding distribution-specific commands throughout the update engine.
+
+Verified:
+
+```text
+Debian
+Arch Linux
+```
+
+---
+
+## Phase 5 — Idle Detection
+
+**Status: Complete**
+
+The previous `w -h` implementation was replaced by systemd-logind-based detection.
+
+Current mechanism:
+
+```text
+loginctl
+```
+
+The implementation considers relevant interactive user sessions and logind idle state.
+
+---
+
+## Phase 6 — Interrupted Job Recovery
+
+**Status: Complete**
+
+Implemented and tested:
+
+* ownership validation,
+* state validation,
+* controlled recovery,
+* `abandoned` state,
+* recovery reason,
+* history preservation,
+* package-statistic preservation,
+* race protection.
+
+---
+
+## Phase 7 — Update Execution Hardening
+
+**Status: In progress**
+
+Remaining work includes:
+
+* stronger APT/dpkg coordination,
+* job timeout handling,
+* additional package-manager state validation,
+* broader execution regression testing,
+* additional failure-path testing.
+
+---
+
+## Phase 8 — Backup and Restore
+
+**Status: Partially complete**
+
+Implemented:
+
+* SQLite-aware backup,
+* protected backup storage,
+* integrity verification.
+
+Remaining:
+
+```text
+Full isolated restore test
+```
+
+---
+
+## Phase 9 — Automated Security Tests
+
+**Status: Planned**
+
+Potential automated tests:
+
+* authentication,
+* authorization,
+* token rotation,
+* token invalidation,
+* CSRF,
+* job ownership,
+* job claiming,
+* recovery,
+* security headers,
+* container hardening,
+* secret handling,
+* database integrity.
+
+---
+
+## Phase 10 — Final Security Review
+
+**Status: Planned**
+
+The final review should occur after the remaining hardening phases.
+
+The review should compare:
+
+```text
+Documentation
+      ↕
+Implementation
+      ↕
+Production
+```
+
+The final security state should only be documented as verified after the actual deployment has been tested.
+
+---
+
+# 87. Responsible Security Reporting
 
 Security issues should be reported responsibly.
 
-A security report should contain:
+A useful security report contains:
 
-* Short description
-* Affected component
-* Reproduction steps
-* Expected behavior
-* Actual behavior
-* Potential impact
-* Suggested mitigation
-* Relevant logs with secrets removed
+* short description,
+* affected component,
+* reproduction steps,
+* expected behavior,
+* actual behavior,
+* potential impact,
+* suggested mitigation,
+* relevant redacted logs.
 
 Never include:
 
-* Passwords
-* Client tokens
-* Private keys
-* Server secrets
-* Personal information
-* Complete production databases
-* Unredacted inventory data
+* passwords,
+* client tokens,
+* private keys,
+* Flask secrets,
+* personal information,
+* complete production databases,
+* unredacted inventory data.
 
-Always redact sensitive information before sharing logs or screenshots.
+Sensitive information must be removed before logs, screenshots, or configuration files are shared.
 
 ---
 
-# 58. Security Maintenance
+# 88. Security Maintenance
 
 Security reviews should be performed after:
 
-* Application changes
-* Authentication changes
-* Authorization changes
-* Docker changes
-* Nginx changes
-* Certificate changes
-* Database schema changes
-* Agent changes
-* Watcher changes
-* Deployment changes
-* Secret changes
+* application changes,
+* authentication changes,
+* authorization changes,
+* Docker changes,
+* Nginx changes,
+* certificate changes,
+* database schema changes,
+* agent changes,
+* package-manager changes,
+* watcher changes,
+* deployment changes,
+* secret changes.
 
 Regularly review:
 
 ```text
-Docker images
 Operating system updates
+Docker images
 Python dependencies
 Flask dependencies
 Gunicorn
-Nginx configuration
-TLS certificates
+Nginx
+TLS configuration
 File permissions
 Database backups
 Git history
-Authentication behavior
-Authorization behavior
-Job execution behavior
-Package manager coordination
+Authentication
+Authorization
+Job execution
+Package-manager coordination
 Container privileges
 Container capabilities
 Secret handling
 Secret rotation
+Agent configuration
+systemd services
+systemd timers
 ```
 
 ---
 
-# 59. Current Security Roadmap Status
+# 89. Security Change Workflow
 
-The current hardening state is:
+Security-sensitive changes should follow a controlled workflow:
+
+```text
+Inspect
+   ↓
+Understand current behavior
+   ↓
+Design change
+   ↓
+Implement
+   ↓
+Test locally
+   ↓
+Test integration
+   ↓
+Verify production configuration
+   ↓
+Deploy
+   ↓
+Verify production
+   ↓
+Document
+```
+
+A failed test should not be hidden by changing the documentation to match the failure.
+
+The implementation must be corrected or the limitation documented.
+
+---
+
+# 90. Current Security Roadmap Status
+
+The current overall state is:
 
 ```text
 [x] Non-root container
+[x] UID 10001
 [x] Drop ALL capabilities
+[x] Privileged container disabled
 [x] Read-only root filesystem
-[x] SQLite backup verification
-[x] Interrupted-job recovery
-[x] Production restart verification
-[x] Secret isolation
-[x] Protected mounted secret file
+[x] tmpfs /tmp
+[x] Localhost-only application binding
+[x] Protected secret file
 [x] Read-only secret mount
-[x] Production restart after secret isolation
+[x] Secret isolation
 [x] Flask secret rotation
-[x] Production secret rotation verification
-[x] Client token lifecycle
+[x] Administrator authentication
+[x] Client authentication
+[x] Client token hashing
 [x] Client token rotation
-[x] Client token revocation through rotation
-[x] Client token rotation audit event
-[x] Frontend token rotation workflow
-[x] Production frontend deployment
-[x] Production client communication after token rotation
+[x] Client token invalidation
+[x] Token rotation audit logging
+[x] CSRF protection for token rotation
+[x] Job ownership validation
+[x] Atomic job claiming
+[x] Interrupted-job recovery
+[x] Debian client communication
+[x] Arch client communication
+[x] APT support
+[x] pacman support
+[x] systemd-logind idle detection
+[x] Gunicorn deployment
+[x] HTTPS reverse proxy
+[x] Security headers
+[x] SQLite integrity verification
+[x] SQLite-aware backup
+[x] Backup integrity verification
 
-[ ] Update execution hardening
+[ ] Complete package-manager collision prevention
 [ ] Full backup / restore test
-[ ] Automated security tests
+[ ] Automated security regression tests
 [ ] Final security review
 ```
 
-The following controls are therefore considered complete for the current implementation:
+The completed controls should not be interpreted as meaning that LUMS has no remaining security work.
 
-```text
-Container hardening
-Secret isolation
-Secret rotation
-Client authentication
-Client token rotation
-Interrupted-job recovery
-Production frontend deployment
-```
-
-The remaining work is intentionally separated into independent hardening phases:
-
-```text
-Update execution hardening
-        ↓
-Full backup / restore test
-        ↓
-Automated security tests
-        ↓
-Final security review
-```
-
-The established workflow remains:
-
-```text
-inspect
-   ↓
-design
-   ↓
-test
-   ↓
-verify
-   ↓
-production
-   ↓
-verify
-   ↓
-document
-```
-
-No security-sensitive change should be deployed blindly.
+Security hardening is continuous.
 
 ---
 
-# 60. Final Security Principles
+# 91. Security Verification Principles
+
+LUMS follows several operational rules.
+
+## Rule 1 — Do not trust configuration alone
+
+A configuration file saying:
+
+```text
+read-only
+```
+
+is not sufficient.
+
+The running container must be inspected.
+
+---
+
+## Rule 2 — Do not trust successful startup alone
+
+A running container does not prove:
+
+* authentication works,
+* HTTPS works,
+* database integrity is valid,
+* clients can authenticate,
+* update jobs work.
+
+Each layer must be verified.
+
+---
+
+## Rule 3 — Do not trust a backup merely because it exists
+
+A backup must be:
+
+```text
+created
+   ↓
+protected
+   ↓
+integrity checked
+   ↓
+eventually restored in isolation
+```
+
+---
+
+## Rule 4 — Treat exposed secrets as compromised
+
+A secret that was exposed must not be considered safe merely because it is no longer visible.
+
+It must be rotated.
+
+---
+
+## Rule 5 — Authentication does not equal authorization
+
+A valid client token only establishes client identity.
+
+The server must still verify whether that client is authorized for the requested resource.
+
+---
+
+## Rule 6 — Package installation is privileged execution
+
+Update jobs must be treated as privileged operations.
+
+The system must control:
+
+```text
+who
+what
+where
+when
+result
+```
+
+---
+
+## Rule 7 — Documentation follows verification
+
+Documentation should describe the actual tested state.
+
+If something is incomplete, it must be marked as incomplete.
+
+---
+
+# 92. Final Verified Architecture
+
+The current verified security architecture is:
+
+```text
+                    Network
+                       │
+                       ▼
+                  ┌─────────┐
+                  │  Nginx  │
+                  │  HTTPS  │
+                  └────┬────┘
+                       │
+                 localhost only
+                       │
+                       ▼
+              ┌────────────────┐
+              │ 127.0.0.1:5050│
+              └───────┬────────┘
+                      │
+                Docker mapping
+                      │
+                      ▼
+        ┌─────────────────────────────┐
+        │       LUMS Container        │
+        │                             │
+        │ User: lums / UID 10001      │
+        │ Privileged: false           │
+        │ Capabilities: ALL dropped   │
+        │ Root FS: read-only          │
+        │                             │
+        │ /tmp → tmpfs                │
+        │ /var/lib/lums → lums-data   │
+        │ /run/secrets/lums_secret    │
+        │          → read-only        │
+        │                             │
+        │ Gunicorn                    │
+        │      ↓                      │
+        │ Flask                       │
+        │      ↓                      │
+        │ SQLite                      │
+        └──────────────┬──────────────┘
+                       │
+                       │ HTTPS + Bearer Token
+                       │
+          ┌────────────┴────────────┐
+          │                         │
+          ▼                         ▼
+   Debian 13 Client          Arch Linux Client
+          │                         │
+     lums-agent 1.6.0         lums-agent 1.6.0
+          │                         │
+        APT / dpkg                pacman
+          │                         │
+          └────────────┬────────────┘
+                       │
+                       ▼
+                    Result
+                       │
+                       ▼
+                  LUMS API
+```
+
+---
+
+# 93. Final Management / Execution Separation
+
+The final architecture deliberately separates:
+
+```text
+Management Plane
+       │
+       ├── Nginx
+       ├── HTTPS
+       ├── Gunicorn
+       ├── Flask
+       ├── Authentication
+       ├── Authorization
+       ├── Inventory
+       ├── Job Management
+       └── SQLite
+
+from
+
+Execution Plane
+       │
+       ├── lums-agent
+       ├── systemd
+       ├── Package Manager Abstraction
+       ├── APT / dpkg
+       └── pacman
+```
+
+The server manages the desired operation.
+
+The client performs the actual package-management operation.
+
+This separation reduces the need for the server to have direct operating-system privileges on managed clients.
+
+---
+
+# 94. Final Security State
+
+The current LUMS implementation has verified security controls across:
+
+```text
+Container
+   ↓
+Network
+   ↓
+TLS
+   ↓
+Authentication
+   ↓
+Authorization
+   ↓
+Secrets
+   ↓
+Tokens
+   ↓
+Jobs
+   ↓
+Recovery
+   ↓
+Agent
+   ↓
+Package Manager
+   ↓
+Database
+   ↓
+Backups
+```
+
+The remaining work is explicitly limited to the documented open hardening areas.
+
+The project should not claim a final security review until those remaining areas have been tested.
+
+---
+
+# 95. Final Security Principles
 
 The following principles apply to LUMS:
 
@@ -2388,99 +3320,36 @@ The following principles apply to LUMS:
 4. Keep TLS verification enabled.
 5. Separate authentication from authorization.
 6. Validate client identity server-side.
-7. Protect the Docker environment file.
+7. Protect administrator credentials.
 8. Protect client tokens.
 9. Protect TLS private keys.
 10. Protect the mounted Flask secret.
 11. Keep database backups secure.
-12. Do not remove persistent volumes during troubleshooting.
-13. Do not automatically reboot clients.
-14. Review changes before deployment.
-15. Test security-sensitive changes.
-16. Document incidents and configuration changes.
-17. Do not claim that incomplete security controls are fully implemented.
-18. Keep update execution controlled and auditable.
-19. Harden the container incrementally and test each change independently.
-20. Preserve persistent application data during frontend and container deployments.
+12. Verify backups rather than trusting file existence.
+13. Do not remove persistent volumes during ordinary troubleshooting.
+14. Do not automatically reboot clients.
+15. Review changes before deployment.
+16. Test security-sensitive changes.
+17. Document incidents and configuration changes.
+18. Do not claim incomplete security controls are fully implemented.
+19. Keep update execution controlled and auditable.
+20. Harden the container incrementally.
 21. Treat secret isolation and secret rotation as separate controls.
 22. Treat previously exposed secrets as compromised until rotated.
-23. Rotate client tokens through the authenticated administrative workflow and verify the replacement token before closing the change.
-24. Keep production secrets outside Git and outside normal container environment variables where practical.
-25. Treat security hardening as a continuous process rather than a one-time configuration.
+23. Rotate client tokens through the authenticated administrative workflow.
+24. Verify replacement credentials before closing a credential change.
+25. Keep production secrets outside Git and outside normal container environment variables where practical.
+26. Use distribution-specific package-manager implementations behind a controlled abstraction.
+27. Validate job ownership on the server.
+28. Use atomic state transitions for job claiming and recovery.
+29. Prefer conservative behavior when system state cannot be reliably determined.
+30. Keep production documentation synchronized with verified implementation state.
+31. Test recovery paths, not only successful paths.
+32. Treat security hardening as a continuous process rather than a one-time configuration.
 
 ---
 
-# 61. Final Verified Production State
-
-The production deployment was rebuilt from the tested frontend image after a verified SQLite backup.
-
-The final production checks confirmed:
-
-```text
-Image:
-    lums:latest
-
-Container user:
-    lums / UID 10001
-
-ReadonlyRootfs:
-    true
-
-Capabilities:
-    ALL dropped
-
-Privileged:
-    false
-
-Secret environment variable:
-    LUMS_SECRET_KEY absent
-
-Secret path:
-    /run/secrets/lums_secret
-
-Secret mount:
-    read-only
-
-Database integrity:
-    ok
-
-HTTPS:
-    302 → /login
-
-Unauthenticated client API:
-    401 authentication_required
-
-Frontend token rotation control:
-    visible in production
-```
-
-The production database remained intact:
-
-```text
-users:          1
-clients:        1
-audit_log:      22
-update_jobs:    1
-update_history: 1
-```
-
-The backup used before the production frontend deployment was independently checked with SQLite integrity verification and returned:
-
-```text
-integrity = ok
-```
-
-The token-rotation workflow was tested separately before production deployment, including old-token invalidation, new-token authentication, CSRF enforcement, audit logging, and frontend presentation/copy behavior.
-
-> **Client Token Lifecycle: VERIFIED**
-
-> **Production Secret Rotation: VERIFIED**
-
-> **Container Hardening: VERIFIED**
-
----
-
-# 62. Final Principle
+# 96. Final Principle
 
 LUMS is designed to centralize Linux update management without removing operational control from the administrator.
 
@@ -2493,7 +3362,7 @@ The system should remain:
 * Documented
 * Maintainable
 
-The current architecture deliberately separates:
+The architecture deliberately separates:
 
 ```text
 Management Plane
@@ -2503,6 +3372,8 @@ Management Plane
        ├── Flask
        ├── Authentication
        ├── Authorization
+       ├── Inventory
+       ├── Job Management
        └── Database
 
 from
@@ -2510,45 +3381,14 @@ from
 Execution Plane
        │
        ├── lums-agent
-       ├── Execution Watcher
-       └── APT / dpkg
+       ├── systemd
+       ├── Package Manager Abstraction
+       └── APT / dpkg / pacman
 ```
 
 Security improvements are implemented one controlled layer at a time.
 
-The current verified security architecture is:
-
-```text
-Internet / LAN
-      │
-      ▼
-   Nginx
-   HTTPS
-      │
-      ▼
-127.0.0.1:5050
-      │
-      ▼
- Docker
- ┌──────────────────────────────┐
- │ non-root                     │
- │ UID 10001                    │
- │ capabilities: NONE           │
- │ root filesystem: READ-ONLY   │
- │                              │
- │ /tmp → tmpfs                 │
- │ /var/lib/lums → lums-data    │
- │ /run/secrets/lums_secret     │
- │          → READ-ONLY         │
- │                              │
- │ Gunicorn → Flask             │
- └──────────────────────────────┘
-      │
-      ▼
- SQLite
-```
-
-The hardening workflow remains:
+The established hardening workflow remains:
 
 ```text
 Inspect
@@ -2565,7 +3405,5 @@ Document
 ```
 
 > **LUMS — Linux Update Management without the noise.**
-
 > **Secure the management plane. Keep execution controlled.**
-
 > **One change. One test. One verified result.**
