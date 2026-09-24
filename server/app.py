@@ -74,6 +74,8 @@ def security_headers(response):
 
 def get_connection():
     connection = sqlite3.connect(DB_PATH)
+    connection.execute("PRAGMA foreign_keys = ON")
+    connection.execute("PRAGMA busy_timeout = 5000")
     connection.row_factory = sqlite3.Row
     return connection
 
@@ -602,18 +604,27 @@ def delete_client(client_id):
             (client_id,)
         )
 
-        # Historical update information remains available.
-        # The client itself is removed from active client management.
+        # Keep the client record for historical integrity.
+        # Deactivate the client instead of deleting it so that
+        # foreign-key relationships and update history remain intact.
+        revoked_at = datetime.now(timezone.utc).isoformat()
+
         connection.execute(
-            "DELETE FROM clients WHERE id = ?",
-            (client_id,)
+            """
+            UPDATE clients
+            SET
+                enabled = 0,
+                token_revoked_at = ?
+            WHERE id = ?
+            """,
+            (revoked_at, client_id)
         )
 
         audit_log(
             connection,
             actor_type="user",
             actor_id=current_user_id(),
-            action="client.delete",
+            action="client.disable",
             target=f"client:{client_id}",
             result="success",
             details=f"hostname={client['hostname']}",
@@ -622,7 +633,7 @@ def delete_client(client_id):
         connection.commit()
 
         return jsonify({
-            "status": "deleted",
+            "status": "disabled",
             "client_id": client_id,
             "hostname": client["hostname"],
         }), 200
@@ -749,6 +760,7 @@ def clients():
             ON p.client_id = c.id
         LEFT JOIN available_updates u
             ON u.client_id = c.id
+        WHERE c.enabled = 1
         GROUP BY c.id
         ORDER BY c.hostname
     """)
@@ -795,6 +807,7 @@ def client(client_id):
             last_seen
         FROM clients
         WHERE id = ?
+          AND enabled = 1
     """, (client_id,))
 
     row = cursor.fetchone()
@@ -974,6 +987,7 @@ def create_update_job(client_id):
             hostname
         FROM clients
         WHERE id = ?
+          AND enabled = 1
     """, (client_id,))
 
     client_row = cursor.fetchone()
@@ -1574,7 +1588,8 @@ def get_running_update_job(client_id):
                 client_id,
                 created_at,
                 started_at,
-                reboot_required
+                reboot_required,
+                action
             FROM update_jobs
             WHERE client_id = ?
             AND status = 'running'
@@ -1615,6 +1630,7 @@ def get_running_update_job(client_id):
             "created_at": job_row["created_at"],
             "started_at": job_row["started_at"],
             "reboot_required": bool(job_row["reboot_required"]),
+            "action": job_row["action"],
             "packages": packages
         }), 200
 
@@ -1647,7 +1663,8 @@ def claim_update_job(client_id, job_id):
                 client_id,
                 status,
                 created_at,
-                reboot_required
+                reboot_required,
+                action
             FROM update_jobs
             WHERE id = ?
             AND client_id = ?
@@ -1724,6 +1741,7 @@ def claim_update_job(client_id, job_id):
             "client_id": client_id,
             "started_at": started_at,
             "reboot_required": bool(job_row["reboot_required"]),
+            "action": job_row["action"],
             "packages": [
                 {
                     "package": row["package"],
