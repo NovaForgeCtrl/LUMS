@@ -174,6 +174,9 @@ Jobs move through a controlled lifecycle:
 pending
    │
    ▼
+waiting_for_idle
+   │
+   ▼
 running
    │
    ├── success
@@ -204,7 +207,20 @@ systemd-logind
   Idle state detection
 ```
 
-This allows LUMS to defer execution while a relevant local session is active.
+The current idle threshold is:
+
+```text
+300 seconds
+```
+
+The agent reports the active detection mechanism through:
+
+```text
+idle_source=loginctl
+idle_supported=True
+```
+
+when supported.
 
 If idle detection is unavailable or cannot be determined safely, automatic execution does not proceed.
 
@@ -239,7 +255,7 @@ Recovery
      └── Abandoned
 ```
 
-Recovery is associated with the authenticated client and uses state checks to avoid unsafe races.
+Recovery is associated with the authenticated client and uses ownership and state checks to avoid unsafe races.
 
 This prevents a failed recovery from silently producing a second active execution.
 
@@ -307,18 +323,31 @@ LUMS includes several security and hardening mechanisms.
 * Session handling
 * CSRF protection
 * Security headers
+* Client authentication
 * Client-specific authorization
 * Bearer token authentication
 * Token rotation
+* Login rate limiting
 * Audit logging
+
+### Database
+
+SQLite is configured with:
+
+```text
+foreign_keys = ON
+busy_timeout = 5000
+journal_mode = WAL
+```
+
+Database integrity and foreign-key checks are part of the security verification workflow.
 
 ### Container
 
 The production container runs:
 
 ```text
-non-root
-UID/GID 10001
+User=lums
 read-only root filesystem
 CapDrop=ALL
 Privileged=false
@@ -326,7 +355,11 @@ Privileged=false
 
 The container only receives the writable locations it actually needs.
 
-Temporary storage is provided through a restricted `/tmp` tmpfs.
+Temporary storage is provided through a restricted `/tmp` tmpfs:
+
+```text
+rw,nosuid,nodev,noexec
+```
 
 The Flask secret is provided through a read-only secret file rather than a normal environment variable.
 
@@ -351,6 +384,42 @@ LUMS_SECRET_KEY
 ```
 
 in the normal container environment.
+
+---
+
+# Security Audit Status
+
+The current security audit has completed the following areas:
+
+```text
+[x] SQLite Foreign Keys
+[x] SQLite WAL / Busy Timeout
+[x] Update Timeout Handling
+[x] Login Rate Limiting
+```
+
+The update execution timeout uses:
+
+```text
+timeout
+   ↓
+terminate()
+   ↓
+10-second grace period
+   ↓
+kill() fallback
+```
+
+Login rate limiting currently escalates through:
+
+```text
+5 attempts  → 30 seconds
+6 attempts  → 60 seconds
+7 attempts  → 120 seconds
+8+ attempts → 300 seconds
+```
+
+Additional hardening work remains documented as part of the project's security roadmap.
 
 ---
 
@@ -436,7 +505,7 @@ lums-execution-watcher.timer
 lums-execution-watcher.service
         │
         ▼
-      watcher
+      watcher.py
         │
         ▼
    Idle detection
@@ -521,7 +590,7 @@ The package-manager layer is abstracted inside the agent so that the rest of the
 The current agent version is:
 
 ```text
-1.6.0
+1.7.0
 ```
 
 The agent is written in Python and managed through systemd.
@@ -904,10 +973,22 @@ LUMS follows a simple development cycle:
 Change
   │
   ▼
-Test
+Syntax Check
   │
   ▼
-Validate
+Unit Test
+  │
+  ▼
+Debian Test
+  │
+  ▼
+Arch Test
+  │
+  ▼
+Integration Test
+  │
+  ▼
+Production Verification
   │
   ▼
 Commit
@@ -929,8 +1010,6 @@ git diff
 ```bash
 git diff --check
 ```
-
-Python syntax should be checked before deployment.
 
 The project favors small, testable changes over large unverified changes.
 
@@ -1000,7 +1079,7 @@ LUMS is an active development project.
 The current implementation has been tested with:
 
 ```text
-Debian Linux
+Debian 13
 Arch Linux
 Docker
 Nginx
@@ -1012,7 +1091,7 @@ systemd
 The current agent version is:
 
 ```text
-1.6.0
+1.7.0
 ```
 
 The current implementation includes end-to-end testing of:
@@ -1021,16 +1100,19 @@ The current implementation includes end-to-end testing of:
 Client reporting
 Client authentication
 Client inventory
+Package inventory
 Update inventory
 Update jobs
 Atomic job claiming
 Idle-aware execution
 UPDATE_SYSTEM
-Package installation jobs
+Package update execution
 Running-job recovery
 Token rotation
 Container hardening
 SQLite integrity verification
+Login rate limiting
+Update execution timeout handling
 ```
 
 The project is **not yet presented as a finished enterprise management platform**.
@@ -1090,9 +1172,11 @@ LUMS should remain understandable enough that an administrator can inspect the s
 
 # Repository
 
-**GitHub**
+The source repository is maintained under:
 
-https://github.com/NovaForgeCtrl/LUMS
+```text
+NovaForgeCtrl/LUMS
+```
 
 The repository contains:
 
@@ -1125,9 +1209,7 @@ Have an idea?
 
 Want to leave feedback?
 
-You can use the LUMS guestbook:
-
-[💬 Guestbook](https://github.com/NovaForgeCtrl/whoami/issues/new?template=guestbook.md)
+Use the project's guestbook issue template.
 
 ---
 
@@ -1147,7 +1229,7 @@ You can use the LUMS guestbook:
 
 ---
 
-## Status
+# Status
 
 LUMS is actively developed.
 
@@ -1179,5 +1261,3 @@ Always review the current source code and configuration examples before deployin
 > **LUMS — Linux Update Management without the noise.**
 >
 > **One LUMS. Many clients. Same backend. Controlled execution.**
->
-> [💬 Guestbook](https://github.com/NovaForgeCtrl/whoami/issues/new?template=guestbook.md)
