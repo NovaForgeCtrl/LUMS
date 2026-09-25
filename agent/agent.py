@@ -3,6 +3,7 @@
 import json
 import os
 import platform
+import selectors
 import socket
 import ssl
 import subprocess
@@ -31,7 +32,7 @@ else:
     )
 
 
-AGENT_VERSION = "1.6.0"
+AGENT_VERSION = "1.7.0"
 
 LUMS_BASE = os.environ.get(
     "LUMS_BASE",
@@ -46,6 +47,7 @@ LUMS_TOKEN = os.environ.get(
 LUMS_REPORT_API = f"{LUMS_BASE}/api/report"
 
 PACKAGE_TIMEOUT = 900
+PACKAGE_TERMINATE_GRACE = 10
 
 LUMS_CA_FILE = os.environ.get(
     "LUMS_CA_FILE",
@@ -997,31 +999,81 @@ def animate_package_action(command, package, action):
         bufsize=1
     )
 
+    selector = selectors.DefaultSelector()
+    selector.register(
+        process.stdout,
+        selectors.EVENT_READ
+    )
+
     start = time.monotonic()
     output_lines = []
+    output_buffer = ""
 
     try:
 
         while True:
 
-            if time.monotonic() - start > PACKAGE_TIMEOUT:
-                process.kill()
-                process.wait()
+            elapsed = time.monotonic() - start
+
+            if elapsed > PACKAGE_TIMEOUT:
+                process.terminate()
+
+                try:
+                    process.wait(
+                        timeout=PACKAGE_TERMINATE_GRACE
+                    )
+                except subprocess.TimeoutExpired:
+                    process.kill()
+                    process.wait()
 
                 raise subprocess.TimeoutExpired(
                     command,
                     PACKAGE_TIMEOUT
                 )
 
-            line = process.stdout.readline()
+            events = selector.select(
+                timeout=min(0.08, max(
+                    0.0,
+                    PACKAGE_TIMEOUT - elapsed
+                ))
+            )
 
-            if line:
-                output_lines.append(
-                    line.rstrip()
-                )
+            if events:
 
-                if len(output_lines) > 250:
-                    output_lines.pop(0)
+                try:
+                    chunk = process.stdout.read(4096)
+                except (ValueError, OSError):
+                    chunk = ""
+
+                if chunk:
+                    output_buffer += chunk
+
+                    lines = output_buffer.splitlines(
+                        keepends=True
+                    )
+
+                    if lines and not lines[-1].endswith(
+                        ("\n", "\r")
+                    ):
+                        output_buffer = lines.pop()
+                    else:
+                        output_buffer = ""
+
+                    for line in lines:
+                        output_lines.append(
+                            line.rstrip()
+                        )
+
+                        if len(output_lines) > 250:
+                            output_lines.pop(0)
+
+                else:
+                    try:
+                        selector.unregister(
+                            process.stdout
+                        )
+                    except Exception:
+                        pass
 
             returncode = process.poll()
 
@@ -1044,7 +1096,10 @@ def animate_package_action(command, package, action):
 
             sys.stdout.flush()
 
-            time.sleep(0.08)
+        if output_buffer:
+            output_lines.append(
+                output_buffer.rstrip()
+            )
 
         remaining = process.stdout.read()
 
@@ -1060,6 +1115,19 @@ def animate_package_action(command, package, action):
         process.kill()
         process.wait()
         raise
+
+    finally:
+        try:
+            selector.unregister(process.stdout)
+        except Exception:
+            pass
+
+        selector.close()
+
+        try:
+            process.stdout.close()
+        except Exception:
+            pass
 
     clear_line()
 
