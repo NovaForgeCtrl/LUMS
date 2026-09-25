@@ -23,6 +23,10 @@ from security import (
     authenticated_client,
     generate_client_token,
     hash_client_token,
+    get_login_rate_limit_key,
+    is_login_rate_limited,
+    record_login_failure,
+    clear_login_rate_limit,
 )
 
 
@@ -254,22 +258,26 @@ def login():
     username = (request.form.get("username") or "").strip()
     password = request.form.get("password") or ""
 
+    rate_limit_key = get_login_rate_limit_key(
+        username,
+        request.remote_addr,
+    )
+
     connection = get_connection()
 
     try:
-        user = find_user(connection, username)
-
-        # Deliberately use the same generic failure response for
-        # unknown and disabled users to avoid account enumeration.
-        if user is None or not user["enabled"]:
+        if is_login_rate_limited(
+            connection,
+            rate_limit_key,
+        ):
             audit_log(
                 connection,
                 actor_type="user",
                 actor_id=username or None,
-                action="login",
+                action="login.rate_limit",
                 target=None,
-                result="failure",
-                details="invalid credentials",
+                result="blocked",
+                details="login temporarily rate limited",
             )
             connection.commit()
 
@@ -280,7 +288,59 @@ def login():
                 username=username,
             ), 401
 
-        if not verify_password(user["password_hash"], password):
+        user = find_user(connection, username)
+
+        # Deliberately use the same generic failure response for
+        # unknown and disabled users to avoid account enumeration.
+        if user is None or not user["enabled"]:
+            failed_attempts, locked_until = record_login_failure(
+                connection,
+                rate_limit_key,
+                username,
+            )
+
+            audit_log(
+                connection,
+                actor_type="user",
+                actor_id=username or None,
+                action="login",
+                target=None,
+                result="failure",
+                details="invalid credentials",
+            )
+
+            if locked_until is not None:
+                audit_log(
+                    connection,
+                    actor_type="user",
+                    actor_id=username or None,
+                    action="login.rate_limit",
+                    target=None,
+                    result="locked",
+                    details=(
+                        f"failed_attempts={failed_attempts}"
+                    ),
+                )
+
+            connection.commit()
+
+            return render_template(
+                "login.html",
+                csrf_token=get_csrf_token(),
+                error="Invalid username or password.",
+                username=username,
+            ), 401
+
+        if not verify_password(
+            user["password_hash"],
+            password,
+        ):
+            failed_attempts, locked_until = record_login_failure(
+                connection,
+                rate_limit_key,
+                username,
+            )
+
             audit_log(
                 connection,
                 actor_type="user",
@@ -290,6 +350,20 @@ def login():
                 result="failure",
                 details="invalid credentials",
             )
+
+            if locked_until is not None:
+                audit_log(
+                    connection,
+                    actor_type="user",
+                    actor_id=user["id"],
+                    action="login.rate_limit",
+                    target=f"user:{user['id']}",
+                    result="locked",
+                    details=(
+                        f"failed_attempts={failed_attempts}"
+                    ),
+                )
+
             connection.commit()
 
             return render_template(
@@ -312,6 +386,11 @@ def login():
                 """,
                 (new_hash, user["id"]),
             )
+
+        clear_login_rate_limit(
+            connection,
+            rate_limit_key,
+        )
 
         login_user(
             user_id=user["id"],

@@ -1,7 +1,7 @@
 import hashlib
 import hmac
 import secrets
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from functools import wraps
 
 from argon2 import PasswordHasher
@@ -168,6 +168,143 @@ def find_user(connection, username):
         """,
         (username,),
     ).fetchone()
+
+
+
+# ============================================================
+# LOGIN RATE LIMITING
+# ============================================================
+
+LOGIN_RATE_LIMIT_LOCK_STEPS = (
+    (5, 30),
+    (6, 60),
+    (7, 120),
+    (8, 300),
+)
+
+
+def get_login_rate_limit_key(username, source):
+    normalized_username = (username or "").strip().casefold()
+    normalized_source = (source or "").strip()
+
+    return f"{normalized_username}|{normalized_source}"
+
+
+def get_login_rate_limit(connection, rate_limit_key):
+    return connection.execute(
+        """
+        SELECT
+            id,
+            rate_limit_key,
+            username,
+            failed_attempts,
+            first_failed_at,
+            last_failed_at,
+            locked_until
+        FROM login_rate_limits
+        WHERE rate_limit_key = ?
+        """,
+        (rate_limit_key,),
+    ).fetchone()
+
+
+def is_login_rate_limited(connection, rate_limit_key):
+    row = get_login_rate_limit(connection, rate_limit_key)
+
+    if row is None or row["locked_until"] is None:
+        return False
+
+    try:
+        locked_until = datetime.fromisoformat(
+            row["locked_until"]
+        )
+    except ValueError:
+        return False
+
+    return locked_until > datetime.now(timezone.utc)
+
+
+def record_login_failure(
+    connection,
+    rate_limit_key,
+    username,
+):
+    now = datetime.now(timezone.utc)
+    now_iso = now.isoformat()
+
+    connection.execute("BEGIN IMMEDIATE")
+
+    row = get_login_rate_limit(
+        connection,
+        rate_limit_key,
+    )
+
+    if row is None:
+        failed_attempts = 1
+        locked_until = None
+
+        connection.execute(
+            """
+            INSERT INTO login_rate_limits (
+                rate_limit_key,
+                username,
+                failed_attempts,
+                first_failed_at,
+                last_failed_at,
+                locked_until
+            )
+            VALUES (?, ?, ?, ?, ?, ?)
+            """,
+            (
+                rate_limit_key,
+                username or "",
+                failed_attempts,
+                now_iso,
+                now_iso,
+                locked_until,
+            ),
+        )
+
+        return failed_attempts, locked_until
+
+    failed_attempts = row["failed_attempts"] + 1
+    locked_until = None
+
+    for threshold, seconds in LOGIN_RATE_LIMIT_LOCK_STEPS:
+        if failed_attempts >= threshold:
+            locked_until = (
+                now + timedelta(seconds=seconds)
+            ).isoformat()
+
+    connection.execute(
+        """
+        UPDATE login_rate_limits
+        SET
+            username = ?,
+            failed_attempts = ?,
+            last_failed_at = ?,
+            locked_until = ?
+        WHERE rate_limit_key = ?
+        """,
+        (
+            username or "",
+            failed_attempts,
+            now_iso,
+            locked_until,
+            rate_limit_key,
+        ),
+    )
+
+    return failed_attempts, locked_until
+
+def clear_login_rate_limit(connection, rate_limit_key):
+    connection.execute(
+        """
+        DELETE FROM login_rate_limits
+        WHERE rate_limit_key = ?
+        """,
+        (rate_limit_key,),
+    )
 
 
 def current_user_id():
