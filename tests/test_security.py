@@ -1024,6 +1024,728 @@ def test_pacman_get_updates_empty(monkeypatch):
     assert manager.get_updates() == []
 
 
+def test_update_job_checkpoint_persists_package_status(
+    monkeypatch,
+    tmp_path,
+):
+    from server import app
+
+    db_path = str(tmp_path / "checkpoint-test.db")
+
+    connection = sqlite3.connect(db_path)
+
+    connection.execute(
+        """
+        CREATE TABLE clients (
+            id INTEGER PRIMARY KEY,
+            hostname TEXT,
+            client_token_hash TEXT,
+            enabled INTEGER NOT NULL DEFAULT 1,
+            token_revoked_at TEXT
+        )
+        """
+    )
+
+    connection.execute(
+        """
+        CREATE TABLE update_jobs (
+            id INTEGER PRIMARY KEY,
+            client_id INTEGER NOT NULL,
+            status TEXT NOT NULL
+        )
+        """
+    )
+
+    connection.execute(
+        """
+        CREATE TABLE update_job_packages (
+            id INTEGER PRIMARY KEY,
+            job_id INTEGER NOT NULL,
+            package TEXT NOT NULL,
+            status TEXT NOT NULL,
+            message TEXT
+        )
+        """
+    )
+
+    connection.execute(
+        """
+        INSERT INTO clients (
+            id,
+            hostname,
+            client_token_hash,
+            enabled
+        )
+        VALUES (
+            1,
+            'pytest-client',
+            ?,
+            1
+        )
+        """,
+        (
+            hash_client_token("pytest-client-token"),
+        ),
+    )
+
+    connection.execute(
+        """
+        INSERT INTO update_jobs (
+            id,
+            client_id,
+            status
+        )
+        VALUES (
+            999,
+            1,
+            'running'
+        )
+        """
+    )
+
+    connection.execute(
+        """
+        INSERT INTO update_job_packages (
+            id,
+            job_id,
+            package,
+            status,
+            message
+        )
+        VALUES (
+            1,
+            999,
+            'openssl',
+            'pending',
+            NULL
+        )
+        """
+    )
+
+    connection.commit()
+    connection.close()
+
+    def get_test_connection():
+        connection = sqlite3.connect(db_path)
+        connection.row_factory = sqlite3.Row
+        return connection
+
+    monkeypatch.setitem(
+        app.app.config,
+        "LUMS_GET_CONNECTION",
+        get_test_connection,
+    )
+
+    monkeypatch.setattr(
+        app,
+        "get_connection",
+        get_test_connection,
+    )
+
+    client = app.app.test_client()
+
+    response = client.post(
+        "/api/update-jobs/999/checkpoint",
+        headers={
+            "Authorization": "Bearer pytest-client-token",
+        },
+        json={
+            "package": "openssl",
+            "status": "success",
+            "message": "Recovery update success.",
+        },
+    )
+
+    assert response.status_code == 200
+
+    assert response.get_json() == {
+        "status": "checkpointed",
+        "job_id": 999,
+        "package": "openssl",
+        "package_status": "success",
+    }
+
+    connection = sqlite3.connect(db_path)
+    row = connection.execute(
+        """
+        SELECT status, message
+        FROM update_job_packages
+        WHERE job_id = 999
+          AND package = 'openssl'
+        """
+    ).fetchone()
+    connection.close()
+
+    assert row == (
+        "success",
+        "Recovery update success.",
+    )
+
+
+def test_update_job_checkpoint_rejects_invalid_state(
+    monkeypatch,
+    tmp_path,
+):
+    from server import app
+
+    db_path = str(tmp_path / "checkpoint-negative-test.db")
+
+    connection = sqlite3.connect(db_path)
+
+    connection.execute(
+        """
+        CREATE TABLE clients (
+            id INTEGER PRIMARY KEY,
+            hostname TEXT,
+            client_token_hash TEXT,
+            enabled INTEGER NOT NULL DEFAULT 1,
+            token_revoked_at TEXT
+        )
+        """
+    )
+
+    connection.execute(
+        """
+        CREATE TABLE update_jobs (
+            id INTEGER PRIMARY KEY,
+            client_id INTEGER NOT NULL,
+            status TEXT NOT NULL
+        )
+        """
+    )
+
+    connection.execute(
+        """
+        CREATE TABLE update_job_packages (
+            id INTEGER PRIMARY KEY,
+            job_id INTEGER NOT NULL,
+            package TEXT NOT NULL,
+            status TEXT NOT NULL,
+            message TEXT
+        )
+        """
+    )
+
+    connection.execute(
+        """
+        INSERT INTO clients (
+            id,
+            hostname,
+            client_token_hash,
+            enabled
+        )
+        VALUES (
+            1,
+            'pytest-client',
+            ?,
+            1
+        )
+        """,
+        (
+            hash_client_token("pytest-client-token"),
+        ),
+    )
+
+    connection.execute(
+        """
+        INSERT INTO clients (
+            id,
+            hostname,
+            client_token_hash,
+            enabled
+        )
+        VALUES (
+            2,
+            'other-client',
+            ?,
+            1
+        )
+        """,
+        (
+            hash_client_token("other-client-token"),
+        ),
+    )
+
+    connection.execute(
+        """
+        INSERT INTO update_jobs (
+            id,
+            client_id,
+            status
+        )
+        VALUES
+            (999, 1, 'running'),
+            (1000, 1, 'success'),
+            (1001, 2, 'running')
+        """
+    )
+
+    connection.execute(
+        """
+        INSERT INTO update_job_packages (
+            id,
+            job_id,
+            package,
+            status,
+            message
+        )
+        VALUES
+            (1, 999, 'openssl', 'pending', NULL),
+            (2, 1000, 'curl', 'success', 'Already completed.')
+        """
+    )
+
+    connection.commit()
+    connection.close()
+
+    def get_test_connection():
+        connection = sqlite3.connect(db_path)
+        connection.row_factory = sqlite3.Row
+        return connection
+
+    monkeypatch.setitem(
+        app.app.config,
+        "LUMS_GET_CONNECTION",
+        get_test_connection,
+    )
+
+    monkeypatch.setattr(
+        app,
+        "get_connection",
+        get_test_connection,
+    )
+
+    client = app.app.test_client()
+
+    def post(token, job_id, payload):
+        return client.post(
+            f"/api/update-jobs/{job_id}/checkpoint",
+            headers={
+                "Authorization": f"Bearer {token}",
+            },
+            json=payload,
+        )
+
+    response = post(
+        "pytest-client-token",
+        999,
+        {
+            "package": "does-not-exist",
+            "status": "success",
+            "message": "Invalid package.",
+        },
+    )
+    assert response.status_code == 404
+    assert response.get_json()["error"] == "package_not_found"
+
+    response = post(
+        "pytest-client-token",
+        999,
+        {
+            "package": "openssl",
+            "status": "running",
+            "message": "Invalid status.",
+        },
+    )
+    assert response.status_code == 400
+    assert response.get_json()["error"] == "invalid_status"
+
+    response = post(
+        "pytest-client-token",
+        999,
+        {
+            "package": "",
+            "status": "success",
+            "message": "Invalid package.",
+        },
+    )
+    assert response.status_code == 400
+    assert response.get_json()["error"] == "invalid_package"
+
+    response = post(
+        "pytest-client-token",
+        1000,
+        {
+            "package": "curl",
+            "status": "success",
+            "message": "Job already finished.",
+        },
+    )
+    assert response.status_code == 409
+    assert response.get_json()["error"] == "job_not_running"
+
+    response = post(
+        "pytest-client-token",
+        1001,
+        {
+            "package": "openssl",
+            "status": "success",
+            "message": "Wrong client.",
+        },
+    )
+    assert response.status_code == 403
+    assert response.get_json()["error"] == "client_access_denied"
+
+    response = post(
+        "pytest-client-token",
+        404404,
+        {
+            "package": "openssl",
+            "status": "success",
+            "message": "Unknown job.",
+        },
+    )
+    assert response.status_code == 404
+    assert response.get_json()["error"] == "job_not_found"
+
+    response = post(
+        "pytest-client-token",
+        999,
+        {
+            "package": "openssl",
+            "status": "failed",
+            "message": "Package failed.",
+        },
+    )
+    assert response.status_code == 200
+
+    connection = sqlite3.connect(db_path)
+    row = connection.execute(
+        """
+        SELECT status, message
+        FROM update_job_packages
+        WHERE job_id = 999
+          AND package = 'openssl'
+        """
+    ).fetchone()
+    connection.close()
+
+    assert row == (
+        "failed",
+        "Package failed.",
+    )
+
+
+def test_send_job_package_checkpoint(monkeypatch):
+    import json
+    import ssl
+
+    monkeypatch.setattr(
+        ssl,
+        "create_default_context",
+        lambda *args, **kwargs: None,
+    )
+
+    import agent
+
+    captured = {}
+
+    class FakeResponse:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, tb):
+            return False
+
+        def read(self):
+            return b"CHECKPOINT ACCEPTED"
+
+    def fake_urlopen(
+        request,
+        timeout,
+        context,
+    ):
+        captured["url"] = request.full_url
+        captured["method"] = request.method
+        captured["headers"] = dict(request.headers)
+        captured["payload"] = request.data
+        captured["timeout"] = timeout
+        captured["context"] = context
+
+        return FakeResponse()
+
+    monkeypatch.setattr(
+        agent.urllib.request,
+        "urlopen",
+        fake_urlopen,
+    )
+
+    monkeypatch.setattr(
+        agent,
+        "LUMS_BASE",
+        "https://lums.example",
+    )
+
+    monkeypatch.setattr(
+        agent,
+        "get_auth_headers",
+        lambda extra=None: {
+            **{
+                "Authorization": "Bearer test-token",
+            },
+            **(extra or {}),
+        },
+    )
+
+    response = agent.send_job_package_checkpoint(
+        999,
+        "openssl",
+        "success",
+        "Recovery update success.",
+    )
+
+    assert response == "CHECKPOINT ACCEPTED"
+    assert captured["url"] == (
+        "https://lums.example/api/update-jobs/999/checkpoint"
+    )
+    assert captured["method"] == "POST"
+    assert captured["timeout"] == 10
+
+    payload = json.loads(
+        captured["payload"].decode("utf-8")
+    )
+
+    assert payload == {
+        "package": "openssl",
+        "status": "success",
+        "message": "Recovery update success.",
+    }
+
+    assert captured["headers"]["Authorization"] == (
+        "Bearer test-token"
+    )
+    assert captured["headers"]["Content-type"] == (
+        "application/json"
+    )
+
+
+def test_execute_job_checkpoint_failure_does_not_report_success(
+    monkeypatch,
+):
+    import ssl
+
+    monkeypatch.setattr(
+        ssl,
+        "create_default_context",
+        lambda *args, **kwargs: None,
+    )
+
+    import agent
+
+    monkeypatch.setattr(
+        agent,
+        "SIMULATE_UPDATES",
+        False,
+    )
+
+    monkeypatch.setattr(
+        agent,
+        "reboot_required",
+        lambda: False,
+    )
+
+    update_calls = []
+    result_calls = []
+
+    def fake_run_package_update(package):
+        update_calls.append(package)
+
+        return {
+            "package": package,
+            "status": "success",
+            "message": "Package update succeeded.",
+            "returncode": 0,
+        }
+
+    def failing_checkpoint(
+        job_id,
+        package,
+        status,
+        message,
+    ):
+        raise RuntimeError(
+            "Checkpoint server unavailable."
+        )
+
+    def fake_send_job_result(
+        job_id,
+        status,
+        results,
+        reboot,
+    ):
+        result_calls.append({
+            "job_id": job_id,
+            "status": status,
+            "results": results,
+            "reboot": reboot,
+        })
+
+        return "RESULT ACCEPTED"
+
+    monkeypatch.setattr(
+        agent,
+        "run_package_update",
+        fake_run_package_update,
+    )
+
+    monkeypatch.setattr(
+        agent,
+        "send_job_package_checkpoint",
+        failing_checkpoint,
+    )
+
+    monkeypatch.setattr(
+        agent,
+        "send_job_result",
+        fake_send_job_result,
+    )
+
+    job = {
+        "job_id": 1000,
+        "action": "UPDATE_PACKAGE",
+        "packages": [
+            {
+                "package": "openssl",
+                "target_version": "2.0",
+                "status": "pending",
+            },
+        ],
+    }
+
+    try:
+        agent.execute_job(job)
+    except RuntimeError as error:
+        assert str(error) == (
+            "Checkpoint server unavailable."
+        )
+
+    assert update_calls == ["openssl"]
+
+    assert result_calls == []
+
+def test_execute_job_resumes_only_unfinished_packages(monkeypatch):
+    import ssl
+
+    monkeypatch.setattr(
+        ssl,
+        "create_default_context",
+        lambda *args, **kwargs: None,
+    )
+
+    import agent
+
+    monkeypatch.setattr(
+        agent,
+        "SIMULATE_UPDATES",
+        False,
+    )
+
+    monkeypatch.setattr(
+        agent,
+        "reboot_required",
+        lambda: False,
+    )
+
+    update_calls = []
+    checkpoint_calls = []
+    result_calls = []
+
+    def fake_run_package_update(package):
+        update_calls.append(package)
+
+        return {
+            "package": package,
+            "status": "success",
+            "message": "Recovery update success.",
+            "returncode": 0,
+        }
+
+    def fake_checkpoint_job_package(
+        job_id,
+        package,
+        status,
+        message,
+    ):
+        checkpoint_calls.append({
+            "job_id": job_id,
+            "package": package,
+            "status": status,
+            "message": message,
+        })
+
+        return "CHECKPOINT ACCEPTED"
+
+    def fake_send_job_result(
+        job_id,
+        status,
+        results,
+        reboot,
+    ):
+        result_calls.append({
+            "job_id": job_id,
+            "status": status,
+            "results": results,
+            "reboot": reboot,
+        })
+
+        return "RESULT ACCEPTED"
+
+    monkeypatch.setattr(
+        agent,
+        "run_package_update",
+        fake_run_package_update,
+    )
+
+    monkeypatch.setattr(
+        agent,
+        "send_job_package_checkpoint",
+        fake_checkpoint_job_package,
+        raising=False,
+    )
+
+    monkeypatch.setattr(
+        agent,
+        "send_job_result",
+        fake_send_job_result,
+    )
+
+    job = {
+        "job_id": 999,
+        "action": "UPDATE_PACKAGE",
+        "packages": [
+            {
+                "package": "curl",
+                "target_version": "1.0",
+                "status": "success",
+            },
+            {
+                "package": "openssl",
+                "target_version": "2.0",
+                "status": "pending",
+            },
+        ],
+    }
+
+    agent.execute_job(job)
+
+    assert update_calls == [
+        "openssl",
+    ]
+
+    assert checkpoint_calls == [
+        {
+            "job_id": 999,
+            "package": "openssl",
+            "status": "success",
+            "message": "Recovery update success.",
+        }
+    ]
+
+    assert result_calls[0]["job_id"] == 999
+    assert result_calls[0]["status"] == "success"
+    assert result_calls[0]["reboot"] is False
+
+
 def test_execute_job_simulation_update_package(monkeypatch):
     import agent
 
@@ -1375,6 +2097,14 @@ def test_execute_job_simulation_unknown_action(monkeypatch):
 
 
 def test_execute_job_real_update_package_failure(monkeypatch):
+    import ssl
+
+    monkeypatch.setattr(
+        ssl,
+        "create_default_context",
+        lambda *args, **kwargs: None,
+    )
+
     import agent
 
     monkeypatch.setattr(
@@ -1410,6 +2140,29 @@ def test_execute_job_real_update_package_failure(monkeypatch):
         agent,
         "send_job_result",
         fake_send_job_result,
+    )
+
+    checkpoint_calls = []
+
+    def fake_send_job_package_checkpoint(
+        job_id,
+        package,
+        status,
+        message,
+    ):
+        checkpoint_calls.append({
+            "job_id": job_id,
+            "package": package,
+            "status": status,
+            "message": message,
+        })
+
+        return "CHECKPOINT ACCEPTED"
+
+    monkeypatch.setattr(
+        agent,
+        "send_job_package_checkpoint",
+        fake_send_job_package_checkpoint,
     )
 
     def fake_run_package_update(package):
@@ -1458,6 +2211,14 @@ def test_execute_job_real_update_package_failure(monkeypatch):
 
 
 def test_execute_job_real_update_package_timeout(monkeypatch):
+    import ssl
+
+    monkeypatch.setattr(
+        ssl,
+        "create_default_context",
+        lambda *args, **kwargs: None,
+    )
+
     import agent
 
     monkeypatch.setattr(
@@ -1493,6 +2254,29 @@ def test_execute_job_real_update_package_timeout(monkeypatch):
         agent,
         "send_job_result",
         fake_send_job_result,
+    )
+
+    checkpoint_calls = []
+
+    def fake_send_job_package_checkpoint(
+        job_id,
+        package,
+        status,
+        message,
+    ):
+        checkpoint_calls.append({
+            "job_id": job_id,
+            "package": package,
+            "status": status,
+            "message": message,
+        })
+
+        return "CHECKPOINT ACCEPTED"
+
+    monkeypatch.setattr(
+        agent,
+        "send_job_package_checkpoint",
+        fake_send_job_package_checkpoint,
     )
 
     def fake_run_package_update(package):

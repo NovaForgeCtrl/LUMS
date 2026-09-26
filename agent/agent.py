@@ -1669,6 +1669,40 @@ def reboot_required():
 
 
 # ============================================================
+# JOB CHECKPOINT
+# ============================================================
+
+def send_job_package_checkpoint(
+    job_id,
+    package,
+    status,
+    message,
+):
+    payload = json.dumps({
+        "package": package,
+        "status": status,
+        "message": message,
+    }).encode("utf-8")
+
+    request = urllib.request.Request(
+        f"{LUMS_BASE}/api/update-jobs/{job_id}/checkpoint",
+        data=payload,
+        headers=get_auth_headers({
+            "Content-Type": "application/json",
+        }),
+        method="POST",
+    )
+
+    with urllib.request.urlopen(
+        request,
+        timeout=10,
+        context=LUMS_SSL_CONTEXT,
+    ) as response:
+
+        return response.read().decode("utf-8")
+
+
+# ============================================================
 # JOB RESULT
 # ============================================================
 
@@ -1794,6 +1828,30 @@ def execute_job(job):
                 )
             )
 
+            # Recovery: packages already marked as successful on the
+            # server must not be executed a second time.
+            if (
+                not simulation
+                and item.get("status") == "success"
+            ):
+                result = {
+                    "package": package,
+                    "status": "success",
+                    "message": item.get(
+                        "message",
+                        "Package already completed before recovery.",
+                    ),
+                    "returncode": 0,
+                }
+
+                results.append(result)
+
+                status_ok(
+                    f"{package} // ALREADY COMPLETE // SKIPPED"
+                )
+
+                continue
+
             if simulation:
 
                 if action == "UPDATE_PACKAGE":
@@ -1877,6 +1935,20 @@ def execute_job(job):
 
                 status_fail(
                     f"{package} // FAILED"
+                )
+
+            if not simulation:
+
+                checkpoint_response = send_job_package_checkpoint(
+                    job_id,
+                    package,
+                    result["status"],
+                    result.get("message"),
+                )
+
+                status_ok(
+                    f"{package} // CHECKPOINT // "
+                    f"{checkpoint_response}"
                 )
 
     successful = sum(

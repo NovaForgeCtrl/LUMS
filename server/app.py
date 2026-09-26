@@ -1272,6 +1272,125 @@ def client_update_jobs(client_id):
 # AGENT: CLAIM NEXT PENDING UPDATE JOB
 # ============================================================
 
+@app.route(
+    "/api/update-jobs/<int:job_id>/checkpoint",
+    methods=["POST"],
+)
+@client_auth_required
+def update_job_checkpoint(job_id):
+    client = authenticated_client()
+
+    data = request.get_json(silent=True)
+
+    if not isinstance(data, dict) or not data:
+        return jsonify({
+            "error": "invalid_json"
+        }), 400
+
+    package = data.get("package")
+    package_status = data.get("status")
+    message = data.get("message")
+
+    if not isinstance(package, str) or not package.strip():
+        return jsonify({
+            "error": "invalid_package"
+        }), 400
+
+    if package_status not in (
+        "success",
+        "failed",
+        "timeout",
+    ):
+        return jsonify({
+            "error": "invalid_status"
+        }), 400
+
+    connection = get_connection()
+
+    try:
+        job = connection.execute(
+            """
+            SELECT
+                id,
+                client_id,
+                status
+            FROM update_jobs
+            WHERE id = ?
+            """,
+            (job_id,),
+        ).fetchone()
+
+        if job is None:
+            return jsonify({
+                "error": "job_not_found"
+            }), 404
+
+        if job["client_id"] != client["id"]:
+            return jsonify({
+                "error": "client_access_denied"
+            }), 403
+
+        if job["status"] != "running":
+            return jsonify({
+                "error": "job_not_running",
+                "job_id": job_id,
+                "job_status": job["status"],
+            }), 409
+
+        package_row = connection.execute(
+            """
+            SELECT
+                id,
+                status
+            FROM update_job_packages
+            WHERE job_id = ?
+              AND package = ?
+            """,
+            (
+                job_id,
+                package.strip(),
+            ),
+        ).fetchone()
+
+        if package_row is None:
+            return jsonify({
+                "error": "package_not_found"
+            }), 404
+
+        connection.execute(
+            """
+            UPDATE update_job_packages
+            SET
+                status = ?,
+                message = ?
+            WHERE job_id = ?
+              AND package = ?
+            """,
+            (
+                package_status,
+                message,
+                job_id,
+                package.strip(),
+            ),
+        )
+
+        connection.commit()
+
+        return jsonify({
+            "status": "checkpointed",
+            "job_id": job_id,
+            "package": package.strip(),
+            "package_status": package_status,
+        }), 200
+
+    except Exception:
+        connection.rollback()
+        raise
+
+    finally:
+        connection.close()
+
+
 @app.route("/api/update-jobs/<int:job_id>/result", methods=["POST"])
 @client_auth_required
 def update_job_result(job_id):
