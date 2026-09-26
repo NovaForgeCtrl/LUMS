@@ -5311,3 +5311,27 @@ html[data-theme="admin"] *::after {
    END OF ENTERPRISE ADMIN
    ========================================================= */
 
+
+/* CSP-safe layout helpers */
+.topbar-actions {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+.logout-form {
+    margin: 0;
+}
+
+.logout-button {
+    padding: 6px 12px;
+    background: #dc3545;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.update-select-column {
+    width: 50px;
+}

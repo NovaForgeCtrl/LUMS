@@ -780,14 +780,71 @@ def get_idle_status():
     }
 
 def get_ip():
-    return subprocess.check_output(
-        [
-            "bash",
-            "-c",
-            "ip route get 1.1.1.1 | awk '{print $7; exit}'"
-        ],
-        text=True
-    ).strip()
+    try:
+        result = subprocess.run(
+            [
+                "ip",
+                "-4",
+                "route",
+                "get",
+                "1.1.1.1"
+            ],
+            capture_output=True,
+            text=True,
+            check=True,
+            timeout=5
+        )
+
+        parts = result.stdout.split()
+
+        if "src" in parts:
+            ip_index = parts.index("src") + 1
+            if ip_index < len(parts):
+                address = parts[ip_index].strip()
+                if address:
+                    return address
+
+    except (subprocess.SubprocessError, OSError):
+        pass
+
+    try:
+        result = subprocess.run(
+            [
+                "ip",
+                "-4",
+                "-o",
+                "addr",
+                "show",
+                "scope",
+                "global"
+            ],
+            capture_output=True,
+            text=True,
+            check=True,
+            timeout=5
+        )
+
+        for line in result.stdout.splitlines():
+            parts = line.split()
+
+            if len(parts) < 4:
+                continue
+
+            interface = parts[1]
+            address = parts[3].split("/", 1)[0]
+
+            if interface == "docker0":
+                continue
+
+            if address.startswith("127."):
+                continue
+
+            return address
+
+    except (subprocess.SubprocessError, OSError):
+        pass
+
+    return "127.0.0.1"
 
 
 # ============================================================

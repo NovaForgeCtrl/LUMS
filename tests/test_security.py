@@ -287,6 +287,12 @@ def test_report_rejects_invalid_json(monkeypatch, tmp_path):
         get_test_connection,
     )
 
+    monkeypatch.setattr(
+        app,
+        "get_connection",
+        get_test_connection,
+    )
+
     client = app.app.test_client()
 
     headers = {
@@ -1494,3 +1500,224 @@ def test_execute_job_real_update_package_timeout(monkeypatch):
             "returncode": None,
         }
     ]
+
+
+def test_login_required_revokes_session_when_user_disabled(monkeypatch, tmp_path):
+    from server import app as app_module
+
+    db_path = str(tmp_path / "session-revocation.db")
+
+    connection = sqlite3.connect(db_path)
+    connection.execute(
+        """
+        CREATE TABLE users (
+            id INTEGER PRIMARY KEY,
+            username TEXT NOT NULL,
+            password_hash TEXT NOT NULL,
+            enabled INTEGER NOT NULL DEFAULT 1
+        )
+        """
+    )
+    connection.execute(
+        """
+        INSERT INTO users (
+            id,
+            username,
+            password_hash,
+            enabled
+        )
+        VALUES (1, 'admin', 'pytest-password-hash', 1)
+        """
+    )
+    connection.commit()
+    connection.close()
+
+    def get_test_connection():
+        connection = sqlite3.connect(db_path)
+        connection.row_factory = sqlite3.Row
+        return connection
+
+    monkeypatch.setitem(
+        app_module.app.config,
+        "LUMS_GET_CONNECTION",
+        get_test_connection,
+    )
+
+    client = app_module.app.test_client()
+
+    with client.session_transaction() as session:
+        session["user_id"] = 1
+        session["username"] = "admin"
+        session.permanent = True
+
+    connection = sqlite3.connect(db_path)
+    connection.execute(
+        "UPDATE users SET enabled = 0 WHERE id = 1"
+    )
+    connection.commit()
+    connection.close()
+
+    response = client.get("/")
+
+    assert response.status_code == 302
+    assert response.headers["Location"].endswith("/login")
+
+    with client.session_transaction() as session:
+        assert "user_id" not in session
+        assert "username" not in session
+
+
+def test_client_token_rotation_invalidates_old_token(monkeypatch, tmp_path):
+    from server import app
+    from server.security import authenticate_client
+
+    db_path = str(tmp_path / "token-rotation.db")
+
+    create_report_test_database(db_path)
+
+    connection = sqlite3.connect(db_path)
+
+    connection.execute(
+        """
+        CREATE TABLE users (
+            id INTEGER PRIMARY KEY,
+            username TEXT NOT NULL,
+            password_hash TEXT NOT NULL,
+            enabled INTEGER NOT NULL DEFAULT 1
+        )
+        """
+    )
+
+    connection.execute(
+        """
+        INSERT INTO users (
+            id,
+            username,
+            password_hash,
+            enabled
+        )
+        VALUES (1, 'admin', 'pytest-password-hash', 1)
+        """
+    )
+
+    connection.execute(
+        """
+        CREATE TABLE audit_log (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            timestamp TEXT NOT NULL,
+            actor_type TEXT NOT NULL,
+            actor_id INTEGER,
+            action TEXT NOT NULL,
+            target TEXT,
+            result TEXT NOT NULL,
+            details TEXT
+        )
+        """
+    )
+
+    connection.commit()
+    connection.close()
+
+    def get_test_connection():
+        connection = sqlite3.connect(db_path)
+        connection.row_factory = sqlite3.Row
+        return connection
+
+    monkeypatch.setitem(
+        app.app.config,
+        "LUMS_GET_CONNECTION",
+        get_test_connection,
+    )
+
+    monkeypatch.setattr(
+        app,
+        "get_connection",
+        get_test_connection,
+    )
+
+    client = app.app.test_client()
+
+    with client.session_transaction() as session:
+        session["user_id"] = 1
+        session["username"] = "admin"
+        session["csrf_token"] = "pytest-csrf-token"
+        session.permanent = True
+
+    old_token = "pytest-client-token"
+
+    response = client.post(
+        "/api/clients/1/token/rotate",
+        headers={
+            "X-CSRF-Token": "pytest-csrf-token",
+        },
+    )
+
+    assert response.status_code == 200
+
+    payload = response.get_json()
+
+    assert payload["status"] == "rotated"
+    assert payload["client"]["id"] == 1
+    assert payload["client"]["hostname"] == "pytest-client"
+
+    new_token = payload["token"]
+
+    assert new_token
+    assert new_token != old_token
+
+    connection = sqlite3.connect(db_path)
+    connection.row_factory = sqlite3.Row
+
+    row = connection.execute(
+        """
+        SELECT
+            client_token_hash,
+            token_created_at,
+            token_revoked_at,
+            enabled
+        FROM clients
+        WHERE id = 1
+        """
+    ).fetchone()
+
+    assert row["enabled"] == 1
+    assert row["token_created_at"] is not None
+    assert row["token_revoked_at"] is None
+    assert row["client_token_hash"] == hash_client_token(
+        new_token
+    )
+    assert row["client_token_hash"] != hash_client_token(
+        old_token
+    )
+
+    connection.close()
+
+    with app.app.test_request_context(
+        "/api/client/me",
+        headers={
+            "Authorization": f"Bearer {old_token}",
+        },
+    ):
+        connection = get_test_connection()
+
+        try:
+            assert authenticate_client(connection) is None
+        finally:
+            connection.close()
+
+    with app.app.test_request_context(
+        "/api/client/me",
+        headers={
+            "Authorization": f"Bearer {new_token}",
+        },
+    ):
+        connection = get_test_connection()
+
+        try:
+            authenticated = authenticate_client(connection)
+
+            assert authenticated is not None
+            assert authenticated["id"] == 1
+            assert authenticated["hostname"] == "pytest-client"
+        finally:
+            connection.close()

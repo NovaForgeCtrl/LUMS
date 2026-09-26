@@ -750,13 +750,13 @@ def report():
 
     client = authenticated_client()
 
-    data = request.get_json()
+    data = request.get_json(silent=True)
 
-    if not data:
+    if not isinstance(data, dict) or not data:
 
         return jsonify({
             "status": "error",
-            "message": "No JSON data received"
+            "message": "Invalid or missing JSON data"
         }), 400
 
     client_id = save_client(
@@ -1001,13 +1001,13 @@ def client_packages(client_id):
 @csrf_required
 def create_update_job(client_id):
 
-    data = request.get_json()
+    data = request.get_json(silent=True)
 
-    if not data:
+    if not isinstance(data, dict) or not data:
 
         return jsonify({
             "status": "error",
-            "message": "No JSON data received"
+            "message": "Invalid or missing JSON data"
         }), 400
 
     action = data.get("action", "UPDATE_PACKAGE")

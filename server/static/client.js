@@ -371,7 +371,7 @@ function renderUpdates() {
 
                         <tr>
 
-                            <th style="width: 50px;">
+                            <th class="update-select-column">
                                 <input
                                     type="checkbox"
                                     id="select-all-checkbox"

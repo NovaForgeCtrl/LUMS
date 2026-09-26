@@ -39,7 +39,7 @@
 
     <div class="theme-day-title" aria-hidden="true"></div>
 
-    <div style="display: flex; align-items: center; gap: 15px;">
+    <div class="topbar-actions">
         <div class="server-status">
 
             <span class="status-dot"></span>
@@ -48,9 +48,9 @@
 
         </div>
 
-        <form action="/logout" method="POST" style="margin: 0;">
+        <form action="/logout" method="POST" class="logout-form">
             <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-            <button type="submit" style="padding: 6px 12px; background: #dc3545; color: white; border: none; border-radius: 4px; cursor: pointer;">
+            <button type="submit" class="logout-button">
                 Abmelden
             </button>
         </form>

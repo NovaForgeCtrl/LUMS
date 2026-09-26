@@ -327,7 +327,40 @@ def login_required(view):
     @wraps(view)
     def wrapped(*args, **kwargs):
 
-        if not is_authenticated():
+        user_id = current_user_id()
+
+        if user_id is None:
+
+            if request.path.startswith("/api/"):
+                return jsonify({
+                    "error": "authentication_required"
+                }), 401
+
+            return redirect(
+                url_for("login")
+            )
+
+        from flask import current_app
+
+        connection = current_app.config[
+            "LUMS_GET_CONNECTION"
+        ]()
+
+        try:
+            user = connection.execute(
+                """
+                SELECT id, username, enabled
+                FROM users
+                WHERE id = ?
+                """,
+                (user_id,),
+            ).fetchone()
+        finally:
+            connection.close()
+
+        if user is None or not user["enabled"]:
+
+            logout_user()
 
             if request.path.startswith("/api/"):
                 return jsonify({
