@@ -476,6 +476,44 @@ def test_get_ip_uses_interface_fallback(monkeypatch):
     ]
 
 
+def test_get_ip_falls_back_to_loopback_when_offline(monkeypatch):
+    import ssl
+
+    monkeypatch.setattr(
+        ssl,
+        "create_default_context",
+        lambda *args, **kwargs: None,
+    )
+
+    import agent
+
+    calls = []
+
+    def fake_run(command, **kwargs):
+        calls.append(command)
+
+        class Result:
+            stdout = ""
+
+        if command[:5] == [
+            "ip",
+            "-4",
+            "route",
+            "get",
+            "1.1.1.1",
+        ]:
+            raise agent.subprocess.CalledProcessError(
+                1,
+                command,
+            )
+
+        return Result()
+
+    monkeypatch.setattr(agent.subprocess, "run", fake_run)
+
+    assert agent.get_ip() == "127.0.0.1"
+    assert len(calls) == 2
+
 def test_detect_package_manager_apt(monkeypatch):
     import package_manager
 
