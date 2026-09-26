@@ -49,3 +49,11 @@ lums-*.env
 # Local LUMS agent configuration
 lums-agent.env
 lums-agent.conf
+
+# Local test environments
+.venv-test/
+
+# Python test artifacts
+__pycache__/
+*.py[cod]
+.pytest_cache/
