@@ -1407,6 +1407,37 @@ def update_job_result(job_id):
             "error": "invalid status"
         }), 400
 
+    if not isinstance(packages, list):
+        return jsonify({
+            "error": "invalid packages"
+        }), 400
+
+    allowed_package_statuses = {
+        "success",
+        "failed",
+        "timeout",
+    }
+
+    for package_result in packages:
+
+        if not isinstance(package_result, dict):
+            return jsonify({
+                "error": "invalid package result"
+            }), 400
+
+        package = package_result.get("package")
+        package_status = package_result.get("status")
+
+        if not isinstance(package, str) or not package.strip():
+            return jsonify({
+                "error": "invalid package"
+            }), 400
+
+        if package_status not in allowed_package_statuses:
+            return jsonify({
+                "error": "invalid package status"
+            }), 400
+
     conn = get_connection()
 
     job = conn.execute(
@@ -1439,6 +1470,28 @@ def update_job_result(job_id):
         }), 409
 
     now = datetime.now(timezone.utc).isoformat()
+
+    job_packages = {
+        row["package"]
+        for row in conn.execute(
+            """
+            SELECT package
+            FROM update_job_packages
+            WHERE job_id = ?
+            """,
+            (job_id,)
+        ).fetchall()
+    }
+
+    for package_result in packages:
+
+        if package_result["package"] not in job_packages:
+            conn.close()
+
+            return jsonify({
+                "error": "package_not_found",
+                "package": package_result["package"],
+            }), 400
 
     successful_count = 0
     failed_count = 0

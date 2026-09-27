@@ -2770,3 +2770,489 @@ def test_reboot_required_arch_pacman_failure(
     )
 
     assert agent.reboot_required() is False
+
+# ============================================================
+# UPDATE JOB RESULT API
+# ============================================================
+
+def create_update_job_result_database(db_path):
+    connection = sqlite3.connect(db_path)
+
+    connection.execute(
+        """
+        CREATE TABLE clients (
+            id INTEGER PRIMARY KEY,
+            hostname TEXT,
+            client_token_hash TEXT,
+            enabled INTEGER NOT NULL DEFAULT 1,
+            token_revoked_at TEXT
+        )
+        """
+    )
+
+    connection.execute(
+        """
+        CREATE TABLE update_jobs (
+            id INTEGER PRIMARY KEY,
+            client_id INTEGER NOT NULL,
+            status TEXT NOT NULL,
+            created_at TEXT,
+            started_at TEXT,
+            finished_at TEXT,
+            reboot_required INTEGER NOT NULL DEFAULT 0,
+            action TEXT
+        )
+        """
+    )
+
+    connection.execute(
+        """
+        CREATE TABLE update_job_packages (
+            id INTEGER PRIMARY KEY,
+            job_id INTEGER NOT NULL,
+            package TEXT NOT NULL,
+            installed_version TEXT,
+            target_version TEXT,
+            status TEXT NOT NULL,
+            message TEXT
+        )
+        """
+    )
+
+    connection.execute(
+        """
+        CREATE TABLE update_history (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            client_id INTEGER NOT NULL,
+            job_id INTEGER NOT NULL,
+            status TEXT NOT NULL,
+            package_count INTEGER NOT NULL,
+            successful_count INTEGER NOT NULL,
+            failed_count INTEGER NOT NULL,
+            reboot_required INTEGER NOT NULL,
+            started_at TEXT,
+            finished_at TEXT
+        )
+        """
+    )
+
+    connection.execute(
+        """
+        INSERT INTO clients (
+            id,
+            hostname,
+            client_token_hash,
+            enabled
+        )
+        VALUES
+            (1, 'pytest-client', ?, 1),
+            (2, 'other-client', ?, 1)
+        """,
+        (
+            hash_client_token("pytest-client-token"),
+            hash_client_token("other-client-token"),
+        ),
+    )
+
+    connection.execute(
+        """
+        INSERT INTO update_jobs (
+            id,
+            client_id,
+            status,
+            created_at,
+            started_at,
+            reboot_required,
+            action
+        )
+        VALUES
+            (
+                999,
+                1,
+                'running',
+                '2026-09-26T10:00:00+00:00',
+                '2026-09-26T10:01:00+00:00',
+                0,
+                'UPDATE_PACKAGE'
+            ),
+            (
+                1000,
+                1,
+                'success',
+                '2026-09-26T09:00:00+00:00',
+                '2026-09-26T09:01:00+00:00',
+                0,
+                'UPDATE_PACKAGE'
+            ),
+            (
+                1001,
+                2,
+                'running',
+                '2026-09-26T10:00:00+00:00',
+                '2026-09-26T10:01:00+00:00',
+                0,
+                'UPDATE_PACKAGE'
+            )
+        """
+    )
+
+    connection.execute(
+        """
+        INSERT INTO update_job_packages (
+            id,
+            job_id,
+            package,
+            installed_version,
+            target_version,
+            status,
+            message
+        )
+        VALUES
+            (
+                1,
+                999,
+                'openssl',
+                '3.5.2-1',
+                '3.5.3-1',
+                'pending',
+                NULL
+            )
+        """
+    )
+
+    connection.commit()
+    connection.close()
+
+
+def setup_update_job_result_test(
+    monkeypatch,
+    tmp_path,
+):
+    from server import app
+
+    db_path = str(
+        tmp_path / "update-job-result-test.db"
+    )
+
+    create_update_job_result_database(
+        db_path
+    )
+
+    def get_test_connection():
+        connection = sqlite3.connect(
+            db_path
+        )
+        connection.row_factory = sqlite3.Row
+        return connection
+
+    monkeypatch.setitem(
+        app.app.config,
+        "LUMS_GET_CONNECTION",
+        get_test_connection,
+    )
+
+    monkeypatch.setattr(
+        app,
+        "get_connection",
+        get_test_connection,
+    )
+
+    client = app.app.test_client()
+
+    return client, get_test_connection
+
+
+def test_update_job_result_accepts_valid_result(
+    monkeypatch,
+    tmp_path,
+):
+    client, get_connection = (
+        setup_update_job_result_test(
+            monkeypatch,
+            tmp_path,
+        )
+    )
+
+    response = client.post(
+        "/api/update-jobs/999/result",
+        headers={
+            "Authorization": "Bearer pytest-client-token",
+        },
+        json={
+            "status": "success",
+            "reboot_required": False,
+            "packages": [
+                {
+                    "package": "openssl",
+                    "status": "success",
+                    "message": "Update successful.",
+                }
+            ],
+        },
+    )
+
+    assert response.status_code == 200
+
+    assert response.get_json() == {
+        "status": "ok",
+        "job_id": 999,
+        "job_status": "success",
+        "successful_count": 1,
+        "failed_count": 0,
+        "reboot_required": False,
+    }
+
+    connection = get_connection()
+
+    job = connection.execute(
+        """
+        SELECT status, reboot_required
+        FROM update_jobs
+        WHERE id = 999
+        """
+    ).fetchone()
+
+    package = connection.execute(
+        """
+        SELECT status, message
+        FROM update_job_packages
+        WHERE job_id = 999
+          AND package = 'openssl'
+        """
+    ).fetchone()
+
+    history = connection.execute(
+        """
+        SELECT
+            status,
+            package_count,
+            successful_count,
+            failed_count
+        FROM update_history
+        WHERE job_id = 999
+        """
+    ).fetchone()
+
+    connection.close()
+
+    assert job["status"] == "success"
+    assert job["reboot_required"] == 0
+
+    assert package["status"] == "success"
+    assert package["message"] == "Update successful."
+
+    assert history["status"] == "success"
+    assert history["package_count"] == 1
+    assert history["successful_count"] == 1
+    assert history["failed_count"] == 0
+
+
+def test_update_job_result_rejects_unknown_job(
+    monkeypatch,
+    tmp_path,
+):
+    client, _ = setup_update_job_result_test(
+        monkeypatch,
+        tmp_path,
+    )
+
+    response = client.post(
+        "/api/update-jobs/9999/result",
+        headers={
+            "Authorization": "Bearer pytest-client-token",
+        },
+        json={
+            "status": "success",
+            "packages": [],
+        },
+    )
+
+    assert response.status_code == 404
+    assert response.get_json() == {
+        "error": "job not found"
+    }
+
+
+def test_update_job_result_rejects_foreign_client(
+    monkeypatch,
+    tmp_path,
+):
+    client, _ = setup_update_job_result_test(
+        monkeypatch,
+        tmp_path,
+    )
+
+    response = client.post(
+        "/api/update-jobs/1001/result",
+        headers={
+            "Authorization": "Bearer pytest-client-token",
+        },
+        json={
+            "status": "success",
+            "packages": [],
+        },
+    )
+
+    assert response.status_code == 403
+    assert response.get_json() == {
+        "error": "client_access_denied"
+    }
+
+
+def test_update_job_result_rejects_non_running_job(
+    monkeypatch,
+    tmp_path,
+):
+    client, _ = setup_update_job_result_test(
+        monkeypatch,
+        tmp_path,
+    )
+
+    response = client.post(
+        "/api/update-jobs/1000/result",
+        headers={
+            "Authorization": "Bearer pytest-client-token",
+        },
+        json={
+            "status": "success",
+            "packages": [],
+        },
+    )
+
+    assert response.status_code == 409
+
+    assert response.get_json() == {
+        "error": "job_not_running",
+        "job_id": 1000,
+        "job_status": "success",
+    }
+
+
+def test_update_job_result_rejects_invalid_job_status(
+    monkeypatch,
+    tmp_path,
+):
+    client, _ = setup_update_job_result_test(
+        monkeypatch,
+        tmp_path,
+    )
+
+    response = client.post(
+        "/api/update-jobs/999/result",
+        headers={
+            "Authorization": "Bearer pytest-client-token",
+        },
+        json={
+            "status": "banana",
+            "packages": [],
+        },
+    )
+
+    assert response.status_code == 400
+    assert response.get_json() == {
+        "error": "invalid status"
+    }
+
+
+def test_update_job_result_requires_package_list(
+    monkeypatch,
+    tmp_path,
+):
+    client, _ = setup_update_job_result_test(
+        monkeypatch,
+        tmp_path,
+    )
+
+    response = client.post(
+        "/api/update-jobs/999/result",
+        headers={
+            "Authorization": "Bearer pytest-client-token",
+        },
+        json={
+            "status": "success",
+            "packages": "openssl",
+        },
+    )
+
+    assert response.status_code == 400
+
+
+def test_update_job_result_requires_package_objects(
+    monkeypatch,
+    tmp_path,
+):
+    client, _ = setup_update_job_result_test(
+        monkeypatch,
+        tmp_path,
+    )
+
+    response = client.post(
+        "/api/update-jobs/999/result",
+        headers={
+            "Authorization": "Bearer pytest-client-token",
+        },
+        json={
+            "status": "success",
+            "packages": [
+                "openssl"
+            ],
+        },
+    )
+
+    assert response.status_code == 400
+
+
+def test_update_job_result_rejects_invalid_package_status(
+    monkeypatch,
+    tmp_path,
+):
+    client, _ = setup_update_job_result_test(
+        monkeypatch,
+        tmp_path,
+    )
+
+    response = client.post(
+        "/api/update-jobs/999/result",
+        headers={
+            "Authorization": "Bearer pytest-client-token",
+        },
+        json={
+            "status": "success",
+            "packages": [
+                {
+                    "package": "openssl",
+                    "status": "banana",
+                }
+            ],
+        },
+    )
+
+    assert response.status_code == 400
+
+
+def test_update_job_result_rejects_package_not_in_job(
+    monkeypatch,
+    tmp_path,
+):
+    client, _ = setup_update_job_result_test(
+        monkeypatch,
+        tmp_path,
+    )
+
+    response = client.post(
+        "/api/update-jobs/999/result",
+        headers={
+            "Authorization": "Bearer pytest-client-token",
+        },
+        json={
+            "status": "success",
+            "packages": [
+                {
+                    "package": "does-not-exist",
+                    "status": "success",
+                }
+            ],
+        },
+    )
+
+    assert response.status_code == 400
