@@ -6,6 +6,7 @@ import platform
 import selectors
 import socket
 import ssl
+import shutil
 import subprocess
 import sys
 import time
@@ -1663,9 +1664,68 @@ def run_system_update():
 
 
 def reboot_required():
-    return os.path.exists(
+    """
+    Detect whether a reboot is required.
+
+    Debian/Ubuntu:
+        Uses the standard /var/run/reboot-required marker.
+
+    Arch Linux:
+        Compares the currently running kernel release with the
+        kernel module releases registered by the installed linux
+        package.
+
+    Unknown systems:
+        Return False rather than guessing.
+    """
+
+    if os.path.exists(
         "/var/run/reboot-required"
-    )
+    ):
+        return True
+
+    if shutil.which("pacman") is None:
+        return False
+
+    running_kernel = platform.release()
+
+    try:
+        result = subprocess.run(
+            [
+                "pacman",
+                "-Ql",
+                "linux",
+            ],
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+    except (
+        OSError,
+        subprocess.CalledProcessError,
+    ):
+        return False
+
+    installed_kernel_releases = set()
+
+    for line in result.stdout.splitlines():
+
+        prefix = "linux /usr/lib/modules/"
+
+        if not line.startswith(prefix):
+            continue
+
+        release = line[len(prefix):].rstrip("/")
+
+        if release:
+            installed_kernel_releases.add(
+                release
+            )
+
+    if not installed_kernel_releases:
+        return False
+
+    return running_kernel not in installed_kernel_releases
 
 
 # ============================================================

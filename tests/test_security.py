@@ -2577,3 +2577,196 @@ def test_client_token_rotation_invalidates_old_token(monkeypatch, tmp_path):
             assert authenticated["hostname"] == "pytest-client"
         finally:
             connection.close()
+
+
+def test_reboot_required_debian_marker(monkeypatch):
+    import ssl
+
+    monkeypatch.setattr(
+        ssl,
+        "create_default_context",
+        lambda *args, **kwargs: None,
+    )
+
+    import agent
+
+    monkeypatch.setattr(
+        agent.os.path,
+        "exists",
+        lambda path: path == "/var/run/reboot-required",
+    )
+
+    monkeypatch.setattr(
+        agent.shutil,
+        "which",
+        lambda command: None,
+    )
+
+    assert agent.reboot_required() is True
+
+
+def test_reboot_required_debian_without_marker(monkeypatch):
+    import ssl
+
+    monkeypatch.setattr(
+        ssl,
+        "create_default_context",
+        lambda *args, **kwargs: None,
+    )
+
+    import agent
+
+    monkeypatch.setattr(
+        agent.os.path,
+        "exists",
+        lambda path: False,
+    )
+
+    monkeypatch.setattr(
+        agent.shutil,
+        "which",
+        lambda command: None,
+    )
+
+    assert agent.reboot_required() is False
+
+
+def test_reboot_required_arch_running_kernel_is_installed(
+    monkeypatch,
+):
+    import ssl
+
+    monkeypatch.setattr(
+        ssl,
+        "create_default_context",
+        lambda *args, **kwargs: None,
+    )
+
+    import agent
+
+    monkeypatch.setattr(
+        agent.os.path,
+        "exists",
+        lambda path: False,
+    )
+
+    monkeypatch.setattr(
+        agent.shutil,
+        "which",
+        lambda command: "/usr/bin/pacman",
+    )
+
+    monkeypatch.setattr(
+        agent.platform,
+        "release",
+        lambda: "7.2.6-arch2-1",
+    )
+
+    class Result:
+        stdout = (
+            "linux /usr/lib/modules/\n"
+            "linux /usr/lib/modules/7.2.6-arch2-1/\n"
+            "linux /usr/lib/modules/7.2.6-arch2-1/kernel/\n"
+        )
+
+    monkeypatch.setattr(
+        agent.subprocess,
+        "run",
+        lambda *args, **kwargs: Result(),
+    )
+
+    assert agent.reboot_required() is False
+
+
+def test_reboot_required_arch_new_kernel_installed(
+    monkeypatch,
+):
+    import ssl
+
+    monkeypatch.setattr(
+        ssl,
+        "create_default_context",
+        lambda *args, **kwargs: None,
+    )
+
+    import agent
+
+    monkeypatch.setattr(
+        agent.os.path,
+        "exists",
+        lambda path: False,
+    )
+
+    monkeypatch.setattr(
+        agent.shutil,
+        "which",
+        lambda command: "/usr/bin/pacman",
+    )
+
+    monkeypatch.setattr(
+        agent.platform,
+        "release",
+        lambda: "7.2.6-arch2-1",
+    )
+
+    class Result:
+        stdout = (
+            "linux /usr/lib/modules/\n"
+            "linux /usr/lib/modules/7.2.7-arch3-1/\n"
+            "linux /usr/lib/modules/7.2.7-arch3-1/kernel/\n"
+        )
+
+    monkeypatch.setattr(
+        agent.subprocess,
+        "run",
+        lambda *args, **kwargs: Result(),
+    )
+
+    assert agent.reboot_required() is True
+
+
+def test_reboot_required_arch_pacman_failure(
+    monkeypatch,
+):
+    import ssl
+    import subprocess
+
+    monkeypatch.setattr(
+        ssl,
+        "create_default_context",
+        lambda *args, **kwargs: None,
+    )
+
+    import agent
+
+    monkeypatch.setattr(
+        agent.os.path,
+        "exists",
+        lambda path: False,
+    )
+
+    monkeypatch.setattr(
+        agent.shutil,
+        "which",
+        lambda command: "/usr/bin/pacman",
+    )
+
+    monkeypatch.setattr(
+        agent.platform,
+        "release",
+        lambda: "7.2.6-arch2-1",
+    )
+
+    def failing_run(*args, **kwargs):
+        raise subprocess.CalledProcessError(
+            1,
+            ["pacman", "-Ql", "linux"],
+        )
+
+    monkeypatch.setattr(
+        agent.subprocess,
+        "run",
+        failing_run,
+    )
+
+    assert agent.reboot_required() is False
