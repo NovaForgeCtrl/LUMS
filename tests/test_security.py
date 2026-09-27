@@ -2,6 +2,8 @@ import os
 import sys
 from pathlib import Path
 import sqlite3
+import subprocess
+import pytest
 
 os.environ.setdefault(
     "LUMS_SECRET_KEY",
@@ -945,6 +947,38 @@ openssl/stable 3.5.2-1 amd64 [upgradable from: 3.5.1-1]
             "available_version": "3.5.2-1",
         },
     ]
+
+
+def test_apt_get_updates_failure(monkeypatch):
+    from package_manager import AptPackageManager
+
+    class Result:
+        stdout = ""
+        stderr = "Temporary APT failure."
+        returncode = 100
+
+    def fake_run(command, **kwargs):
+        result = Result()
+
+        if kwargs.get("check") and result.returncode != 0:
+            raise subprocess.CalledProcessError(
+                result.returncode,
+                command,
+                output=result.stdout,
+                stderr=result.stderr,
+            )
+
+        return result
+
+    monkeypatch.setattr(
+        "package_manager.subprocess.run",
+        fake_run,
+    )
+
+    manager = AptPackageManager()
+
+    with pytest.raises(subprocess.CalledProcessError):
+        manager.get_updates()
 
 
 def test_apt_get_updates_empty(monkeypatch):
