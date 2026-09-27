@@ -1,8 +1,22 @@
 from flask import Flask, request, jsonify, render_template, url_for, redirect
 import os
+import logging
 from pathlib import Path
 import sqlite3
 from datetime import datetime, timezone
+
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
+
+if not logger.handlers:
+    handler = logging.StreamHandler()
+    handler.setLevel(logging.INFO)
+    formatter = logging.Formatter(
+        "%(asctime)s %(levelname)s %(name)s: %(message)s"
+    )
+    handler.setFormatter(formatter)
+    logger.addHandler(handler)
+
 
 from security import (
     configure_session,
@@ -776,12 +790,12 @@ def report():
             data.get("packages", {})
         )
 
-    print(
-        f"Client report: "
-        f"{data.get('hostname')} "
-        f"({data.get('ip')}) "
-        f"Updates: {len(data.get('updates', []))} "
-        f"Pakete: {len(data.get('packages', {}))}"
+    logger.info(
+        "Client report: %s (%s) Updates: %d Pakete: %d",
+        data.get("hostname"),
+        data.get("ip"),
+        len(data.get("updates", [])),
+        len(data.get("packages", {})),
     )
 
     return jsonify({
@@ -1186,12 +1200,12 @@ def create_update_job(client_id):
 
     connection.close()
 
-    print(
-        f"Update job created: "
-        f"Job #{job_id} "
-        f"Client {client_row['hostname']} "
-        f"Action: {action} "
-        f"Packages: {len(update_rows)}"
+    logger.info(
+        "Update job created: Job #%s Client %s Action: %s Packages: %d",
+        job_id,
+        client_row["hostname"],
+        action,
+        len(update_rows),
     )
 
     return jsonify({
@@ -1979,11 +1993,11 @@ def claim_update_job(client_id, job_id):
 
         connection.commit()
 
-        print(
-            f"Update job claimed: "
-            f"Job #{job_id} "
-            f"Client {client_id} "
-            f"Packages: {len(package_rows)}"
+        logger.info(
+            "Update job claimed: Job #%s Client %s Packages: %d",
+            job_id,
+            client_id,
+            len(package_rows),
         )
 
         return jsonify({
