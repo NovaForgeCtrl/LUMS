@@ -1707,8 +1707,8 @@ The Execution Watcher is separate from the normal reporting service.
 Current components:
 
 ```text
-lums-execution-watcher.service
-lums-execution-watcher.timer
+lums-agent-watcher.service
+lums-agent-watcher.timer
 ```
 
 The current Watcher version is:
@@ -1720,9 +1720,9 @@ The current Watcher version is:
 The operational model is:
 
 ```text
-lums-execution-watcher.timer
+lums-agent-watcher.timer
         ↓
-lums-execution-watcher.service
+lums-agent-watcher.service
         ↓
 watcher.py
         ↓
@@ -1733,7 +1733,7 @@ Check the timer:
 
 ```bash
 sudo systemctl status \
-    lums-execution-watcher.timer \
+    lums-agent-watcher.timer \
     --no-pager
 ```
 
@@ -1741,7 +1741,7 @@ Check the service:
 
 ```bash
 sudo systemctl status \
-    lums-execution-watcher.service \
+    lums-agent-watcher.service \
     --no-pager
 ```
 
@@ -1749,7 +1749,7 @@ View logs:
 
 ```bash
 sudo journalctl \
-    -u lums-execution-watcher.service \
+    -u lums-agent-watcher.service \
     --since "30 minutes ago" \
     --no-pager
 ```
@@ -3827,7 +3827,7 @@ For the Execution Watcher:
 
 ```bash id="w8m2k5"
 sudo journalctl \
-    -u lums-execution-watcher.service \
+    -u lums-agent-watcher.service \
     --since "30 minutes ago" \
     --no-pager
 ```
@@ -4347,7 +4347,7 @@ sudo docker ps -a
 sudo docker inspect lums
 sudo docker logs --tail 200 lums
 sudo journalctl -u lums-agent.service --since "1 hour ago" --no-pager
-sudo journalctl -u lums-execution-watcher.service --since "1 hour ago" --no-pager
+sudo journalctl -u lums-agent-watcher.service --since "1 hour ago" --no-pager
 ```
 
 For the database:
