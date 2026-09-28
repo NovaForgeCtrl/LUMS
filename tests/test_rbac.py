@@ -508,6 +508,266 @@ def test_real_route_create_client_requires_administrator(
     }
 
 
+def create_package_job_database(db_path):
+    connection = sqlite3.connect(db_path)
+    connection.row_factory = sqlite3.Row
+
+    connection.execute(
+        """
+        CREATE TABLE users (
+            id INTEGER PRIMARY KEY,
+            username TEXT NOT NULL,
+            password_hash TEXT NOT NULL,
+            enabled INTEGER NOT NULL DEFAULT 1,
+            role TEXT NOT NULL DEFAULT 'administrator'
+        )
+        """
+    )
+
+    connection.execute(
+        """
+        CREATE TABLE clients (
+            id INTEGER PRIMARY KEY,
+            hostname TEXT,
+            enabled INTEGER NOT NULL DEFAULT 1
+        )
+        """
+    )
+
+    connection.execute(
+        """
+        CREATE TABLE update_jobs (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            client_id INTEGER NOT NULL,
+            status TEXT NOT NULL,
+            created_at TEXT NOT NULL,
+            action TEXT NOT NULL DEFAULT 'UPDATE_PACKAGE'
+        )
+        """
+    )
+
+    connection.execute(
+        """
+        CREATE TABLE update_job_packages (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            job_id INTEGER NOT NULL,
+            package TEXT NOT NULL,
+            installed_version TEXT,
+            target_version TEXT NOT NULL,
+            status TEXT NOT NULL,
+            message TEXT
+        )
+        """
+    )
+
+    connection.execute(
+        """
+        INSERT INTO users (
+            id,
+            username,
+            password_hash,
+            enabled,
+            role
+        )
+        VALUES (?, ?, ?, ?, ?)
+        """,
+        (
+            1,
+            "administrator",
+            "pytest-password-hash",
+            1,
+            ROLE_ADMINISTRATOR,
+        ),
+    )
+
+    connection.execute(
+        """
+        INSERT INTO clients (
+            id,
+            hostname,
+            enabled
+        )
+        VALUES (?, ?, ?)
+        """,
+        (
+            1,
+            "pytest-client",
+            1,
+        ),
+    )
+
+    connection.commit()
+    connection.close()
+
+
+def test_real_route_install_package_accepts_valid_package(
+    monkeypatch,
+    tmp_path,
+):
+    from server import app as app_module
+
+    db_path = str(
+        tmp_path / "install-package-valid.db"
+    )
+    create_package_job_database(db_path)
+
+    app = configure_real_app_session_user(
+        monkeypatch,
+        app_module,
+        db_path,
+        1,
+        "administrator",
+    )
+
+    with app.test_client() as client:
+        with client.session_transaction() as session:
+            session["csrf_token"] = "pytest-csrf-token"
+
+        login_as(
+            client,
+            1,
+            "administrator",
+        )
+
+        with client.session_transaction() as session:
+            session["csrf_token"] = "pytest-csrf-token"
+
+        response = client.post(
+            "/api/clients/1/update-jobs",
+            headers={
+                "X-CSRF-Token": "pytest-csrf-token",
+            },
+            json={
+                "action": "INSTALL_PACKAGE",
+                "packages": ["curl"],
+            },
+        )
+
+    assert response.status_code == 201
+
+    data = response.get_json()
+
+    assert data["status"] == "created"
+    assert data["action"] == "INSTALL_PACKAGE"
+    assert data["client_id"] == 1
+    assert len(data["packages"]) == 1
+    assert data["packages"][0]["package"] == "curl"
+    assert data["packages"][0]["installed_version"] is None
+    assert data["packages"][0]["target_version"] == ""
+
+    connection = sqlite3.connect(db_path)
+    connection.row_factory = sqlite3.Row
+
+    job = connection.execute(
+        """
+        SELECT
+            client_id,
+            status,
+            action
+        FROM update_jobs
+        """
+    ).fetchone()
+
+    package = connection.execute(
+        """
+        SELECT
+            package,
+            target_version,
+            status
+        FROM update_job_packages
+        """
+    ).fetchone()
+
+    connection.close()
+
+    assert job["client_id"] == 1
+    assert job["status"] == "pending"
+    assert job["action"] == "INSTALL_PACKAGE"
+
+    assert package["package"] == "curl"
+    assert package["target_version"] == ""
+    assert package["status"] == "pending"
+
+
+@pytest.mark.parametrize(
+    "package",
+    [
+        "-rf",
+        "curl;id",
+        "curl && id",
+        "curl$(id)",
+        "curl`id`",
+        "curl|id",
+    ],
+)
+def test_real_route_install_package_rejects_invalid_package_name(
+    monkeypatch,
+    tmp_path,
+    package,
+):
+    from server import app as app_module
+
+    db_path = str(
+        tmp_path / "install-package-invalid.db"
+    )
+    create_package_job_database(db_path)
+
+    app = configure_real_app_session_user(
+        monkeypatch,
+        app_module,
+        db_path,
+        1,
+        "administrator",
+    )
+
+    with app.test_client() as client:
+        with client.session_transaction() as session:
+            session["csrf_token"] = "pytest-csrf-token"
+
+        login_as(
+            client,
+            1,
+            "administrator",
+        )
+
+        with client.session_transaction() as session:
+            session["csrf_token"] = "pytest-csrf-token"
+
+        response = client.post(
+            "/api/clients/1/update-jobs",
+            headers={
+                "X-CSRF-Token": "pytest-csrf-token",
+            },
+            json={
+                "action": "INSTALL_PACKAGE",
+                "packages": [package],
+            },
+        )
+
+    assert response.status_code == 400
+
+    data = response.get_json()
+
+    assert data["status"] == "error"
+    assert data["message"] == "Invalid package name"
+    assert data["packages"] == [package]
+
+    connection = sqlite3.connect(db_path)
+
+    job_count = connection.execute(
+        "SELECT COUNT(*) FROM update_jobs"
+    ).fetchone()[0]
+
+    package_count = connection.execute(
+        "SELECT COUNT(*) FROM update_job_packages"
+    ).fetchone()[0]
+
+    connection.close()
+
+    assert job_count == 0
+    assert package_count == 0
+
+
 @pytest.mark.parametrize(
     "user_id,username,role",
     [

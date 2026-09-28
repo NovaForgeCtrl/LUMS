@@ -41,6 +41,30 @@ VALID_ROLES = {
 
 SAFE_METHODS = {"GET", "HEAD", "OPTIONS"}
 
+PACKAGE_NAME_MAX_LENGTH = 256
+
+
+def is_valid_package_name(package):
+    if not isinstance(package, str):
+        return False
+
+    package = package.strip()
+
+    if not package:
+        return False
+
+    if len(package) > PACKAGE_NAME_MAX_LENGTH:
+        return False
+
+    if package.startswith("-"):
+        return False
+
+    return all(
+        character.isalnum()
+        or character in ".:+@_/-"
+        for character in package
+    )
+
 
 # ============================================================
 # TIME

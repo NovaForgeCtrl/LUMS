@@ -43,6 +43,7 @@ from security import (
     hash_client_token,
     get_login_rate_limit_key,
     is_login_rate_limited,
+    is_valid_package_name,
     record_login_failure,
     clear_login_rate_limit,
 )
@@ -1094,10 +1095,23 @@ def create_update_job(client_id):
                 "message": "packages must be a list"
             }), 400
 
-        packages = [
+        invalid_packages = [
             package
             for package in packages
-            if isinstance(package, str) and package.strip()
+            if not is_valid_package_name(package)
+        ]
+
+        if invalid_packages:
+
+            return jsonify({
+                "status": "error",
+                "message": "Invalid package name",
+                "packages": invalid_packages
+            }), 400
+
+        packages = [
+            package.strip()
+            for package in packages
         ]
 
         packages = list(dict.fromkeys(packages))
