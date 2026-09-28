@@ -2370,7 +2370,8 @@ def test_login_required_revokes_session_when_user_disabled(monkeypatch, tmp_path
             id INTEGER PRIMARY KEY,
             username TEXT NOT NULL,
             password_hash TEXT NOT NULL,
-            enabled INTEGER NOT NULL DEFAULT 1
+            enabled INTEGER NOT NULL DEFAULT 1,
+            role TEXT NOT NULL DEFAULT 'administrator'
         )
         """
     )
@@ -2380,9 +2381,16 @@ def test_login_required_revokes_session_when_user_disabled(monkeypatch, tmp_path
             id,
             username,
             password_hash,
-            enabled
+            enabled,
+            role
         )
-        VALUES (1, 'admin', 'pytest-password-hash', 1)
+        VALUES (
+            1,
+            'admin',
+            'pytest-password-hash',
+            1,
+            'administrator'
+        )
         """
     )
     connection.commit()
@@ -2439,7 +2447,8 @@ def test_client_token_rotation_invalidates_old_token(monkeypatch, tmp_path):
             id INTEGER PRIMARY KEY,
             username TEXT NOT NULL,
             password_hash TEXT NOT NULL,
-            enabled INTEGER NOT NULL DEFAULT 1
+            enabled INTEGER NOT NULL DEFAULT 1,
+            role TEXT NOT NULL DEFAULT 'administrator'
         )
         """
     )
@@ -2450,9 +2459,16 @@ def test_client_token_rotation_invalidates_old_token(monkeypatch, tmp_path):
             id,
             username,
             password_hash,
-            enabled
+            enabled,
+            role
         )
-        VALUES (1, 'admin', 'pytest-password-hash', 1)
+        VALUES (
+            1,
+            'admin',
+            'pytest-password-hash',
+            1,
+            'administrator'
+        )
         """
     )
 

@@ -29,6 +29,16 @@ SESSION_USER_KEY = "user_id"
 SESSION_USERNAME_KEY = "username"
 SESSION_CSRF_KEY = "csrf_token"
 
+ROLE_ADMINISTRATOR = "administrator"
+ROLE_OPERATOR = "operator"
+ROLE_VIEWER = "viewer"
+
+VALID_ROLES = {
+    ROLE_ADMINISTRATOR,
+    ROLE_OPERATOR,
+    ROLE_VIEWER,
+}
+
 SAFE_METHODS = {"GET", "HEAD", "OPTIONS"}
 
 
@@ -162,7 +172,7 @@ def logout_user():
 def find_user(connection, username):
     return connection.execute(
         """
-        SELECT id, username, password_hash, enabled
+        SELECT id, username, password_hash, enabled, role
         FROM users
         WHERE username = ?
         """,
@@ -315,6 +325,13 @@ def current_username():
     return session.get(SESSION_USERNAME_KEY)
 
 
+def current_user_role():
+    user = request.environ.get("lums.user")
+    if user is None:
+        return None
+    return user["role"]
+
+
 def is_authenticated():
     return current_user_id() is not None
 
@@ -349,7 +366,7 @@ def login_required(view):
         try:
             user = connection.execute(
                 """
-                SELECT id, username, enabled
+                SELECT id, username, enabled, role
                 FROM users
                 WHERE id = ?
                 """,
@@ -371,9 +388,68 @@ def login_required(view):
                 url_for("login")
             )
 
+        if user["role"] not in VALID_ROLES:
+
+            logout_user()
+
+            if request.path.startswith("/api/"):
+                return jsonify({
+                    "error": "invalid_user_role"
+                }), 403
+
+            return jsonify({
+                "error": "invalid_user_role"
+            }), 403
+
+        request.environ["lums.user"] = user
+
         return view(*args, **kwargs)
 
     return wrapped
+
+
+def role_required(*roles):
+    required_roles = set(roles)
+
+    if not required_roles:
+        raise ValueError(
+            "role_required() requires at least one role."
+        )
+
+    if not required_roles.issubset(VALID_ROLES):
+        invalid_roles = sorted(
+            required_roles - VALID_ROLES
+        )
+        raise ValueError(
+            f"Unknown LUMS role(s): {invalid_roles}"
+        )
+
+    def decorator(view):
+        @wraps(view)
+        def wrapped(*args, **kwargs):
+
+            user = request.environ.get("lums.user")
+
+            if user is None:
+                if request.path.startswith("/api/"):
+                    return jsonify({
+                        "error": "authentication_required"
+                    }), 401
+
+                return redirect(
+                    url_for("login")
+                )
+
+            if user["role"] not in required_roles:
+                return jsonify({
+                    "error": "authorization_required"
+                }), 403
+
+            return view(*args, **kwargs)
+
+        return wrapped
+
+    return decorator
 
 
 def csrf_required(view):

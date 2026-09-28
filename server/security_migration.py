@@ -13,6 +13,7 @@ from argon2.exceptions import HashingError
 
 DEFAULT_DB_PATH = "/var/lib/lums/lums.db"
 MIGRATION_VERSION = "001-security-foundation"
+RBAC_MIGRATION_VERSION = "002-rbac"
 
 
 def utc_now():
@@ -84,6 +85,15 @@ def create_security_tables(connection):
         CREATE INDEX IF NOT EXISTS idx_audit_log_action
         ON audit_log(action)
     """)
+
+
+def migrate_rbac(connection):
+    add_column_if_missing(
+        connection,
+        "users",
+        "role",
+        "TEXT NOT NULL DEFAULT 'administrator'"
+    )
 
 
 def migrate_clients(connection):
@@ -179,20 +189,20 @@ def create_admin(connection, username):
     print(f"[OK] Admin user '{username}' created")
 
 
-def migration_already_applied(connection):
+def migration_already_applied(connection, version):
     row = connection.execute(
         """
         SELECT version
         FROM schema_migrations
         WHERE version = ?
         """,
-        (MIGRATION_VERSION,)
+        (version,)
     ).fetchone()
 
     return row is not None
 
 
-def record_migration(connection):
+def record_migration(connection, version):
     connection.execute(
         """
         INSERT OR IGNORE INTO schema_migrations (
@@ -202,7 +212,7 @@ def record_migration(connection):
         VALUES (?, ?)
         """,
         (
-            MIGRATION_VERSION,
+            version,
             utc_now()
         )
     )
@@ -273,7 +283,10 @@ def run_migration(db_path, admin_username, skip_admin):
 
         create_security_tables(connection)
 
-        if migration_already_applied(connection):
+        if migration_already_applied(
+            connection,
+            MIGRATION_VERSION
+        ):
             print(
                 f"[INFO] Migration {MIGRATION_VERSION} "
                 f"is already recorded"
@@ -284,13 +297,39 @@ def run_migration(db_path, admin_username, skip_admin):
             if not skip_admin:
                 create_admin(connection, admin_username)
 
-            record_migration(connection)
+            record_migration(
+                connection,
+                MIGRATION_VERSION
+            )
 
             connection.commit()
 
             print()
             print(
                 f"[OK] Migration {MIGRATION_VERSION} completed"
+            )
+
+        if migration_already_applied(
+            connection,
+            RBAC_MIGRATION_VERSION
+        ):
+            print(
+                f"[INFO] Migration {RBAC_MIGRATION_VERSION} "
+                f"is already recorded"
+            )
+        else:
+            migrate_rbac(connection)
+
+            record_migration(
+                connection,
+                RBAC_MIGRATION_VERSION
+            )
+
+            connection.commit()
+
+            print()
+            print(
+                f"[OK] Migration {RBAC_MIGRATION_VERSION} completed"
             )
 
         print_schema(connection)

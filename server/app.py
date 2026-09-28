@@ -32,6 +32,10 @@ from security import (
     audit_log,
     current_user_id,
     login_required,
+    role_required,
+    ROLE_ADMINISTRATOR,
+    ROLE_OPERATOR,
+    ROLE_VIEWER,
     csrf_required,
     client_auth_required,
     authenticated_client,
@@ -458,6 +462,11 @@ def logout():
 
 @app.route("/")
 @login_required
+@role_required(
+    ROLE_ADMINISTRATOR,
+    ROLE_OPERATOR,
+    ROLE_VIEWER,
+)
 def index():
     return render_template(
         "index.html",
@@ -467,6 +476,11 @@ def index():
 
 @app.route("/client")
 @login_required
+@role_required(
+    ROLE_ADMINISTRATOR,
+    ROLE_OPERATOR,
+    ROLE_VIEWER,
+)
 def client_page():
 
     return render_template(
@@ -481,6 +495,7 @@ def client_page():
 
 @app.route("/api/clients", methods=["POST"])
 @login_required
+@role_required(ROLE_ADMINISTRATOR)
 @csrf_required
 def create_client():
 
@@ -592,6 +607,7 @@ def create_client():
     methods=["POST"],
 )
 @login_required
+@role_required(ROLE_ADMINISTRATOR)
 @csrf_required
 def rotate_client_token(client_id):
     connection = get_connection()
@@ -666,6 +682,7 @@ def rotate_client_token(client_id):
 
 @app.route("/api/clients/<int:client_id>", methods=["DELETE"])
 @login_required
+@role_required(ROLE_ADMINISTRATOR)
 @csrf_required
 def delete_client(client_id):
 
@@ -826,6 +843,11 @@ def client_me():
 
 @app.route("/api/clients", methods=["GET"])
 @login_required
+@role_required(
+    ROLE_ADMINISTRATOR,
+    ROLE_OPERATOR,
+    ROLE_VIEWER,
+)
 def clients():
 
     connection = get_connection()
@@ -883,6 +905,11 @@ def clients():
 
 @app.route("/api/clients/<int:client_id>", methods=["GET"])
 @login_required
+@role_required(
+    ROLE_ADMINISTRATOR,
+    ROLE_OPERATOR,
+    ROLE_VIEWER,
+)
 def client(client_id):
 
     connection = get_connection()
@@ -947,6 +974,11 @@ def client(client_id):
 
 @app.route("/api/clients/<int:client_id>/updates", methods=["GET"])
 @login_required
+@role_required(
+    ROLE_ADMINISTRATOR,
+    ROLE_OPERATOR,
+    ROLE_VIEWER,
+)
 def client_updates(client_id):
 
     connection = get_connection()
@@ -979,6 +1011,11 @@ def client_updates(client_id):
 
 @app.route("/api/clients/<int:client_id>/packages", methods=["GET"])
 @login_required
+@role_required(
+    ROLE_ADMINISTRATOR,
+    ROLE_OPERATOR,
+    ROLE_VIEWER,
+)
 def client_packages(client_id):
 
     connection = get_connection()
@@ -1012,6 +1049,7 @@ def client_packages(client_id):
     methods=["POST"]
 )
 @login_required
+@role_required(ROLE_ADMINISTRATOR, ROLE_OPERATOR)
 @csrf_required
 def create_update_job(client_id):
 
@@ -1235,6 +1273,11 @@ def create_update_job(client_id):
     methods=["GET"]
 )
 @login_required
+@role_required(
+    ROLE_ADMINISTRATOR,
+    ROLE_OPERATOR,
+    ROLE_VIEWER,
+)
 def client_update_jobs(client_id):
 
     connection = get_connection()
@@ -2030,6 +2073,11 @@ def claim_update_job(client_id, job_id):
     methods=["GET"]
 )
 @login_required
+@role_required(
+    ROLE_ADMINISTRATOR,
+    ROLE_OPERATOR,
+    ROLE_VIEWER,
+)
 def update_job(job_id):
 
     connection = get_connection()
@@ -2113,6 +2161,11 @@ def update_job(job_id):
     methods=["GET"]
 )
 @login_required
+@role_required(
+    ROLE_ADMINISTRATOR,
+    ROLE_OPERATOR,
+    ROLE_VIEWER,
+)
 def client_update_history(client_id):
 
     connection = get_connection()
@@ -2154,6 +2207,11 @@ def client_update_history(client_id):
     methods=["GET"]
 )
 @login_required
+@role_required(
+    ROLE_ADMINISTRATOR,
+    ROLE_OPERATOR,
+    ROLE_VIEWER,
+)
 def update_history():
 
     connection = get_connection()
