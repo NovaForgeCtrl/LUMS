@@ -1550,6 +1550,106 @@ The technical security audit is complete through Audit #17.
 
 Audit #18 remains open until the documentation set has been reviewed and synchronized with the current implementation.
 
+
+
+2. Simulation Mode
+
+Die Dokumentation verwendet einheitlich:
+
+LUMS_SIMULATE_UPDATES
+
+Simulation Mode wird als Testfunktion beschrieben, die den Update-Workflow ausführt, ohne reale Paketänderungen vorzunehmen.
+
+Die Dokumentation stellt klar:
+
+Simulation erfolgreich
+        ≠
+reales Paketupdate erfolgreich
+
+Simulation darf nicht dauerhaft für produktive Update-Ausführung aktiviert bleiben.
+
+3. Backup und Restore
+
+Die Dokumentation unterscheidet eindeutig zwischen:
+
+Backup erstellt
+        ↓
+Backup auf Integrität geprüft
+
+und:
+
+vollständiger Restore-Test
+
+Der aktuelle Stand lautet:
+
+SQLite-Backup:
+    erstellt und strukturell verifiziert
+
+Vollständiger isolierter Restore:
+    noch nicht vollständig validiert
+
+Ein erfolgreicher:
+
+PRAGMA integrity_check
+
+beweist daher nicht automatisch, dass die komplette LUMS-Anwendung aus diesem Backup wiederhergestellt werden kann.
+
+4. Versionierung
+
+Die Dokumentation unterscheidet zwischen Dokumentversionsnummern und Softwareversionen.
+
+Aktuell:
+
+Administration Guide:
+    Dokumentversion 2.7
+
+LUMS Agent:
+    1.7.0
+
+Execution Watcher:
+    1.2.1
+
+LUMS Projekt:
+    keine formale Release-Version
+
+Es existieren derzeit:
+
+kein stabiler Release
+kein Git-Tag
+kein GitHub Release
+
+Audit #16 wurde geprüft und dokumentiert, aber es wurde bewusst noch kein Release erzeugt.
+
+Gemeinsamer Audit-Status
+#01  SQLite Foreign Keys              ✓
+#02  SQLite WAL / Busy Timeout       ✓
+#03  Update Timeout                  ✓
+#04  Login Rate Limiting             ✓
+#05  API Input Validation            ✓
+#06  Session Revocation              ✓
+#07  Token Rotation                  ✓
+#08  get_ip / Offline Networks       ✓
+#09  Job Recovery / Checkpointing    ✓
+#10  APT Robustness                  ✓
+#11  Arch Reboot Detection           ✓
+#12  Unit Tests / API Validation     ✓
+#13  Simulation Tests                ✓
+#14  CI                              ✓
+#15  Logging                         ✓
+#16  Versioning / Releases           ✓ audited
+#17  RBAC                            ✓
+#18  Documentation                   in progress
+
+Gemeinsame aktuelle Versionsbasis:
+
+Agent:    1.7.0
+Watcher:  1.2.1
+Tests:    79 passed
+RBAC:     administrator / operator / viewer
+Migration: 002-rbac
+
+Die vier Dokumente sollen nach diesem Abgleich denselben aktuellen Implementierungsstand beschreiben.
+
 No stable LUMS release is declared by this audit.
 
 There is currently no release tag or GitHub Release.
