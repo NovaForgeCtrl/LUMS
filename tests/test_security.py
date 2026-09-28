@@ -1038,6 +1038,43 @@ openssl 3.5.2-1
     ]
 
 
+def test_pacman_get_updates_failure(monkeypatch):
+    from package_manager import PacmanPackageManager
+
+    class Result:
+        stdout = ""
+        stderr = "Temporary pacman failure."
+        returncode = 1
+
+    def fake_run(command, **kwargs):
+        assert command == [
+            "pacman",
+            "-Qu",
+        ]
+
+        result = Result()
+
+        if kwargs.get("check") and result.returncode != 0:
+            raise subprocess.CalledProcessError(
+                result.returncode,
+                command,
+                output=result.stdout,
+                stderr=result.stderr,
+            )
+
+        return result
+
+    monkeypatch.setattr(
+        "package_manager.subprocess.run",
+        fake_run,
+    )
+
+    manager = PacmanPackageManager()
+
+    with pytest.raises(subprocess.CalledProcessError):
+        manager.get_updates()
+
+
 def test_pacman_get_updates_empty(monkeypatch):
     from package_manager import PacmanPackageManager
 

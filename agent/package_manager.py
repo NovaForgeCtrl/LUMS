@@ -258,7 +258,8 @@ class PacmanPackageManager:
                 "-Qu"
             ],
             capture_output=True,
-            text=True
+            text=True,
+            check=True
         )
 
         updates = []
