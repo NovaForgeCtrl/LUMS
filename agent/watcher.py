@@ -382,7 +382,7 @@ def main():
 
         return 0
 
-    if claimed_job.get("status") != "ok":
+    if claimed_job.get("status") != "claimed":
         status_warn(
             "JOB CLAIM REJECTED"
         )
