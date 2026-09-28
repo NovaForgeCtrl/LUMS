@@ -3124,3 +3124,1771 @@ History
 ```
 
 A successful dashboard response alone is not sufficient proof that the complete execution chain works.
+# 81. Debian Client Administration
+
+The Debian client is managed through the LUMS agent.
+
+The current verified Debian environment is:
+
+```text id="j3r5y7"
+Debian 13
+```
+
+The client uses:
+
+```text id="q8h4m1"
+APT / dpkg
+LUMS Agent 1.7.0
+```
+
+A successful client cycle includes:
+
+```text id="8j6s4k"
+package inventory
+        ↓
+update detection
+        ↓
+HTTPS report
+        ↓
+server authentication
+        ↓
+client state update
+```
+
+The current Debian client has successfully completed real agent execution and update reporting.
+
+The expected successful service result is:
+
+```text id="q2v5k8"
+status=0/SUCCESS
+```
+
+Because the agent service is a oneshot service, the service may subsequently appear as:
+
+```text id="6f3m8w"
+inactive (dead)
+```
+
+This is normal after a successful execution.
+
+---
+
+# 82. Arch Linux Client Administration
+
+The Arch client is managed through the same LUMS agent architecture.
+
+The current verified environment is:
+
+```text id="5k9r2v"
+Arch Linux
+x86_64
+pacman
+```
+
+The client uses:
+
+```text id="n8j4p6"
+LUMS Agent 1.7.0
+Execution Watcher 1.2.1
+```
+
+The current Arch package-management implementation has been tested directly.
+
+The regression check confirmed:
+
+```text id="4q7s3m"
+package_manager = pacman
+```
+
+and successful package-state/candidate-version handling.
+
+The client has also completed a successful real agent execution and reported a clean update state.
+
+The Arch client therefore uses the same management lifecycle as the Debian client while retaining its native package-manager implementation.
+
+---
+
+# 83. Client Authentication Model
+
+LUMS uses two separate authentication boundaries.
+
+## Administrative users
+
+Administrative users authenticate through the web application.
+
+They use:
+
+```text id="p5k8x1"
+username
+password
+session
+role
+```
+
+## Managed clients
+
+Managed clients authenticate through:
+
+```text id="s2v7q4"
+Bearer token
+```
+
+The two authentication systems must not be confused.
+
+Conceptually:
+
+```text id="y8m2c6"
+Administrator
+    ↓
+Web authentication
+    ↓
+Session
+    ↓
+Role authorization
+
+Client
+    ↓
+Bearer token
+    ↓
+Client identity
+    ↓
+Client/job ownership
+```
+
+A client token does not grant administrative web access.
+
+An administrative user session does not replace client authentication for agent API calls.
+
+---
+
+# 84. Authorization Model
+
+The current LUMS authorization model consists of:
+
+```text id="w4m7p2"
+Administrative RBAC
++
+Client identity
++
+Client/job ownership
++
+Endpoint-specific authorization
+```
+
+The server validates the authenticated identity before allowing protected operations.
+
+For clients, this includes:
+
+```text id="j6n8x3"
+client identity
+job ownership
+result ownership
+checkpoint ownership
+recovery ownership
+```
+
+For administrative users, authorization is determined by the user's role.
+
+The current administrative roles are:
+
+```text id="q7v2m5"
+administrator
+operator
+viewer
+```
+
+The full role-based administrative authorization model is implemented.
+
+---
+
+# 85. Role-Based Access Control
+
+## 85.1 Administrator
+
+The `administrator` role has full administrative access.
+
+Administrator permissions include:
+
+```text id="8f2n5k"
+view clients
+view updates
+view packages
+view jobs
+view history
+
+create clients
+delete/disable clients
+rotate client tokens
+
+create update jobs
+execute update jobs
+
+manage users
+manage roles
+```
+
+The administrator is the only administrative role with user and role management capabilities.
+
+---
+
+## 85.2 Operator
+
+The `operator` role is intended for operational update management.
+
+Operators can:
+
+```text id="x6m4q9"
+view clients
+view updates
+view packages
+view jobs
+view history
+
+create update jobs
+execute update jobs
+```
+
+Operators cannot:
+
+```text id="b5q8w2"
+create administrative users
+manage roles
+rotate client tokens
+delete clients
+```
+
+This separates day-to-day update operations from identity and infrastructure administration.
+
+---
+
+## 85.3 Viewer
+
+The `viewer` role provides read-only administrative visibility.
+
+Viewers can:
+
+```text id="r7k3p1"
+view dashboard
+view clients
+view updates
+view packages
+view jobs
+view history
+```
+
+Viewers cannot:
+
+```text id="m8q5z4"
+create clients
+create update jobs
+rotate tokens
+delete clients
+manage users
+manage roles
+```
+
+The role is intended for monitoring and observation without modification privileges.
+
+---
+
+# 86. RBAC Permission Matrix
+
+The current administrative permission model is:
+
+| Route / Function      | Administrator | Operator | Viewer |
+| --------------------- | :-----------: | :------: | :----: |
+| Dashboard             |       ✓       |     ✓    |    ✓   |
+| View clients          |       ✓       |     ✓    |    ✓   |
+| View client details   |       ✓       |     ✓    |    ✓   |
+| View client updates   |       ✓       |     ✓    |    ✓   |
+| View client packages  |       ✓       |     ✓    |    ✓   |
+| View update jobs      |       ✓       |     ✓    |    ✓   |
+| View update history   |       ✓       |     ✓    |    ✓   |
+| Create client         |       ✓       |     —    |    —   |
+| Create update job     |       ✓       |     ✓    |    —   |
+| Execute update job    |       ✓       |     ✓    |    —   |
+| Rotate client token   |       ✓       |     —    |    —   |
+| Delete/disable client |       ✓       |     —    |    —   |
+| User management       |       ✓       |     —    |    —   |
+| Role management       |       ✓       |     —    |    —   |
+| Logout                |       ✓       |     ✓    |    ✓   |
+
+Agent endpoints remain separate from this administrative RBAC model.
+
+Agent authentication continues to use client-specific Bearer tokens.
+
+---
+
+# 87. RBAC Implementation
+
+The role definitions are implemented centrally in:
+
+```text id="q1f8s6"
+server/security.py
+```
+
+Current constants:
+
+```text id="3j7m2v"
+administrator
+operator
+viewer
+```
+
+Valid roles are restricted to the defined role set.
+
+The authenticated user is stored in the request context after successful authentication.
+
+Role authorization is applied using:
+
+```text id="8k4r1p"
+role_required(...)
+```
+
+The decorator rejects unauthorized administrative operations.
+
+The authorization result is distinct from authentication.
+
+Conceptually:
+
+```text id="v6q3m9"
+Not authenticated
+        ↓
+401 / login
+
+Authenticated
+        ↓
+Role checked
+        ↓
+Role allowed?
+   ├── yes → continue
+   └── no  → 403
+```
+
+---
+
+# 88. RBAC Database Migration
+
+Administrative roles are stored in the users table.
+
+The migration adds:
+
+```text id="m7q2x8"
+users.role
+```
+
+with the default role:
+
+```text id="v3n6p1"
+administrator
+```
+
+The RBAC migration is:
+
+```text id="j8r4w2"
+002-rbac
+```
+
+The migration is designed to be idempotent.
+
+This allows an existing LUMS installation to receive the role field without recreating the database.
+
+After migration, an existing administrator receives:
+
+```text id="c5y7k3"
+role = administrator
+```
+
+The role must be verified after migration.
+
+---
+
+# 89. RBAC Verification
+
+Verify the database role:
+
+```bash id="q4m7x2"
+sudo docker exec lums \
+    python3 -c '
+import sqlite3
+
+db = sqlite3.connect("/var/lib/lums/lums.db")
+row = db.execute(
+    "SELECT id, username, enabled, role FROM users ORDER BY id"
+).fetchall()
+
+for item in row:
+    print(item)
+'
+```
+
+The production administrator should report:
+
+```text id="m2x8v5"
+role = administrator
+```
+
+The application test suite contains dedicated RBAC coverage.
+
+The current RBAC test result is:
+
+```text id="n7k4p2"
+20 passed
+```
+
+The complete current test suite contains:
+
+```text id="c8m5q1"
+79 passed
+```
+
+The production deployment has also been verified to contain the RBAC implementation and migrated administrator role.
+
+---
+
+# 90. Security Audit Status
+
+The LUMS security audit is organized into the following areas:
+
+```text id="w2q6m9"
+01 SQLite Foreign Keys
+02 SQLite WAL / Busy Timeout
+03 Update Timeout / Process Handling
+04 Login Rate Limiting
+05 API Input Validation
+06 Session Revocation
+07 Token Rotation
+08 get_ip / Offline Networks
+09 Job Recovery / Checkpointing
+10 APT Robustness
+11 Arch Reboot Detection
+12 Unit Tests / API Result Validation
+13 Simulation Tests
+14 CI
+15 Application Logging
+16 Versioning / Releases
+17 RBAC
+18 Complete Documentation
+```
+
+Audit items:
+
+```text id="9x4m7k"
+01  ✓
+02  ✓
+03  ✓
+04  ✓
+05  ✓
+06  ✓
+07  ✓
+08  ✓
+09  ✓
+10  ✓
+11  ✓
+12  ✓
+13  ✓
+14  ✓
+15  ✓
+16  ✓ audited / implementation pending
+17  ✓
+18  in progress
+```
+
+The documentation audit is the current final audit phase.
+
+---
+
+# 91. SQLite Security
+
+The current SQLite configuration includes:
+
+```text id="v5m8q2"
+foreign_keys = ON
+busy_timeout = 5000
+journal_mode = WAL
+synchronous = 2
+```
+
+Foreign-key enforcement is explicitly enabled by the application connection setup.
+
+The busy timeout reduces immediate failures caused by short-lived concurrent access.
+
+WAL mode improves concurrent read/write behavior compared with the previous configuration.
+
+SQLite remains intentionally lightweight.
+
+The current design is appropriate for the intended LUMS deployment model.
+
+It is not intended to be treated as a high-scale multi-node database architecture.
+
+---
+
+# 92. Authentication Security
+
+Administrative passwords are stored using Argon2 hashing.
+
+The application also provides:
+
+```text id="h7m3q9"
+login rate limiting
+session handling
+session revocation
+CSRF protection
+security headers
+```
+
+Failed authentication attempts are recorded through the application audit mechanism where appropriate.
+
+Successful authentication is also recorded.
+
+Logout events are auditable.
+
+Authentication and authorization remain separate controls.
+
+---
+
+# 93. Client Token Security
+
+Client tokens are stored server-side as SHA-256 digests rather than plaintext credentials.
+
+The lifecycle is:
+
+```text id="p8q4m1"
+generate
+   ↓
+present to administrator/client
+   ↓
+hash
+   ↓
+store digest
+   ↓
+authenticate
+   ↓
+rotate
+   ↓
+invalidate old token
+```
+
+A rotated token replaces the previous credential.
+
+The previous token must no longer authenticate.
+
+Client tokens must never be placed in Git or ordinary application logs.
+
+---
+
+# 94. Security Audit Implementation Summary
+
+The completed audit items cover:
+
+```text id="q7m4x2"
+database integrity
+database concurrency
+process timeout handling
+authentication rate limiting
+API input validation
+session revocation
+token rotation
+network/IP handling
+job recovery
+APT error handling
+Arch reboot detection
+automated testing
+simulation testing
+continuous integration
+application logging
+RBAC
+```
+
+Audit #16 has been reviewed.
+
+The current project does not yet have:
+
+```text id="f5n8r2"
+stable release tag
+GitHub Release
+final release version
+```
+
+The release/versioning strategy has therefore been audited but is intentionally not presented as implemented.
+
+The project remains in active development.
+
+---
+
+# 95. Application Logging
+
+The server uses Python application logging for operational events.
+
+The application logger is configured with:
+
+```text id="k4m7x9"
+INFO
+```
+
+and emits timestamped messages.
+
+Important application events include:
+
+```text id="m6q2p8"
+client reports
+update job creation
+update job claiming
+```
+
+Gunicorn access and error logs are also emitted to the Docker log stream.
+
+View application/runtime logs with:
+
+```bash id="v9q3m1"
+sudo docker logs \
+    --tail 100 \
+    lums
+```
+
+Follow them with:
+
+```bash id="x5n8k2"
+sudo docker logs \
+    -f \
+    lums
+```
+
+Application logs and audit records serve different purposes.
+
+Application logs describe runtime behavior.
+
+Audit records describe security-relevant administrative events.
+
+---
+
+# 96. Audit Logging
+
+LUMS maintains a dedicated audit log for security-relevant actions.
+
+The audit mechanism records information such as:
+
+```text id="r8m3q5"
+actor type
+actor identity
+action
+target
+result
+details
+timestamp
+```
+
+Examples include:
+
+```text id="n2k7v4"
+login success
+login failure
+login rate-limit events
+logout
+client creation
+client token rotation
+client disable/delete operations
+```
+
+Audit details must never contain secrets.
+
+The audit log should therefore be considered security metadata rather than a general application debug log.
+
+---
+
+# 97. Logging Diagnostics
+
+When investigating a server-side issue, start with:
+
+```bash id="p7m4x1"
+sudo docker logs \
+    --tail 100 \
+    lums
+```
+
+For a live incident:
+
+```bash id="c6q8m3"
+sudo docker logs \
+    -f \
+    lums
+```
+
+For client-side execution:
+
+```bash id="h4n7q2"
+sudo journalctl \
+    -u lums-agent.service \
+    --since "30 minutes ago" \
+    --no-pager
+```
+
+For the Execution Watcher:
+
+```bash id="w8m2k5"
+sudo journalctl \
+    -u lums-execution-watcher.service \
+    --since "30 minutes ago" \
+    --no-pager
+```
+
+The diagnostic sequence should be:
+
+```text id="v3q7m1"
+server
+  ↓
+agent
+  ↓
+watcher
+  ↓
+job
+  ↓
+package manager
+```
+
+Do not change all layers simultaneously.
+
+Identify the failing layer first.
+
+---
+
+# 98. Automated Tests
+
+The project contains automated unit and integration-oriented tests for important application behavior.
+
+Current test areas include:
+
+```text id="n4k8p2"
+security
+authentication
+authorization
+RBAC
+job handling
+API validation
+package manager behavior
+recovery
+simulation
+```
+
+The current complete test result is:
+
+```text id="m7q3x5"
+79 passed
+```
+
+The test suite is executed with:
+
+```bash id="j5n8q2"
+python -m pytest -q
+```
+
+A clean test run is required before treating a code change as ready for integration.
+
+Tests are especially important after changes to:
+
+```text id="r6m2v8"
+security.py
+app.py
+database handling
+job handling
+package_manager.py
+agent.py
+watcher.py
+```
+
+---
+
+# 99. Simulation Tests
+
+Simulation tests ensure that update-job handling can be exercised without invoking real package-management operations.
+
+The tests cover:
+
+```text id="q8m4x2"
+UPDATE_PACKAGE
+INSTALL_PACKAGE
+REMOVE_PACKAGE
+UPDATE_SYSTEM
+unknown action
+```
+
+The tests explicitly protect against accidental execution of the real package-manager commands.
+
+Simulation therefore provides a safe regression layer for job dispatch and result handling.
+
+A successful simulation test does not prove that a real package update will succeed.
+
+It proves that the LUMS execution path can process the corresponding job type without invoking the real package operation.
+
+---
+
+# 100. Continuous Integration
+
+The project uses GitHub Actions for automated testing.
+
+The workflow is:
+
+```text id="v4m7q2"
+.github/workflows/tests.yml
+```
+
+The workflow runs for:
+
+```text id="m8q3x5"
+push → main
+pull request → main
+```
+
+The workflow:
+
+```text id="q6n2k8"
+checkout
+   ↓
+Python 3.13
+   ↓
+install test dependencies
+   ↓
+pytest
+```
+
+The workflow has:
+
+```yaml id="f3m8q1"
+permissions:
+  contents: read
+```
+
+The purpose of CI is to prevent changes from silently bypassing the automated test suite.
+
+Local tests and CI therefore form two complementary verification layers:
+
+```text id="j7q4m2"
+local development
+      ↓
+pytest
+      ↓
+Git commit
+      ↓
+GitHub
+      ↓
+CI
+```
+
+# 101. Database Backup
+
+The LUMS database is stored in the persistent Docker volume:
+
+```text id="f7m2q8"
+/var/lib/lums/lums.db
+```
+
+Before performing major application, database or security changes, create a backup.
+
+A SQLite online backup can be created without replacing the live database:
+
+```bash id="k4n8p2"
+sudo docker exec lums \
+    sqlite3 /var/lib/lums/lums.db \
+    ".backup '/tmp/lums-backup.db'"
+```
+
+If the container image does not provide the `sqlite3` command, use an external SQLite backup method instead.
+
+The important principle is:
+
+```text id="q8m3v5"
+live database
+      ↓
+consistent backup
+      ↓
+verify backup
+      ↓
+make change
+```
+
+The backup must not be treated as valid merely because the command completed.
+
+It should also be checked for integrity.
+
+---
+
+# 102. Database Integrity
+
+SQLite integrity can be checked with:
+
+```bash id="n5q7m2"
+sudo docker exec lums \
+    python3 -c '
+import sqlite3
+db = sqlite3.connect("/var/lib/lums/lums.db")
+print(db.execute("PRAGMA integrity_check").fetchone()[0])
+'
+```
+
+Expected:
+
+```text id="x3m8q4"
+ok
+```
+
+An integrity result other than:
+
+```text id="p7k2v9"
+ok
+```
+
+requires investigation before further administrative changes are made.
+
+The integrity check should be performed after:
+
+* database restoration
+* migration testing
+* major schema changes
+* unexpected application termination
+* suspected storage problems
+
+---
+
+# 103. Database Restore
+
+Database restoration is a controlled administrative operation.
+
+The general procedure is:
+
+```text id="m8q4x2"
+stop application writes
+       ↓
+preserve current database
+       ↓
+restore verified backup
+       ↓
+run integrity check
+       ↓
+start application
+       ↓
+verify migrations
+       ↓
+verify authentication
+       ↓
+verify clients
+       ↓
+verify jobs/history
+```
+
+Never overwrite the current database before preserving the existing state.
+
+A failed restore should therefore remain reversible.
+
+A complete isolated restore test is a separate validation activity and must not be represented as completed unless it has actually been performed.
+
+---
+
+# 104. Database Migrations
+
+LUMS uses versioned security/application migrations.
+
+Current verified migration identifiers include:
+
+```text id="w3m7q2"
+001-security-foundation
+002-rbac
+```
+
+The migration mechanism records applied migrations and avoids reapplying migrations that have already been completed.
+
+The RBAC migration adds:
+
+```text id="q5n8m3"
+users.role
+```
+
+with:
+
+```text id="v2k7x4"
+administrator
+```
+
+as the default role.
+
+Before applying a migration to an important installation:
+
+```text id="r8m4q1"
+backup
+  ↓
+migration
+  ↓
+integrity check
+  ↓
+application startup
+  ↓
+functional verification
+```
+
+Do not manually modify migration history unless the consequences are fully understood.
+
+---
+
+# 105. Migration Verification
+
+Check the migration table through SQLite:
+
+```bash id="k7m3x9"
+sudo docker exec lums \
+    python3 -c '
+import sqlite3
+db = sqlite3.connect("/var/lib/lums/lums.db")
+for row in db.execute("SELECT * FROM schema_migrations ORDER BY 1"):
+    print(row)
+'
+```
+
+The exact table layout should be interpreted according to the current application schema.
+
+The important administrative requirement is that already-applied migrations are recorded and not repeatedly executed.
+
+After a migration, verify:
+
+```text id="p4n8v2"
+database integrity
+application startup
+administrator login
+role assignment
+client reporting
+job handling
+```
+
+---
+
+# 106. Production Deployment Baseline
+
+The current production baseline is:
+
+```text id="q8m5x1"
+Docker
+Python 3.13
+Gunicorn 23.0.0
+Flask
+SQLite
+Nginx
+HTTPS
+```
+
+The LUMS container runs:
+
+```text id="m7k3v9"
+non-root user
+read-only root filesystem
+all Linux capabilities dropped
+non-privileged container
+/tmp as restricted tmpfs
+localhost-only host binding
+file-based application secret
+persistent Docker volume
+```
+
+The current application image is:
+
+```text id="x4n8q2"
+lums:latest
+```
+
+The persistent application database is:
+
+```text id="v6m3k8"
+lums-data:/var/lib/lums
+```
+
+This baseline should be preserved when rebuilding or recreating the production container.
+
+---
+
+# 107. Production Network Baseline
+
+The application container is not intended to be directly reachable from the LAN.
+
+The host-side binding is:
+
+```text id="m8q4v2"
+127.0.0.1:5050
+```
+
+Nginx provides the external HTTPS endpoint.
+
+The intended traffic flow is:
+
+```text id="n5k7x3"
+LAN / Client
+      |
+      | HTTPS
+      v
+Nginx :443
+      |
+      | HTTP localhost
+      v
+127.0.0.1:5050
+      |
+      v
+Docker :5000
+      |
+      v
+Gunicorn
+```
+
+This limits direct exposure of the application server.
+
+Verify the binding with:
+
+```bash id="q3m8v6"
+sudo docker port lums
+```
+
+and:
+
+```bash id="x7k4n2"
+sudo ss -lntp | grep -E ':443|:5050'
+```
+
+The expected application binding remains localhost-only.
+
+---
+
+# 108. Production Security Baseline
+
+The current security baseline includes:
+
+```text id="p6m3q8"
+TLS
+secure authentication
+Argon2 password hashing
+login rate limiting
+session revocation
+CSRF protection
+security headers
+client Bearer authentication
+SHA-256 client-token digests
+token rotation
+API input validation
+client/job ownership checks
+atomic job claiming
+job recovery
+execution timeout handling
+APT failure handling
+Arch reboot detection
+RBAC
+application logging
+audit logging
+container hardening
+automated tests
+CI
+```
+
+The baseline is the result of the completed security audit items #01–#17.
+
+Documentation is the remaining audit area:
+
+```text id="k8q4m2"
+Audit #18 — Complete Documentation
+```
+
+---
+
+# 109. Operational Verification
+
+After major production changes, perform a short operational verification.
+
+Recommended sequence:
+
+```text id="v4m7x2"
+1. Container running
+2. Database integrity
+3. Nginx running
+4. HTTPS reachable
+5. Login works
+6. Administrator role correct
+7. Client reports successfully
+8. Package inventory visible
+9. Updates visible
+10. Job creation works
+11. Agent receives job
+12. Watcher operates
+13. Job result recorded
+14. History updated
+15. Logs contain expected events
+```
+
+For security-sensitive changes, additionally verify:
+
+```text id="m5q8x3"
+token authentication
+role authorization
+session behavior
+container hardening
+secret availability
+```
+
+Do not consider a deployment complete merely because the container reports:
+
+```text id="x2k7v4"
+Up
+```
+
+The application and operational path must also be verified.
+
+---
+
+# 110. Incident Evidence Preservation
+
+When investigating an unexpected failure, preserve evidence before destructive actions.
+
+Useful information includes:
+
+```bash id="q8m4v1"
+sudo docker ps -a
+sudo docker inspect lums
+sudo docker logs --tail 200 lums
+sudo journalctl -u lums-agent.service --since "1 hour ago" --no-pager
+sudo journalctl -u lums-execution-watcher.service --since "1 hour ago" --no-pager
+```
+
+For the database:
+
+```bash id="n7k3x5"
+sudo docker exec lums \
+    python3 -c '
+import sqlite3
+db = sqlite3.connect("/var/lib/lums/lums.db")
+print(db.execute("PRAGMA integrity_check").fetchone()[0])
+'
+```
+
+Do not immediately:
+
+```text id="m4q8v2"
+delete the container
+delete the volume
+delete the database
+delete logs
+rotate credentials
+reinstall the agent
+```
+
+unless the operational situation requires it and sufficient evidence has already been preserved.
+
+The diagnostic principle remains:
+
+```text id="x5n8q3"
+observe
+   ↓
+identify
+   ↓
+reproduce
+   ↓
+change
+   ↓
+test
+   ↓
+verify
+```
+
+---
+
+# 111. Version and Release Status
+
+The project is currently under active development.
+
+The current component versions are:
+
+```text id="v7m3q8"
+LUMS Agent: 1.7.0
+Execution Watcher: 1.2.1
+```
+
+The project currently has:
+
+```text id="k4n8x2"
+CI workflow
+automated tests
+security audit
+RBAC
+application logging
+```
+
+However, the project does not currently have:
+
+```text id="q6m3v9"
+stable release
+Git tag
+GitHub Release
+final project version
+```
+
+Audit #16 therefore documents the versioning/release situation without prematurely declaring a release.
+
+The absence of a release is intentional while development and documentation continue.
+
+---
+
+# 112. Release Preparation
+
+A future release should only be created after the project reaches the desired development state.
+
+The expected release process can later include:
+
+```text id="m8q4x1"
+final implementation
+       ↓
+security review
+       ↓
+documentation review
+       ↓
+full test suite
+       ↓
+CI
+       ↓
+version assignment
+       ↓
+Git tag
+       ↓
+GitHub Release
+```
+
+No final release version is defined in this administration guide yet.
+
+The current document therefore describes the operational state rather than inventing a release number.
+
+---
+
+# 113. Current Audit Baseline
+
+The complete security audit currently stands at:
+
+| Audit | Area                               |    Status   |
+| ----- | ---------------------------------- | :---------: |
+| #01   | SQLite Foreign Keys                |      ✓      |
+| #02   | SQLite WAL / Busy Timeout          |      ✓      |
+| #03   | Update Timeout / Process Handling  |      ✓      |
+| #04   | Login Rate Limiting                |      ✓      |
+| #05   | API Input Validation               |      ✓      |
+| #06   | Session Revocation                 |      ✓      |
+| #07   | Token Rotation                     |      ✓      |
+| #08   | get_ip / Offline Networks          |      ✓      |
+| #09   | Job Recovery / Checkpointing       |      ✓      |
+| #10   | APT Robustness                     |      ✓      |
+| #11   | Arch Reboot Detection              |      ✓      |
+| #12   | Unit Tests / API Result Validation |      ✓      |
+| #13   | Simulation Tests                   |      ✓      |
+| #14   | CI                                 |      ✓      |
+| #15   | Application Logging                |      ✓      |
+| #16   | Versioning / Releases              |  ✓ audited  |
+| #17   | RBAC                               |      ✓      |
+| #18   | Complete Documentation             | in progress |
+
+Audit #16 is intentionally marked as:
+
+```text id="v5m8q2"
+audited
+```
+
+rather than:
+
+```text id="p7k3x4"
+release implemented
+```
+
+because the project has not yet created a release/tag.
+
+---
+
+# 114. Documentation Baseline
+
+The administration guide should remain consistent with:
+
+```text id="q8m4v2"
+README.md
+docs/security.md
+docs/install.md
+docs/troubleshooting.md
+```
+
+The documentation must use the same terminology for:
+
+```text id="n6k3x8"
+Agent
+Execution Watcher
+client token
+update job
+RBAC
+administrator
+operator
+viewer
+simulation
+recovery
+audit
+```
+
+The following must not reappear as current project state:
+
+```text id="m4q8v1"
+RBAC not implemented
+only Audit #01–#04 completed
+Watcher under an obsolete name
+no automated tests
+no CI
+no application logging
+```
+
+Those statements describe earlier development stages and are no longer the current baseline.
+
+---
+
+# 115. Administrative Roles — Final Summary
+
+The current administrative model is:
+
+```text id="x7m3q8"
+                    LUMS
+                      |
+          +-----------+-----------+
+          |           |           |
+          v           v           v
+   Administrator   Operator    Viewer
+          |           |           |
+          |           |           |
+       Full        Operations   Read-only
+       access       access      access
+```
+
+Administrator:
+
+```text id="q4n8m2"
+identity management
+client management
+token management
+update management
+read access
+```
+
+Operator:
+
+```text id="m7k3x1"
+update management
+read access
+```
+
+Viewer:
+
+```text id="v8q4n5"
+read access
+```
+
+The role system is implemented server-side.
+
+It is not merely a frontend visibility mechanism.
+
+Authorization is enforced by the backend.
+
+---
+
+# 116. Administrative Security Principle
+
+Administrative access should follow least privilege.
+
+The intended model is:
+
+```text id="k5m8q2"
+need to observe
+    ↓
+Viewer
+
+need to operate updates
+    ↓
+Operator
+
+need to administer identities and infrastructure
+    ↓
+Administrator
+```
+
+Roles should not be granted based solely on convenience.
+
+If an account only needs monitoring access, it should not require administrative privileges.
+
+If an account performs update operations but does not manage identities, Operator is the corresponding role.
+
+---
+
+# 117. Client Security Principle
+
+Managed clients are treated as independently authenticated execution nodes.
+
+The server must never rely solely on:
+
+```text id="x3m7q8"
+IP address
+hostname
+network location
+```
+
+for client identity.
+
+Client authentication is based on the client-specific Bearer token.
+
+Job operations additionally verify client/job ownership.
+
+This creates the security boundary:
+
+```text id="q8m4v1"
+network location
+      +
+client credential
+      +
+server-side ownership
+```
+
+rather than trusting network position alone.
+
+---
+
+# 118. Operational Safety Principle
+
+LUMS is designed to avoid blind execution.
+
+Important controls include:
+
+```text id="m5q8x2"
+authentication
+authorization
+idle detection
+job ownership
+atomic claiming
+timeouts
+checkpointing
+recovery
+result validation
+history
+audit logging
+```
+
+The intended operational flow is:
+
+```text id="v7k3m9"
+request
+  ↓
+validate
+  ↓
+authorize
+  ↓
+create job
+  ↓
+claim atomically
+  ↓
+verify execution conditions
+  ↓
+execute
+  ↓
+report
+  ↓
+validate result
+  ↓
+record history
+```
+
+Each stage provides an opportunity to detect an invalid or unexpected state.
+
+---
+
+# 119. Administration Philosophy
+
+LUMS administration should follow a controlled-change process.
+
+For significant changes:
+
+```text id="q4m8x2"
+backup
+   ↓
+inspect
+   ↓
+change
+   ↓
+test
+   ↓
+verify
+   ↓
+document
+```
+
+For security-sensitive changes:
+
+```text id="m7n3v8"
+backup
+   ↓
+security impact
+   ↓
+implementation
+   ↓
+automated tests
+   ↓
+deployment
+   ↓
+runtime verification
+   ↓
+audit/documentation
+```
+
+This is especially important for:
+
+* authentication
+* authorization
+* tokens
+* database migrations
+* container hardening
+* package execution
+* recovery behavior
+* TLS configuration
+
+---
+
+# 120. Final Architecture
+
+The current LUMS architecture can be summarized as:
+
+```text id="x8m4q2"
+                         Administrator
+                              |
+                              | HTTPS
+                              v
+                       +--------------+
+                       |    Nginx     |
+                       | TLS / Proxy  |
+                       +------+-------+
+                              |
+                              v
+                       +--------------+
+                       | Docker LUMS  |
+                       |              |
+                       | Gunicorn     |
+                       | Flask        |
+                       | RBAC         |
+                       | API          |
+                       +------+-------+
+                              |
+                    +---------+---------+
+                    |                   |
+                    v                   v
+              +-----------+       +-----------+
+              | SQLite    |       | Audit /   |
+              | lums.db   |       | Logging   |
+              +-----------+       +-----------+
+                    |
+                    |
+          Persistent Docker Volume
+                    |
+                    v
+                lums-data
+
+
+       HTTPS / Bearer Authentication
+                    ^
+                    |
+          +---------+---------+
+          |                   |
+          v                   v
+    Debian Client        Arch Client
+          |                   |
+       Agent 1.7.0         Agent 1.7.0
+          |                   |
+      APT / dpkg             pacman
+          |                   |
+          +---------+---------+
+                    |
+             Execution Watcher
+                1.2.1
+                    |
+                    v
+             Job execution
+             recovery
+             monitoring
+```
+
+The administrative security model is:
+
+```text id="m6q3v8"
+Administrator
+     |
+     +-- full administrative access
+
+Operator
+     |
+     +-- operational update access
+
+Viewer
+     |
+     +-- read-only access
+```
+
+The client security model is:
+
+```text id="q8m4x2"
+Client
+   |
+   +-- Bearer token
+   |
+   +-- client identity
+   |
+   +-- job ownership
+   |
+   +-- result ownership
+   |
+   +-- recovery ownership
+```
+
+The operational model is:
+
+```text id="v4m7x1"
+Report
+  ↓
+Inventory
+  ↓
+Updates
+  ↓
+Job
+  ↓
+Claim
+  ↓
+Idle Check
+  ↓
+Execute
+  ↓
+Checkpoint
+  ↓
+Result
+  ↓
+History
+  ↓
+Recovery if required
+```
+
+The security model is:
+
+```text id="n8q3m5"
+Authenticate
+     ↓
+Authorize
+     ↓
+Validate
+     ↓
+Execute
+     ↓
+Record
+     ↓
+Verify
+```
+
+And the administrative principle remains:
+
+> **Observe first. Change deliberately. Test everything. Verify the result.**
+
+LUMS is currently an actively developed project with the major security audit items #01–#17 completed or audited, while the final documentation audit (#18) is being completed.
+
+The system is functional, tested and hardened, but it is not yet represented as a final stable release.
+
