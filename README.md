@@ -157,6 +157,184 @@ The agent reports installed packages and available updates to the LUMS server.
 This allows administrators to see the state of clients centrally without replacing the native package manager.
 
 ---
+# Architecture
+
+The current server architecture is intentionally small:
+
+```text
+                     HTTPS
+                       │
+                       ▼
+                ┌────────────┐
+                │   Nginx    │
+                │ TLS / :443 │
+                └─────┬──────┘
+                      │
+              127.0.0.1:5050
+                      │
+                      ▼
+             ┌────────────────┐
+             │ Docker: lums   │
+             │                │
+             │ Gunicorn       │
+             │ Flask          │
+             └───────┬────────┘
+                     │
+                     ▼
+             ┌────────────────┐
+             │   lums-data    │
+             │                │
+             │ SQLite         │
+             └────────────────┘
+```
+
+The Flask application listens on:
+
+```text
+5000
+```
+
+inside the container.
+
+The host publishes it only on:
+
+```text
+127.0.0.1:5050
+```
+
+The application is therefore not intended to be directly exposed to the network.
+
+Nginx provides the external HTTPS endpoint.
+
+The production container is additionally hardened through:
+
+```text
+read-only root filesystem
+CapDrop=ALL
+non-root application user
+restricted /tmp
+file-based application secret
+```
+
+Persistent application state remains outside the container image in the:
+
+```text
+lums-data
+```
+
+Docker volume.
+
+---
+
+# Client Architecture
+
+LUMS separates periodic reporting from update execution.
+
+## Reporting
+
+```text
+lums-agent.timer
+        │
+        ▼
+lums-agent.service
+        │
+        ▼
+     agent.py
+        │
+        ▼
+   HTTPS report
+        │
+        ▼
+     LUMS API
+```
+
+The reporting path is responsible for:
+
+```text
+Client authentication
+       ↓
+System information
+       ↓
+Package inventory
+       ↓
+Update inventory
+       ↓
+Agent status
+       ↓
+Report submission
+```
+
+## Execution
+
+```text
+lums-agent-watcher.timer
+        │
+        ▼
+lums-agent-watcher.service
+        │
+        ▼
+      watcher.py
+        │
+        ▼
+   Idle detection
+        │
+        ▼
+ Running-job recovery
+        │
+        ▼
+   Pending job lookup
+        │
+        ▼
+    Atomic claim
+        │
+        ▼
+ Package manager
+        │
+        ▼
+    Result report
+```
+
+The separation keeps periodic inventory reporting independent from update execution.
+
+The execution watcher also handles recovery of interrupted jobs and ensures that jobs are claimed atomically before execution.
+
+---
+
+# Security Audit Status
+
+The security audit has completed the following areas:
+
+```text
+[x] SQLite Foreign Keys
+[x] SQLite WAL / Busy Timeout
+[x] Update Timeout / Process Termination
+[x] Login Rate Limiting
+[x] API Input Validation
+[x] Session Revocation
+[x] Token Rotation
+[x] get_ip() / Offline-Network Handling
+[x] Job Recovery / Checkpointing
+[x] APT Robustness
+[x] Arch Reboot Detection
+[x] Unit Tests / Test Coverage
+[x] Simulation Tests
+[x] Continuous Integration
+[x] Logging
+[x] RBAC
+[x] Versioning / Release Management Audit
+```
+
+The versioning and release-management audit confirmed that the project currently has no formal release tags or GitHub Releases. This is intentional while development continues.
+
+Release infrastructure will be introduced separately when the project reaches an appropriate release stage.
+
+The current automated test suite passes:
+
+```text
+79 passed
+```
+
+The security audit is therefore focused on the implemented system rather than treating unreleased functionality as completed.
 
 ## Update Jobs
 
@@ -1266,6 +1444,286 @@ Potential future development includes:
 * Release and versioning workflow
 
 The roadmap is subject to change as the project develops.
+
+
+# Current Status
+
+LUMS is an active development project.
+
+The current implementation has been tested with:
+
+```text
+Debian 13
+Arch Linux
+Docker
+Nginx
+Gunicorn
+SQLite
+systemd
+```
+
+Current component versions:
+
+```text
+LUMS Server
+    active development
+
+Agent
+    1.7.0
+
+Execution Watcher
+    1.2.1
+```
+
+The current implementation includes testing and verification of:
+
+```text
+Client reporting
+Client authentication
+Client inventory
+Package inventory
+Update inventory
+Update jobs
+Atomic job claiming
+Idle-aware execution
+UPDATE_SYSTEM
+Package installation
+Package removal
+Running-job recovery
+Checkpoint handling
+Token rotation
+Session revocation
+Login rate limiting
+API input validation
+Update result validation
+APT update detection
+Arch reboot detection
+Container hardening
+SQLite integrity verification
+Simulation mode
+RBAC
+Automated tests
+Continuous integration
+Application logging
+```
+
+The automated test suite currently passes:
+
+```text
+79 passed
+```
+
+The project has also been verified with both Debian-based and Arch Linux clients.
+
+Versioning and release management have been audited, but formal release infrastructure has deliberately not yet been introduced.
+
+There are currently:
+
+```text
+No formal release tag
+No GitHub Release
+No stable project version
+```
+
+This is intentional.
+
+LUMS is still under active development and is **not currently presented as a finished release**.
+
+---
+
+# Roadmap
+
+Potential future development includes:
+
+* Scheduled maintenance windows
+* Client groups
+* Automatic client enrollment
+* Agent update management
+* Package deployment workflows
+* Repository management
+* Enhanced reporting
+* Dashboard statistics
+* Monitoring integrations
+* Improved APT/dpkg coordination
+* Desktop-specific idle providers
+* Resource limits
+* Automated security testing
+* Full backup and restore validation
+* Release and versioning workflow
+
+The roadmap is intentionally kept flexible.
+
+Implemented functionality is not listed as future work merely to make the roadmap look larger.
+
+---
+
+# Design Philosophy
+
+LUMS is built around a simple principle:
+
+> **Know what changed. Know where it happened. Keep execution controlled.**
+
+The project deliberately favors:
+
+```text
+Simple architecture
+        +
+Explicit behavior
+        +
+Documented decisions
+        +
+Controlled execution
+```
+
+over unnecessary complexity.
+
+LUMS should remain understandable enough that an administrator can inspect the system and understand what it is doing.
+
+The project is also intentionally transparent about its current state.
+
+Implemented functionality should be documented as implemented.
+
+Incomplete functionality should remain marked as incomplete.
+
+Future ideas belong in the roadmap rather than being presented as existing features.
+
+---
+
+# Repository
+
+The source repository is maintained under:
+
+```text
+NovaForgeCtrl/LUMS
+```
+
+The repository contains:
+
+* Source code
+* Docker configuration
+* Agent components
+* Server components
+* Tests
+* Documentation
+* License
+
+Production secrets and private runtime configuration are intentionally kept outside the repository.
+
+---
+
+# License
+
+LUMS is released under the:
+
+**MIT License**
+
+See [`LICENSE`](LICENSE) for the complete license text.
+
+---
+
+# Community
+
+Found something interesting?
+
+Have an idea?
+
+Want to leave feedback?
+
+Use the project's guestbook issue template.
+
+---
+
+# Project
+
+**LUMS**
+
+### Linux Update Management Server
+
+> **Linux Update Management without the noise.**
+
+> **Centralize the management. Keep execution controlled.**
+
+> **Know what changed. Know where it happened.**
+
+> **One LUMS. Same Backend. Controlled Execution.**
+
+---
+
+# Status
+
+LUMS is actively developed.
+
+The architecture, API, database schema and deployment model may evolve as development continues.
+
+Always review the current source code and configuration examples before deploying a new version.
+
+```text
+                 ┌─────────────────────┐
+                 │        LUMS         │
+                 │                     │
+                 │ Central Management  │
+                 │ Controlled Execution│
+                 │ Auditable Changes   │
+                 └──────────┬──────────┘
+                            │
+             ┌──────────────┼──────────────┐
+             │              │              │
+          Client A       Client B       Client N
+             │              │              │
+             └──────────────┼──────────────┘
+                            │
+                         HTTPS
+                            │
+                            ▼
+                       Same Backend
+```
+
+> **LUMS — Linux Update Management without the noise.**
+>
+> **One LUMS. Many clients. Same backend. Controlled execution.**
+
+---
+
+# Development Status
+
+LUMS is currently in active development.
+
+The project has progressed beyond the initial prototype and now contains:
+
+```text
+Central client management
+Package and update inventory
+Controlled update execution
+Idle-aware execution
+Job recovery
+Checkpoint handling
+Client authentication
+Token rotation
+Session revocation
+RBAC
+Audit logging
+Container hardening
+Automated testing
+Continuous integration
+Multi-distribution package management
+```
+
+The remaining work is primarily focused on continued development, validation, documentation and eventually establishing a formal release process.
+
+Until then:
+
+```text
+No stable release
+No release tag
+No production release promise
+```
+
+Just a project that keeps getting tested, broken, fixed and documented.
+
+```text
+segfault // override
+```
+
 
 ---
 
