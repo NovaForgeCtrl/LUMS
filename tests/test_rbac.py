@@ -562,6 +562,21 @@ def create_package_job_database(db_path):
 
     connection.execute(
         """
+        CREATE TABLE audit_log (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            timestamp TEXT NOT NULL,
+            actor_type TEXT NOT NULL,
+            actor_id TEXT,
+            action TEXT NOT NULL,
+            target TEXT,
+            result TEXT NOT NULL,
+            details TEXT
+        )
+        """
+    )
+
+    connection.execute(
+        """
         INSERT INTO users (
             id,
             username,
@@ -678,6 +693,20 @@ def test_real_route_install_package_accepts_valid_package(
         """
     ).fetchone()
 
+    audit = connection.execute(
+        """
+        SELECT
+            actor_type,
+            actor_id,
+            action,
+            target,
+            result,
+            details
+        FROM audit_log
+        WHERE action = 'update_job.create'
+        """
+    ).fetchone()
+
     connection.close()
 
     assert job["client_id"] == 1
@@ -687,6 +716,16 @@ def test_real_route_install_package_accepts_valid_package(
     assert package["package"] == "curl"
     assert package["target_version"] == ""
     assert package["status"] == "pending"
+
+    assert audit is not None
+    assert audit["actor_type"] == "user"
+    assert audit["actor_id"] == 1
+    assert audit["action"] == "update_job.create"
+    assert audit["target"].startswith("job:")
+    assert audit["result"] == "success"
+    assert audit["details"] == (
+        "client=1 action=INSTALL_PACKAGE packages=1"
+    )
 
 
 @pytest.mark.parametrize(
