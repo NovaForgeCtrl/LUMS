@@ -719,7 +719,7 @@ def test_real_route_install_package_accepts_valid_package(
 
     assert audit is not None
     assert audit["actor_type"] == "user"
-    assert audit["actor_id"] == 1
+    assert audit["actor_id"] == "1"
     assert audit["action"] == "update_job.create"
     assert audit["target"].startswith("job:")
     assert audit["result"] == "success"
