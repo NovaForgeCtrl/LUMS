@@ -1248,6 +1248,20 @@ def create_update_job(client_id):
             "pending"
         ))
 
+    audit_log(
+        connection,
+        actor_type="user",
+        actor_id=current_user_id(),
+        action="update_job.create",
+        target=f"job:{job_id}",
+        result="success",
+        details=(
+            f"client={client_id} "
+            f"action={action} "
+            f"packages={len(update_rows)}"
+        ),
+    )
+
     connection.commit()
 
     connection.close()
