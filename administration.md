@@ -1,4894 +1,2751 @@
 # LUMS — Administration Guide
 
-## Linux Update Management Server
+> **Linux Update Management without the noise.**
 
-**Version:** 2.7
+This guide describes the day-to-day administration and operation of LUMS after the server and clients have been installed.
 
-This guide documents the administration, operation, deployment, maintenance, backup, recovery and troubleshooting of LUMS.
+It focuses on administrative tasks performed through the LUMS web interface and on controlled operational tasks on the LUMS server and managed clients.
 
-LUMS is designed as a centralized Linux update management system with controlled execution, client reporting, job tracking and administrative visibility.
+Installation procedures are documented separately in `installation.md`.
 
-The system separates:
+Troubleshooting procedures are documented separately in `troubleshooting.md`.
 
-* central management
-* client reporting
-* update job creation
-* controlled execution
-* execution monitoring
-* persistent application data
-* frontend presentation
-* infrastructure services
-
-The central principle is:
-
-> **Do not change multiple layers at once. Identify the layer first, then change only what is required.**
+Security architecture and audit information are documented separately in `security.md`.
 
 ---
 
-# 1. Purpose
+## 1. Administration Overview
 
-LUMS provides a central management interface for Linux update operations.
+LUMS provides centralized administration of Linux software inventory, available updates, package operations, update jobs, managed clients, users, and operational history.
 
-The system provides:
+The administrative model separates responsibilities between three roles:
 
-* client inventory
-* client status reporting
-* update information
-* update job management
-* controlled update execution
-* execution tracking
-* simulation mode
-* administrative visibility
-* audit information
-* centralized configuration
-* TLS-protected external access
-* administrator authentication
-* role-based authorization
+* **Administrator**
+* **Operator**
+* **Viewer**
+
+The role assigned to a user determines which administrative functions are available.
+
+LUMS also separates server-side administrative operations from client-side package execution.
+
+The normal operational flow is:
+
+```text
+Administrator / Operator
+        │
+        ▼
+   LUMS Web UI
+        │
+        ▼
+     LUMS API
+        │
+        ▼
+      SQLite
+        │
+        ▼
+   Managed Client
+        │
+        ▼
+ APT / pacman / system
+        │
+        ▼
+      Result
+        │
+        ▼
+     LUMS API
+        │
+        ▼
+      SQLite
+        │
+        ▼
+    Web Interface
+```
+
+The LUMS server does not directly execute package-management commands on managed clients.
+
+Package operations are executed by the LUMS Agent installed on the managed system.
+
+---
+
+## 2. Administrative Responsibilities
+
+LUMS administration can be divided into several areas.
+
+### User Administration
+
+Administrators manage:
+
+* LUMS users
+* user roles
+* account status
+* administrative access
+
+User management is restricted to the **Administrator** role.
+
+Operators cannot create or manage LUMS users.
+
+Viewers have no user-management permissions.
+
+---
+
+### Client Administration
+
+Administrators manage:
+
+* registered clients
+* client status
 * client authentication
-* client token lifecycle management
-* interrupted-job recovery
-* application logging
-* operational history
+* client tokens
+* token rotation
+* client enablement and disablement
 
-LUMS does not replace the underlying Linux package manager.
+Client administration is intentionally restricted because client authentication determines which systems are allowed to report to LUMS.
 
-The package manager remains responsible for the actual package operation.
+---
 
-LUMS controls when and where an update operation is requested and records the resulting state.
+### Update Administration
 
-The server manages the operation.
+Administrators and Operators can:
 
-The client performs the actual package-management operation.
+* view available updates
+* create update jobs
+* execute package operations
+* review update history
+* manage individual packages
+* perform system updates
 
-This separation is intentional:
+The Viewer role cannot perform update operations.
+
+---
+
+### Package Administration
+
+LUMS supports package-management operations through the native package manager of the client.
+
+Current supported package-management backends include:
+
+* **APT/dpkg** for Debian-based systems
+* **pacman** for Arch Linux
+
+LUMS does not replace the operating-system package manager.
+
+Instead, LUMS provides a centralized interface for requesting and tracking package operations.
+
+---
+
+### Operational Administration
+
+Administrators and Operators may need to monitor:
+
+* running update jobs
+* failed jobs
+* completed jobs
+* client reporting
+* reboot requirements
+* package-manager errors
+* audit activity
+
+The detailed troubleshooting procedures for these conditions are documented in `troubleshooting.md`.
+
+---
+
+## 3. Administrative Roles
+
+LUMS currently provides three roles.
+
+| Role          | Purpose                                  |
+| ------------- | ---------------------------------------- |
+| Administrator | Full administrative control              |
+| Operator      | Day-to-day operational management        |
+| Viewer        | Read-only client and software visibility |
+
+The role is enforced server-side.
+
+Hiding an interface element is therefore not considered a security control by itself.
+
+Unauthorized API operations must also be rejected by the server.
+
+---
+
+## 4. Administrator
+
+The Administrator role provides the highest level of LUMS application privileges.
+
+Administrators can:
+
+* view managed clients
+* view installed software
+* view available updates
+* create and execute update jobs
+* review update history
+* perform package-management operations
+* perform system maintenance
+* create clients
+* disable clients
+* rotate client tokens
+* create and manage LUMS users
+* assign user roles
+
+Administrator privileges should be granted only to users who require full administrative access.
+
+Administrative accounts should not be used for routine read-only monitoring when an Operator or Viewer account is sufficient.
+
+---
+
+## 5. Operator
+
+The Operator role is intended for day-to-day update and system administration.
+
+Operators can:
+
+* view managed clients
+* view installed software
+* view available updates
+* create and execute update jobs
+* review update history
+* perform package-management operations
+* perform system maintenance
+
+Operators cannot:
+
+* create or manage LUMS users
+* assign user roles
+* create or disable clients
+* rotate client tokens
+
+This separation allows routine update operations without granting full account and client-management privileges.
+
+---
+
+## 6. Viewer
+
+The Viewer role provides read-only visibility.
+
+Viewers can:
+
+* view managed clients
+* view installed software
+
+The following administrative functions are unavailable to Viewers:
+
+* available update management
+* update-job creation
+* update-job execution
+* update history
+* package management
+* system maintenance
+* user management
+* client management
+* token rotation
+
+The corresponding mutating API operations are also protected server-side.
+
+Viewer access is therefore intended for users who need visibility without operational control.
+
+---
+
+## 7. Role Selection Guidelines
+
+Use the smallest role that provides the required functionality.
+
+### Administrator
+
+Use when the user must manage:
+
+* users
+* roles
+* clients
+* client authentication
+* tokens
+* updates
+* packages
+* system operations
+
+### Operator
+
+Use when the user needs to perform routine operational work such as:
+
+* checking updates
+* installing packages
+* removing packages
+* updating packages
+* executing update jobs
+* reviewing job history
+
+### Viewer
+
+Use when the user only needs visibility into:
+
+* clients
+* installed software
+
+---
+
+## 8. Administrative Security Principle
+
+LUMS administration follows the principle of least privilege.
+
+Administrative access should be limited to the functionality required for the user's task.
+
+In particular:
+
+* do not use Administrator accounts for routine viewing
+* do not share accounts between administrators
+* do not share client tokens
+* do not place credentials in documentation
+* do not expose client tokens in screenshots or logs
+* do not bypass the LUMS web interface by modifying the database directly unless a documented recovery procedure explicitly requires it
+
+When an administrative operation fails, investigate the cause before changing persistent state.
+
+Use the principle:
+
+> **Observe first. Change second. Verify third.**
+
+---
+
+## 9. Administrative Workflow
+
+A normal administrative workflow should follow this sequence:
 
 ```text
-Management Plane
-        ↓
-LUMS Server
-        ↓
-Authorized Job
-        ↓
-Execution Plane
-        ↓
+1. Authenticate
+      │
+      ▼
+2. Verify role
+      │
+      ▼
+3. Select client / operation
+      │
+      ▼
+4. Review current state
+      │
+      ▼
+5. Perform required operation
+      │
+      ▼
+6. Monitor job
+      │
+      ▼
+7. Verify result
+      │
+      ▼
+8. Review history / audit information
+```
+
+Administrative actions should always be verified after execution.
+
+A successful API request does not by itself prove that the requested package or system operation completed successfully.
+
+The final state reported by the managed client is the relevant operational result.
+
+---
+
+## 10. Separation of Documentation
+
+The LUMS documentation set is intentionally divided into separate operational guides.
+
+| Document             | Purpose                                 |
+| -------------------- | --------------------------------------- |
+| `installation.md`    | Installation and initial deployment     |
+| `administration.md`  | Day-to-day administration               |
+| `security.md`        | Security architecture and audit results |
+| `troubleshooting.md` | Diagnosis and recovery                  |
+
+This guide should therefore avoid duplicating detailed installation and troubleshooting procedures.
+
+Instead, it describes what administrators can manage, what each operation means, and how normal administrative workflows are performed.
+
+## 11. User Management
+
+User management is available only to users with the **Administrator** role.
+
+Administrators can create and manage LUMS application accounts through the dedicated user-management interface.
+
+User accounts are separate from managed-client authentication.
+
+A LUMS user authenticates to the web application with an application account.
+
+A managed client authenticates to the LUMS API with a client token.
+
+These authentication mechanisms must not be confused.
+
+```text
+LUMS User
+    │
+    │ username + password
+    ▼
+Web Interface
+    │
+    ▼
+LUMS Application
+
 Managed Client
+    │
+    │ client token
+    ▼
+LUMS API
 ```
 
 ---
 
-# 2. Supported Platforms
+## 12. Creating Users
 
-The current LUMS agent supports multiple Linux package-management backends.
+Only Administrators can create new LUMS users.
 
-Currently supported:
+When creating a user, the Administrator specifies:
 
-```text
-APT / dpkg
-pacman
-```
+* username
+* password
+* role
 
-The agent automatically detects the available package manager.
+Available roles are:
 
-The current abstraction is implemented in:
+* `administrator`
+* `operator`
+* `viewer`
 
-```text
-agent/package_manager.py
-```
+The server validates the supplied values before creating the account.
 
-The detection order is:
+Passwords are not stored as plaintext.
 
-```text
-apt
- |
- +-- AptPackageManager
+LUMS uses Argon2-based password hashing for application credentials.
 
-pacman
- |
- +-- PacmanPackageManager
-```
+After creation, verify that:
 
-If neither supported package manager is available, the agent stops with an explicit error.
+* the username appears in the user list
+* the assigned role is correct
+* the account is enabled
+* the user can authenticate successfully
 
-The current agent version is:
-
-```text
-1.7.0
-```
-
-The current Execution Watcher version is:
-
-```text
-1.2.1
-```
-
-Both Debian-based and Arch-based clients have been tested end-to-end with the current agent implementation.
-
-Current verified environments:
-
-```text
-Debian 13
-Arch Linux
-```
-
-Current tested package managers:
-
-```text
-APT / dpkg
-pacman
-```
+Do not transmit passwords through documentation, tickets, screenshots, or other insecure channels.
 
 ---
 
-# 3. Architecture
+## 13. User Roles
 
-The current deployment consists of the following logical layers:
+User roles should be assigned according to the minimum required privilege.
 
-```text
-                         Browser
-                            |
-                            | HTTPS :443
-                            v
-                    +----------------+
-                    |     Nginx      |
-                    | TLS / Reverse  |
-                    |     Proxy      |
-                    +-------+--------+
-                            |
-                            | HTTP localhost
-                            v
-                    +----------------+
-                    | Docker: lums   |
-                    |                |
-                    | Gunicorn       |
-                    | Flask          |
-                    | Templates      |
-                    | Static Assets  |
-                    +-------+--------+
-                            |
-                            | Docker Volume
-                            v
-                    +----------------+
-                    |   lums-data    |
-                    |                |
-                    | /var/lib/lums  |
-                    | lums.db        |
-                    +----------------+
+| Role          | User Management | Client Management | Updates | Package Management | Read-only Access |
+| ------------- | --------------: | ----------------: | ------: | -----------------: | ---------------: |
+| Administrator |             Yes |               Yes |     Yes |                Yes |              Yes |
+| Operator      |              No |                No |     Yes |                Yes |              Yes |
+| Viewer        |              No |                No |      No |                 No |              Yes |
 
-                            ^
-                            |
-                       HTTPS / TLS
-                       Bearer Auth
-                            |
-                    +-------+--------+
-                    | LUMS Agent     |
-                    |                |
-                    | agent.py       |
-                    | watcher.py     |
-                    +-------+--------+
-                            |
-                            v
-                 Package Manager Abstraction
-                       /            \
-                      /              \
-                   APT/dpkg        pacman
-```
+Role enforcement occurs on the server.
 
-The application itself is not directly exposed to the network.
-
-Docker publishes the application only on localhost:
-
-```text
-127.0.0.1:5050 -> container:5000
-```
-
-Nginx provides the externally accessible HTTPS endpoint.
-
-The production application server is Gunicorn.
-
-The Flask development server is not used for the current production deployment.
-
-The application and client execution planes are deliberately separated.
-
-The server does not directly execute package-management commands on managed clients.
+The web interface reflects the assigned role, but the server remains the authoritative security boundary.
 
 ---
 
-# 4. Current Runtime Configuration
+## 14. Disabling User Accounts
 
-## 4.1 Repository
+When an account should no longer be allowed to access LUMS, disable the account rather than sharing or repurposing the credentials.
 
-The application source repository is located at:
+Examples include:
 
-```text
-/opt/lums-public
-```
+* an administrator leaving the project
+* an operator no longer requiring access
+* temporary removal of administrative access
+* security response to a compromised account
 
-This directory contains the source tree used to build the Docker image.
+After disabling an account, verify that authentication is rejected.
 
-Important distinction:
+Existing authenticated sessions should also be considered during account-security investigations.
 
-```text
-/opt/lums-public
-        |
-        +-- Git source
-        |
-        +-- Docker build context
-        +-- frontend source
-        +-- server source
-        +-- agent source
-
-Docker image
-        |
-        +-- lums:latest
-
-Docker container
-        |
-        +-- lums
-
-Docker volume
-        |
-        +-- lums-data
-        +-- /var/lib/lums/lums.db
-```
-
-The Git repository is not the database.
-
-The Docker image is not the persistent database.
-
-The container itself should not be treated as persistent application storage.
-
-Persistent application data belongs in the Docker volume.
-
-The current production container is intentionally replaceable.
-
-The persistent state is kept separately from the container lifecycle.
+Do not manually modify the `users` table unless a documented recovery procedure explicitly requires database-level intervention.
 
 ---
 
-# 5. Important Paths
+## 15. Password Administration
 
-## 5.1 Application source
+Passwords are application credentials and must be treated as sensitive information.
+
+Administrators should ensure that:
+
+* passwords are not shared
+* passwords are not stored in Git
+* passwords are not placed in documentation
+* passwords are not included in screenshots
+* passwords are not written into shell history unnecessarily
+* users receive their credentials through an appropriate secure channel
+
+LUMS stores password hashes rather than plaintext passwords.
+
+If a password is suspected to be compromised, replace it through the appropriate account-management procedure rather than attempting to recover the original password.
+
+---
+
+## 16. Sessions
+
+LUMS uses authenticated application sessions for web access.
+
+Session handling is part of the application's security boundary.
+
+Administrators should treat an unexpected authenticated session as a security event if the associated account should no longer have access.
+
+Relevant situations include:
+
+* disabled account still appearing active
+* unexpected administrative access
+* suspected credential compromise
+* unexpected browser session
+* security investigation
+
+For detailed session and authentication troubleshooting, see `troubleshooting.md`.
+
+---
+
+## 17. Login Rate Limiting
+
+LUMS applies rate limiting to repeated failed login attempts.
+
+The current progression is:
+
+| Failed attempts |     Lockout |
+| --------------: | ----------: |
+|               5 |  30 seconds |
+|               6 |  60 seconds |
+|               7 | 120 seconds |
+|              8+ | 300 seconds |
+
+Rate-limit state is persisted in SQLite.
+
+A successful login clears the applicable failed-attempt state.
+
+Repeated authentication failures should be investigated rather than bypassing the rate limiter.
+
+Possible causes include:
+
+* incorrect credentials
+* outdated saved credentials
+* an automated client using incorrect credentials
+* repeated manual login attempts
+* a possible credential attack
+
+---
+
+## 18. Client Management
+
+Managed clients are Linux systems running the LUMS Agent.
+
+A client provides LUMS with information such as:
+
+* client identity
+* installed software
+* available updates
+* package-management results
+* update-job results
+* reboot state
+* operational status
+
+The LUMS server stores the client state and exposes it through the web interface.
+
+The client performs the actual package-management operations locally.
+
+---
+
+## 19. Client Authentication
+
+Each managed client authenticates to LUMS using a client token.
+
+The token acts as a credential for the managed client.
+
+Treat client tokens with the same care as passwords.
+
+Never:
+
+* commit tokens to Git
+* place tokens in public documentation
+* include tokens in screenshots
+* paste tokens into issue trackers
+* expose tokens in diagnostic output
+* share one client's token with another client
+
+A token should only be installed on the client for which it was issued.
+
+---
+
+## 20. Client Registration
+
+A new client must first be registered with LUMS.
+
+The registration process establishes the server-side client identity and authentication credential.
+
+After registration:
+
+1. install the LUMS Agent
+2. configure the client token
+3. configure the LUMS server endpoint
+4. establish TLS trust
+5. perform an initial agent run
+6. verify that the client reports successfully
+7. confirm the client appears in the LUMS interface
+
+A client should not be considered operational merely because the Agent service starts successfully.
+
+The server must receive and accept a valid client report.
+
+---
+
+## 21. Client Status
+
+The client view should be used to distinguish between different operational states.
+
+Examples include:
+
+* client registered but not reporting
+* client reporting normally
+* client reporting stale information
+* client disabled
+* client authentication failure
+* client-side package-manager failure
+
+When a client stops reporting, first determine whether the problem is:
+
+1. network connectivity
+2. TLS trust
+3. client authentication
+4. Agent execution
+5. server availability
+6. server-side processing
+
+Avoid changing client credentials before establishing which layer is actually failing.
+
+---
+
+## 22. Client Token Rotation
+
+Client tokens can be rotated when required.
+
+Typical reasons include:
+
+* suspected token exposure
+* credential rotation policy
+* administrative maintenance
+* replacement of a client configuration
+* security incident response
+
+Token rotation changes the credential accepted for the client.
+
+After rotation:
+
+1. obtain the new client token
+2. update the client configuration
+3. run the Agent
+4. verify successful authentication
+5. verify the resulting client report
+6. confirm normal reporting resumes
+
+Do not remove the old client configuration until the new authentication path has been verified.
+
+---
+
+## 23. Disabling a Client
+
+A client can be disabled when it should no longer participate in LUMS operations.
+
+Examples include:
+
+* system decommissioning
+* temporary maintenance
+* client replacement
+* suspected credential compromise
+
+Before disabling a client, check whether active update jobs are associated with it.
+
+After disabling:
+
+* verify that the client is no longer treated as operational
+* review relevant update-job history
+* preserve audit information required for investigation
+
+Do not delete persistent client data merely because a client is temporarily offline.
+
+---
+
+## 24. Client Administration Checklist
+
+When adding or changing a client, verify the complete chain:
 
 ```text
-/opt/lums-public
+[ ] Client exists in LUMS
+[ ] Client is enabled
+[ ] Client token is valid
+[ ] TLS trust is valid
+[ ] LUMS Agent is installed
+[ ] Agent configuration is valid
+[ ] Initial report succeeds
+[ ] Client appears in the Web UI
+[ ] Installed software is reported
+[ ] Available updates are reported
+[ ] Update jobs can be tracked
+[ ] Results are returned correctly
 ```
 
-## 5.2 Docker configuration
+A client is operational only when the complete reporting and authentication chain works.
+
+---
+
+## 25. Administrative Principle
+
+User administration and client administration should remain separate.
+
+A LUMS application account determines **what a person is allowed to do**.
+
+A client token determines **which managed system is allowed to communicate with LUMS**.
 
 ```text
-/etc/lums/docker/lums.env
+Application User
+      │
+      └── Role / Permissions
+
+Managed Client
+      │
+      └── Client Token / Identity
 ```
 
-## 5.3 Flask secret
+Do not use one mechanism as a substitute for the other.
+
+## 26. Software Inventory
+
+LUMS maintains software information reported by managed clients.
+
+The software inventory allows administrators and operators to determine which packages are installed on a client.
+
+The inventory is collected by the LUMS Agent and reported to the server.
+
+The server then makes the reported information available through the client interface.
+
+The inventory should be treated as a snapshot of the client's reported state.
+
+It does not replace the native package manager.
+
+---
+
+## 27. Installed Software
+
+The **Installed Software** section displays packages reported by the selected client.
+
+Administrators and Operators can use the local package filter to narrow the displayed inventory.
+
+The installed-software filter is a local interface function.
+
+It is separate from the package-management search.
+
+This distinction is important:
 
 ```text
-/etc/lums/secrets/lums_secret
+Installed Software
+    │
+    └── Filter already reported package inventory
+
+Package Management
+    │
+    └── Search the client's package repositories
 ```
 
-The Flask secret is deliberately stored separately from the normal Docker environment configuration.
+An installed package may therefore not appear in the package-management search if it is no longer available in a configured repository.
 
-The production container receives the secret through:
+---
+
+## 28. Available Updates
+
+LUMS also collects information about packages for which updates are available.
+
+Available-update information is generated on the managed client using its native package-management system.
+
+The reported information can be used to identify packages that require attention.
+
+Before creating an update job, review:
+
+* client identity
+* package name
+* currently installed version
+* available version
+* package status
+* whether the client is currently reachable
+
+Do not assume that every available update should immediately be installed.
+
+Operational requirements, maintenance windows, application dependencies, and client state should be considered before execution.
+
+---
+
+## 29. Package Management
+
+LUMS provides centralized package-management operations for supported Linux clients.
+
+Current package-management actions include:
+
+* `INSTALL_PACKAGE`
+* `REMOVE_PACKAGE`
+* `UPDATE_PACKAGE`
+* `UPDATE_SYSTEM`
+
+The operation is requested through LUMS but executed locally by the LUMS Agent.
+
+The Agent delegates the actual package operation to the native package manager.
 
 ```text
-/run/secrets/lums_secret
+LUMS Web UI
+      │
+      ▼
+LUMS API
+      │
+      ▼
+Update Job
+      │
+      ▼
+LUMS Agent
+      │
+      ├── APT / dpkg
+      │
+      └── pacman
 ```
 
-using:
+LUMS therefore remains independent of the package database and package-management implementation of the operating system.
+
+---
+
+## 30. Package Search
+
+The **Package Management** interface provides a package search that is separate from the installed-software filter.
+
+The search requests package information from the managed client.
+
+On Debian-based systems, the Agent uses the APT package-management tools.
+
+On Arch Linux, the Agent uses `pacman`.
+
+Search results may contain:
+
+* package name
+* package version
+* package description
+* repository information where available
+
+Package search does not install anything.
+
+A search is therefore a read-only operation.
+
+---
+
+## 31. Installing a Package
+
+Administrators and Operators can create package-installation jobs.
+
+The normal workflow is:
+
+1. select the managed client
+2. open **Package Management**
+3. search for the required package
+4. review the result
+5. select the installation action
+6. create the job
+7. monitor execution
+8. verify the result
+9. refresh or recheck the installed software
+
+The package is installed by the Agent using the native package manager.
+
+The successful creation of the job does not mean that installation has already completed.
+
+The final job result must be checked.
+
+---
+
+## 32. Removing a Package
+
+Package removal follows the same controlled job workflow.
+
+Before removing a package, verify:
+
+* the correct client
+* the correct package
+* the intended operation
+* whether other software depends on the package
+
+After execution, verify the resulting job status and the client's reported software state.
+
+LUMS does not bypass package-manager dependency handling.
+
+The native package manager remains responsible for resolving the operation.
+
+---
+
+## 33. Updating a Package
+
+A specific package can be updated when an update is available.
+
+The workflow is:
 
 ```text
-LUMS_SECRET_KEY_FILE=/run/secrets/lums_secret
+Available Update
+      │
+      ▼
+Review Package
+      │
+      ▼
+Create UPDATE_PACKAGE Job
+      │
+      ▼
+Agent Execution
+      │
+      ▼
+Result Validation
 ```
 
-## 5.4 TLS
+LUMS validates the package information before creating the corresponding update job.
+
+If the package is no longer listed as updateable, the job request should not be treated as a valid update operation.
+
+This prevents stale update information from being blindly executed.
+
+---
+
+## 34. Updating the System
+
+`UPDATE_SYSTEM` performs a broader system update using the client's native package-management mechanism.
+
+This operation affects more than one package and should therefore be treated as a maintenance operation.
+
+Before starting a system update, verify:
+
+* client availability
+* maintenance window
+* currently running jobs
+* package-manager state
+* available disk space where relevant
+* whether a reboot may be required
+
+After the update, verify:
+
+* job result
+* client report
+* installed software
+* available updates
+* reboot state
+
+---
+
+## 35. Update Jobs
+
+All mutating package and update operations are represented as LUMS update jobs.
+
+This provides a common execution and tracking model.
+
+Typical job lifecycle:
 
 ```text
-/etc/lums/tls/lums.crt
-/etc/lums/tls/lums.key
+PENDING
+   │
+   ▼
+RUNNING
+   │
+   ├──────────────► FAILED
+   │
+   ▼
+SUCCESS
 ```
 
-## 5.5 Database
+A job may also require additional handling when the client becomes unavailable or execution is interrupted.
 
-Inside the container:
+The job history should be used as the authoritative operational record rather than relying solely on the current client view.
+
+---
+
+## 36. Job Creation
+
+Before creating an update job, verify the intended operation carefully.
+
+Check:
+
+* client
+* action
+* package
+* target version where applicable
+* current package state
+* maintenance requirements
+
+Supported actions include:
+
+| Action            | Purpose                      |
+| ----------------- | ---------------------------- |
+| `INSTALL_PACKAGE` | Install a package            |
+| `REMOVE_PACKAGE`  | Remove a package             |
+| `UPDATE_PACKAGE`  | Update a specific package    |
+| `UPDATE_SYSTEM`   | Perform a system-wide update |
+
+Update-job creation is restricted to **Administrator** and **Operator** roles.
+
+Viewers cannot create update jobs.
+
+---
+
+## 37. Job Execution
+
+After creation, the job is processed by the LUMS Agent.
+
+The Agent receives the job and executes the requested operation locally.
+
+The server tracks the resulting state.
+
+The Agent does not treat a successful HTTP request as proof that the package operation succeeded.
+
+Instead, the actual package-manager result is returned to LUMS.
+
+This distinction is important:
+
+```text
+API request accepted
+        ≠
+Package operation successful
+```
+
+The final execution result must therefore always be checked.
+
+---
+
+## 38. Job Results
+
+A completed job should contain an explicit result.
+
+Relevant outcomes include:
+
+* successful execution
+* failed execution
+* package-manager error
+* interrupted execution
+* recovery-related state
+* reboot-related state where applicable
+
+Administrators and Operators should inspect the result when a job fails rather than immediately repeating the same operation.
+
+Repeated execution without understanding the original failure can make diagnosis more difficult.
+
+---
+
+## 39. Job History
+
+The update history provides an operational record of previous update activity.
+
+Use it to answer questions such as:
+
+* Was this package already updated?
+* Which client executed the operation?
+* When was the job created?
+* When did execution begin?
+* When did execution finish?
+* Did the operation succeed?
+* Did the package manager report an error?
+
+Historical job information is especially important when investigating repeated failures or interrupted maintenance operations.
+
+---
+
+## 40. Failed Jobs
+
+When a job fails:
+
+1. record the client and job ID
+2. inspect the job result
+3. determine whether the failure occurred on the server or client
+4. inspect the relevant Agent logs
+5. inspect the native package-manager state
+6. correct the underlying problem
+7. retry only after the cause is understood
+
+Common causes include:
+
+* unavailable repositories
+* package-manager locks
+* network problems
+* invalid package requests
+* dependency conflicts
+* insufficient disk space
+* interrupted package operations
+* client authentication or communication problems
+
+Detailed diagnostic procedures are documented in `troubleshooting.md`.
+
+---
+
+## 41. Package-Manager Locks
+
+APT and pacman may prevent concurrent package operations.
+
+If a package-management operation fails because the package manager is already in use:
+
+* identify the active package-management process
+* determine which operation is running
+* wait for the legitimate operation to finish when appropriate
+* retry the LUMS operation afterward
+
+Do **not** blindly delete package-manager lock files while the package manager is running.
+
+Removing a lock file does not resolve the underlying concurrent operation and can damage package-management state.
+
+---
+
+## 42. Idle-Aware Execution
+
+LUMS can use client idle information when determining whether an update job should execute.
+
+This mechanism is intended to avoid interrupting active interactive use of a managed system.
+
+Idle detection is performed by the Agent on the client.
+
+If idle information is unavailable, the Agent must report that condition rather than inventing an idle state.
+
+Administrators should distinguish between:
+
+* client is idle
+* client is active
+* idle detection unavailable
+* client unreachable
+
+These states have different operational meanings.
+
+---
+
+## 43. Update Execution Monitoring
+
+During maintenance, monitor:
+
+* job state
+* client connectivity
+* Agent activity
+* package-manager result
+* reboot requirement
+
+Do not assume that a job remaining in `RUNNING` indefinitely means that the package manager is still working.
+
+If execution appears stuck, investigate the client and Agent state before creating another job.
+
+---
+
+## 44. Reboot Requirements
+
+Some package and system updates may require a reboot.
+
+LUMS tracks reboot-related state reported by the managed client.
+
+After a system update:
+
+1. inspect the reported reboot state
+2. determine whether a reboot is required
+3. perform the reboot during an appropriate maintenance window
+4. allow the Agent to report again
+5. verify the client returns to normal operation
+
+A reboot requirement should not automatically be interpreted as an update failure.
+
+---
+
+## 45. Operational Update Checklist
+
+For routine package maintenance:
+
+```text
+[ ] Correct client selected
+[ ] Client is reachable
+[ ] Current software state reviewed
+[ ] Available updates reviewed
+[ ] Correct package/action selected
+[ ] Maintenance requirements checked
+[ ] Update job created
+[ ] Job execution monitored
+[ ] Job result verified
+[ ] Installed software verified
+[ ] Available updates rechecked
+[ ] Reboot state checked
+[ ] Job history reviewed if required
+```
+
+The operation is complete only after the resulting client state has been verified.
+
+---
+
+## 46. Package Management Principle
+
+LUMS provides centralized orchestration and visibility.
+
+The managed operating system remains responsible for actual package management.
+
+Therefore:
+
+> **LUMS requests and tracks the operation. The native package manager performs it.**
+
+This separation allows LUMS to manage different Linux systems while preserving the package-management semantics of each operating system.
+
+## 47. Job Recovery
+
+LUMS is designed to handle interrupted update jobs without blindly repeating operations that have already completed successfully.
+
+Update execution uses checkpoint information to track progress.
+
+This is particularly important when:
+
+* the Agent is interrupted
+* the client reboots
+* the server is restarted
+* network communication is temporarily unavailable
+* a package operation completes before the result is reported
+
+The recovery mechanism uses the recorded job state to determine which work still needs to be performed.
+
+---
+
+## 48. Package-Level Checkpointing
+
+Jobs containing multiple package operations are processed individually.
+
+A successful package operation is recorded before the Agent proceeds to the next operation.
+
+Conceptually:
+
+```text
+Job
+ │
+ ├── Package A → SUCCESS
+ │
+ ├── Package B → SUCCESS
+ │
+ ├── Package C → interrupted
+ │
+ └── Package D → PENDING
+```
+
+After recovery, already completed package operations should not be executed again unnecessarily.
+
+The remaining work can then continue from the recorded state.
+
+This reduces the risk of repeating package operations after an interruption.
+
+---
+
+## 49. Interrupted Jobs
+
+When an update job is interrupted, do not immediately create a replacement job.
+
+First determine:
+
+1. which job was interrupted
+2. which package operation was active
+3. which package operations already succeeded
+4. whether the package manager completed the operation
+5. whether the Agent recovered the job automatically
+6. whether the client requires a reboot
+
+The existing job history and Agent logs should be inspected before manual intervention.
+
+---
+
+## 50. Agent Recovery
+
+The Agent is responsible for continuing recoverable work after an interruption.
+
+Recovery should preserve successful package results wherever possible.
+
+If a package operation is already recorded as successful, recovery must not blindly execute that same operation again.
+
+If recovery cannot safely determine the state of an operation, the condition should be treated as an operational problem and investigated.
+
+Do not manually change job states in the database simply to make a job appear complete.
+
+---
+
+## 51. Server Restart During a Job
+
+A restart of the LUMS server does not necessarily mean that the client-side package operation was interrupted.
+
+The server and client have separate execution states.
+
+After a server restart:
+
+1. verify that the LUMS container is running
+2. verify database availability
+3. verify the client can communicate with LUMS
+4. inspect affected update jobs
+5. check Agent reports
+6. verify the final package state
+
+The client-side execution result remains the important source of truth for the package operation.
+
+---
+
+## 52. Client Restart During a Job
+
+A client restart may interrupt Agent execution or occur because the update itself requires a reboot.
+
+These situations must be distinguished.
+
+### Expected reboot
+
+The update completed and the system requires a reboot.
+
+### Unexpected interruption
+
+The system restarted before the operation completed or before the result could be reported.
+
+After the client returns:
+
+1. allow the Agent to start normally
+2. verify communication with LUMS
+3. inspect the affected job
+4. verify package state
+5. check reboot status
+6. allow recovery to continue when applicable
+
+---
+
+## 53. Reboot Detection
+
+LUMS can track reboot requirements reported by the managed client.
+
+Reboot detection is not the same as detecting whether the machine is currently reachable.
+
+These are separate states:
+
+```text
+Client reachable
+        │
+        ├── reboot not required
+        │
+        └── reboot required
+
+Client unreachable
+        │
+        └── current state cannot be confirmed
+```
+
+Administrators should therefore avoid treating an unreachable client as proof that a reboot is required.
+
+---
+
+## 54. Post-Reboot Verification
+
+After a required reboot:
+
+1. wait for the operating system to become available
+2. verify the Agent service or timer
+3. verify client authentication
+4. verify the client report
+5. inspect the affected update job
+6. verify installed package versions
+7. verify available updates
+8. check whether another reboot is required
+
+A reboot should be considered operationally complete only after the client has successfully reported again.
+
+---
+
+## 55. Update Job Monitoring
+
+Administrators and Operators should monitor jobs during planned maintenance.
+
+Important states include:
+
+| State     | Meaning                                  |
+| --------- | ---------------------------------------- |
+| `PENDING` | Job exists but execution has not started |
+| `RUNNING` | Job execution is in progress             |
+| `SUCCESS` | Execution completed successfully         |
+| `FAILED`  | Execution completed with an error        |
+
+A job state should always be interpreted together with its result information.
+
+For example, a `FAILED` job should be investigated using its recorded result rather than simply retried.
+
+---
+
+## 56. Execution Watcher
+
+The LUMS Agent includes a dedicated execution watcher.
+
+The watcher is responsible for monitoring update-job execution on the client.
+
+Its purpose is to support reliable execution handling independently from the reporting workflow.
+
+The current watcher version is:
+
+**Watcher 1.2.1**
+
+The Agent version is:
+
+**Agent 1.7.0**
+
+These versions should be verified after client upgrades.
+
+---
+
+## 57. Watcher Monitoring
+
+Administrators can inspect the watcher through systemd on the managed client.
+
+Useful checks include:
+
+```bash
+systemctl status lums-agent-watcher.service --no-pager
+```
+
+and:
+
+```bash
+journalctl -u lums-agent-watcher.service --no-pager -n 100
+```
+
+The timer can be inspected with:
+
+```bash
+systemctl status lums-agent-watcher.timer --no-pager
+```
+
+The exact active/inactive state of a oneshot service should be interpreted together with its timer and journal.
+
+An `inactive (dead)` state is not automatically an error for a oneshot service.
+
+---
+
+## 58. Reporting and Execution Timers
+
+LUMS separates regular client reporting from execution monitoring.
+
+The reporting timer is responsible for scheduled Agent execution.
+
+The watcher timer is responsible for scheduled watcher execution.
+
+Inspect both when diagnosing client-side scheduling problems:
+
+```bash
+systemctl list-timers --all | grep lums-agent
+```
+
+Expected units include:
+
+```text
+lums-agent.timer
+lums-agent-watcher.timer
+```
+
+If a timer is not running, inspect:
+
+```bash
+systemctl status lums-agent.timer --no-pager
+systemctl status lums-agent-watcher.timer --no-pager
+```
+
+Then inspect the corresponding journal entries.
+
+---
+
+## 59. Audit Logging
+
+LUMS records important administrative and security-relevant application actions in the audit log.
+
+Audit information can help establish:
+
+* which operation occurred
+* which user initiated it
+* which client was affected
+* when the operation occurred
+* whether the operation was accepted
+* which administrative action was performed
+
+Audit information should be treated as operational evidence.
+
+It should not be casually deleted or modified.
+
+---
+
+## 60. Administrative Audit Events
+
+Relevant administrative activity includes operations such as:
+
+* user creation
+* role assignment
+* client management
+* token rotation
+* update-job creation
+* package-management operations
+* authentication-related security events
+
+The exact event data depends on the operation.
+
+Administrators should use audit information together with job history when investigating unexpected activity.
+
+---
+
+## 61. Audit Log Handling
+
+Audit logs should be handled carefully.
+
+Do not:
+
+* modify historical audit entries to hide an operation
+* expose sensitive credentials in exported logs
+* publish logs containing client tokens
+* publish passwords or authentication material
+* copy sensitive log output into public issue trackers
+
+If logs must be shared for troubleshooting, redact credentials and other sensitive information first.
+
+---
+
+## 62. Application Logs
+
+Application logs describe the internal operation of the LUMS server.
+
+Useful sources include:
+
+```bash
+sudo docker logs --tail 100 lums
+```
+
+For live monitoring:
+
+```bash
+sudo docker logs -f lums
+```
+
+When investigating a problem, narrow the time window where possible.
+
+Do not automatically dump the entire production log when a smaller relevant section is sufficient.
+
+---
+
+## 63. Agent Logs
+
+Client-side Agent activity can be inspected through systemd:
+
+```bash
+journalctl -u lums-agent.service --no-pager -n 100
+```
+
+For watcher activity:
+
+```bash
+journalctl -u lums-agent-watcher.service --no-pager -n 100
+```
+
+For a specific time window, systemd journal filtering can be used.
+
+Example:
+
+```bash
+journalctl -u lums-agent.service \
+    --since "30 minutes ago" \
+    --no-pager
+```
+
+Logs should be correlated with the affected job ID whenever possible.
+
+---
+
+## 64. Log Correlation
+
+When investigating an update problem, correlate information across the system:
+
+```text id="jv3j7c"
+Web UI
+  │
+  ├── Job ID
+  │
+  ▼
+LUMS API / Application Log
+  │
+  ▼
+Update Job
+  │
+  ▼
+Agent
+  │
+  ▼
+Native Package Manager
+```
+
+This prevents the common mistake of assuming that a problem observed in one layer originated in that same layer.
+
+---
+
+## 65. Administrative Monitoring Checklist
+
+During normal operation, periodically verify:
+
+```text
+[ ] LUMS container is running
+[ ] HTTPS endpoint is available
+[ ] Database is accessible
+[ ] Clients are reporting
+[ ] No unexpected failed jobs
+[ ] No unexplained authentication failures
+[ ] Agent timers are active
+[ ] Watcher timers are active
+[ ] Package-manager operations complete normally
+[ ] Audit activity is available
+[ ] Logs contain no unexplained recurring errors
+```
+
+The frequency of these checks should match the operational importance of the LUMS deployment.
+
+---
+
+## 66. Recovery Principle
+
+When an update problem occurs, the safest administrative approach is:
+
+```text
+Observe
+   │
+   ▼
+Identify affected job/client
+   │
+   ▼
+Inspect state and logs
+   │
+   ▼
+Determine actual failure point
+   │
+   ▼
+Correct underlying problem
+   │
+   ▼
+Allow recovery or retry
+   │
+   ▼
+Verify final state
+   │
+   ▼
+Document significant incidents
+```
+
+Avoid destructive recovery actions unless the actual failure state is understood.
+
+In particular, do not manually delete jobs, database records, package-manager locks, or persistent client data merely to restore a clean-looking interface.
+
+> **Preserve evidence first. Repair state second. Verify the result third.**
+
+## 67. Database Administration
+
+LUMS uses SQLite as its application database.
+
+The production database is stored inside the persistent Docker volume:
 
 ```text
 /var/lib/lums/lums.db
 ```
 
-Persistent storage:
+The database is persistent across container replacement as long as the Docker volume is preserved.
+
+The database contains application state such as:
+
+* users
+* managed clients
+* update jobs
+* package information
+* audit information
+* authentication-related state
+* migration state
+
+Administrators should treat the database as critical application data.
+
+---
+
+## 68. SQLite Runtime Configuration
+
+The current production SQLite baseline is:
+
+| Setting        | Value                      |
+| -------------- | -------------------------- |
+| `journal_mode` | `delete`                   |
+| `busy_timeout` | `5000`                     |
+| `synchronous`  | `2`                        |
+| `foreign_keys` | enabled by the application |
+
+The application explicitly enables SQLite foreign-key enforcement for database connections.
+
+Administrators should not change these settings casually.
+
+Changes to database runtime configuration should be tested before being introduced into production.
+
+---
+
+## 69. Database Integrity
+
+Database integrity should be checked when there are indications of database corruption or unexpected application behavior.
+
+A typical SQLite integrity check is:
+
+```bash id="f0g8sl"
+sudo docker exec lums \
+    sqlite3 /var/lib/lums/lums.db \
+    "PRAGMA integrity_check;"
+```
+
+A healthy database should return:
+
+```text
+ok
+```
+
+If the integrity check reports errors, do not continue modifying application state blindly.
+
+Preserve the affected database and investigate the cause.
+
+---
+
+## 70. Database Migrations
+
+LUMS uses application migrations to introduce database changes.
+
+Migrations should be allowed to run through the application's normal startup and migration mechanism.
+
+Administrators should not manually modify migration state simply to bypass an error.
+
+After an application update, verify:
+
+1. the container starts successfully
+2. migrations complete
+3. the application is reachable
+4. existing users remain available
+5. existing clients remain available
+6. existing job history remains available
+
+---
+
+## 71. Persistent Docker Volume
+
+The Docker volume containing LUMS application data is a critical persistent resource.
+
+The production volume is:
 
 ```text
 lums-data
 ```
 
-## 5.6 Agent
+Inspect it with:
 
-```text
-/opt/lums-agent/agent.py
-/opt/lums-agent/watcher.py
-/opt/lums-agent/lums-ca.crt
-/etc/default/lums-agent
+```bash id="f3z2kd"
+sudo docker volume inspect lums-data
 ```
 
-Do not place private keys, tokens, passwords or environment secrets inside Git.
+The volume must remain attached when replacing the LUMS container.
+
+Removing the container does **not** remove the volume automatically.
+
+Removing the volume, however, permanently removes the persistent application data unless a separate backup exists.
 
 ---
 
-# 6. Frontend Structure
+## 72. Container Administration
 
-The frontend is part of the application source tree.
+The LUMS application runs inside a hardened Docker container.
 
-Current runtime paths inside the container are:
+The production security baseline includes:
 
-```text
-/app/server/templates/
-/app/server/static/
-```
+* non-root application user
+* read-only root filesystem
+* dropped Linux capabilities
+* `no-new-privileges`
+* restricted temporary filesystems
+* read-only secret mount
+* dedicated persistent data volume
+* localhost-only application port
 
-Important frontend files include:
-
-```text
-/app/server/templates/login.html
-/app/server/templates/index.html
-/app/server/templates/client.html
-
-/app/server/static/style.css
-/app/server/static/theme.js
-/app/server/static/network.js
-/app/server/static/client.js
-```
-
-The frontend contains:
-
-* HTML templates
-* CSS
-* JavaScript
-* theme handling
-* network visualization
-* dashboard presentation
-* client token rotation controls
-* update management controls
-
-The frontend is served by the Flask application and becomes part of the Docker image during deployment.
-
-Frontend changes therefore require a new application image before they become active in the running container.
+The container should not be started with weaker security settings merely because troubleshooting becomes more convenient.
 
 ---
 
-# 7. Theme System
+## 73. Container Status
 
-LUMS currently provides six themes:
+Check the current container state with:
 
-```text
-standard
-LUMSStadium
-golf
-nerd
-geek
-admin
+```bash id="4n6p2v"
+sudo docker ps --filter name=lums
 ```
 
-The user-facing name of:
+Inspect the complete runtime configuration with:
 
-```text
-admin
-```
-
-is:
-
-```text
-Enterprise Admin
-```
-
-Theme selection is handled by:
-
-```text
-server/static/theme.js
-```
-
-The selected theme is stored in the browser using:
-
-```text
-localStorage
-```
-
-with the key:
-
-```text
-lums-theme
-```
-
-Theme selection therefore does not require a database entry.
-
-The currently selected theme is applied through:
-
-```html
-<html data-theme="...">
-```
-
-Examples:
-
-```html
-<html data-theme="standard">
-```
-
-```html
-<html data-theme="geek">
-```
-
-```html
-<html data-theme="admin">
-```
-
-Theme state is presentation state only.
-
-Changing the theme does not modify:
-
-* authentication
-* authorization
-* client tokens
-* update jobs
-* agent communication
-* database state
-* audit history
-
----
-
-# 8. Theme Administration
-
-The standard LUMS interface remains the default theme.
-
-Available themes:
-
-| Identifier    | User-facing name | Character               |
-| ------------- | ---------------- | ----------------------- |
-| `standard`    | Standard LUMS    | Original interface      |
-| `LUMSStadium` | LUMS Stadium     | Stadium / Game-Day      |
-| `golf`        | Golf Club        | Club / Golf             |
-| `nerd`        | Nerd Mode        | Terminal / CRT / Matrix |
-| `geek`        | Geek Lab         | Technical / Network     |
-| `admin`       | Enterprise Admin | Operations Console      |
-
-Theme state is client-side.
-
-Changing a theme does not modify:
-
-* database state
-* authentication
-* authorization
-* update jobs
-* client tokens
-* agent communication
-* audit logging
-
-Theme selection is therefore independent from server-side operational state.
-
----
-
-# 9. Enterprise Admin Theme
-
-The Enterprise Admin theme is intentionally designed as an operational management console.
-
-Its design principles are:
-
-* light gray background
-* white panels
-* dark blue/gray header
-* restrained blue accents
-* thin borders
-* compact spacing
-* small corner radius
-* minimal shadows
-* no gradients
-* no neon effects
-* no large decorative icons
-* no unnecessary animations
-* information-dense tables
-* simple status indicators
-
-Enterprise-specific CSS should remain scoped using:
-
-```css
-html[data-theme="admin"]
-```
-
-The dedicated CSS section is located at the end of:
-
-```text
-server/static/style.css
-```
-
-and is marked:
-
-```text
-/* =========================================================
-   LUMS // ENTERPRISE ADMIN
-   Operations Console
-   ========================================================= */
-```
-
-Avoid global CSS changes when modifying Enterprise Admin.
-
-Theme-specific styling must not alter application behavior.
-
----
-
-# 10. Geek Network Visualization
-
-The Geek theme provides:
-
-```text
-The Living Network
-```
-
-The implementation is located in:
-
-```text
-server/static/network.js
-```
-
-The script exposes:
-
-```javascript
-window.LumsNetwork
-```
-
-with:
-
-```text
-start
-stop
-destroy
-```
-
-The visualization contains:
-
-* drifting nodes
-* connection lines
-* moving packets
-* dynamic network activity
-
-The network visualization is only active when:
-
-```text
-data-theme="geek"
-```
-
-is active.
-
-For other themes the network visualization is stopped.
-
-Reduced-motion preferences are respected.
-
-The visualization is a frontend presentation feature only.
-
-It does not participate in:
-
-* authentication
-* authorization
-* job execution
-* client communication
-* database persistence
-* audit logging
-
----
-
-# 11. Nerd Theme
-
-The Nerd theme provides a terminal/CRT/Matrix-style visual presentation.
-
-The Matrix-style effect is controlled by:
-
-```text
-server/static/theme.js
-```
-
-It is only activated when:
-
-```text
-lums-theme = nerd
-```
-
-The Nerd theme must remain independent from:
-
-```text
-Geek / The Living Network
-```
-
-Theme-specific visual effects must not leak into other themes.
-
-The Nerd theme does not modify server-side application behavior.
-
----
-
-# 12. Docker Administration
-
-## 12.1 Check container
-
-```bash
-sudo docker ps
-```
-
-Expected container:
-
-```text
-lums
-```
-
-## 12.2 Check all containers
-
-```bash
-sudo docker ps -a
-```
-
-## 12.3 Inspect container
-
-```bash
+```bash id="k1q4z8"
 sudo docker inspect lums
 ```
 
-## 12.4 Check container status
+Important properties include:
 
-```bash
-sudo docker inspect \
-    -f '{{.State.Status}}' \
-    lums
-```
-
-## 12.5 Check restart policy
-
-```bash
-sudo docker inspect \
-    -f '{{.HostConfig.RestartPolicy.Name}}' \
-    lums
-```
-
-Expected:
-
-```text
-unless-stopped
-```
-
-The container should be treated as a replaceable runtime instance.
-
-Persistent application state must remain outside the container filesystem.
+* running state
+* restart policy
+* user
+* read-only root filesystem
+* capabilities
+* security options
+* port bindings
+* volume mounts
 
 ---
 
-# 13. Container Security State
+## 74. Container Security Verification
 
-The current production container is hardened.
+The hardened runtime should continue to provide the expected properties.
 
-The verified runtime properties are:
+For example:
 
-```text
-User:
-    lums
-
-ReadonlyRootfs:
-    true
-
-CapDrop:
-    ALL
-
-Privileged:
-    false
-```
-
-The container also uses:
-
-```text
-/tmp:
-    tmpfs
-
-/tmp flags:
-    rw,nosuid,nodev,noexec
-```
-
-Verify:
-
-```bash
+```bash id="0u7x3n"
 sudo docker inspect lums \
-    --format \
-    'User={{.Config.User}} ReadonlyRootfs={{.HostConfig.ReadonlyRootfs}} CapDrop={{json .HostConfig.CapDrop}} Privileged={{.HostConfig.Privileged}}'
+    --format '{{.Config.User}} {{.HostConfig.ReadonlyRootfs}} {{.HostConfig.Privileged}}'
+```
+
+The expected baseline is equivalent to:
+
+```text
+lums true false
+```
+
+Capabilities should remain dropped:
+
+```bash id="k5n8ae"
+sudo docker inspect lums \
+    --format '{{json .HostConfig.CapDrop}}'
 ```
 
 Expected:
 
 ```text
-User=lums ReadonlyRootfs=true CapDrop=["ALL"] Privileged=false
+["ALL"]
 ```
 
-The production documentation intentionally does not rely on a fixed numeric UID here.
+Security options should include:
 
-The configured container user is the authoritative runtime identity.
-
-The hardened runtime configuration must be preserved during container recreation.
+```text
+no-new-privileges:true
+```
 
 ---
 
-# 14. Docker Image
+## 75. Application Port
 
-The application image is:
+The LUMS application listens on the host through the loopback interface.
 
-```text
-lums:latest
-```
-
-Build it from the repository:
-
-```bash
-cd /opt/lums-public
-
-sudo docker build \
-    -t lums:latest \
-    .
-```
-
-Check the image:
-
-```bash
-sudo docker images lums
-```
-
-Verify the configured container user:
-
-```bash
-sudo docker image inspect \
-    lums:latest \
-    --format 'User={{.Config.User}}'
-```
-
-Expected:
+The expected mapping is:
 
 ```text
-User=lums
+127.0.0.1:5050 → container:5000
 ```
 
-The current application image is based on:
+Verify it with:
 
-```text
-python:3.13-slim
+```bash id="b6v2w0"
+sudo docker port lums
 ```
 
-The image contains:
+The application port should not be exposed directly to the LAN.
 
-* Flask application
-* Gunicorn
-* frontend assets
-* database initialization code
-* application dependencies
-* theme assets
-* required application source
-
-The image itself must not be treated as persistent storage.
+External access is provided through Nginx over HTTPS.
 
 ---
 
-# 15. Container Startup
+## 76. Nginx and HTTPS
 
-The container starts through:
+Nginx provides the external HTTPS entry point for LUMS.
 
-```text
-/app/docker-entrypoint.sh
-```
-
-The startup sequence is:
+The normal request path is:
 
 ```text
-Docker
-   |
-   v
-docker-entrypoint.sh
-   |
-   +--> database initialization / migrations
-   |
-   v
-Gunicorn
-   |
-   +--> Worker
-   +--> Worker
-   |
-   v
-Flask application
-```
-
-The entrypoint prepares the database before starting Gunicorn.
-
-The production application uses Gunicorn rather than the Flask development server.
-
-The current production Gunicorn deployment uses:
-
-```text
-Gunicorn 23.0.0
-gthread worker
-```
-
-The internal application binding is:
-
-```text
-0.0.0.0:5000
-```
-
-The Docker host exposes that application only through:
-
-```text
-127.0.0.1:5050
-```
-
-Gunicorn access and application logs are emitted to the container log stream.
-
----
-
-# 16. Container Recreation
-
-Recreating the container does not remove the persistent database as long as the Docker volume is preserved.
-
-The current hardened recreation procedure is:
-
-```bash
-sudo docker stop lums
-
-sudo docker rm lums
-
-sudo docker run -d \
-    --name lums \
-    --restart unless-stopped \
-    --read-only \
-    --cap-drop=ALL \
-    --tmpfs /tmp:rw,nosuid,nodev,noexec \
-    -e LUMS_SECRET_KEY_FILE=/run/secrets/lums_secret \
-    -v /etc/lums/secrets/lums_secret:/run/secrets/lums_secret:ro \
-    -v lums-data:/var/lib/lums \
-    -p 127.0.0.1:5050:5000 \
-    lums:latest
-```
-
-Verify:
-
-```bash
-sudo docker ps
-```
-
-Then:
-
-```bash
-sudo docker logs --tail 100 lums
-```
-
-After recreation, verify at minimum:
-
-```text
-container running
-persistent volume mounted
-secret readable
-localhost binding present
-read-only root filesystem
-capabilities dropped
-non-root user
-HTTPS through Nginx
-database integrity
-```
-
-The hardened options are part of the production configuration and must not be omitted from a normal deployment.
-
----
-
-# 17. Critical Docker Rule
-
-Never remove the persistent database volume as part of a normal application deployment.
-
-The following command is destructive:
-
-```bash
-sudo docker volume rm lums-data
-```
-
-It removes persistent application data.
-
-Do not execute it unless a complete reset is explicitly intended and a verified backup exists.
-
-Normal container replacement is:
-
-```text
-stop
-   ↓
-remove container
-   ↓
-build / select image
-   ↓
-create container
-   ↓
-reuse lums-data
-```
-
-The volume must remain separate from the container lifecycle.
-
----
-
-# 18. Docker Logs
-
-View recent logs:
-
-```bash
-sudo docker logs \
-    --tail 100 \
-    lums
-```
-
-Follow logs:
-
-```bash
-sudo docker logs \
-    -f \
-    lums
-```
-
-View logs with timestamps:
-
-```bash
-sudo docker logs \
-    --timestamps \
-    --tail 200 \
-    lums
-```
-
-The application emits structured application log messages for important operational events.
-
-Examples include:
-
-```text
-Client report
-Update job created
-Update job claimed
-```
-
-Gunicorn access and error output is also available through Docker logs.
-
-For troubleshooting, start with:
-
-```bash
-sudo docker ps
-sudo docker logs --tail 100 lums
-```
-
-before changing configuration.
-
-Never use logs as a reason to expose secrets.
-
-Review logs before publishing them externally.
-
----
-
-# 19. Secret Administration
-
-The Flask application secret is stored outside the normal environment configuration.
-
-Current production path:
-
-```text
-/etc/lums/secrets/lums_secret
-```
-
-The container receives:
-
-```text
-LUMS_SECRET_KEY_FILE=/run/secrets/lums_secret
-```
-
-The secret is mounted read-only:
-
-```text
-/etc/lums/secrets/lums_secret
-        |
-        | read-only
-        v
-/run/secrets/lums_secret
-```
-
-The production environment must not contain:
-
-```text
-LUMS_SECRET_KEY=<secret>
-```
-
-The protected file is intentionally separated from the normal application environment configuration.
-
-The secret must never be committed to Git.
-
-It must also never be written into application logs or audit details.
-
----
-
-# 20. Secret File Permissions
-
-The secret directory should be restricted.
-
-The secret file is expected to be readable by the configured container group while remaining inaccessible to unrelated users.
-
-Check:
-
-```bash
-sudo stat \
-    -c '%U:%G %a %n' \
-    /etc/lums/secrets/lums_secret
-```
-
-The currently documented production configuration is:
-
-```text
-root:lums 640 /etc/lums/secrets/lums_secret
-```
-
-Never display the secret itself.
-
-When changing ownership or permissions, verify the running container can still read the mounted secret before considering the change complete.
-
-A secret permission change should therefore be followed by:
-
-```text
-container startup check
-        ↓
-application log check
-        ↓
-authentication check
-```
-
-# 21. Secret Verification
-
-Verify the secret configuration without printing the secret itself:
-
-```bash
-sudo docker exec lums sh -c '
-if [ -n "${LUMS_SECRET_KEY:-}" ]; then
-    echo "LUMS_SECRET_KEY=PRESENT"
-else
-    echo "LUMS_SECRET_KEY=ABSENT"
-fi
-
-echo "LUMS_SECRET_KEY_FILE=${LUMS_SECRET_KEY_FILE}"
-
-if [ -r /run/secrets/lums_secret ]; then
-    echo "SECRET_FILE=READABLE"
-else
-    echo "SECRET_FILE=NOT_READABLE"
-fi
-'
-```
-
-Expected:
-
-```text
-LUMS_SECRET_KEY=ABSENT
-LUMS_SECRET_KEY_FILE=/run/secrets/lums_secret
-SECRET_FILE=READABLE
-```
-
-The actual secret value must never be printed.
-
----
-
-# 22. Flask Secret Rotation
-
-A Flask secret rotation is a controlled security change.
-
-Before rotation:
-
-1. Verify that the database is healthy.
-2. Create a database backup.
-3. Verify the backup.
-4. Generate a replacement secret.
-5. Replace the protected secret file.
-6. Restart the LUMS container.
-7. Verify application startup.
-8. Verify HTTPS.
-9. Verify authentication.
-10. Confirm that old sessions are no longer accepted.
-
-Changing the Flask secret invalidates existing Flask sessions.
-
-The replacement secret must not be stored in:
-
-```text
-Git
-Docker image layers
-application logs
-audit details
-normal environment configuration
-```
-
-Never record the old or new secret in documentation or logs.
-
-After rotation, the administrator should verify the complete authentication path before considering the change complete.
-
----
-
-# 23. Nginx Administration
-
-Nginx provides the external HTTPS endpoint.
-
-The architecture is:
-
-```text
-Client
-  |
-  v
+Client Browser
+      │
+      ▼
 HTTPS :443
-  |
-  v
+      │
+      ▼
 Nginx
-  |
-  v
+      │
+      ▼
 127.0.0.1:5050
-  |
-  v
-Docker :5000
-  |
-  v
-Gunicorn
-  |
-  v
-Flask
+      │
+      ▼
+LUMS Container
 ```
 
-Flask/Gunicorn is therefore not directly exposed to the network.
+The Docker application port should remain bound to localhost.
 
-Nginx is responsible for the externally reachable HTTP/TLS layer.
-
-The application should not be exposed directly on:
-
-```text
-0.0.0.0:5000
-```
-
-or:
-
-```text
-0.0.0.0:5050
-```
-
-The intended host-side application binding remains:
-
-```text
-127.0.0.1:5050
-```
+Administrators should therefore avoid exposing port `5050` directly through the firewall or Docker configuration.
 
 ---
 
-# 24. Nginx Configuration Test
+## 77. HTTPS Verification
 
-Before reloading Nginx:
+After Nginx changes, always validate the configuration before reloading:
 
-```bash
+```bash id="7f1h9m"
 sudo nginx -t
 ```
 
-Only reload after the configuration test succeeds:
+If the configuration is valid:
 
-```bash
+```bash id="4g5s2w"
 sudo systemctl reload nginx
 ```
 
-Check status:
+Then verify HTTPS:
 
-```bash
-sudo systemctl status nginx --no-pager
+```bash id="2w8v6c"
+curl -kI https://127.0.0.1/
 ```
 
-A configuration test should be performed before every intentional Nginx configuration reload.
+A successful HTTPS response confirms that Nginx can reach the LUMS application.
 
-If the test fails, do not reload the broken configuration.
+Certificate validation should also be tested using the hostname or address that administrators normally use.
+
+Do not permanently disable certificate verification with `-k`.
 
 ---
 
-# 25. Nginx Logs
+## 78. HTTP Redirect
 
-Error log:
+The HTTP endpoint should redirect clients to HTTPS.
 
-```bash
-sudo tail \
-    -n 100 \
-    /var/log/nginx/error.log
+Verify:
+
+```bash id="w5q0rx"
+curl -I http://127.0.0.1/
 ```
 
-Access log:
+The expected behavior is an HTTP redirect to the HTTPS endpoint.
 
-```bash
-sudo tail \
-    -n 100 \
-    /var/log/nginx/access.log
-```
-
-Follow errors:
-
-```bash
-sudo tail \
-    -f \
-    /var/log/nginx/error.log
-```
-
-When troubleshooting an HTTP error, correlate Nginx logs with:
-
-```text
-Docker logs
-application logs
-browser request
-client request
-```
-
-A request reaching Nginx does not necessarily mean that it reached Flask.
+Administrative access should use HTTPS.
 
 ---
 
-# 26. Network and Health Checks
+## 79. TLS Certificate Maintenance
 
-## 26.1 Check local application binding
+TLS certificates and private keys are external to the Docker image.
 
-```bash
-sudo ss -lntp | grep ':5050'
-```
-
-Expected:
-
-```text
-127.0.0.1:5050
-```
-
-Port `5000` should not be directly exposed by the host.
-
-The intended flow is:
-
-```text
-127.0.0.1:5050
-        ↓
-Docker
-        ↓
-5000/tcp
-```
-
----
-
-## 26.2 Test local application endpoint
-
-```bash
-curl -I \
-    http://127.0.0.1:5050/
-```
-
-Expected behavior for an unauthenticated browser request:
-
-```text
-HTTP/1.1 302 FOUND
-Location: /login
-```
-
-The exact HTTP status should be interpreted together with the current application routing.
-
-LUMS does not currently provide a dedicated `/health` endpoint.
-
-Therefore, requesting an endpoint that does not exist can legitimately return:
-
-```text
-404
-```
-
-without proving that the application itself is unavailable.
-
----
-
-## 26.3 Test HTTPS endpoint
-
-```bash
-curl -kI \
-    https://<LUMS_HOST>/
-```
-
-The `-k` option is intended only for controlled certificate diagnostics.
-
-It must not replace proper certificate trust in production automation.
-
-For normal operation, clients should validate the server certificate through the configured CA/trust chain.
-
----
-
-# 27. TLS Administration
-
-TLS certificates are stored outside the Git repository.
-
-Current paths:
+Typical locations are:
 
 ```text
 /etc/lums/tls/lums.crt
 /etc/lums/tls/lums.key
 ```
 
-Private keys must never be committed to Git.
+Private keys must remain protected.
 
-Check certificate information:
+Before replacing a certificate:
 
-```bash
-sudo openssl x509 \
-    -in /etc/lums/tls/lums.crt \
-    -noout \
-    -subject \
-    -issuer \
-    -dates
-```
+1. verify the new certificate
+2. verify the matching private key
+3. verify file permissions
+4. validate the Nginx configuration
+5. reload Nginx
+6. verify HTTPS
+7. verify application login
 
-Check permissions:
-
-```bash
-sudo stat /etc/lums/tls/lums.crt
-sudo stat /etc/lums/tls/lums.key
-```
-
-After certificate changes:
-
-```bash
-sudo nginx -t
-sudo systemctl reload nginx
-```
-
-After reloading, verify:
-
-```bash
-curl -kI \
-    https://<LUMS_HOST>/
-```
-
-Certificate replacement is not complete until both the Nginx configuration and the externally reachable HTTPS endpoint have been verified.
+Never place private TLS keys into the Git repository or Docker image.
 
 ---
 
-# 28. TLS Protocols
+## 80. Secret Management
 
-The current Nginx configuration permits:
+The application secret is stored outside the container image.
 
-```text
-TLS 1.2
-TLS 1.3
-```
-
-Older TLS protocol versions must remain disabled.
-
-Verify:
-
-```bash
-sudo nginx -T | grep -n \
-    'ssl_protocols'
-```
-
-Expected:
+The production secret is mounted read-only into the container:
 
 ```text
-ssl_protocols TLSv1.2 TLSv1.3;
+/etc/lums/secrets/lums_secret
+        │
+        ▼
+/run/secrets/lums_secret
 ```
 
-If the active configuration differs from the documented state, verify the complete Nginx configuration before changing anything.
+The application receives the secret through:
+
+```text
+LUMS_SECRET_KEY_FILE
+```
+
+Administrators must never:
+
+* commit the secret
+* print the secret
+* include the secret in documentation
+* expose it in screenshots
+* place it into an image layer
+
+If the secret is suspected to be exposed, treat it as compromised and follow the appropriate secret-rotation procedure.
 
 ---
 
-# 29. Security Headers
+## 81. Backup Strategy
 
-The current HTTPS deployment provides:
+LUMS data should be backed up before significant administrative changes.
 
-```text
-X-Content-Type-Options: nosniff
-X-Frame-Options: DENY
-Referrer-Policy: no-referrer
-```
+At minimum, consider protecting:
 
-and:
+* SQLite application data
+* application configuration
+* TLS material
+* application secrets
+* client configuration information
+* relevant operational documentation
 
-```text
-Permissions-Policy:
-camera=(),
-microphone=(),
-geolocation=(),
-payment=()
-```
+Backups should be stored separately from the production container and its persistent Docker volume.
 
-The current Content Security Policy includes:
-
-```text
-default-src 'self';
-script-src 'self';
-style-src 'self';
-img-src 'self' data:;
-font-src 'self';
-connect-src 'self';
-object-src 'none';
-base-uri 'self';
-frame-ancestors 'none';
-form-action 'self'
-```
-
-Verify:
-
-```bash
-curl -kI \
-    https://<LUMS_HOST>/
-```
-
-Security headers should remain present after frontend and Nginx changes.
-
-A frontend change that unexpectedly causes a CSP violation should be investigated before weakening the policy.
+A backup that exists only inside the same host or Docker volume does not provide adequate protection against loss of that host or volume.
 
 ---
 
-# 30. Agent Configuration
+## 82. Database Backup
 
-The LUMS agent is installed outside the Docker container.
+The SQLite database should be backed up using a SQLite-aware method rather than simply copying an actively modified database file without consideration of its state.
 
-Current paths include:
+Before performing a backup:
 
-```text
-/opt/lums-agent/agent.py
-/opt/lums-agent/watcher.py
-/opt/lums-agent/lums-ca.crt
-/etc/default/lums-agent
-```
+1. identify the production database
+2. ensure the backup destination is available
+3. create the backup using an appropriate SQLite-safe method
+4. verify that the backup exists
+5. record when it was created
 
-Current agent version:
-
-```text
-1.7.0
-```
-
-Current Watcher version:
-
-```text
-1.2.1
-```
-
-A documented configuration example is:
-
-```text
-LUMS_BASE=https://<LUMS_HOST>
-LUMS_TOKEN=<CLIENT_TOKEN>
-LUMS_CA_FILE=/opt/lums-agent/lums-ca.crt
-```
-
-The actual client token must never be included in documentation.
-
-Protect the configuration:
-
-```bash
-sudo chown root:root /etc/default/lums-agent
-sudo chmod 600 /etc/default/lums-agent
-```
-
-Verify permissions:
-
-```bash
-sudo stat \
-    -c '%U:%G %a %n' \
-    /etc/default/lums-agent
-```
-
-Never print the real token during troubleshooting.
+Do not assume that a successful file copy automatically means that a valid recoverable database backup exists.
 
 ---
 
-# 31. Agent Authentication
+## 83. Backup Verification
 
-The agent authenticates against LUMS using a client-specific Bearer token.
+A backup is not considered reliable until it has been tested.
 
-Conceptually:
+Periodically verify that a backup can be:
 
-```text
-Client
-   |
-   | HTTPS
-   | Authorization: Bearer <CLIENT_TOKEN>
-   v
-LUMS API
-   |
-   v
-Client identity
+* read
+* opened as SQLite data
+* checked for integrity
+* restored into an isolated test environment
+
+For example, an extracted test copy can be checked with:
+
+```bash id="p3v7cx"
+sqlite3 /path/to/test-copy.db \
+    "PRAGMA integrity_check;"
 ```
 
-The server does not store the plaintext client token.
-
-Instead, the token is represented by a SHA-256 digest.
-
-Token rotation therefore follows:
+Expected result:
 
 ```text
-Administrator
-      ↓
-authenticated rotation request
-      ↓
-new token generated
-      ↓
-SHA-256 digest stored
-      ↓
-old token invalidated
-      ↓
-new token presented once
+ok
 ```
 
-After rotation, the client must be configured with the replacement token.
-
-The old token must no longer authenticate.
+A production backup should never be tested by overwriting the active production database.
 
 ---
 
-# 32. Client Token Rotation
+## 84. Restore Principle
 
-Client token rotation is an administrative operation.
+Restoration is a controlled administrative operation.
 
-Before rotating a token:
+Before restoring:
 
-1. Identify the correct client.
-2. Verify that the administrator is authenticated.
-3. Confirm that the client is the intended target.
-4. Rotate the token through the LUMS administrative interface.
-5. Store the replacement token securely.
-6. Update the client configuration.
-7. Trigger a controlled agent report.
-8. Verify successful authentication.
-9. Confirm that the old token is invalid.
+1. identify the correct backup
+2. verify its integrity
+3. determine the required recovery point
+4. stop or isolate application activity as appropriate
+5. preserve the current production state
+6. restore the backup
+7. verify database integrity
+8. start the application
+9. verify migrations
+10. verify users and clients
+11. verify job history
+12. verify normal client reporting
 
-The replacement token should be treated as a credential.
-
-It must not be placed in:
-
-```text
-Git
-screenshots
-logs
-audit details
-public documentation
-```
-
-The plaintext token is intended to be presented only during the rotation workflow.
+Do not overwrite the only copy of the production database during recovery.
 
 ---
 
-# 33. Client Token Diagnostics
+## 85. Restore Verification
 
-When a client stops authenticating after a token change, verify the configuration without revealing the token.
+After a restore, verify at minimum:
+
+```text id="q6r2yh"
+[ ] Container starts
+[ ] Database opens
+[ ] SQLite integrity check passes
+[ ] Users are present
+[ ] Roles are correct
+[ ] Clients are present
+[ ] Client authentication works
+[ ] Job history is present
+[ ] Audit information is available
+[ ] HTTPS works
+[ ] Clients can report
+[ ] New operations can be created
+```
+
+A restore is complete only after the application and its managed clients have been verified.
+
+---
+
+## 86. Server Backup Principle
+
+The most important administrative rule for persistent LUMS data is:
+
+> **Never perform a destructive database or volume operation without a verified recovery path.**
+
+In particular, do not remove `lums-data` merely because the container is being rebuilt or replaced.
+
+Container replacement and persistent-data deletion are separate operations.
+
+---
+
+## 87. Administrative Server Checklist
+
+Before making a significant server-side change:
+
+```text id="7h3m0p"
+[ ] Current container state recorded
+[ ] Current image recorded
+[ ] Database backup available
+[ ] Backup integrity verified
+[ ] Active jobs reviewed
+[ ] Client reporting state reviewed
+[ ] Configuration changes documented
+[ ] TLS material available
+[ ] Secret handling verified
+[ ] Rollback path known
+```
+
+Only after these conditions have been considered should a significant production change proceed.
+
+---
+
+## 88. Server Administration Principle
+
+LUMS separates application state from the disposable application container.
+
+```text
+Disposable
+└── LUMS Container
+
+Persistent
+├── SQLite Database
+└── lums-data Volume
+
+External
+├── TLS Material
+└── Application Secret
+```
+
+This separation allows the application container to be replaced without intentionally destroying persistent application data.
+
+> **Replace the application when necessary. Preserve the data unless data deletion is explicitly intended.**
+
+## 89. Routine Maintenance
+
+Routine maintenance keeps the LUMS installation reliable and reduces the risk of unexpected operational problems.
+
+Typical maintenance activities include:
+
+* reviewing failed update jobs
+* checking client reporting
+* reviewing application logs
+* reviewing audit activity
+* verifying backups
+* checking available disk space
+* reviewing Docker container state
+* checking TLS certificate validity
+* reviewing security updates
+* verifying the current LUMS version and image
+
+Maintenance should be performed during an appropriate maintenance window when changes can affect production clients.
+
+---
+
+## 90. Maintenance Before Changes
+
+Before performing maintenance that may affect the LUMS server:
+
+1. review active update jobs
+2. verify that clients are not undergoing unexpected maintenance
+3. create or verify a current backup
+4. record the current container and image state
+5. document the planned change
+6. ensure a rollback path exists
+
+Do not begin maintenance by immediately stopping or deleting production components.
+
+First establish the current state.
+
+---
+
+## 91. Docker Image Maintenance
+
+LUMS application images should be rebuilt from the reviewed source tree.
+
+Before building a new image:
+
+```bash id="x0m7r4"
+cd /opt/lums-public
+```
+
+Run the automated test suite:
+
+```bash id="4gk1dp"
+./.venv-test/bin/pytest -q
+```
+
+Only proceed when the test result is understood.
+
+Build the new image using a distinct temporary tag:
+
+```bash id="m8q3vz"
+sudo docker build -t lums:new .
+```
+
+A temporary tag allows the currently running image to remain identifiable during the replacement process.
+
+---
+
+## 92. Image Verification
+
+After building a new image, verify that the image exists:
+
+```bash id="h6s2we"
+sudo docker image inspect lums:new
+```
+
+Review the image configuration before deployment.
+
+Where appropriate, verify:
+
+* image digest
+* base image
+* application files
+* installed dependencies
+* image size
+* exposed ports
+* configured user
+
+The image should be deployed only after the build and test results have been reviewed.
+
+---
+
+## 93. Controlled Container Replacement
+
+Container replacement should be performed deliberately.
+
+Before replacing the production container:
+
+```text id="m3z8qk"
+[ ] Tests passed
+[ ] New image exists
+[ ] Database backup available
+[ ] Active jobs reviewed
+[ ] Current image recorded
+[ ] Persistent volume confirmed
+[ ] Secret available
+[ ] TLS configuration available
+[ ] Rollback image identified
+```
+
+Stop the existing container only after these conditions have been considered.
+
+The production container should retain the hardened runtime configuration.
 
 Example:
 
-```bash
-sudo awk -F= '
-/^LUMS_BASE=/ {
-    print "LUMS_BASE=<set>"
-}
-/^LUMS_TOKEN=/ {
-    print "LUMS_TOKEN=<set>"
-}
-/^LUMS_CA_FILE=/ {
-    print "LUMS_CA_FILE=" $2
-}
-' /etc/default/lums-agent
+```bash id="n8q2kf"
+sudo docker stop lums
+sudo docker rename lums lums-before-upgrade
 ```
 
-Then verify the CA file:
+Then start the new image with the established hardened configuration:
 
-```bash
-test -f /opt/lums-agent/lums-ca.crt \
-    && echo "CA file present" \
-    || echo "CA file missing"
+```bash id="c7w4md"
+sudo docker run -d \
+    --name lums \
+    --restart unless-stopped \
+    --read-only \
+    --cap-drop=ALL \
+    --security-opt=no-new-privileges:true \
+    --tmpfs /tmp:rw,noexec,nosuid,size=64m \
+    --tmpfs /run:rw,noexec,nosuid,size=16m \
+    -p 127.0.0.1:5050:5000 \
+    -v /etc/lums/secrets/lums_secret:/run/secrets/lums_secret:ro \
+    -v lums-data:/var/lib/lums \
+    -e LUMS_SECRET_KEY_FILE=/run/secrets/lums_secret \
+    lums:new
 ```
 
-Check the service:
-
-```bash
-sudo systemctl status \
-    lums-agent.service \
-    --no-pager
-```
-
-Trigger a controlled report:
-
-```bash
-sudo systemctl start \
-    lums-agent.service
-```
-
-Then inspect:
-
-```bash
-sudo journalctl \
-    -u lums-agent.service \
-    --since "10 minutes ago" \
-    --no-pager
-```
-
-Do not test authentication by printing the actual token.
+Do not remove `lums-before-upgrade` until the new deployment has been validated.
 
 ---
 
-# 34. systemd Agent Service
+## 94. Post-Upgrade Validation
 
-The LUMS agent runs as a systemd service.
+Immediately after replacing the container, verify:
 
-The service is designed as a `oneshot` operation.
-
-A successful execution therefore normally ends with:
-
-```text
-inactive (dead)
+```bash id="b4m7tz"
+sudo docker ps --filter name=lums
 ```
 
-after the agent process exits successfully.
+Then inspect the logs:
 
-This is expected behavior.
+```bash id="v5n2ra"
+sudo docker logs --tail 100 lums
+```
 
-The recurring execution is handled by the corresponding timer.
+Verify HTTPS:
+
+```bash id="w9x1kf"
+curl -kI https://127.0.0.1/
+```
+
+Then verify the application through the normal administrative interface.
+
+---
+
+## 95. Persistent Data After Upgrade
+
+Container replacement must not remove the persistent Docker volume.
+
+Verify:
+
+```bash id="j4p8sx"
+sudo docker inspect lums \
+    --format '{{json .Mounts}}'
+```
+
+Confirm that:
+
+```text id="m7z3kc"
+/var/lib/lums
+```
+
+is backed by the expected persistent volume.
+
+Then verify:
+
+* users still exist
+* roles remain correct
+* clients remain registered
+* job history remains available
+* audit information remains available
+* migrations completed successfully
+
+---
+
+## 96. Security Baseline After Upgrade
+
+After deploying a new image, verify the hardened runtime again.
 
 Check:
 
-```bash
-sudo systemctl status \
-    lums-agent.service \
-    --no-pager
+```bash id="q6c3xv"
+sudo docker inspect lums \
+    --format '{{.Config.User}} {{.HostConfig.ReadonlyRootfs}} {{.HostConfig.Privileged}}'
 ```
 
-Run manually when required:
+Expected baseline:
 
-```bash
-sudo systemctl start \
-    lums-agent.service
+```text id="s0r8jm"
+lums true false
 ```
 
-For a successful oneshot service, the relevant result is the service execution result rather than whether the process remains running.
+Also verify:
 
----
-
-# 35. systemd Agent Timer
-
-The agent timer periodically starts the service.
-
-Conceptually:
-
-```text
-systemd timer
-      ↓
-lums-agent.service
-      ↓
-agent.py
-      ↓
-report / job processing
-      ↓
-exit
-      ↓
-wait for next timer
+```text id="g4m2vx"
+CapDrop = ALL
+SecurityOpt = no-new-privileges:true
 ```
 
-The timer remains active while the oneshot service starts and exits for each cycle.
+and that:
 
-Check:
-
-```bash
-sudo systemctl status \
-    lums-agent.timer \
-    --no-pager
+```text id="c3p9rw"
+127.0.0.1:5050 → container:5000
 ```
 
-Check the next scheduled execution:
+remains the application exposure.
 
-```bash
-systemctl list-timers \
-    lums-agent.timer \
-    --no-pager
-```
-
-A healthy timer should show a future trigger time.
+A successful application upgrade must not silently weaken the security baseline.
 
 ---
 
-# 36. Execution Watcher Service
+## 97. Client Communication After Upgrade
 
-The Execution Watcher is separate from the normal reporting service.
+After a server upgrade, verify that managed clients can still communicate.
 
-Current components:
+Check at least one representative client first.
 
-```text
-lums-agent-watcher.service
-lums-agent-watcher.timer
+Verify:
+
+```text id="x8h5qk"
+[ ] Client authentication succeeds
+[ ] Client report is accepted
+[ ] Installed software is available
+[ ] Available updates are available
+[ ] Update jobs can be created
+[ ] Agent results are accepted
 ```
 
-The current Watcher version is:
-
-```text
-1.2.1
-```
-
-The operational model is:
-
-```text
-lums-agent-watcher.timer
-        ↓
-lums-agent-watcher.service
-        ↓
-watcher.py
-        ↓
-job inspection / recovery / execution monitoring
-```
-
-Check the timer:
-
-```bash
-sudo systemctl status \
-    lums-agent-watcher.timer \
-    --no-pager
-```
-
-Check the service:
-
-```bash
-sudo systemctl status \
-    lums-agent-watcher.service \
-    --no-pager
-```
-
-View logs:
-
-```bash
-sudo journalctl \
-    -u lums-agent-watcher.service \
-    --since "30 minutes ago" \
-    --no-pager
-```
-
-The watcher participates in controlled job execution and interrupted-job recovery.
+If multiple client platforms are deployed, verify representative systems from each supported platform.
 
 ---
 
-# 37. Idle Detection
+## 98. Update Execution After Upgrade
 
-The current agent does not rely on:
+Do not immediately perform a large production update after replacing the LUMS server.
 
-```text
-w -h
-```
+First perform a controlled functional test.
 
-for idle detection.
+A suitable test should verify the complete path:
 
-Idle detection uses systemd-logind through:
-
-```text
-loginctl
-```
-
-The agent examines relevant user sessions and uses fields including:
-
-```text
-Class
-Type
-TTY
-State
-IdleHint
-IdleSinceHintMonotonic
-```
-
-The current idle source is:
-
-```text
-loginctl
-```
-
-The current idle threshold is:
-
-```text
-300 seconds
-```
-
-When idle detection is available, the agent reports:
-
-```text
-idle_source=loginctl
-idle_supported=True
-```
-
-This information allows the server-side job state and client-side execution behavior to distinguish active and idle sessions.
-
----
-
-# 38. Idle Detection Diagnostics
-
-List available sessions:
-
-```bash
-loginctl list-sessions \
-    --no-legend \
-    --no-pager
-```
-
-Inspect a session:
-
-```bash
-loginctl show-session \
-    <SESSION_ID>
-```
-
-Useful fields include:
-
-```text
-Class
-Type
-TTY
-State
-IdleHint
-IdleSinceHintMonotonic
-```
-
-An active user session should result in:
-
-```text
-idle = false
-```
-
-An idle session may allow an update job to continue once the configured threshold has been reached.
-
-The agent must not treat an unsupported or unreliable idle state as confirmed inactivity.
-
----
-
-# 39. Idle Detection Failure Behavior
-
-If logind information cannot be retrieved reliably, the agent does not pretend to know that the system is idle.
-
-Failure is treated conservatively.
-
-The intended behavior is:
-
-```text
-Idle state known
-      │
-      ├── active
-      │      ↓
-      │   wait
-      │
-      └── idle
-             ↓
-          continue
-```
-
-If the state cannot be established reliably:
-
-```text
-unknown
-   ↓
-do not assume idle
-```
-
-This prevents an uncertain session state from being interpreted as permission to perform a potentially disruptive update operation.
-
-Idle detection is therefore a safety control, not merely a scheduling convenience.
-
----
-
-# 40. Package Manager Detection
-
-The agent automatically detects the installed package manager.
-
-Current abstraction:
-
-```text
-detect_package_manager()
-        │
-        ├── apt      → AptPackageManager
-        │
-        └── pacman   → PacmanPackageManager
-```
-
-Implementation:
-
-```text
-agent/package_manager.py
-```
-
-Compile-check:
-
-```bash
-cd /opt/lums-public
-
-python3 -m py_compile \
-    agent/package_manager.py
-```
-
-The command should return without an error.
-
-The package-manager abstraction keeps distribution-specific operations outside the main update engine.
-
-The current tested implementations are:
-
-```text
-AptPackageManager
-PacmanPackageManager
-```
-
-The abstraction is responsible for operations such as:
-
-```text
-package inventory
-update detection
-package state
-install
-remove
-package update
-system update
-candidate version lookup
-```
-
-The actual command remains distribution-specific.
-
-# 41. APT Administration
-
-For Debian-based clients, LUMS uses the APT/dpkg backend.
-
-The relevant implementation is:
-
-```text
-agent/package_manager.py
-```
-
-The backend uses:
-
-```text id="j7kq3x"
-apt
-apt-get
-apt-cache
-dpkg-query
-```
-
-The agent uses separate operations for:
-
-```text id="3sm3jp"
-package inventory
-update detection
-package state
-package installation
-package removal
-package update
-system update
-candidate version lookup
-```
-
-The update detection command is executed with error checking enabled.
-
-This is important because an APT command failure must not silently appear as an empty update list.
-
-The current implementation therefore treats an unsuccessful update-detection command as an error.
-
----
-
-# 42. APT Package Inventory
-
-The installed package inventory is collected through:
-
-```text id="4p6x2b"
-dpkg-query
-```
-
-The agent reports the resulting package information to LUMS.
-
-A successful report contains the installed package inventory together with:
-
-```text id="8d5l0n"
-client identity
-hostname
-IP information
-package information
-available updates
-agent information
-idle information
-```
-
-The server stores the latest client state.
-
-The package inventory should therefore be interpreted as the state reported by the client during its most recent successful report.
-
----
-
-# 43. APT Update Detection
-
-Available updates are detected using:
-
-```bash id="4c5x8w"
-apt list --upgradable
-```
-
-The command is executed with subprocess error checking.
-
-This distinction is important.
-
-These two states must not be treated as equivalent:
-
-```text id="0ik9ty"
-No packages are upgradable
-```
-
-and:
-
-```text id="e8z0n3"
-APT update detection failed
-```
-
-The first is a valid clean state.
-
-The second is an operational error.
-
-The agent therefore propagates the failure instead of silently reporting an empty update list.
-
----
-
-# 44. APT Package Installation
-
-Package installation uses:
-
-```bash id="gxy4gr"
-apt-get install -y <package>
-```
-
-The exact package list is determined by the update job.
-
-The package name must be validated by the server before a job is created.
-
-The agent then executes only the packages belonging to the claimed job.
-
-The actual result is reported per package.
-
-A package can therefore result in:
-
-```text id="qq4m3f"
-success
-failed
-timeout
-```
-
-The server records the package result as part of the update history.
-
----
-
-# 45. APT Package Removal
-
-Package removal uses:
-
-```bash id="yl2nuw"
-apt-get remove -y <package>
-```
-
-Removal is an explicit job action.
-
-The server validates the requested package and the client ownership before the job becomes executable.
-
-Package removal must not be confused with update installation.
-
-The job action determines which package-manager operation is executed.
-
----
-
-# 46. APT Package Update
-
-A package-specific update uses:
-
-```bash id="4v3j3m"
-apt-get install --only-upgrade -y <package>
-```
-
-This operation instructs APT to update the selected package without installing it as a new package when it is not already installed.
-
-The server tracks the requested package as part of the update job.
-
-The agent reports the result after execution.
-
----
-
-# 47. APT System Update
-
-A complete system update uses:
-
-```bash id="qz1zri"
-apt-get upgrade -y
-```
-
-This is a broader operation than updating an individual package.
-
-The distinction is:
-
-```text id="w9of0a"
-UPDATE_PACKAGE
-    ↓
-selected package(s)
-
-UPDATE_SYSTEM
-    ↓
-system-wide package update
-```
-
-System-wide operations should be treated as higher-impact administrative actions.
-
-They should therefore be tested carefully before being used on production clients.
-
----
-
-# 48. APT Candidate Version
-
-The agent can query the candidate version of a package through:
-
-```bash id="u5v2h3"
-apt-cache policy <package>
-```
-
-The result is used when the agent needs package version information.
-
-The candidate version represents the version APT currently considers installable from the configured repositories.
-
-A candidate version is not by itself proof that the package update has already been installed.
-
-The actual installed state must be determined separately.
-
----
-
-# 49. pacman Administration
-
-For Arch Linux clients, LUMS uses the pacman backend.
-
-The implementation is:
-
-```text id="0v0x5g"
-agent/package_manager.py
-```
-
-The backend uses:
-
-```text id="q7gq8f"
-pacman
-```
-
-The supported operations are:
-
-```text id="y9wz6m"
-package inventory
-update detection
-package state
-package installation
-package removal
-package update
-system update
-candidate version lookup
-```
-
-The package-manager abstraction allows the update engine to use the same job model for Debian-based and Arch-based clients.
-
----
-
-# 50. pacman Package Inventory
-
-Installed packages are queried with:
-
-```bash id="xqg5a6"
-pacman -Q
-```
-
-The resulting inventory is included in the client report.
-
-The report allows LUMS to maintain a current view of the client package state.
-
-The package inventory belongs to the client report.
-
-It is not a live query from the LUMS server.
-
----
-
-# 51. pacman Update Detection
-
-Available updates are detected with:
-
-```bash id="4rmqge"
-pacman -Qu
-```
-
-The output is interpreted by the pacman backend.
-
-A clean result means that no updates are currently reported by pacman.
-
-An execution failure is different from an empty result and must remain distinguishable.
-
-This follows the same principle used for APT:
-
-```text id="v4v48x"
-successful command + empty result
-        ≠
-command failure
-```
-
----
-
-# 52. pacman Package Installation
-
-Package installation uses:
-
-```bash id="9d7r6p"
-pacman -S --noconfirm <package>
-```
-
-The requested package is taken from the authorized update job.
-
-The agent does not accept arbitrary package commands from the network.
-
-The job action and package list are determined by the LUMS server and validated before execution.
-
----
-
-# 53. pacman Package Removal
-
-Package removal uses:
-
-```bash id="w7xj0m"
-pacman -R --noconfirm <package>
-```
-
-Removal is handled as a separate job action.
-
-The server-side job model determines whether the requested operation is:
-
-```text id="0ctq6k"
-install
-remove
-update
-system update
-```
-
-The client executes the corresponding package-manager operation.
-
----
-
-# 54. pacman Package Update
-
-For a package-specific update, pacman uses:
-
-```bash id="g8aj1z"
-pacman -S --noconfirm <package>
-```
-
-The package is therefore explicitly requested from pacman.
-
-The resulting command execution is monitored by the agent.
-
-The result is reported back to LUMS.
-
----
-
-# 55. pacman System Update
-
-A complete Arch Linux system update uses:
-
-```bash id="l5h2ut"
-pacman -Syu --noconfirm
-```
-
-This operation can update multiple packages and potentially introduce a kernel or other system-level changes.
-
-It is therefore treated as a system-level update job rather than an ordinary package update.
-
-After a system update, the client may require a reboot.
-
-LUMS therefore performs reboot-required detection separately from the package execution itself.
-
----
-
-# 56. pacman Candidate Version
-
-The candidate version is queried through:
-
-```bash id="l4zv9x"
-pacman -Si <package>
-```
-
-The candidate version represents the package version currently available from the configured repositories.
-
-The installed version remains a separate piece of state.
-
-This distinction is important when comparing:
-
-```text id="xv7xw4"
-installed version
-        ↓
-current local package state
-
-candidate version
-        ↓
-currently available repository state
-```
-
----
-
-# 57. Reboot Detection
-
-LUMS checks whether a reboot may be required after update operations.
-
-For Debian-based systems, the current check uses:
-
-```text id="g8y3ez"
-/var/run/reboot-required
-```
-
-For Arch Linux, the agent uses the installed Linux kernel package information and compares available kernel module releases against the currently running kernel.
-
-The Arch implementation uses:
-
-```text id="eqf6a1"
-pacman -Ql linux
-```
-
-and checks paths under:
-
-```text id="jz2w0x"
-/usr/lib/modules/
-```
-
-The running kernel is obtained through:
-
-```text id="c1z3xk"
-platform.release()
-```
-
-The purpose is to detect the common case where a new kernel is installed while the system is still running an older kernel.
-
----
-
-# 58. Reboot Detection Safety
-
-Reboot detection is intentionally conservative.
-
-Unknown operating systems do not automatically receive a positive reboot-required state.
-
-Errors during detection do not result in a fabricated reboot requirement.
-
-The current behavior is conceptually:
-
-```text id="d7qf8h"
-known system
-    |
-    +-- reboot marker / kernel mismatch
-    |       ↓
-    |   reboot required
-    |
-    +-- no indication
-            ↓
-       no reboot detected
-```
-
-The detection mechanism is advisory state.
-
-It does not itself reboot a client.
-
-A reboot remains an explicit operational decision.
-
----
-
-# 59. Update Job Model
-
-An update job represents an authorized operation for a specific client.
-
-Conceptually:
-
-```text id="7m5x3e"
-Client
-   |
-   v
-Update Job
-   |
-   +-- Action
-   |
-   +-- Package(s)
-   |
-   +-- Status
-   |
-   +-- Ownership
-   |
-   +-- Execution state
-   |
-   +-- Result
-   |
-   +-- History
-```
-
-The job model separates:
-
-```text id="yq2q9s"
-requested operation
-execution state
-package result
-historical record
-```
-
-A job belongs to one client.
-
-A client cannot claim another client's job.
-
-The server validates this ownership before execution.
-
----
-
-# 60. Update Job Actions
-
-The current job actions include:
-
-```text id="v4w3u6"
-UPDATE_PACKAGE
-INSTALL_PACKAGE
-REMOVE_PACKAGE
-UPDATE_SYSTEM
-```
-
-The selected action determines the package-manager operation.
-
-Examples:
-
-```text id="0n9g0w"
-UPDATE_PACKAGE
-    ↓
-apt-get install --only-upgrade -y <package>
-
-INSTALL_PACKAGE
-    ↓
-apt-get install -y <package>
-
-REMOVE_PACKAGE
-    ↓
-apt-get remove -y <package>
-
-UPDATE_SYSTEM
-    ↓
-apt-get upgrade -y
-```
-
-or, on Arch:
-
-```text id="zh4y6e"
-UPDATE_PACKAGE
-    ↓
-pacman -S --noconfirm <package>
-
-INSTALL_PACKAGE
-    ↓
-pacman -S --noconfirm <package>
-
-REMOVE_PACKAGE
-    ↓
-pacman -R --noconfirm <package>
-
-UPDATE_SYSTEM
-    ↓
-pacman -Syu --noconfirm
-```
-
-The package-manager abstraction keeps these differences out of the central job model.
-
-# 61. Job Creation
-
-Update jobs are created through the LUMS administrative interface.
-
-The server validates the requested operation before creating the job.
-
-The validation includes:
-
-```text id="7v2h5p"
-authenticated administrative user
-        ↓
-authorized role
-        ↓
-valid client
-        ↓
-client ownership
-        ↓
-valid action
-        ↓
-valid package input
-        ↓
-job creation
-```
-
-The resulting job is associated with the selected client.
-
-The job is persisted in the database before execution begins.
-
-Creating a job does not immediately mean that the package operation is running.
-
-The job must first pass through the execution lifecycle.
-
----
-
-# 62. Job Lifecycle
-
-The operational lifecycle is:
-
-```text id="0l6p1r"
-created
-   ↓
-pending
-   ↓
-claimed
-   ↓
-running
-   ↓
-success / partial / failed
-```
-
-Interrupted execution can additionally result in a recovery path:
-
-```text id="5n2m6x"
-running
-   ↓
-interrupted
-   ↓
-recovery
-   ↓
-pending / abandoned / completed
-```
-
-The exact state depends on the execution and recovery conditions.
-
-The important administrative distinction is:
-
-```text id="f5q2q6"
-pending
-    = waiting for execution
-
-running
-    = execution has been claimed
-
-completed
-    = execution finished and result was recorded
-```
-
-A job must not be manually changed between states without understanding the corresponding execution state.
-
----
-
-# 63. Atomic Job Claiming
-
-A pending job must be claimed atomically.
-
-The purpose is to prevent two execution paths from processing the same job simultaneously.
-
-Conceptually:
-
-```text id="m1j0k4"
-Watcher A ──┐
-            ├──> atomic claim ──> Job
-Watcher B ──┘
-```
-
-Only one execution path should successfully transition the job into its running state.
-
-The claim operation therefore combines:
-
-```text id="t4qf8x"
-job selection
-+
-ownership validation
-+
-state validation
-+
-state transition
-```
-
-This prevents a race condition in which multiple workers could otherwise start the same update job.
-
----
-
-# 64. Job Ownership
-
-Every update job belongs to a specific client.
-
-The server validates the relationship:
-
-```text id="v5nq6h"
-job.client_id == requesting_client_id
-```
-
-before allowing client-side job operations.
-
-This applies to operations such as:
-
-```text id="4avqg2"
-claim
-checkpoint
-result
-abandon
-```
-
-A client must not be able to manipulate another client's job.
-
-The ownership check is part of the security model.
-
----
-
-# 65. Client-Side Job Discovery
-
-The agent communicates with the LUMS API to determine whether work is available.
-
-The conceptual flow is:
-
-```text id="h4s8s2"
-Agent
-  |
-  | authenticated request
-  v
-LUMS API
-  |
-  | pending job
-  v
-Client
-```
-
-The client does not receive arbitrary shell commands.
-
-The job contains structured information such as:
-
-```text id="x6j5k1"
-action
-package information
-job identity
-client ownership
-```
-
-The agent maps the authorized action to the appropriate package-manager operation.
-
----
-
-# 66. Job Claim
-
-Once a suitable job is discovered, the client attempts to claim it.
-
-The server performs the atomic state transition.
-
-Conceptually:
-
-```text id="l0d4gk"
-pending
-   |
-   | atomic claim
-   v
-running
-```
-
-If another execution path has already claimed the job, the second claim must not succeed.
-
-This is one of the protections against duplicate package execution.
-
-The client should therefore never assume that merely finding a pending job means that it owns the job.
-
----
-
-# 67. Job Execution
-
-After successful claiming:
-
-```text id="r5z9p3"
-running
-   ↓
-package manager
-   ↓
-command execution
-   ↓
-result collection
-   ↓
-result submission
-```
-
-The agent executes the operation locally.
-
-The LUMS server does not execute:
-
-```text id="8n2q8k"
-apt
-apt-get
-pacman
-dpkg
-```
-
-on behalf of the client.
-
-The client performs the operation.
-
-The server records the resulting state.
-
----
-
-# 68. Update Timeout
-
-Update execution is subject to a timeout.
-
-The purpose is to prevent a package-manager process from remaining indefinitely in a running state.
-
-The execution lifecycle includes:
-
-```text id="j8t6q1"
-start
-  ↓
-monitor
-  ↓
-timeout?
-  ├── no → normal completion
-  |
-  └── yes
-       ↓
-    terminate
-       ↓
-    grace period
-       ↓
-    kill if necessary
-```
-
-The implementation therefore does not rely on a single indefinite subprocess call.
-
-A timeout is represented separately from an ordinary package failure.
-
-The package result can therefore contain:
-
-```text id="0d3n7j"
-success
-failed
-timeout
-```
-
----
-
-# 69. Timeout Process Handling
-
-When a process exceeds the configured timeout, the agent first attempts graceful termination.
-
-If the process does not exit during the grace period, the process is forcefully terminated.
-
-The intended sequence is:
-
-```text id="n7u5c2"
-timeout
-  ↓
-terminate()
-  ↓
-grace period
-  ↓
-poll()
-  ↓
-kill() if still running
-```
-
-This prevents a timed-out package operation from leaving the agent permanently blocked.
-
-Timeout handling is especially important for:
-
-* package-manager stalls
-* repository/network problems
-* broken package scripts
-* interrupted system operations
-
----
-
-# 70. Package-Level Results
-
-LUMS tracks package results individually.
-
-A package result contains the package identity and execution status.
-
-Valid package statuses are:
-
-```text id="b0u8tr"
-success
-failed
-timeout
-```
-
-The server validates incoming job results.
-
-Invalid result data is rejected.
-
-The server verifies:
-
-```text id="o5n8j4"
-valid job
-+
-correct client
-+
-job currently running
-+
-valid overall status
-+
-valid package result structure
-+
-package belongs to job
-```
-
-This prevents arbitrary package results from being attached to unrelated jobs.
-
----
-
-# 71. Overall Job Result
-
-The overall job status can be:
-
-```text id="d9q1fk"
-success
-partial
-failed
-```
-
-The distinction is important.
-
-### Success
-
-All relevant operations completed successfully.
-
-### Partial
-
-At least part of the requested operation completed, while another part did not.
-
-### Failed
-
-The requested operation did not complete successfully.
-
-The server validates the submitted status before recording it.
-
----
-
-# 72. Job Result Reporting
-
-After execution, the client reports the result to LUMS.
-
-Conceptually:
-
-```text id="8a1g8j"
-Package Manager
-      ↓
-Agent
-      ↓
-Result validation
-      ↓
-LUMS API
-      ↓
-Database
-      ↓
-History
-```
-
-The result endpoint does not blindly accept arbitrary package data.
-
-The server validates the result structure before updating the database.
-
-Successful result processing updates the relevant job/package state and creates the corresponding history information.
-
----
-
-# 73. Update History
-
-Completed package operations become part of the update history.
-
-The history provides an administrative record of:
-
-```text id="k4v3j9"
-client
-job
-package
-action
-result
-timestamp
-```
-
-The history should be used to answer operational questions such as:
-
-```text id="j6y3x5"
-Was this update executed?
-Which client received it?
-When was it executed?
-Did it succeed?
-Which package was involved?
-```
-
-History is not a substitute for application logs.
-
-The two serve different purposes:
-
-```text id="c9m5x1"
-Application logs
-    ↓
-runtime / operational events
-
-Update history
-    ↓
-persistent update records
-```
-
----
-
-# 74. Checkpointing
-
-Long-running update operations use checkpoint information to preserve execution progress.
-
-A checkpoint allows the server to distinguish between:
-
-```text id="9k7v4n"
-job known to be running
-```
-
-and:
-
-```text id="x8w2r4"
-job that may have stopped reporting
-```
-
-The checkpoint belongs to the authenticated client/job relationship.
-
-The server validates that the reporting client owns the corresponding job.
-
-Checkpoint information is therefore part of the recovery mechanism.
-
----
-
-# 75. Running Job Recovery
-
-A running job can become interrupted if the client:
-
-* loses power
-* loses network connectivity
-* crashes
-* reboots
-* terminates the agent
-* becomes otherwise unreachable
-
-LUMS therefore does not assume that:
-
-```text id="j3g4m8"
-running
-```
-
-means:
-
-```text id="m2p8z1"
-process definitely still exists
-```
-
-The recovery mechanism evaluates stale execution state.
-
-The purpose is to prevent a permanently running job from blocking future execution.
-
----
-
-# 76. Recovery Principle
-
-The recovery model follows:
-
-```text id="5x8d2q"
-active execution
-      ↓
-checkpoint updates
-      ↓
-communication stops
-      ↓
-stale execution detected
-      ↓
-recovery evaluation
-      ↓
-safe state transition
-```
-
-The server must distinguish a temporarily unreachable client from a genuinely abandoned execution as far as the available state allows.
-
-Recovery therefore uses persisted job state rather than relying exclusively on the current network connection.
-
----
-
-# 77. Abandoned Jobs
-
-A job may eventually be classified as abandoned when recovery determines that the previous execution can no longer be considered active.
-
-An abandoned job must remain visible in the administrative history.
-
-The purpose is not to hide the interrupted execution.
-
-Instead:
-
-```text id="0v5f8p"
-interrupted execution
-        ↓
-recovery decision
-        ↓
-visible final state
-```
-
-This allows administrators to identify interrupted operations and investigate the corresponding client.
-
-An abandoned job should not silently disappear.
-
----
-
-# 78. Recovery and Ownership
-
-Recovery operations are also subject to client ownership.
-
-A client must not be able to recover or modify another client's job.
-
-The server therefore validates:
-
-```text id="l7f1q0"
-authenticated client
-        ↓
-client identity
-        ↓
-job ownership
-        ↓
-allowed recovery operation
-```
-
-This applies even when the job itself is already in a problematic state.
-
-Recovery is therefore part of the authorization boundary rather than an administrative bypass.
-
----
-
-# 79. Simulation Mode
-
-LUMS supports simulation mode for controlled testing.
-
-Simulation is intended to verify job handling without executing the real package-manager operation.
-
-The test principle is:
-
-```text id="w2t6p7"
-LUMS job
-   ↓
-agent
-   ↓
-simulation
-   ↓
-result
-```
-
-The actual package-manager operation must not be executed while simulation is active.
-
-Simulation tests cover:
-
-```text id="q5n9y3"
-UPDATE_PACKAGE
-INSTALL_PACKAGE
-REMOVE_PACKAGE
-UPDATE_SYSTEM
-unknown action
-```
-
-The tests explicitly guard against accidental execution of the real package-management commands.
-
-Simulation mode is therefore useful for testing the job lifecycle without modifying the client package state.
-
----
-
-# 80. Recommended Job Test
-
-Before using a newly deployed LUMS installation for real updates, perform a controlled test.
-
-Recommended sequence:
-
-```text id="n2g8v5"
-1. Verify client report
-2. Verify package inventory
-3. Verify available updates
-4. Create a controlled job
-5. Confirm client idle state
-6. Confirm job claim
-7. Monitor execution
-8. Verify result
-9. Verify history
-10. Verify final client state
-```
-
-For development or validation environments, simulation should be used before executing a real package-management operation.
-
-For production changes, select a known test package or otherwise controlled operation where appropriate.
-
-The objective is to validate the complete chain:
-
-```text id="w5k3r1"
+```text id="y7k2fd"
 Web UI
- ↓
+  ↓
 API
- ↓
-Database
- ↓
-Job
- ↓
+  ↓
+Update Job
+  ↓
 Agent
- ↓
+  ↓
 Package Manager
- ↓
+  ↓
 Result
- ↓
-History
+  ↓
+Database
+  ↓
+Web UI
 ```
 
-A successful dashboard response alone is not sufficient proof that the complete execution chain works.
-# 81. Debian Client Administration
-
-The Debian client is managed through the LUMS agent.
-
-The current verified Debian environment is:
-
-```text id="j3r5y7"
-Debian 13
-```
-
-The client uses:
-
-```text id="q8h4m1"
-APT / dpkg
-LUMS Agent 1.7.0
-```
-
-A successful client cycle includes:
-
-```text id="8j6s4k"
-package inventory
-        ↓
-update detection
-        ↓
-HTTPS report
-        ↓
-server authentication
-        ↓
-client state update
-```
-
-The current Debian client has successfully completed real agent execution and update reporting.
-
-The expected successful service result is:
-
-```text id="q2v5k8"
-status=0/SUCCESS
-```
-
-Because the agent service is a oneshot service, the service may subsequently appear as:
-
-```text id="6f3m8w"
-inactive (dead)
-```
-
-This is normal after a successful execution.
+Only after the controlled test succeeds should normal maintenance operations resume.
 
 ---
 
-# 82. Arch Linux Client Administration
+## 99. Rollback
 
-The Arch client is managed through the same LUMS agent architecture.
+Rollback should be possible when a new image causes an unexpected production problem.
 
-The current verified environment is:
+Preserve:
 
-```text id="5k9r2v"
-Arch Linux
-x86_64
-pacman
-```
+* previous working image
+* persistent data
+* database backup
+* previous configuration
+* previous TLS material
+* relevant logs
 
-The client uses:
+If the new container is not usable:
 
-```text id="n8j4p6"
-LUMS Agent 1.7.0
-Execution Watcher 1.2.1
-```
+1. stop the new container
+2. preserve it for investigation when practical
+3. stop further administrative changes
+4. restore the previously known-good image
+5. reuse the existing persistent volume
+6. start the hardened runtime
+7. verify the application
+8. verify clients
+9. verify job state
+10. investigate the failed image separately
 
-The current Arch package-management implementation has been tested directly.
-
-The regression check confirmed:
-
-```text id="4q7s3m"
-package_manager = pacman
-```
-
-and successful package-state/candidate-version handling.
-
-The client has also completed a successful real agent execution and reported a clean update state.
-
-The Arch client therefore uses the same management lifecycle as the Debian client while retaining its native package-manager implementation.
+Do not delete the persistent volume as part of a normal rollback.
 
 ---
 
-# 83. Client Authentication Model
+## 100. Rollback Validation
 
-LUMS uses two separate authentication boundaries.
+After rollback, verify:
 
-## Administrative users
-
-Administrative users authenticate through the web application.
-
-They use:
-
-```text id="p5k8x1"
-username
-password
-session
-role
+```text id="z1j8md"
+[ ] LUMS starts
+[ ] HTTPS works
+[ ] Users can authenticate
+[ ] Roles are correct
+[ ] Clients are present
+[ ] Client authentication works
+[ ] Job history is available
+[ ] Audit information is available
+[ ] Package inventory is available
+[ ] Update jobs can be tracked
+[ ] Security baseline is intact
 ```
 
-## Managed clients
-
-Managed clients authenticate through:
-
-```text id="s2v7q4"
-Bearer token
-```
-
-The two authentication systems must not be confused.
-
-Conceptually:
-
-```text id="y8m2c6"
-Administrator
-    ↓
-Web authentication
-    ↓
-Session
-    ↓
-Role authorization
-
-Client
-    ↓
-Bearer token
-    ↓
-Client identity
-    ↓
-Client/job ownership
-```
-
-A client token does not grant administrative web access.
-
-An administrative user session does not replace client authentication for agent API calls.
+A rollback is complete only after the application and client communication path have been verified.
 
 ---
 
-# 84. Authorization Model
+## 101. Emergency Administration
 
-The current LUMS authorization model consists of:
-
-```text id="w4m7p2"
-Administrative RBAC
-+
-Client identity
-+
-Client/job ownership
-+
-Endpoint-specific authorization
-```
-
-The server validates the authenticated identity before allowing protected operations.
-
-For clients, this includes:
-
-```text id="j6n8x3"
-client identity
-job ownership
-result ownership
-checkpoint ownership
-recovery ownership
-```
-
-For administrative users, authorization is determined by the user's role.
-
-The current administrative roles are:
-
-```text id="q7v2m5"
-administrator
-operator
-viewer
-```
-
-The full role-based administrative authorization model is implemented.
-
----
-
-# 85. Role-Based Access Control
-
-## 85.1 Administrator
-
-The `administrator` role has full administrative access.
-
-Administrator permissions include:
-
-```text id="8f2n5k"
-view clients
-view updates
-view packages
-view jobs
-view history
-
-create clients
-delete/disable clients
-rotate client tokens
-
-create update jobs
-execute update jobs
-
-manage users
-manage roles
-```
-
-The administrator is the only administrative role with user and role management capabilities.
-
----
-
-## 85.2 Operator
-
-The `operator` role is intended for operational update management.
-
-Operators can:
-
-```text id="x6m4q9"
-view clients
-view updates
-view packages
-view jobs
-view history
-
-create update jobs
-execute update jobs
-```
-
-Operators cannot:
-
-```text id="b5q8w2"
-create administrative users
-manage roles
-rotate client tokens
-delete clients
-```
-
-This separates day-to-day update operations from identity and infrastructure administration.
-
----
-
-## 85.3 Viewer
-
-The `viewer` role provides read-only administrative visibility.
-
-Viewers can:
-
-```text id="r7k3p1"
-view dashboard
-view clients
-view updates
-view packages
-view jobs
-view history
-```
-
-Viewers cannot:
-
-```text id="m8q5z4"
-create clients
-create update jobs
-rotate tokens
-delete clients
-manage users
-manage roles
-```
-
-The role is intended for monitoring and observation without modification privileges.
-
----
-
-# 86. RBAC Permission Matrix
-
-The current administrative permission model is:
-
-| Route / Function      | Administrator | Operator | Viewer |
-| --------------------- | :-----------: | :------: | :----: |
-| Dashboard             |       ✓       |     ✓    |    ✓   |
-| View clients          |       ✓       |     ✓    |    ✓   |
-| View client details   |       ✓       |     ✓    |    ✓   |
-| View client updates   |       ✓       |     ✓    |    ✓   |
-| View client packages  |       ✓       |     ✓    |    ✓   |
-| View update jobs      |       ✓       |     ✓    |    ✓   |
-| View update history   |       ✓       |     ✓    |    ✓   |
-| Create client         |       ✓       |     —    |    —   |
-| Create update job     |       ✓       |     ✓    |    —   |
-| Execute update job    |       ✓       |     ✓    |    —   |
-| Rotate client token   |       ✓       |     —    |    —   |
-| Delete/disable client |       ✓       |     —    |    —   |
-| User management       |       ✓       |     —    |    —   |
-| Role management       |       ✓       |     —    |    —   |
-| Logout                |       ✓       |     ✓    |    ✓   |
-
-Agent endpoints remain separate from this administrative RBAC model.
-
-Agent authentication continues to use client-specific Bearer tokens.
-
----
-
-# 87. RBAC Implementation
-
-The role definitions are implemented centrally in:
-
-```text id="q1f8s6"
-server/security.py
-```
-
-Current constants:
-
-```text id="3j7m2v"
-administrator
-operator
-viewer
-```
-
-Valid roles are restricted to the defined role set.
-
-The authenticated user is stored in the request context after successful authentication.
-
-Role authorization is applied using:
-
-```text id="8k4r1p"
-role_required(...)
-```
-
-The decorator rejects unauthorized administrative operations.
-
-The authorization result is distinct from authentication.
-
-Conceptually:
-
-```text id="v6q3m9"
-Not authenticated
-        ↓
-401 / login
-
-Authenticated
-        ↓
-Role checked
-        ↓
-Role allowed?
-   ├── yes → continue
-   └── no  → 403
-```
-
----
-
-# 88. RBAC Database Migration
-
-Administrative roles are stored in the users table.
-
-The migration adds:
-
-```text id="m7q2x8"
-users.role
-```
-
-with the default role:
-
-```text id="v3n6p1"
-administrator
-```
-
-The RBAC migration is:
-
-```text id="j8r4w2"
-002-rbac
-```
-
-The migration is designed to be idempotent.
-
-This allows an existing LUMS installation to receive the role field without recreating the database.
-
-After migration, an existing administrator receives:
-
-```text id="c5y7k3"
-role = administrator
-```
-
-The role must be verified after migration.
-
----
-
-# 89. RBAC Verification
-
-Verify the database role:
-
-```bash id="q4m7x2"
-sudo docker exec lums \
-    python3 -c '
-import sqlite3
-
-db = sqlite3.connect("/var/lib/lums/lums.db")
-row = db.execute(
-    "SELECT id, username, enabled, role FROM users ORDER BY id"
-).fetchall()
-
-for item in row:
-    print(item)
-'
-```
-
-The production administrator should report:
-
-```text id="m2x8v5"
-role = administrator
-```
-
-The application test suite contains dedicated RBAC coverage.
-
-The current RBAC test result is:
-
-```text id="n7k4p2"
-20 passed
-```
-
-The complete current test suite contains:
-
-```text id="c8m5q1"
-79 passed
-```
-
-The production deployment has also been verified to contain the RBAC implementation and migrated administrator role.
-
----
-
-# 90. Security Audit Status
-
-The LUMS security audit is organized into the following areas:
-
-```text id="w2q6m9"
-01 SQLite Foreign Keys
-02 SQLite WAL / Busy Timeout
-03 Update Timeout / Process Handling
-04 Login Rate Limiting
-05 API Input Validation
-06 Session Revocation
-07 Token Rotation
-08 get_ip / Offline Networks
-09 Job Recovery / Checkpointing
-10 APT Robustness
-11 Arch Reboot Detection
-12 Unit Tests / API Result Validation
-13 Simulation Tests
-14 CI
-15 Application Logging
-16 Versioning / Releases
-17 RBAC
-18 Complete Documentation
-```
-
-Audit items:
-
-```text id="9x4m7k"
-01  ✓
-02  ✓
-03  ✓
-04  ✓
-05  ✓
-06  ✓
-07  ✓
-08  ✓
-09  ✓
-10  ✓
-11  ✓
-12  ✓
-13  ✓
-14  ✓
-15  ✓
-16  ✓ audited / implementation pending
-17  ✓
-18  in progress
-```
-
-The documentation audit is the current final audit phase.
-
----
-
-# 91. SQLite Security
-
-The current SQLite configuration includes:
-
-```text id="v5m8q2"
-foreign_keys = ON
-busy_timeout = 5000
-journal_mode = WAL
-synchronous = 2
-```
-
-Foreign-key enforcement is explicitly enabled by the application connection setup.
-
-The busy timeout reduces immediate failures caused by short-lived concurrent access.
-
-WAL mode improves concurrent read/write behavior compared with the previous configuration.
-
-SQLite remains intentionally lightweight.
-
-The current design is appropriate for the intended LUMS deployment model.
-
-It is not intended to be treated as a high-scale multi-node database architecture.
-
----
-
-# 92. Authentication Security
-
-Administrative passwords are stored using Argon2 hashing.
-
-The application also provides:
-
-```text id="h7m3q9"
-login rate limiting
-session handling
-session revocation
-CSRF protection
-security headers
-```
-
-Failed authentication attempts are recorded through the application audit mechanism where appropriate.
-
-Successful authentication is also recorded.
-
-Logout events are auditable.
-
-Authentication and authorization remain separate controls.
-
----
-
-# 93. Client Token Security
-
-Client tokens are stored server-side as SHA-256 digests rather than plaintext credentials.
-
-The lifecycle is:
-
-```text id="p8q4m1"
-generate
-   ↓
-present to administrator/client
-   ↓
-hash
-   ↓
-store digest
-   ↓
-authenticate
-   ↓
-rotate
-   ↓
-invalidate old token
-```
-
-A rotated token replaces the previous credential.
-
-The previous token must no longer authenticate.
-
-Client tokens must never be placed in Git or ordinary application logs.
-
----
-
-# 94. Security Audit Implementation Summary
-
-The completed audit items cover:
-
-```text id="q7m4x2"
-database integrity
-database concurrency
-process timeout handling
-authentication rate limiting
-API input validation
-session revocation
-token rotation
-network/IP handling
-job recovery
-APT error handling
-Arch reboot detection
-automated testing
-simulation testing
-continuous integration
-application logging
-RBAC
-```
-
-Audit #16 has been reviewed.
-
-The current project does not yet have:
-
-```text id="f5n8r2"
-stable release tag
-GitHub Release
-final release version
-```
-
-The release/versioning strategy has therefore been audited but is intentionally not presented as implemented.
-
-The project remains in active development.
-
----
-
-# 95. Application Logging
-
-The server uses Python application logging for operational events.
-
-The application logger is configured with:
-
-```text id="k4m7x9"
-INFO
-```
-
-and emits timestamped messages.
-
-Important application events include:
-
-```text id="m6q2p8"
-client reports
-update job creation
-update job claiming
-```
-
-Gunicorn access and error logs are also emitted to the Docker log stream.
-
-View application/runtime logs with:
-
-```bash id="v9q3m1"
-sudo docker logs \
-    --tail 100 \
-    lums
-```
-
-Follow them with:
-
-```bash id="x5n8k2"
-sudo docker logs \
-    -f \
-    lums
-```
-
-Application logs and audit records serve different purposes.
-
-Application logs describe runtime behavior.
-
-Audit records describe security-relevant administrative events.
-
----
-
-# 96. Audit Logging
-
-LUMS maintains a dedicated audit log for security-relevant actions.
-
-The audit mechanism records information such as:
-
-```text id="r8m3q5"
-actor type
-actor identity
-action
-target
-result
-details
-timestamp
-```
+Emergency administration should preserve evidence and persistent state whenever possible.
 
 Examples include:
 
-```text id="n2k7v4"
-login success
-login failure
-login rate-limit events
-logout
-client creation
-client token rotation
-client disable/delete operations
-```
+* repeated application crashes
+* database integrity errors
+* widespread client authentication failures
+* unexpected package-job behavior
+* suspected credential exposure
+* broken upgrades
+* TLS failures affecting all users
 
-Audit details must never contain secrets.
+The preferred sequence is:
 
-The audit log should therefore be considered security metadata rather than a general application debug log.
-
----
-
-# 97. Logging Diagnostics
-
-When investigating a server-side issue, start with:
-
-```bash id="p7m4x1"
-sudo docker logs \
-    --tail 100 \
-    lums
-```
-
-For a live incident:
-
-```bash id="c6q8m3"
-sudo docker logs \
-    -f \
-    lums
-```
-
-For client-side execution:
-
-```bash id="h4n7q2"
-sudo journalctl \
-    -u lums-agent.service \
-    --since "30 minutes ago" \
-    --no-pager
-```
-
-For the Execution Watcher:
-
-```bash id="w8m2k5"
-sudo journalctl \
-    -u lums-agent-watcher.service \
-    --since "30 minutes ago" \
-    --no-pager
-```
-
-The diagnostic sequence should be:
-
-```text id="v3q7m1"
-server
-  ↓
-agent
-  ↓
-watcher
-  ↓
-job
-  ↓
-package manager
-```
-
-Do not change all layers simultaneously.
-
-Identify the failing layer first.
-
----
-
-# 98. Automated Tests
-
-The project contains automated unit and integration-oriented tests for important application behavior.
-
-Current test areas include:
-
-```text id="n4k8p2"
-security
-authentication
-authorization
-RBAC
-job handling
-API validation
-package manager behavior
-recovery
-simulation
-```
-
-The current complete test result is:
-
-```text id="m7q3x5"
-79 passed
-```
-
-The test suite is executed with:
-
-```bash id="j5n8q2"
-python -m pytest -q
-```
-
-A clean test run is required before treating a code change as ready for integration.
-
-Tests are especially important after changes to:
-
-```text id="r6m2v8"
-security.py
-app.py
-database handling
-job handling
-package_manager.py
-agent.py
-watcher.py
-```
-
----
-
-# 99. Simulation Tests
-
-Simulation tests ensure that update-job handling can be exercised without invoking real package-management operations.
-
-The tests cover:
-
-```text id="q8m4x2"
-UPDATE_PACKAGE
-INSTALL_PACKAGE
-REMOVE_PACKAGE
-UPDATE_SYSTEM
-unknown action
-```
-
-The tests explicitly protect against accidental execution of the real package-manager commands.
-
-Simulation therefore provides a safe regression layer for job dispatch and result handling.
-
-A successful simulation test does not prove that a real package update will succeed.
-
-It proves that the LUMS execution path can process the corresponding job type without invoking the real package operation.
-
----
-
-# 100. Continuous Integration
-
-The project uses GitHub Actions for automated testing.
-
-The workflow is:
-
-```text id="v4m7q2"
-.github/workflows/tests.yml
-```
-
-The workflow runs for:
-
-```text id="m8q3x5"
-push → main
-pull request → main
-```
-
-The workflow:
-
-```text id="q6n2k8"
-checkout
+```text id="f8k3wz"
+Preserve
    ↓
-Python 3.13
+Observe
    ↓
-install test dependencies
+Isolate
    ↓
-pytest
-```
-
-The workflow has:
-
-```yaml id="f3m8q1"
-permissions:
-  contents: read
-```
-
-The purpose of CI is to prevent changes from silently bypassing the automated test suite.
-
-Local tests and CI therefore form two complementary verification layers:
-
-```text id="j7q4m2"
-local development
-      ↓
-pytest
-      ↓
-Git commit
-      ↓
-GitHub
-      ↓
-CI
-```
-
-# 101. Database Backup
-
-The LUMS database is stored in the persistent Docker volume:
-
-```text id="f7m2q8"
-/var/lib/lums/lums.db
-```
-
-Before performing major application, database or security changes, create a backup.
-
-A SQLite online backup can be created without replacing the live database:
-
-```bash id="k4n8p2"
-sudo docker exec lums \
-    sqlite3 /var/lib/lums/lums.db \
-    ".backup '/tmp/lums-backup.db'"
-```
-
-If the container image does not provide the `sqlite3` command, use an external SQLite backup method instead.
-
-The important principle is:
-
-```text id="q8m3v5"
-live database
-      ↓
-consistent backup
-      ↓
-verify backup
-      ↓
-make change
-```
-
-The backup must not be treated as valid merely because the command completed.
-
-It should also be checked for integrity.
-
----
-
-# 102. Database Integrity
-
-SQLite integrity can be checked with:
-
-```bash id="n5q7m2"
-sudo docker exec lums \
-    python3 -c '
-import sqlite3
-db = sqlite3.connect("/var/lib/lums/lums.db")
-print(db.execute("PRAGMA integrity_check").fetchone()[0])
-'
-```
-
-Expected:
-
-```text id="x3m8q4"
-ok
-```
-
-An integrity result other than:
-
-```text id="p7k2v9"
-ok
-```
-
-requires investigation before further administrative changes are made.
-
-The integrity check should be performed after:
-
-* database restoration
-* migration testing
-* major schema changes
-* unexpected application termination
-* suspected storage problems
-
----
-
-# 103. Database Restore
-
-Database restoration is a controlled administrative operation.
-
-The general procedure is:
-
-```text id="m8q4x2"
-stop application writes
-       ↓
-preserve current database
-       ↓
-restore verified backup
-       ↓
-run integrity check
-       ↓
-start application
-       ↓
-verify migrations
-       ↓
-verify authentication
-       ↓
-verify clients
-       ↓
-verify jobs/history
-```
-
-Never overwrite the current database before preserving the existing state.
-
-A failed restore should therefore remain reversible.
-
-A complete isolated restore test is a separate validation activity and must not be represented as completed unless it has actually been performed.
-
----
-
-# 104. Database Migrations
-
-LUMS uses versioned security/application migrations.
-
-Current verified migration identifiers include:
-
-```text id="w3m7q2"
-001-security-foundation
-002-rbac
-```
-
-The migration mechanism records applied migrations and avoids reapplying migrations that have already been completed.
-
-The RBAC migration adds:
-
-```text id="q5n8m3"
-users.role
-```
-
-with:
-
-```text id="v2k7x4"
-administrator
-```
-
-as the default role.
-
-Before applying a migration to an important installation:
-
-```text id="r8m4q1"
-backup
-  ↓
-migration
-  ↓
-integrity check
-  ↓
-application startup
-  ↓
-functional verification
-```
-
-Do not manually modify migration history unless the consequences are fully understood.
-
----
-
-# 105. Migration Verification
-
-Check the migration table through SQLite:
-
-```bash id="k7m3x9"
-sudo docker exec lums \
-    python3 -c '
-import sqlite3
-db = sqlite3.connect("/var/lib/lums/lums.db")
-for row in db.execute("SELECT * FROM schema_migrations ORDER BY 1"):
-    print(row)
-'
-```
-
-The exact table layout should be interpreted according to the current application schema.
-
-The important administrative requirement is that already-applied migrations are recorded and not repeatedly executed.
-
-After a migration, verify:
-
-```text id="p4n8v2"
-database integrity
-application startup
-administrator login
-role assignment
-client reporting
-job handling
-```
-
----
-
-# 106. Production Deployment Baseline
-
-The current production baseline is:
-
-```text id="q8m5x1"
-Docker
-Python 3.13
-Gunicorn 23.0.0
-Flask
-SQLite
-Nginx
-HTTPS
-```
-
-The LUMS container runs:
-
-```text id="m7k3v9"
-non-root user
-read-only root filesystem
-all Linux capabilities dropped
-non-privileged container
-/tmp as restricted tmpfs
-localhost-only host binding
-file-based application secret
-persistent Docker volume
-```
-
-The current application image is:
-
-```text id="x4n8q2"
-lums:latest
-```
-
-The persistent application database is:
-
-```text id="v6m3k8"
-lums-data:/var/lib/lums
-```
-
-This baseline should be preserved when rebuilding or recreating the production container.
-
----
-
-# 107. Production Network Baseline
-
-The application container is not intended to be directly reachable from the LAN.
-
-The host-side binding is:
-
-```text id="m8q4v2"
-127.0.0.1:5050
-```
-
-Nginx provides the external HTTPS endpoint.
-
-The intended traffic flow is:
-
-```text id="n5k7x3"
-LAN / Client
-      |
-      | HTTPS
-      v
-Nginx :443
-      |
-      | HTTP localhost
-      v
-127.0.0.1:5050
-      |
-      v
-Docker :5000
-      |
-      v
-Gunicorn
-```
-
-This limits direct exposure of the application server.
-
-Verify the binding with:
-
-```bash id="q3m8v6"
-sudo docker port lums
-```
-
-and:
-
-```bash id="x7k4n2"
-sudo ss -lntp | grep -E ':443|:5050'
-```
-
-The expected application binding remains localhost-only.
-
----
-
-# 108. Production Security Baseline
-
-The current security baseline includes:
-
-```text id="p6m3q8"
-TLS
-secure authentication
-Argon2 password hashing
-login rate limiting
-session revocation
-CSRF protection
-security headers
-client Bearer authentication
-SHA-256 client-token digests
-token rotation
-API input validation
-client/job ownership checks
-atomic job claiming
-job recovery
-execution timeout handling
-APT failure handling
-Arch reboot detection
-RBAC
-application logging
-audit logging
-container hardening
-automated tests
-CI
-```
-
-The baseline is the result of the completed security audit items #01–#17.
-
-Documentation is the remaining audit area:
-
-```text id="k8q4m2"
-Audit #18 — Complete Documentation
-```
-
----
-
-# 109. Operational Verification
-
-After major production changes, perform a short operational verification.
-
-Recommended sequence:
-
-```text id="v4m7x2"
-1. Container running
-2. Database integrity
-3. Nginx running
-4. HTTPS reachable
-5. Login works
-6. Administrator role correct
-7. Client reports successfully
-8. Package inventory visible
-9. Updates visible
-10. Job creation works
-11. Agent receives job
-12. Watcher operates
-13. Job result recorded
-14. History updated
-15. Logs contain expected events
-```
-
-For security-sensitive changes, additionally verify:
-
-```text id="m5q8x3"
-token authentication
-role authorization
-session behavior
-container hardening
-secret availability
-```
-
-Do not consider a deployment complete merely because the container reports:
-
-```text id="x2k7v4"
-Up
-```
-
-The application and operational path must also be verified.
-
----
-
-# 110. Incident Evidence Preservation
-
-When investigating an unexpected failure, preserve evidence before destructive actions.
-
-Useful information includes:
-
-```bash id="q8m4v1"
-sudo docker ps -a
-sudo docker inspect lums
-sudo docker logs --tail 200 lums
-sudo journalctl -u lums-agent.service --since "1 hour ago" --no-pager
-sudo journalctl -u lums-agent-watcher.service --since "1 hour ago" --no-pager
-```
-
-For the database:
-
-```bash id="n7k3x5"
-sudo docker exec lums \
-    python3 -c '
-import sqlite3
-db = sqlite3.connect("/var/lib/lums/lums.db")
-print(db.execute("PRAGMA integrity_check").fetchone()[0])
-'
-```
-
-Do not immediately:
-
-```text id="m4q8v2"
-delete the container
-delete the volume
-delete the database
-delete logs
-rotate credentials
-reinstall the agent
-```
-
-unless the operational situation requires it and sufficient evidence has already been preserved.
-
-The diagnostic principle remains:
-
-```text id="x5n8q3"
-observe
+Recover
    ↓
-identify
-   ↓
-reproduce
-   ↓
-change
-   ↓
-test
-   ↓
-verify
-```
-
----
-
-# 111. Version and Release Status
-
-The project is currently under active development.
-
-The current component versions are:
-
-```text id="v7m3q8"
-LUMS Agent: 1.7.0
-Execution Watcher: 1.2.1
-```
-
-The project currently has:
-
-```text id="k4n8x2"
-CI workflow
-automated tests
-security audit
-RBAC
-application logging
-```
-
-However, the project does not currently have:
-
-```text id="q6m3v9"
-stable release
-Git tag
-GitHub Release
-final project version
-```
-
-Audit #16 therefore documents the versioning/release situation without prematurely declaring a release.
-
-The absence of a release is intentional while development and documentation continue.
-
----
-
-# 112. Release Preparation
-
-A future release should only be created after the project reaches the desired development state.
-
-The expected release process can later include:
-
-```text id="m8q4x1"
-final implementation
-       ↓
-security review
-       ↓
-documentation review
-       ↓
-full test suite
-       ↓
-CI
-       ↓
-version assignment
-       ↓
-Git tag
-       ↓
-GitHub Release
-```
-
-No final release version is defined in this administration guide yet.
-
-The current document therefore describes the operational state rather than inventing a release number.
-
----
-
-# 113. Current Audit Baseline
-
-The complete security audit currently stands at:
-
-| Audit | Area                               |    Status   |
-| ----- | ---------------------------------- | :---------: |
-| #01   | SQLite Foreign Keys                |      ✓      |
-| #02   | SQLite WAL / Busy Timeout          |      ✓      |
-| #03   | Update Timeout / Process Handling  |      ✓      |
-| #04   | Login Rate Limiting                |      ✓      |
-| #05   | API Input Validation               |      ✓      |
-| #06   | Session Revocation                 |      ✓      |
-| #07   | Token Rotation                     |      ✓      |
-| #08   | get_ip / Offline Networks          |      ✓      |
-| #09   | Job Recovery / Checkpointing       |      ✓      |
-| #10   | APT Robustness                     |      ✓      |
-| #11   | Arch Reboot Detection              |      ✓      |
-| #12   | Unit Tests / API Result Validation |      ✓      |
-| #13   | Simulation Tests                   |      ✓      |
-| #14   | CI                                 |      ✓      |
-| #15   | Application Logging                |      ✓      |
-| #16   | Versioning / Releases              |  ✓ audited  |
-| #17   | RBAC                               |      ✓      |
-| #18   | Complete Documentation             | in progress |
-
-Audit #16 is intentionally marked as:
-
-```text id="v5m8q2"
-audited
-```
-
-rather than:
-
-```text id="p7k3x4"
-release implemented
-```
-
-because the project has not yet created a release/tag.
-
----
-
-# 114. Documentation Baseline
-
-The administration guide should remain consistent with:
-
-```text id="q8m4v2"
-README.md
-docs/security.md
-docs/install.md
-docs/troubleshooting.md
-```
-
-The documentation must use the same terminology for:
-
-```text id="n6k3x8"
-Agent
-Execution Watcher
-client token
-update job
-RBAC
-administrator
-operator
-viewer
-simulation
-recovery
-audit
-```
-
-The following must not reappear as current project state:
-
-```text id="m4q8v1"
-RBAC not implemented
-only Audit #01–#04 completed
-Watcher under an obsolete name
-no automated tests
-no CI
-no application logging
-```
-
-Those statements describe earlier development stages and are no longer the current baseline.
-
----
-
-# 115. Administrative Roles — Final Summary
-
-The current administrative model is:
-
-```text id="x7m3q8"
-                    LUMS
-                      |
-          +-----------+-----------+
-          |           |           |
-          v           v           v
-   Administrator   Operator    Viewer
-          |           |           |
-          |           |           |
-       Full        Operations   Read-only
-       access       access      access
-```
-
-Administrator:
-
-```text id="q4n8m2"
-identity management
-client management
-token management
-update management
-read access
-```
-
-Operator:
-
-```text id="m7k3x1"
-update management
-read access
-```
-
-Viewer:
-
-```text id="v8q4n5"
-read access
-```
-
-The role system is implemented server-side.
-
-It is not merely a frontend visibility mechanism.
-
-Authorization is enforced by the backend.
-
----
-
-# 116. Administrative Security Principle
-
-Administrative access should follow least privilege.
-
-The intended model is:
-
-```text id="k5m8q2"
-need to observe
-    ↓
-Viewer
-
-need to operate updates
-    ↓
-Operator
-
-need to administer identities and infrastructure
-    ↓
-Administrator
-```
-
-Roles should not be granted based solely on convenience.
-
-If an account only needs monitoring access, it should not require administrative privileges.
-
-If an account performs update operations but does not manage identities, Operator is the corresponding role.
-
----
-
-# 117. Client Security Principle
-
-Managed clients are treated as independently authenticated execution nodes.
-
-The server must never rely solely on:
-
-```text id="x3m7q8"
-IP address
-hostname
-network location
-```
-
-for client identity.
-
-Client authentication is based on the client-specific Bearer token.
-
-Job operations additionally verify client/job ownership.
-
-This creates the security boundary:
-
-```text id="q8m4v1"
-network location
-      +
-client credential
-      +
-server-side ownership
-```
-
-rather than trusting network position alone.
-
----
-
-# 118. Operational Safety Principle
-
-LUMS is designed to avoid blind execution.
-
-Important controls include:
-
-```text id="m5q8x2"
-authentication
-authorization
-idle detection
-job ownership
-atomic claiming
-timeouts
-checkpointing
-recovery
-result validation
-history
-audit logging
-```
-
-The intended operational flow is:
-
-```text id="v7k3m9"
-request
-  ↓
-validate
-  ↓
-authorize
-  ↓
-create job
-  ↓
-claim atomically
-  ↓
-verify execution conditions
-  ↓
-execute
-  ↓
-report
-  ↓
-validate result
-  ↓
-record history
-```
-
-Each stage provides an opportunity to detect an invalid or unexpected state.
-
----
-
-# 119. Administration Philosophy
-
-LUMS administration should follow a controlled-change process.
-
-For significant changes:
-
-```text id="q4m8x2"
-backup
-   ↓
-inspect
-   ↓
-change
-   ↓
-test
-   ↓
-verify
-   ↓
-document
-```
-
-For security-sensitive changes:
-
-```text id="m7n3v8"
-backup
-   ↓
-security impact
-   ↓
-implementation
-   ↓
-automated tests
-   ↓
-deployment
-   ↓
-runtime verification
-   ↓
-audit/documentation
-```
-
-This is especially important for:
-
-* authentication
-* authorization
-* tokens
-* database migrations
-* container hardening
-* package execution
-* recovery behavior
-* TLS configuration
-
----
-
-# 120. Final Architecture
-
-The current LUMS architecture can be summarized as:
-
-```text id="x8m4q2"
-                         Administrator
-                              |
-                              | HTTPS
-                              v
-                       +--------------+
-                       |    Nginx     |
-                       | TLS / Proxy  |
-                       +------+-------+
-                              |
-                              v
-                       +--------------+
-                       | Docker LUMS  |
-                       |              |
-                       | Gunicorn     |
-                       | Flask        |
-                       | RBAC         |
-                       | API          |
-                       +------+-------+
-                              |
-                    +---------+---------+
-                    |                   |
-                    v                   v
-              +-----------+       +-----------+
-              | SQLite    |       | Audit /   |
-              | lums.db   |       | Logging   |
-              +-----------+       +-----------+
-                    |
-                    |
-          Persistent Docker Volume
-                    |
-                    v
-                lums-data
-
-
-       HTTPS / Bearer Authentication
-                    ^
-                    |
-          +---------+---------+
-          |                   |
-          v                   v
-    Debian Client        Arch Client
-          |                   |
-       Agent 1.7.0         Agent 1.7.0
-          |                   |
-      APT / dpkg             pacman
-          |                   |
-          +---------+---------+
-                    |
-             Execution Watcher
-                1.2.1
-                    |
-                    v
-             Job execution
-             recovery
-             monitoring
-```
-
-The administrative security model is:
-
-```text id="m6q3v8"
-Administrator
-     |
-     +-- full administrative access
-
-Operator
-     |
-     +-- operational update access
-
-Viewer
-     |
-     +-- read-only access
-```
-
-The client security model is:
-
-```text id="q8m4x2"
-Client
-   |
-   +-- Bearer token
-   |
-   +-- client identity
-   |
-   +-- job ownership
-   |
-   +-- result ownership
-   |
-   +-- recovery ownership
-```
-
-The operational model is:
-
-```text id="v4m7x1"
-Report
-  ↓
-Inventory
-  ↓
-Updates
-  ↓
-Job
-  ↓
-Claim
-  ↓
-Idle Check
-  ↓
-Execute
-  ↓
-Checkpoint
-  ↓
-Result
-  ↓
-History
-  ↓
-Recovery if required
-```
-
-The security model is:
-
-```text id="n8q3m5"
-Authenticate
-     ↓
-Authorize
-     ↓
-Validate
-     ↓
-Execute
-     ↓
-Record
-     ↓
 Verify
+   ↓
+Document
 ```
 
-And the administrative principle remains:
+Avoid deleting logs, databases, containers, or client records merely because they appear to be part of the problem.
 
-> **Observe first. Change deliberately. Test everything. Verify the result.**
+---
 
-LUMS is currently an actively developed project with the major security audit items #01–#17 completed or audited, while the final documentation audit (#18) is being completed.
+## 102. Administrative Change Principle
 
-The system is functional, tested and hardened, but it is not yet represented as a final stable release.
+Every significant production change should have three clearly defined states:
 
+### Before
+
+The current production state is known and recoverable.
+
+### During
+
+The change is performed using the documented procedure.
+
+### After
+
+The resulting state is verified against the expected baseline.
+
+This makes administrative work reproducible and reduces accidental configuration drift.
+
+---
+
+## 103. Controlled Deinstallation
+
+Deinstallation is a destructive administrative operation.
+
+It should only be performed when the LUMS deployment is intentionally being removed.
+
+Before removing LUMS:
+
+```text id="u5r2nc"
+[ ] All managed clients identified
+[ ] Active update jobs reviewed
+[ ] Required job history exported or preserved
+[ ] Required audit information preserved
+[ ] Database backup created
+[ ] Backup verified
+[ ] TLS material preserved if required
+[ ] Application secret preserved if required
+[ ] Documentation preserved
+[ ] Reinstallation requirements documented
+```
+
+Do not remove persistent data before confirming that it is no longer required.
+
+---
+
+## 104. Removing the Container
+
+To remove the application container after the deployment has been decommissioned:
+
+```bash id="n2x7kc"
+sudo docker stop lums
+sudo docker rm lums
+```
+
+The Docker volume is intentionally **not** removed by these commands.
+
+This allows the application data to remain available for later inspection or recovery.
+
+---
+
+## 105. Removing Persistent Data
+
+Removing the LUMS Docker volume is a separate destructive operation.
+
+Only perform this after confirming that the database and all stored application state are no longer required.
+
+Example:
+
+```bash id="r8w3mz"
+sudo docker volume rm lums-data
+```
+
+This permanently removes the persistent application data stored in that volume.
+
+Do not execute this command during a normal upgrade or rollback.
+
+---
+
+## 106. Removing Client Components
+
+When a managed client is permanently removed from LUMS, uninstall or disable its Agent components according to the client operating-system procedure.
+
+The client should no longer report to the LUMS server after decommissioning.
+
+Preserve relevant job and audit information before removing the client if historical records are required.
+
+---
+
+## 107. Final Administrative Checklist
+
+### User Administration
+
+```text id="p5z8cv"
+[ ] Users have appropriate roles
+[ ] Administrator access is limited
+[ ] Disabled accounts are reviewed
+[ ] Credentials are protected
+```
+
+### Client Administration
+
+```text id="q2m7xd"
+[ ] Clients are correctly registered
+[ ] Client tokens are protected
+[ ] Disabled clients are reviewed
+[ ] Token rotation is performed when required
+[ ] Client reporting is healthy
+```
+
+### Update Administration
+
+```text id="h6v9kt"
+[ ] Available updates are reviewed
+[ ] Update jobs are monitored
+[ ] Failed jobs are investigated
+[ ] Package operations are verified
+[ ] Reboot requirements are checked
+[ ] Job history is retained
+```
+
+### Server Administration
+
+```text id="r3c8wn"
+[ ] Container is running
+[ ] Persistent volume is attached
+[ ] SQLite integrity is healthy
+[ ] HTTPS is working
+[ ] TLS material is valid
+[ ] Application secret is protected
+[ ] Backups are available
+```
+
+### Security
+
+```text id="v7m4qx"
+[ ] RBAC remains enforced
+[ ] Viewer restrictions remain intact
+[ ] Client authentication works
+[ ] Container remains hardened
+[ ] Application port remains localhost-only
+[ ] No credentials are exposed
+[ ] Logs contain no unexplained sensitive information
+```
+
+---
+
+## 108. Operational Baseline
+
+A healthy LUMS installation should satisfy the following baseline:
+
+```text id="d4k9sy"
+Application
+    ├── HTTPS available
+    ├── Authentication available
+    └── RBAC enforced
+
+Server
+    ├── Hardened container
+    ├── Persistent database
+    └── Valid migrations
+
+Clients
+    ├── Authenticated
+    ├── Reporting
+    ├── Software inventory available
+    └── Update information available
+
+Operations
+    ├── Update jobs executable
+    ├── Results recorded
+    ├── Recovery supported
+    └── Reboot state reported
+
+Security
+    ├── Secrets protected
+    ├── Tokens protected
+    ├── Audit information retained
+    └── Network exposure restricted
+
+Recovery
+    ├── Backups available
+    ├── Restore path known
+    └── Rollback path known
+```
+
+---
+
+## 109. Administration Complete
+
+LUMS administration should always prioritize controlled, observable, and reversible changes.
+
+The administrative lifecycle is:
+
+```text id="w6f1pa"
+Plan
+  ↓
+Observe
+  ↓
+Change
+  ↓
+Verify
+  ↓
+Document
+  ↓
+Maintain
+```
+
+The most important operational principles are:
+
+> **Use the least privilege necessary.**
+
+> **Preserve persistent data.**
+
+> **Do not change state without understanding the current state.**
+
+> **Verify the result of every significant operation.**
+
+> **Keep a tested recovery path.**
+
+For installation procedures, see `installation.md`.
+
+For security architecture and audit results, see `security.md`.
+
+For diagnosis and recovery procedures, see `troubleshooting.md`.
+
+---
+
+## 110. Final Administration Principle
+
+LUMS is intended to make Linux update management predictable and observable.
+
+Administrative work should therefore not be based on assumptions or blind repetition.
+
+When something changes:
+
+**Observe first. Change second. Verify third.**
+
+When something breaks:
+
+**Preserve evidence. Identify the failure layer. Recover deliberately.**
+
+When something works:
+
+**Record the result and keep the known-good baseline.**
