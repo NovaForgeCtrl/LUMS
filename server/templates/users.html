@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+    <meta
+        name="csrf-token"
+        content="{{ csrf_token }}"
+    >
+    <title>Benutzerverwaltung – LUMS</title>
+
+    <link
+        rel="stylesheet"
+        href="{{ url_for('static', filename='style.css') }}"
+    >
+</head>
+
+<body>
+
+<header class="topbar">
+
+    <div class="topbar-brand">
+        <a href="/" class="brand-link">
+            LUMS
+        </a>
+    </div>
+
+    <div class="topbar-actions">
+
+        <a
+            href="/"
+            class="logout-button"
+        >
+            Dashboard
+        </a>
+
+        <form
+            action="/logout"
+            method="POST"
+            class="logout-form"
+        >
+            <input
+                type="hidden"
+                name="csrf_token"
+                value="{{ csrf_token }}"
+            >
+
+            <button
+                type="submit"
+                class="logout-button"
+            >
+                Abmelden
+            </button>
+        </form>
+
+    </div>
+
+</header>
+
+
+<main class="container">
+
+    <section
+        id="user-management"
+        class="dashboard-panel user-management-page"
+    >
+
+        <div class="panel-header">
+
+            <div>
+                <h2>Benutzerverwaltung</h2>
+
+                <div class="panel-description">
+                    Benutzerkonten und Rollen verwalten
+                </div>
+            </div>
+
+        </div>
+
+
+        <div class="panel-content">
+
+            <div class="panel-header">
+
+                <div>
+                    <h3>Benutzer anlegen</h3>
+
+                    <div class="panel-description">
+                        Neues LUMS-Benutzerkonto erstellen
+                    </div>
+                </div>
+
+            </div>
+
+
+            <form
+                id="create-user-form"
+                class="user-management-form"
+            >
+
+                <div class="form-group">
+
+                    <label for="create-user-username">
+                        Benutzername
+                    </label>
+
+                    <input
+                        type="text"
+                        id="create-user-username"
+                        name="username"
+                        maxlength="64"
+                        autocomplete="username"
+                        required
+                    >
+
+                </div>
+
+
+                <div class="form-group">
+
+                    <label for="create-user-password">
+                        Passwort
+                    </label>
+
+                    <input
+                        type="password"
+                        id="create-user-password"
+                        name="password"
+                        minlength="12"
+                        autocomplete="new-password"
+                        required
+                    >
+
+                    <div class="panel-description">
+                        Mindestens 12 Zeichen
+                    </div>
+
+                </div>
+
+
+                <div class="form-group">
+
+                    <label for="create-user-role">
+                        Rolle
+                    </label>
+
+                    <select
+                        id="create-user-role"
+                        name="role"
+                        required
+                    >
+
+                        <option value="viewer">
+                            Viewer
+                        </option>
+
+                        <option value="operator">
+                            Operator
+                        </option>
+
+                        <option value="administrator">
+                            Administrator
+                        </option>
+
+                    </select>
+
+                </div>
+
+
+                <div
+                    id="create-user-error"
+                    class="form-error"
+                    hidden
+                ></div>
+
+
+                <div class="modal-actions">
+
+                    <button
+                        type="submit"
+                        class="button-primary"
+                        id="create-user-button"
+                    >
+                        Benutzer anlegen
+                    </button>
+
+                </div>
+
+            </form>
+
+        </div>
+
+
+        <div class="panel-content">
+
+            <div class="panel-header">
+
+                <div>
+                    <h3>Benutzer</h3>
+
+                    <div class="panel-description">
+                        Vorhandene Benutzerkonten und deren Rollen
+                    </div>
+                </div>
+
+            </div>
+
+
+            <div
+                id="users-list-status"
+                class="panel-description"
+            >
+                Benutzer werden geladen …
+            </div>
+
+
+            <div
+                class="user-list-table-wrapper"
+                id="users-list-container"
+                hidden
+            >
+
+                <table class="user-list-table">
+
+                    <thead>
+                        <tr>
+                            <th>Benutzername</th>
+                            <th>Rolle</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+
+                    <tbody id="users-list-body"></tbody>
+
+                </table>
+
+            </div>
+
+        </div>
+
+    </section>
+
+</main>
+
+
+<script
+    src="{{ url_for('static', filename='app.js') }}"
+    defer
+></script>
+
+</body>
+</html>

@@ -38,6 +38,7 @@ def create_rbac_database(db_path):
             id INTEGER PRIMARY KEY,
             username TEXT NOT NULL,
             password_hash TEXT NOT NULL,
+            created_at TEXT NOT NULL,
             enabled INTEGER NOT NULL DEFAULT 1,
             role TEXT NOT NULL DEFAULT 'administrator'
         )
@@ -50,16 +51,18 @@ def create_rbac_database(db_path):
             id,
             username,
             password_hash,
+            created_at,
             enabled,
             role
         )
-        VALUES (?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?)
         """,
         [
             (
                 1,
                 "administrator",
                 "pytest-password-hash",
+                "2026-01-01T00:00:00+00:00",
                 1,
                 ROLE_ADMINISTRATOR,
             ),
@@ -67,6 +70,7 @@ def create_rbac_database(db_path):
                 2,
                 "operator",
                 "pytest-password-hash",
+                "2026-01-01T00:00:00+00:00",
                 1,
                 ROLE_OPERATOR,
             ),
@@ -74,6 +78,7 @@ def create_rbac_database(db_path):
                 3,
                 "viewer",
                 "pytest-password-hash",
+                "2026-01-01T00:00:00+00:00",
                 1,
                 ROLE_VIEWER,
             ),
@@ -946,3 +951,789 @@ def test_real_route_delete_client_requires_administrator(
     assert response.get_json() == {
         "error": "authorization_required",
     }
+
+
+def create_user_test_database(db_path):
+    connection = sqlite3.connect(db_path)
+    connection.row_factory = sqlite3.Row
+
+    connection.execute(
+        """
+        CREATE TABLE users (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            username TEXT NOT NULL UNIQUE,
+            password_hash TEXT NOT NULL,
+            created_at TEXT NOT NULL,
+            enabled INTEGER NOT NULL DEFAULT 1,
+            role TEXT NOT NULL DEFAULT 'administrator'
+        )
+        """
+    )
+
+    connection.execute(
+        """
+        CREATE TABLE audit_log (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            timestamp TEXT NOT NULL,
+            actor_type TEXT NOT NULL,
+            actor_id TEXT,
+            action TEXT NOT NULL,
+            target TEXT,
+            result TEXT NOT NULL,
+            details TEXT
+        )
+        """
+    )
+
+    connection.execute(
+        """
+        INSERT INTO users (
+            username,
+            password_hash,
+            created_at,
+            enabled,
+            role
+        )
+        VALUES (?, ?, ?, ?, ?)
+        """,
+        (
+            "administrator",
+            "pytest-password-hash",
+            "2026-01-01T00:00:00+00:00",
+            1,
+            ROLE_ADMINISTRATOR,
+        ),
+    )
+
+    connection.commit()
+    connection.close()
+
+
+def test_index_passes_user_role_to_template(
+    monkeypatch,
+    tmp_path,
+):
+    from flask import template_rendered
+    from server import app as app_module
+
+    db_path = str(
+        tmp_path / "index-user-role.db"
+    )
+
+    create_rbac_database(db_path)
+
+    app = configure_real_app_session_user(
+        monkeypatch,
+        app_module,
+        db_path,
+        1,
+        "administrator",
+    )
+
+    rendered = {}
+
+    def capture_template(sender, template, context):
+        rendered["template"] = template.name
+        rendered["user_role"] = context.get("user_role")
+
+    template_rendered.connect(
+        capture_template,
+        app,
+    )
+
+    with app.test_client() as client:
+        login_as(
+            client,
+            1,
+            "administrator",
+        )
+
+        response = client.get("/")
+
+    assert response.status_code == 200
+    assert rendered["template"] == "index.html"
+    assert rendered["user_role"] == ROLE_ADMINISTRATOR
+
+def test_real_route_create_user_as_administrator(
+    monkeypatch,
+    tmp_path,
+):
+    from server import app as app_module
+
+    db_path = str(
+        tmp_path / "real-create-user.db"
+    )
+
+    create_user_test_database(db_path)
+
+    app = configure_real_app_session_user(
+        monkeypatch,
+        app_module,
+        db_path,
+        1,
+        "administrator",
+    )
+
+    with app.test_client() as client:
+        login_as(
+            client,
+            1,
+            "administrator",
+        )
+
+        with client.session_transaction() as session:
+            session["csrf_token"] = "pytest-csrf-token"
+
+        response = client.post(
+            "/api/users",
+            headers={
+                "X-CSRF-Token": "pytest-csrf-token",
+            },
+            json={
+                "username": "test-operator",
+                "password": "pytest-password-123",
+                "role": ROLE_OPERATOR,
+            },
+        )
+
+    assert response.status_code == 201
+
+    data = response.get_json()
+
+    assert data["status"] == "created"
+    assert data["user"]["username"] == "test-operator"
+    assert data["user"]["role"] == ROLE_OPERATOR
+    assert data["user"]["enabled"] is True
+
+    connection = sqlite3.connect(db_path)
+    connection.row_factory = sqlite3.Row
+
+    user = connection.execute(
+        """
+        SELECT
+            id,
+            username,
+            password_hash,
+            enabled,
+            role
+        FROM users
+        WHERE username = ?
+        """,
+        ("test-operator",),
+    ).fetchone()
+
+    audit = connection.execute(
+        """
+        SELECT
+            actor_type,
+            actor_id,
+            action,
+            target,
+            result,
+            details
+        FROM audit_log
+        WHERE action = 'user.create'
+        """
+    ).fetchone()
+
+    connection.close()
+
+    assert user is not None
+    assert user["username"] == "test-operator"
+    assert user["enabled"] == 1
+    assert user["role"] == ROLE_OPERATOR
+    assert user["password_hash"] != "pytest-password-123"
+    assert user["password_hash"].startswith("$argon2")
+
+    assert audit is not None
+    assert audit["actor_type"] == "user"
+    assert audit["actor_id"] == "1"
+    assert audit["action"] == "user.create"
+    assert audit["target"] == f"user:{user['id']}"
+    assert audit["result"] == "success"
+    assert audit["details"] == (
+        "username=test-operator, role=operator"
+    )
+    assert "pytest-password-123" not in audit["details"]
+
+
+@pytest.mark.parametrize(
+    "user_id,username,role",
+    [
+        (2, "operator", ROLE_OPERATOR),
+        (3, "viewer", ROLE_VIEWER),
+    ],
+)
+def test_real_route_create_user_requires_administrator(
+    monkeypatch,
+    tmp_path,
+    user_id,
+    username,
+    role,
+):
+    from server import app as app_module
+
+    db_path = str(
+        tmp_path / f"real-create-user-{role}.db"
+    )
+
+    create_rbac_database(db_path)
+
+    app = configure_real_app_session_user(
+        monkeypatch,
+        app_module,
+        db_path,
+        user_id,
+        username,
+    )
+
+    with app.test_client() as client:
+        login_as(
+            client,
+            user_id,
+            username,
+        )
+
+        response = client.post(
+            "/api/users",
+            json={
+                "username": "should-not-exist",
+                "password": "pytest-password-123",
+                "role": ROLE_OPERATOR,
+            },
+        )
+
+    assert response.status_code == 403
+    assert response.get_json() == {
+        "error": "authorization_required",
+    }
+
+
+def test_real_route_create_user_rejects_short_password(
+    monkeypatch,
+    tmp_path,
+):
+    from server import app as app_module
+
+    db_path = str(
+        tmp_path / "real-create-user-short-password.db"
+    )
+
+    create_user_test_database(db_path)
+
+    app = configure_real_app_session_user(
+        monkeypatch,
+        app_module,
+        db_path,
+        1,
+        "administrator",
+    )
+
+    with app.test_client() as client:
+        login_as(
+            client,
+            1,
+            "administrator",
+        )
+
+        with client.session_transaction() as session:
+            session["csrf_token"] = "pytest-csrf-token"
+
+        response = client.post(
+            "/api/users",
+            headers={
+                "X-CSRF-Token": "pytest-csrf-token",
+            },
+            json={
+                "username": "short-password-user",
+                "password": "short",
+                "role": ROLE_OPERATOR,
+            },
+        )
+
+    assert response.status_code == 400
+    assert response.get_json() == {
+        "error": "password_too_short",
+    }
+
+
+def test_real_route_create_user_rejects_invalid_role(
+    monkeypatch,
+    tmp_path,
+):
+    from server import app as app_module
+
+    db_path = str(
+        tmp_path / "real-create-user-invalid-role.db"
+    )
+
+    create_user_test_database(db_path)
+
+    app = configure_real_app_session_user(
+        monkeypatch,
+        app_module,
+        db_path,
+        1,
+        "administrator",
+    )
+
+    with app.test_client() as client:
+        login_as(
+            client,
+            1,
+            "administrator",
+        )
+
+        with client.session_transaction() as session:
+            session["csrf_token"] = "pytest-csrf-token"
+
+        response = client.post(
+            "/api/users",
+            headers={
+                "X-CSRF-Token": "pytest-csrf-token",
+            },
+            json={
+                "username": "invalid-role-user",
+                "password": "pytest-password-123",
+                "role": "superuser",
+            },
+        )
+
+    assert response.status_code == 400
+    assert response.get_json() == {
+        "error": "invalid_user_role",
+    }
+
+
+def test_real_route_create_user_rejects_duplicate_username(
+    monkeypatch,
+    tmp_path,
+):
+    from server import app as app_module
+
+    db_path = str(
+        tmp_path / "real-create-user-duplicate.db"
+    )
+
+    create_user_test_database(db_path)
+
+    app = configure_real_app_session_user(
+        monkeypatch,
+        app_module,
+        db_path,
+        1,
+        "administrator",
+    )
+
+    with app.test_client() as client:
+        login_as(
+            client,
+            1,
+            "administrator",
+        )
+
+        with client.session_transaction() as session:
+            session["csrf_token"] = "pytest-csrf-token"
+
+        response = client.post(
+            "/api/users",
+            headers={
+                "X-CSRF-Token": "pytest-csrf-token",
+            },
+            json={
+                "username": "administrator",
+                "password": "pytest-password-123",
+                "role": ROLE_OPERATOR,
+            },
+        )
+
+    assert response.status_code == 409
+    assert response.get_json() == {
+        "error": "user_already_exists",
+    }
+
+
+def test_real_route_create_user_requires_csrf(
+    monkeypatch,
+    tmp_path,
+):
+    from server import app as app_module
+
+    db_path = str(
+        tmp_path / "real-create-user-csrf.db"
+    )
+
+    create_user_test_database(db_path)
+
+    app = configure_real_app_session_user(
+        monkeypatch,
+        app_module,
+        db_path,
+        1,
+        "administrator",
+    )
+
+    with app.test_client() as client:
+        login_as(
+            client,
+            1,
+            "administrator",
+        )
+
+        response = client.post(
+            "/api/users",
+            json={
+                "username": "csrf-user",
+                "password": "pytest-password-123",
+                "role": ROLE_OPERATOR,
+            },
+        )
+
+    assert response.status_code == 400
+    assert response.get_json() == {
+        "error": "csrf_validation_failed",
+    }
+
+
+def test_real_route_create_user_requires_username(
+    monkeypatch,
+    tmp_path,
+):
+    from server import app as app_module
+
+    db_path = str(
+        tmp_path / "real-create-user-no-username.db"
+    )
+
+    create_user_test_database(db_path)
+
+    app = configure_real_app_session_user(
+        monkeypatch,
+        app_module,
+        db_path,
+        1,
+        "administrator",
+    )
+
+    with app.test_client() as client:
+        login_as(
+            client,
+            1,
+            "administrator",
+        )
+
+        with client.session_transaction() as session:
+            session["csrf_token"] = "pytest-csrf-token"
+
+        response = client.post(
+            "/api/users",
+            headers={
+                "X-CSRF-Token": "pytest-csrf-token",
+            },
+            json={
+                "username": "",
+                "password": "pytest-password-123",
+                "role": ROLE_OPERATOR,
+            },
+        )
+
+    assert response.status_code == 400
+    assert response.get_json() == {
+        "error": "username_required",
+    }
+
+
+def test_list_users_as_administrator(
+    monkeypatch,
+    tmp_path,
+):
+    from server import app as app_module
+
+    db_path = str(
+        tmp_path / "list-users-admin.db"
+    )
+
+    create_rbac_database(db_path)
+
+    app = configure_real_app_session_user(
+        monkeypatch,
+        app_module,
+        db_path,
+        1,
+        "administrator",
+    )
+
+    with app.test_client() as client:
+        login_as(
+            client,
+            1,
+            "administrator",
+        )
+
+        response = client.get("/api/users")
+
+    assert response.status_code == 200
+
+    users = response.get_json()
+
+    assert isinstance(users, list)
+    assert len(users) >= 1
+    assert all(
+        "password_hash" not in user
+        for user in users
+    )
+
+
+def test_list_users_denied_for_operator(
+    monkeypatch,
+    tmp_path,
+):
+    from server import app as app_module
+
+    db_path = str(
+        tmp_path / "list-users-operator.db"
+    )
+
+    create_rbac_database(db_path)
+
+    app = configure_real_app_session_user(
+        monkeypatch,
+        app_module,
+        db_path,
+        2,
+        "operator",
+    )
+
+    with app.test_client() as client:
+        login_as(
+            client,
+            2,
+            "operator",
+        )
+
+        response = client.get("/api/users")
+
+    assert response.status_code == 403
+
+
+def test_list_users_denied_for_viewer(
+    monkeypatch,
+    tmp_path,
+):
+    from server import app as app_module
+
+    db_path = str(
+        tmp_path / "list-users-viewer.db"
+    )
+
+    create_rbac_database(db_path)
+
+    app = configure_real_app_session_user(
+        monkeypatch,
+        app_module,
+        db_path,
+        3,
+        "viewer",
+    )
+
+    with app.test_client() as client:
+        login_as(
+            client,
+            3,
+            "viewer",
+        )
+
+        response = client.get("/api/users")
+
+    assert response.status_code == 403
+
+
+@pytest.mark.parametrize(
+    "user_id,username",
+    [
+        (1, "administrator"),
+        (2, "operator"),
+    ],
+)
+def test_client_page_shows_management_sections_for_operator_and_administrator(
+    monkeypatch,
+    tmp_path,
+    user_id,
+    username,
+):
+    from server import app as app_module
+
+    db_path = str(
+        tmp_path / f"client-page-{username}.db"
+    )
+
+    create_rbac_database(db_path)
+
+    app = configure_real_app_session_user(
+        monkeypatch,
+        app_module,
+        db_path,
+        user_id,
+        username,
+    )
+
+    with app.test_client() as client:
+        login_as(
+            client,
+            user_id,
+            username,
+        )
+
+        response = client.get("/client?id=1")
+
+    assert response.status_code == 200
+    assert b">Updates<" in response.data
+    assert b">Update-Jobs<" in response.data
+    assert b">Update-Verlauf<" in response.data
+    assert b">Paketverwaltung<" in response.data
+    assert b'id="package-management"' in response.data
+    assert b"window.lumsUserRole" in response.data
+
+
+def test_client_page_shows_only_installed_software_for_viewer(
+    monkeypatch,
+    tmp_path,
+):
+    from server import app as app_module
+
+    db_path = str(
+        tmp_path / "client-page-viewer.db"
+    )
+
+    create_rbac_database(db_path)
+
+    app = configure_real_app_session_user(
+        monkeypatch,
+        app_module,
+        db_path,
+        3,
+        "viewer",
+    )
+
+    with app.test_client() as client:
+        login_as(
+            client,
+            3,
+            "viewer",
+        )
+
+        response = client.get("/client?id=1")
+
+    assert response.status_code == 200
+    assert b"Installierte Software und Systempakete" in response.data
+    assert b'id="package-search"' in response.data
+    assert b'id="packages-table"' in response.data
+
+    assert b"<h2>Updates</h2>" not in response.data
+    assert b"<h2>Update-Jobs</h2>" not in response.data
+    assert b"<h2>Update-Verlauf</h2>" not in response.data
+    assert b"<h2>Paketverwaltung</h2>" not in response.data
+    assert b'id="package-management"' not in response.data
+    assert "System vollständig aktualisieren".encode("utf-8") not in response.data
+    assert b"Systemwartung" not in response.data
+    assert b"window.lumsUserRole" in response.data
+
+
+def test_users_page_visible_for_administrator(
+    monkeypatch,
+    tmp_path,
+):
+    from server import app as app_module
+
+    db_path = str(
+        tmp_path / "users-admin-ui.db"
+    )
+
+    create_rbac_database(db_path)
+
+    app = configure_real_app_session_user(
+        monkeypatch,
+        app_module,
+        db_path,
+        1,
+        "administrator",
+    )
+
+    with app.test_client() as client:
+        login_as(
+            client,
+            1,
+            "administrator",
+        )
+
+        response = client.get("/users")
+
+    assert response.status_code == 200
+    assert b'id="user-management"' in response.data
+    assert b'id="users-list-status"' in response.data
+    assert b'id="users-list-container"' in response.data
+    assert b'id="users-list-body"' in response.data
+
+
+def test_users_page_denied_for_operator(
+    monkeypatch,
+    tmp_path,
+):
+    from server import app as app_module
+
+    db_path = str(
+        tmp_path / "users-operator-ui.db"
+    )
+
+    create_rbac_database(db_path)
+
+    app = configure_real_app_session_user(
+        monkeypatch,
+        app_module,
+        db_path,
+        2,
+        "operator",
+    )
+
+    with app.test_client() as client:
+        login_as(
+            client,
+            2,
+            "operator",
+        )
+
+        response = client.get("/users")
+
+    assert response.status_code == 403
+
+
+def test_users_page_denied_for_viewer(
+    monkeypatch,
+    tmp_path,
+):
+    from server import app as app_module
+
+    db_path = str(
+        tmp_path / "users-viewer-ui.db"
+    )
+
+    create_rbac_database(db_path)
+
+    app = configure_real_app_session_user(
+        monkeypatch,
+        app_module,
+        db_path,
+        3,
+        "viewer",
+    )
+
+    with app.test_client() as client:
+        login_as(
+            client,
+            3,
+            "viewer",
+        )
+
+        response = client.get("/users")
+
+    assert response.status_code == 403

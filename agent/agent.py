@@ -1796,6 +1796,142 @@ def send_job_result(
         return response.read().decode("utf-8")
 
 
+def get_pending_package_search(client_id):
+    url = (
+        f"{LUMS_BASE}/api/clients/"
+        f"{client_id}/package-search/pending"
+    )
+
+    request = urllib.request.Request(
+        url,
+        headers=get_auth_headers()
+    )
+
+    try:
+        with urllib.request.urlopen(
+            request,
+            timeout=10,
+            context=LUMS_SSL_CONTEXT
+        ) as response:
+
+            if response.status == 204:
+                return None
+
+            return json.loads(
+                response.read().decode("utf-8")
+            )
+
+    except urllib.error.HTTPError as error:
+
+        if error.code == 204:
+            return None
+
+        raise
+
+
+def send_package_search_result(
+    search_id,
+    status,
+    results=None,
+    error_message=None
+):
+    payload = json.dumps({
+        "status": status,
+        "results": results or [],
+        "error_message": error_message
+    }).encode("utf-8")
+
+    request = urllib.request.Request(
+        f"{LUMS_BASE}/api/package-search/"
+        f"{search_id}/result",
+        data=payload,
+        headers=get_auth_headers({
+            "Content-Type": "application/json"
+        }),
+        method="POST"
+    )
+
+    with urllib.request.urlopen(
+        request,
+        timeout=10,
+        context=LUMS_SSL_CONTEXT
+    ) as response:
+
+        return response.read().decode("utf-8")
+
+
+def execute_package_search(search):
+    search_id = search["search_id"]
+    query = search["query"]
+
+    print()
+    separator()
+
+    print(
+        c(
+            CYAN + BOLD,
+            "LUMS // PACKAGE SEARCH"
+        )
+    )
+
+    print()
+
+    print(
+        f"  SEARCH     {c(CYAN, str(search_id))}"
+    )
+
+    print(
+        f"  QUERY      {c(WHITE, query)}"
+    )
+
+    print(
+        f"  MANAGER    {c(GREEN, PACKAGE_MANAGER.name)}"
+    )
+
+    try:
+
+        results = PACKAGE_MANAGER.search_packages(
+            query,
+            max_results=50
+        )
+
+        response = send_package_search_result(
+            search_id,
+            "completed",
+            results=results
+        )
+
+        status_ok(
+            f"PACKAGE SEARCH COMPLETE // "
+            f"{len(results)} RESULTS"
+        )
+
+        return response
+
+    except Exception as error:
+
+        status_fail(
+            f"PACKAGE SEARCH FAILED // {error}"
+        )
+
+        try:
+
+            send_package_search_result(
+                search_id,
+                "failed",
+                error_message=str(error)
+            )
+
+        except Exception as result_error:
+
+            status_fail(
+                "PACKAGE SEARCH RESULT FAILED // "
+                f"{result_error}"
+            )
+
+        return None
+
+
 def execute_job(job):
     job_id = job["job_id"]
     action = job.get("action", "UPDATE_PACKAGE")
@@ -2142,6 +2278,15 @@ def main():
         status_ok(
             f"CLIENT AUTHENTICATED // ID {client['id']}"
         )
+
+        package_search = get_pending_package_search(
+            client["id"]
+        )
+
+        if package_search:
+            execute_package_search(
+                package_search
+            )
 
         job = get_pending_job(
             client["id"]

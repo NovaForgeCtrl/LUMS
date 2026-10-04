@@ -48,6 +48,15 @@
 
         </div>
 
+        {% if user_role == "administrator" %}
+        <a
+            href="/users"
+            class="logout-button"
+        >
+            Benutzerverwaltung
+        </a>
+        {% endif %}
+
         <form action="/logout" method="POST" class="logout-form">
             <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
             <button type="submit" class="logout-button">
@@ -346,6 +355,7 @@
 
 
 </main>
+
 
 
 

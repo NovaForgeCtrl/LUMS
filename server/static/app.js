@@ -641,6 +641,251 @@ async function copyClientToken() {
 
 
 
+function showCreateUserError(message) {
+
+    const error =
+        document.getElementById("create-user-error");
+
+    error.textContent = message;
+    error.hidden = false;
+}
+
+
+
+async function loadUsers() {
+
+    const status =
+        document.getElementById("users-list-status");
+
+    const container =
+        document.getElementById("users-list-container");
+
+    const body =
+        document.getElementById("users-list-body");
+
+    if (!status || !container || !body) {
+
+        return;
+
+    }
+
+    status.textContent =
+        "Benutzer werden geladen …";
+
+    container.hidden = true;
+
+    try {
+
+        const response =
+            await fetch("/api/users");
+
+        const data =
+            await response.json();
+
+        if (!response.ok) {
+
+            throw new Error(
+                data.error ||
+                "Benutzer konnten nicht geladen werden."
+            );
+
+        }
+
+        body.innerHTML = "";
+
+        if (!Array.isArray(data) || data.length === 0) {
+
+            status.textContent =
+                "Keine Benutzer vorhanden.";
+
+            return;
+
+        }
+
+        for (const user of data) {
+
+            const row =
+                document.createElement("tr");
+
+            const usernameCell =
+                document.createElement("td");
+
+            usernameCell.textContent =
+                user.username;
+
+            const roleCell =
+                document.createElement("td");
+
+            roleCell.textContent =
+                user.role;
+
+            const statusCell =
+                document.createElement("td");
+
+            statusCell.textContent =
+                user.enabled
+                    ? "Aktiv"
+                    : "Deaktiviert";
+
+            row.appendChild(usernameCell);
+            row.appendChild(roleCell);
+            row.appendChild(statusCell);
+
+            body.appendChild(row);
+
+        }
+
+        status.textContent =
+            `${data.length} Benutzer`;
+
+        container.hidden = false;
+
+    } catch (error) {
+
+        console.error(error);
+
+        status.textContent =
+            "Benutzer konnten nicht geladen werden.";
+
+    }
+
+}
+
+
+
+async function createUser(event) {
+
+    event.preventDefault();
+
+    const username =
+        document
+            .getElementById("create-user-username")
+            .value
+            .trim();
+
+    const password =
+        document
+            .getElementById("create-user-password")
+            .value;
+
+    const role =
+        document
+            .getElementById("create-user-role")
+            .value;
+
+    const error =
+        document.getElementById("create-user-error");
+
+    error.hidden = true;
+    error.textContent = "";
+
+    const csrfToken =
+        document.querySelector(
+            'meta[name="csrf-token"]'
+        )?.content;
+
+    if (!csrfToken) {
+
+        showCreateUserError(
+            "CSRF-Token konnte nicht gefunden werden."
+        );
+
+        return;
+
+    }
+
+    const submitButton =
+        document.getElementById(
+            "create-user-button"
+        );
+
+    submitButton.disabled = true;
+    submitButton.textContent = "Wird angelegt...";
+
+    try {
+
+        const response =
+            await fetch(
+                "/api/users",
+                {
+                    method: "POST",
+
+                    headers: {
+                        "Content-Type": "application/json",
+                        "X-CSRF-Token": csrfToken
+                    },
+
+                    body: JSON.stringify({
+                        username: username,
+                        password: password,
+                        role: role
+                    })
+                }
+            );
+
+        const data =
+            await response.json();
+
+        if (!response.ok) {
+
+            const messages = {
+                username_required:
+                    "Bitte einen Benutzernamen eingeben.",
+
+                username_too_long:
+                    "Der Benutzername darf höchstens 64 Zeichen lang sein.",
+
+                password_required:
+                    "Bitte ein Passwort eingeben.",
+
+                password_too_short:
+                    "Das Passwort muss mindestens 12 Zeichen lang sein.",
+
+                invalid_user_role:
+                    "Die ausgewählte Benutzerrolle ist ungültig.",
+
+                user_already_exists:
+                    "Dieser Benutzername existiert bereits.",
+
+                csrf_validation_failed:
+                    "CSRF-Prüfung fehlgeschlagen."
+            };
+
+            throw new Error(
+                messages[data.error] ||
+                "Benutzer konnte nicht angelegt werden."
+            );
+
+        }
+
+        document
+            .getElementById("create-user-form")
+            .reset();
+
+        error.hidden = false;
+        error.textContent =
+            `Benutzer "${data.user.username}" wurde erfolgreich angelegt.`;
+
+        await loadUsers();
+
+    } catch (error) {
+
+        console.error(error);
+
+        showCreateUserError(
+            error.message
+        );
+
+    } finally {
+
+        submitButton.disabled = false;
+        submitButton.textContent = "Benutzer anlegen";
+
+    }
+}
+
+
+
 const addClientForm =
     document.getElementById("add-client-form");
 
@@ -651,6 +896,22 @@ if (addClientForm) {
         "submit",
         createClient
     );
+
+}
+
+
+const createUserForm =
+    document.getElementById("create-user-form");
+
+
+if (createUserForm) {
+
+    createUserForm.addEventListener(
+        "submit",
+        createUser
+    );
+
+    loadUsers();
 
 }
 

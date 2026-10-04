@@ -10,6 +10,7 @@ echo "=== LUMS database migrations ==="
 python3 /app/server/security_migration.py --skip-admin
 python3 /app/server/package_management_migration.py
 python3 /app/server/login_rate_limiting_migration.py
+python3 /app/server/package_search_migration.py
 
 echo "=== Starting Gunicorn ==="
 

@@ -6,6 +6,36 @@ __pycache__
 *.pre-*
 *.bak
 *.log
+
 .env
+*.env
+*.env.*
+
+lums.env
+lums-*.env
+lums-agent.env
+lums-agent.conf
+
 .venv
 venv
+
+# Local LUMS data
+*.db
+*.sqlite
+*.sqlite3
+
+# Runtime / generated data
+data/
+logs/
+tmp/
+cache/
+
+# Aptly / repository data
+aptly/
+repository/
+packages/
+metadata/
+
+# Local backup / historical working copies
+*.bak-*
+*.before-*

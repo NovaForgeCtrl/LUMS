@@ -3,6 +3,7 @@ import os
 import logging
 from pathlib import Path
 import sqlite3
+import json
 from datetime import datetime, timezone
 
 logger = logging.getLogger(__name__)
@@ -28,6 +29,7 @@ from security import (
     login_user,
     logout_user,
     current_username,
+    current_user_role,
     get_csrf_token,
     audit_log,
     current_user_id,
@@ -36,6 +38,7 @@ from security import (
     ROLE_ADMINISTRATOR,
     ROLE_OPERATOR,
     ROLE_VIEWER,
+    VALID_ROLES,
     csrf_required,
     client_auth_required,
     authenticated_client,
@@ -44,6 +47,7 @@ from security import (
     get_login_rate_limit_key,
     is_login_rate_limited,
     is_valid_package_name,
+    PACKAGE_NAME_MAX_LENGTH,
     record_login_failure,
     clear_login_rate_limit,
 )
@@ -81,6 +85,27 @@ app.secret_key = load_secret_key()
 configure_session(app)
 
 DB_PATH = "/var/lib/lums/lums.db"
+
+PACKAGE_SEARCH_QUERY_MAX_LENGTH = 128
+PACKAGE_SEARCH_MAX_RESULTS = 50
+
+
+def normalize_package_search_query(query):
+    if not isinstance(query, str):
+        return None
+
+    query = query.strip()
+
+    if not query:
+        return None
+
+    if query.startswith("-"):
+        return None
+
+    if len(query) > PACKAGE_SEARCH_QUERY_MAX_LENGTH:
+        return None
+
+    return query
 
 
 app.config["LUMS_GET_CONNECTION"] = lambda: get_connection()
@@ -472,6 +497,18 @@ def index():
     return render_template(
         "index.html",
         csrf_token=get_csrf_token(),
+        user_role=current_user_role(),
+    )
+
+
+@app.route("/users")
+@login_required
+@role_required(ROLE_ADMINISTRATOR)
+def users_page():
+    return render_template(
+        "users.html",
+        csrf_token=get_csrf_token(),
+        user_role=current_user_role(),
     )
 
 
@@ -487,7 +524,163 @@ def client_page():
     return render_template(
         "client.html",
         csrf_token=get_csrf_token(),
+        user_role=current_user_role(),
     )
+
+
+# ============================================================
+# USER MANAGEMENT
+# ============================================================
+
+@app.route("/api/users", methods=["GET"])
+@login_required
+@role_required(ROLE_ADMINISTRATOR)
+def list_users():
+
+    connection = get_connection()
+
+    try:
+        rows = connection.execute(
+            """
+            SELECT
+                id,
+                username,
+                role,
+                enabled,
+                created_at
+            FROM users
+            ORDER BY username COLLATE NOCASE ASC
+            """
+        ).fetchall()
+
+        return jsonify([
+            {
+                "id": row["id"],
+                "username": row["username"],
+                "role": row["role"],
+                "enabled": bool(row["enabled"]),
+                "created_at": row["created_at"],
+            }
+            for row in rows
+        ])
+
+    finally:
+        connection.close()
+
+
+@app.route("/api/users", methods=["POST"])
+@login_required
+@role_required(ROLE_ADMINISTRATOR)
+@csrf_required
+def create_user():
+
+    data = request.get_json(silent=True) or {}
+
+    username = str(data.get("username", "")).strip()
+    password = str(data.get("password", ""))
+    role = str(data.get("role", "")).strip()
+
+    if not username:
+        return jsonify({
+            "error": "username_required"
+        }), 400
+
+    if len(username) > 64:
+        return jsonify({
+            "error": "username_too_long"
+        }), 400
+
+    if not password:
+        return jsonify({
+            "error": "password_required"
+        }), 400
+
+    if len(password) < 12:
+        return jsonify({
+            "error": "password_too_short"
+        }), 400
+
+    if role not in VALID_ROLES:
+        return jsonify({
+            "error": "invalid_user_role"
+        }), 400
+
+    connection = get_connection()
+
+    try:
+        existing = connection.execute(
+            """
+            SELECT id
+            FROM users
+            WHERE username = ?
+            """,
+            (username,),
+        ).fetchone()
+
+        if existing is not None:
+            return jsonify({
+                "error": "user_already_exists"
+            }), 409
+
+        password_hash = hash_password(password)
+
+        cursor = connection.execute(
+            """
+            INSERT INTO users (
+                username,
+                password_hash,
+                created_at,
+                enabled,
+                role
+            )
+            VALUES (?, ?, ?, 1, ?)
+            """,
+            (
+                username,
+                password_hash,
+                datetime.now(timezone.utc).isoformat(),
+                role,
+            ),
+        )
+
+        user_id = cursor.lastrowid
+
+        audit_log(
+            connection,
+            actor_type="user",
+            actor_id=current_user_id(),
+            action="user.create",
+            target=f"user:{user_id}",
+            result="success",
+            details=f"username={username}, role={role}",
+        )
+
+        connection.commit()
+
+        return jsonify({
+            "status": "created",
+            "user": {
+                "id": user_id,
+                "username": username,
+                "role": role,
+                "enabled": True,
+            },
+        }), 201
+
+    except sqlite3.IntegrityError:
+        connection.rollback()
+
+        return jsonify({
+            "error": "user_already_exists"
+        }), 409
+
+    except Exception:
+        connection.rollback()
+        raise
+
+    finally:
+        connection.close()
+
 
 
 # ============================================================
@@ -1042,6 +1235,112 @@ def client_packages(client_id):
 
 
 # ============================================================
+# PACKAGE SEARCH
+# ============================================================
+
+@app.route(
+    "/api/clients/<int:client_id>/package-search",
+    methods=["POST"]
+)
+@login_required
+@role_required(ROLE_ADMINISTRATOR, ROLE_OPERATOR)
+@csrf_required
+def create_package_search(client_id):
+
+    payload = request.get_json(silent=True)
+
+    if not isinstance(payload, dict):
+        return jsonify({
+            "error": "invalid_request"
+        }), 400
+
+    query = normalize_package_search_query(
+        payload.get("query")
+    )
+
+    if query is None:
+        return jsonify({
+            "error": "invalid_package_search_query"
+        }), 400
+
+    connection = get_connection()
+
+    try:
+        cursor = connection.cursor()
+
+        cursor.execute("""
+            SELECT
+                id,
+                enabled
+            FROM clients
+            WHERE id = ?
+        """, (client_id,))
+
+        client = cursor.fetchone()
+
+        if client is None:
+            return jsonify({
+                "error": "client_not_found"
+            }), 404
+
+        if not client["enabled"]:
+            return jsonify({
+                "error": "client_disabled"
+            }), 409
+
+        created_at = datetime.now(timezone.utc).isoformat()
+
+        cursor.execute("""
+            INSERT INTO package_search_requests (
+                client_id,
+                query,
+                status,
+                created_at
+            )
+            VALUES (?, ?, 'pending', ?)
+        """, (
+            client_id,
+            query,
+            created_at,
+        ))
+
+        search_id = cursor.lastrowid
+
+        audit_log(
+            connection,
+            actor_type="user",
+            actor_id=current_user_id(),
+            action="package_search.create",
+            target=f"client:{client_id}",
+            result="success",
+            details=f"search_id={search_id} query={query}",
+        )
+
+        connection.commit()
+
+        logger.info(
+            "Package search created: Search #%s Client %s Query=%r",
+            search_id,
+            client_id,
+            query,
+        )
+
+        return jsonify({
+            "status": "pending",
+            "search_id": search_id,
+            "client_id": client_id,
+            "query": query,
+        }), 202
+
+    except Exception:
+        connection.rollback()
+        raise
+
+    finally:
+        connection.close()
+
+
+# ============================================================
 # CREATE UPDATE JOB
 # ============================================================
 
@@ -1390,6 +1689,17 @@ def update_job_checkpoint(job_id):
             "error": "invalid_status"
         }), 400
 
+    if message is not None:
+        if not isinstance(message, str):
+            return jsonify({
+                "error": "invalid_message"
+            }), 400
+
+        if len(message) > 4096:
+            return jsonify({
+                "error": "message_too_long"
+            }), 400
+
     connection = get_connection()
 
     try:
@@ -1442,7 +1752,7 @@ def update_job_checkpoint(job_id):
                 "error": "package_not_found"
             }), 404
 
-        connection.execute(
+        update_cursor = connection.execute(
             """
             UPDATE update_job_packages
             SET
@@ -1458,6 +1768,11 @@ def update_job_checkpoint(job_id):
                 package.strip(),
             ),
         )
+
+        if update_cursor.rowcount != 1:
+            return jsonify({
+                "error": "package_update_conflict"
+            }), 409
 
         connection.commit()
 
@@ -1476,6 +1791,188 @@ def update_job_checkpoint(job_id):
         connection.close()
 
 
+@app.route(
+    "/api/package-search/<int:search_id>/result",
+    methods=["POST"]
+)
+@client_auth_required
+def package_search_result(search_id):
+
+    client = authenticated_client()
+
+    data = request.get_json(silent=True) or {}
+
+    status = data.get("status")
+    results = data.get("results", [])
+    error_message = data.get("error_message")
+
+    if status not in ("completed", "failed"):
+        return jsonify({
+            "error": "invalid status"
+        }), 400
+
+    if status == "completed":
+
+        if not isinstance(results, list):
+            return jsonify({
+                "error": "invalid results"
+            }), 400
+
+        if len(results) > PACKAGE_SEARCH_MAX_RESULTS:
+            return jsonify({
+                "error": "too many results"
+            }), 400
+
+        for result in results:
+
+            if not isinstance(result, dict):
+                return jsonify({
+                    "error": "invalid result"
+                }), 400
+
+            package = result.get("package")
+
+            if not isinstance(package, str):
+                return jsonify({
+                    "error": "invalid package"
+                }), 400
+
+            package = package.strip()
+
+            if not package:
+                return jsonify({
+                    "error": "invalid package"
+                }), 400
+
+            if len(package) > PACKAGE_NAME_MAX_LENGTH:
+                return jsonify({
+                    "error": "invalid package"
+                }), 400
+
+            if not all(
+                character.isalnum()
+                or character in ".:+@_/-"
+                for character in package
+            ):
+                return jsonify({
+                    "error": "invalid package"
+                }), 400
+
+    else:
+
+        if error_message is not None:
+
+            if not isinstance(error_message, str):
+                return jsonify({
+                    "error": "invalid error_message"
+                }), 400
+
+            error_message = error_message.strip()
+
+            if len(error_message) > 1024:
+                return jsonify({
+                    "error": "error_message too long"
+                }), 400
+
+        else:
+            error_message = "Package search failed"
+
+        results = []
+
+    connection = get_connection()
+
+    try:
+
+        search = connection.execute(
+            """
+            SELECT
+                id,
+                client_id,
+                status
+            FROM package_search_requests
+            WHERE id = ?
+            """,
+            (search_id,)
+        ).fetchone()
+
+        if search is None:
+            return jsonify({
+                "error": "search_not_found"
+            }), 404
+
+        if search["client_id"] != client["id"]:
+            return jsonify({
+                "error": "client_access_denied"
+            }), 403
+
+        if search["status"] != "running":
+            return jsonify({
+                "error": "search_not_running",
+                "search_id": search_id,
+                "search_status": search["status"],
+            }), 409
+
+        finished_at = datetime.now(
+            timezone.utc
+        ).isoformat()
+
+        if status == "completed":
+            result_json = json.dumps(
+                results,
+                ensure_ascii=False,
+            )
+            error_message = None
+        else:
+            result_json = "[]"
+
+        connection.execute(
+            """
+            UPDATE package_search_requests
+            SET
+                status = ?,
+                finished_at = ?,
+                result_json = ?,
+                error_message = ?
+            WHERE id = ?
+              AND client_id = ?
+              AND status = 'running'
+            """,
+            (
+                status,
+                finished_at,
+                result_json,
+                error_message,
+                search_id,
+                client["id"],
+            )
+        )
+
+        connection.commit()
+
+        logger.info(
+            "Package search completed: Search #%s Client %s "
+            "Status=%s Results=%d",
+            search_id,
+            client["id"],
+            status,
+            len(results),
+        )
+
+        return jsonify({
+            "status": status,
+            "search_id": search_id,
+            "result_count": len(results),
+            "finished_at": finished_at,
+        })
+
+    except Exception:
+        connection.rollback()
+        raise
+
+    finally:
+        connection.close()
+
+
 @app.route("/api/update-jobs/<int:job_id>/result", methods=["POST"])
 @client_auth_required
 def update_job_result(job_id):
@@ -1483,8 +1980,13 @@ def update_job_result(job_id):
 
     data = request.get_json(silent=True) or {}
 
+    if not isinstance(data, dict):
+        return jsonify({
+            "error": "invalid_json"
+        }), 400
+
     status = data.get("status")
-    reboot_required = 1 if data.get("reboot_required") else 0
+    reboot_required = 1 if data.get("reboot_required") is True else 0
     packages = data.get("packages", [])
 
     if status not in ("success", "partial", "failed"):
@@ -1497,11 +1999,21 @@ def update_job_result(job_id):
             "error": "invalid packages"
         }), 400
 
+    MAX_PACKAGE_RESULTS = 100
+    MAX_RESULT_MESSAGE_LENGTH = 4096
+
+    if len(packages) > MAX_PACKAGE_RESULTS:
+        return jsonify({
+            "error": "too_many_package_results"
+        }), 400
+
     allowed_package_statuses = {
         "success",
         "failed",
         "timeout",
     }
+
+    seen_packages = set()
 
     for package_result in packages:
 
@@ -1512,159 +2024,298 @@ def update_job_result(job_id):
 
         package = package_result.get("package")
         package_status = package_result.get("status")
+        message = package_result.get("message")
 
         if not isinstance(package, str) or not package.strip():
             return jsonify({
                 "error": "invalid package"
             }), 400
 
+        package = package.strip()
+
+        if package in seen_packages:
+            return jsonify({
+                "error": "duplicate package",
+                "package": package,
+            }), 400
+
+        seen_packages.add(package)
+
         if package_status not in allowed_package_statuses:
             return jsonify({
                 "error": "invalid package status"
             }), 400
 
+        if message is not None:
+            if not isinstance(message, str):
+                return jsonify({
+                    "error": "invalid package message",
+                    "package": package,
+                }), 400
+
+            if len(message) > MAX_RESULT_MESSAGE_LENGTH:
+                return jsonify({
+                    "error": "package message too long",
+                    "package": package,
+                }), 400
+
     conn = get_connection()
 
-    job = conn.execute(
-        """
-        SELECT *
-        FROM update_jobs
-        WHERE id = ?
-        """,
-        (job_id,)
-    ).fetchone()
-
-    if job is None:
-        conn.close()
-        return jsonify({
-            "error": "job not found"
-        }), 404
-
-    if job["client_id"] != client["id"]:
-        conn.close()
-        return jsonify({
-            "error": "client_access_denied"
-        }), 403
-
-    if job["status"] != "running":
-        conn.close()
-        return jsonify({
-            "error": "job_not_running",
-            "job_id": job_id,
-            "job_status": job["status"]
-        }), 409
-
-    now = datetime.now(timezone.utc).isoformat()
-
-    job_packages = {
-        row["package"]
-        for row in conn.execute(
+    try:
+        job = conn.execute(
             """
-            SELECT package
-            FROM update_job_packages
-            WHERE job_id = ?
+            SELECT *
+            FROM update_jobs
+            WHERE id = ?
             """,
             (job_id,)
-        ).fetchall()
-    }
+        ).fetchone()
 
-    for package_result in packages:
+        if job is None:
+            return jsonify({
+                "error": "job not found"
+            }), 404
 
-        if package_result["package"] not in job_packages:
-            conn.close()
+        if job["client_id"] != client["id"]:
+            return jsonify({
+                "error": "client_access_denied"
+            }), 403
+
+        if job["status"] != "running":
+            return jsonify({
+                "error": "job_not_running",
+                "job_id": job_id,
+                "job_status": job["status"]
+            }), 409
+
+        job_packages = {
+            row["package"]
+            for row in conn.execute(
+                """
+                SELECT package
+                FROM update_job_packages
+                WHERE job_id = ?
+                """,
+                (job_id,)
+            ).fetchall()
+        }
+
+        # UPDATE_SYSTEM jobs intentionally contain no package rows.
+        if job["action"] == "UPDATE_SYSTEM":
+
+            if packages:
+                return jsonify({
+                    "error": "system_update_must_not_contain_packages"
+                }), 400
+
+            now = datetime.now(timezone.utc).isoformat()
+
+            update_cursor = conn.execute(
+                """
+                UPDATE update_jobs
+                SET status = ?,
+                    finished_at = ?,
+                    reboot_required = ?
+                WHERE id = ?
+                  AND client_id = ?
+                  AND status = 'running'
+                """,
+                (
+                    status,
+                    now,
+                    reboot_required,
+                    job_id,
+                    client["id"],
+                )
+            )
+
+            if update_cursor.rowcount != 1:
+                conn.rollback()
+                return jsonify({
+                    "error": "job_update_conflict"
+                }), 409
+
+            conn.execute(
+                """
+                INSERT INTO update_history (
+                    client_id,
+                    job_id,
+                    status,
+                    package_count,
+                    successful_count,
+                    failed_count,
+                    reboot_required,
+                    started_at,
+                    finished_at
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    job["client_id"],
+                    job_id,
+                    status,
+                    0,
+                    0,
+                    0,
+                    reboot_required,
+                    job["started_at"],
+                    now
+                )
+            )
+
+            conn.commit()
 
             return jsonify({
-                "error": "package_not_found",
-                "package": package_result["package"],
+                "status": "ok",
+                "job_id": job_id,
+                "job_status": status,
+                "successful_count": 0,
+                "failed_count": 0,
+                "reboot_required": bool(reboot_required)
+            })
+
+        expected_count = len(job_packages)
+
+        if len(packages) != expected_count:
+            return jsonify({
+                "error": "incomplete_package_results",
+                "expected": expected_count,
+                "received": len(packages),
             }), 400
 
-    successful_count = 0
-    failed_count = 0
+        if seen_packages != job_packages:
+            missing_packages = sorted(job_packages - seen_packages)
+            unexpected_packages = sorted(seen_packages - job_packages)
 
-    for package_result in packages:
-        package = package_result.get("package")
-        package_status = package_result.get("status")
-        message = package_result.get("message")
+            return jsonify({
+                "error": "package_result_mismatch",
+                "missing_packages": missing_packages,
+                "unexpected_packages": unexpected_packages,
+            }), 400
 
-        if not package:
-            continue
+        successful_count = sum(
+            1
+            for package_result in packages
+            if package_result["status"] == "success"
+        )
 
-        if package_status == "success":
-            successful_count += 1
+        failed_count = len(packages) - successful_count
+
+        if failed_count == 0:
+            derived_status = "success"
+        elif successful_count > 0:
+            derived_status = "partial"
         else:
-            failed_count += 1
+            derived_status = "failed"
 
-        conn.execute(
+        if status != derived_status:
+            return jsonify({
+                "error": "status_mismatch",
+                "submitted_status": status,
+                "derived_status": derived_status,
+            }), 400
+
+        now = datetime.now(timezone.utc).isoformat()
+
+        for package_result in packages:
+
+            package = package_result["package"].strip()
+            package_status = package_result["status"]
+            message = package_result.get("message")
+
+            package_cursor = conn.execute(
+                """
+                UPDATE update_job_packages
+                SET status = ?,
+                    message = ?
+                WHERE job_id = ?
+                  AND package = ?
+                """,
+                (
+                    package_status,
+                    message,
+                    job_id,
+                    package
+                )
+            )
+
+            if package_cursor.rowcount != 1:
+                conn.rollback()
+                return jsonify({
+                    "error": "package_update_conflict",
+                    "package": package,
+                }), 409
+
+        update_cursor = conn.execute(
             """
-            UPDATE update_job_packages
+            UPDATE update_jobs
             SET status = ?,
-                message = ?
-            WHERE job_id = ?
-              AND package = ?
+                finished_at = ?,
+                reboot_required = ?
+            WHERE id = ?
+              AND client_id = ?
+              AND status = 'running'
             """,
             (
-                package_status,
-                message,
+                derived_status,
+                now,
+                reboot_required,
                 job_id,
-                package
+                client["id"],
             )
         )
 
-    conn.execute(
-        """
-        UPDATE update_jobs
-        SET status = ?,
-            finished_at = ?,
-            reboot_required = ?
-        WHERE id = ?
-        """,
-        (
-            status,
-            now,
-            reboot_required,
-            job_id
-        )
-    )
+        if update_cursor.rowcount != 1:
+            conn.rollback()
+            return jsonify({
+                "error": "job_update_conflict"
+            }), 409
 
-    conn.execute(
-        """
-        INSERT INTO update_history (
-            client_id,
-            job_id,
-            status,
-            package_count,
-            successful_count,
-            failed_count,
-            reboot_required,
-            started_at,
-            finished_at
+        conn.execute(
+            """
+            INSERT INTO update_history (
+                client_id,
+                job_id,
+                status,
+                package_count,
+                successful_count,
+                failed_count,
+                reboot_required,
+                started_at,
+                finished_at
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                job["client_id"],
+                job_id,
+                derived_status,
+                len(packages),
+                successful_count,
+                failed_count,
+                reboot_required,
+                job["started_at"],
+                now
+            )
         )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-        """,
-        (
-            job["client_id"],
-            job_id,
-            status,
-            len(packages),
-            successful_count,
-            failed_count,
-            reboot_required,
-            job["started_at"],
-            now
-        )
-    )
 
-    conn.commit()
-    conn.close()
+        conn.commit()
 
-    return jsonify({
-        "status": "ok",
-        "job_id": job_id,
-        "job_status": status,
-        "successful_count": successful_count,
-        "failed_count": failed_count,
-        "reboot_required": bool(reboot_required)
-    })
+        return jsonify({
+            "status": "ok",
+            "job_id": job_id,
+            "job_status": derived_status,
+            "successful_count": successful_count,
+            "failed_count": failed_count,
+            "reboot_required": bool(reboot_required)
+        })
+
+    except Exception:
+        conn.rollback()
+        raise
+
+    finally:
+        conn.close()
 
 
 @app.route(
@@ -1783,6 +2434,171 @@ def abandon_update_job(job_id):
     except Exception:
         connection.rollback()
         raise
+
+    finally:
+        connection.close()
+
+
+
+@app.route(
+    "/api/clients/<int:client_id>/package-search/pending",
+    methods=["GET"]
+)
+@client_auth_required
+def get_pending_package_search(client_id):
+
+    client = authenticated_client()
+
+    if client["id"] != client_id:
+        return jsonify({
+            "error": "client_access_denied"
+        }), 403
+
+    connection = get_connection()
+
+    try:
+        connection.execute("BEGIN IMMEDIATE")
+
+        cursor = connection.cursor()
+
+        cursor.execute("""
+            SELECT
+                id,
+                query,
+                created_at
+            FROM package_search_requests
+            WHERE client_id = ?
+              AND status = 'pending'
+            ORDER BY id ASC
+            LIMIT 1
+        """, (client_id,))
+
+        search = cursor.fetchone()
+
+        if search is None:
+            connection.rollback()
+
+            return jsonify({
+                "status": "no_search"
+            }), 204
+
+        started_at = datetime.now(
+            timezone.utc
+        ).isoformat()
+
+        cursor.execute("""
+            UPDATE package_search_requests
+            SET
+                status = 'running',
+                started_at = ?
+            WHERE id = ?
+              AND client_id = ?
+              AND status = 'pending'
+        """, (
+            started_at,
+            search["id"],
+            client_id,
+        ))
+
+        if cursor.rowcount != 1:
+            connection.rollback()
+
+            return jsonify({
+                "error": "search_claim_conflict"
+            }), 409
+
+        connection.commit()
+
+        logger.info(
+            "Package search claimed: Search #%s Client %s Query=%r",
+            search["id"],
+            client_id,
+            search["query"],
+        )
+
+        return jsonify({
+            "status": "running",
+            "search_id": search["id"],
+            "client_id": client_id,
+            "query": search["query"],
+            "created_at": search["created_at"],
+            "started_at": started_at,
+        })
+
+    except Exception:
+        connection.rollback()
+        raise
+
+    finally:
+        connection.close()
+
+
+@app.route(
+    "/api/clients/<int:client_id>/package-search/<int:search_id>",
+    methods=["GET"]
+)
+@login_required
+@role_required(ROLE_ADMINISTRATOR, ROLE_OPERATOR)
+def get_package_search_status(client_id, search_id):
+
+    connection = get_connection()
+
+    try:
+        search = connection.execute(
+            """
+            SELECT
+                id,
+                client_id,
+                query,
+                status,
+                created_at,
+                started_at,
+                finished_at,
+                result_json,
+                error_message
+            FROM package_search_requests
+            WHERE id = ?
+              AND client_id = ?
+            """,
+            (
+                search_id,
+                client_id,
+            )
+        ).fetchone()
+
+        if search is None:
+            return jsonify({
+                "error": "search_not_found"
+            }), 404
+
+        results = []
+
+        if search["status"] == "completed":
+            try:
+                results = json.loads(
+                    search["result_json"] or "[]"
+                )
+            except (TypeError, json.JSONDecodeError):
+                logger.error(
+                    "Invalid package search result JSON: Search #%s",
+                    search_id,
+                )
+
+                return jsonify({
+                    "error": "invalid_search_result"
+                }), 500
+
+        return jsonify({
+            "status": search["status"],
+            "search_id": search["id"],
+            "client_id": search["client_id"],
+            "query": search["query"],
+            "created_at": search["created_at"],
+            "started_at": search["started_at"],
+            "finished_at": search["finished_at"],
+            "results": results,
+            "error_message": search["error_message"],
+        })
 
     finally:
         connection.close()

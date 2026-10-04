@@ -24,6 +24,7 @@ if str(AGENT_ROOT) not in sys.path:
 from server.security import (
     clear_login_rate_limit,
     hash_client_token,
+    hash_password,
     get_login_rate_limit_key,
     is_login_rate_limited,
     record_login_failure,
@@ -219,6 +220,163 @@ def test_clear_login_rate_limit_removes_lock():
     )
 
     connection.close()
+
+
+def create_login_test_database(db_path):
+    connection = sqlite3.connect(db_path)
+    connection.row_factory = sqlite3.Row
+
+    connection.execute(
+        """
+        CREATE TABLE users (
+            id INTEGER PRIMARY KEY,
+            username TEXT NOT NULL UNIQUE,
+            password_hash TEXT NOT NULL,
+            created_at TEXT NOT NULL,
+            enabled INTEGER NOT NULL DEFAULT 1,
+            role TEXT NOT NULL DEFAULT 'administrator'
+        )
+        """
+    )
+
+    connection.execute(
+        """
+        CREATE TABLE login_rate_limits (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            rate_limit_key TEXT NOT NULL,
+            username TEXT NOT NULL,
+            failed_attempts INTEGER NOT NULL DEFAULT 0,
+            first_failed_at TEXT NOT NULL,
+            last_failed_at TEXT NOT NULL,
+            locked_until TEXT
+        )
+        """
+    )
+
+    connection.execute(
+        """
+        INSERT INTO users (
+            id,
+            username,
+            password_hash,
+            created_at,
+            enabled,
+            role
+        )
+        VALUES (?, ?, ?, ?, ?, ?)
+        """,
+        (
+            1,
+            "administrator",
+            hash_password("correct-password-123"),
+            datetime.now(timezone.utc).isoformat(),
+            1,
+            "administrator",
+        ),
+    )
+
+    connection.execute(
+        """
+        CREATE TABLE audit_log (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            timestamp TEXT NOT NULL,
+            actor_type TEXT NOT NULL,
+            actor_id TEXT,
+            action TEXT NOT NULL,
+            target TEXT,
+            result TEXT NOT NULL,
+            details TEXT
+        )
+        """
+    )
+
+    connection.commit()
+    connection.close()
+
+
+def configure_login_test_app(monkeypatch, app_module, db_path):
+    def get_test_connection():
+        connection = sqlite3.connect(db_path)
+        connection.row_factory = sqlite3.Row
+        return connection
+
+    monkeypatch.setattr(
+        app_module,
+        "get_connection",
+        get_test_connection,
+    )
+
+    app_module.app.config.update(
+        TESTING=True,
+    )
+
+    return app_module.app
+
+
+def test_login_with_valid_password_creates_session(
+    monkeypatch,
+    tmp_path,
+):
+    from server import app as app_module
+
+    db_path = str(tmp_path / "login-valid.db")
+    create_login_test_database(db_path)
+
+    app = configure_login_test_app(
+        monkeypatch,
+        app_module,
+        db_path,
+    )
+
+    with app.test_client() as client:
+        response = client.post(
+            "/login",
+            data={
+                "username": "administrator",
+                "password": "correct-password-123",
+            },
+            follow_redirects=False,
+        )
+
+        assert response.status_code == 302
+        assert response.headers["Location"].endswith("/")
+
+        with client.session_transaction() as session:
+            assert session["user_id"] == 1
+            assert session["username"] == "administrator"
+            assert session["csrf_token"]
+
+
+def test_login_with_invalid_password_is_rejected(
+    monkeypatch,
+    tmp_path,
+):
+    from server import app as app_module
+
+    db_path = str(tmp_path / "login-invalid.db")
+    create_login_test_database(db_path)
+
+    app = configure_login_test_app(
+        monkeypatch,
+        app_module,
+        db_path,
+    )
+
+    with app.test_client() as client:
+        response = client.post(
+            "/login",
+            data={
+                "username": "administrator",
+                "password": "wrong-password",
+            },
+            follow_redirects=False,
+        )
+
+        assert response.status_code == 401
+
+        with client.session_transaction() as session:
+            assert "user_id" not in session
+            assert "username" not in session
 
 
 def create_report_test_database(db_path):
@@ -3309,3 +3467,261 @@ def test_update_job_result_rejects_package_not_in_job(
     )
 
     assert response.status_code == 400
+
+
+def test_apt_search_packages(monkeypatch):
+    from package_manager import AptPackageManager
+
+    captured = []
+
+    class SearchResult:
+        stdout = (
+            "nginx - small, powerful, scalable web server\n"
+            "nginx-common - small, powerful, scalable web server - common files\n"
+            "nginx-core - nginx core server\n"
+        )
+
+    class ShowResult:
+        stdout = (
+            "Package: nginx\n"
+            "Version: 1.30.5-1\n"
+            "\n"
+            "Package: nginx-common\n"
+            "Version: 1.30.5-1\n"
+        )
+
+    def fake_run(command, **kwargs):
+        captured.append({
+            "command": command,
+            "kwargs": kwargs,
+        })
+
+        if command == [
+            "apt-cache",
+            "search",
+            "nginx",
+        ]:
+            return SearchResult()
+
+        if command == [
+            "apt-cache",
+            "show",
+            "nginx",
+            "nginx-common",
+        ]:
+            return ShowResult()
+
+        raise AssertionError(
+            f"Unexpected command: {command}"
+        )
+
+    monkeypatch.setattr(
+        "package_manager.subprocess.run",
+        fake_run,
+    )
+
+    manager = AptPackageManager()
+
+    results = manager.search_packages(
+        "nginx",
+        max_results=2,
+    )
+
+    assert [entry["command"] for entry in captured] == [
+        [
+            "apt-cache",
+            "search",
+            "nginx",
+        ],
+        [
+            "apt-cache",
+            "show",
+            "nginx",
+            "nginx-common",
+        ],
+    ]
+
+    assert len(results) == 2
+
+    assert results[0] == {
+        "package": "nginx",
+        "version": "1.30.5-1",
+        "description": (
+            "small, powerful, scalable web server"
+        ),
+    }
+
+    assert results[1] == {
+        "package": "nginx-common",
+        "version": "1.30.5-1",
+        "description": (
+            "small, powerful, scalable web server - common files"
+        ),
+    }
+
+
+def test_pacman_search_packages(monkeypatch):
+    from package_manager import PacmanPackageManager
+
+    captured = {}
+
+    class FakeResult:
+        stdout = (
+            "extra/nginx 1.30.5-1\n"
+            "    HTTP server and reverse proxy\n"
+            "core/nginx-mainline 1.29.1-1\n"
+            "    Mainline nginx server\n"
+            "extra/nginx-mod-stream 1.30.5-1\n"
+            "    Stream module for nginx\n"
+        )
+
+    def fake_run(command, **kwargs):
+        captured["command"] = command
+        captured["kwargs"] = kwargs
+        return FakeResult()
+
+    monkeypatch.setattr(
+        "package_manager.subprocess.run",
+        fake_run,
+    )
+
+    manager = PacmanPackageManager()
+
+    results = manager.search_packages(
+        "nginx",
+        max_results=2,
+    )
+
+    assert captured["command"] == [
+        "pacman",
+        "-Ss",
+        "nginx",
+    ]
+
+    assert len(results) == 2
+
+    assert results[0] == {
+        "package": "nginx",
+        "version": "1.30.5-1",
+        "description": (
+            "HTTP server and reverse proxy"
+        ),
+        "repository": "extra",
+    }
+
+    assert results[1] == {
+        "package": "nginx-mainline",
+        "version": "1.29.1-1",
+        "description": (
+            "Mainline nginx server"
+        ),
+        "repository": "core",
+    }
+
+
+def test_package_search_respects_result_limit(monkeypatch):
+    from package_manager import AptPackageManager
+
+    class FakeResult:
+        stdout = "\n".join(
+            f"package{index} - description {index}"
+            for index in range(100)
+        )
+
+    def fake_run(command, **kwargs):
+        return FakeResult()
+
+    monkeypatch.setattr(
+        "package_manager.subprocess.run",
+        fake_run,
+    )
+
+    manager = AptPackageManager()
+
+    results = manager.search_packages(
+        "package",
+        max_results=50,
+    )
+
+    assert len(results) == 50
+
+
+def test_package_search_respects_result_limit(monkeypatch):
+    from package_manager import AptPackageManager
+
+    class FakeResult:
+        stdout = "\n".join(
+            f"package{index} - description {index}"
+            for index in range(100)
+        )
+
+    def fake_run(command, **kwargs):
+        return FakeResult()
+
+    monkeypatch.setattr(
+        "package_manager.subprocess.run",
+        fake_run,
+    )
+
+    manager = AptPackageManager()
+
+    results = manager.search_packages(
+        "package",
+        max_results=50,
+    )
+
+    assert len(results) == 50
+
+def test_main_simulation_does_not_send_lums_job_result(monkeypatch):
+    import ssl
+
+    monkeypatch.setattr(
+        ssl,
+        "create_default_context",
+        lambda *args, **kwargs: None,
+    )
+
+    import agent
+
+    monkeypatch.setattr(
+        agent,
+        "SIMULATE_UPDATES",
+        True,
+    )
+
+    simulation_calls = []
+
+    def fake_simulate_job():
+        simulation_calls.append(True)
+
+    def fail_if_result_is_sent(*_args, **_kwargs):
+        raise AssertionError(
+            "send_job_result() must not run in main() simulation mode"
+        )
+
+    def fail_if_collect_data_runs(*_args, **_kwargs):
+        raise AssertionError(
+            "collect_data() must not run in main() simulation mode"
+        )
+
+    monkeypatch.setattr(
+        agent,
+        "simulate_job",
+        fake_simulate_job,
+    )
+
+    monkeypatch.setattr(
+        agent,
+        "send_job_result",
+        fail_if_result_is_sent,
+    )
+
+    monkeypatch.setattr(
+        agent,
+        "collect_data",
+        fail_if_collect_data_runs,
+    )
+
+    agent.main()
+
+    assert simulation_calls == [True]

@@ -190,6 +190,118 @@ class AptPackageManager:
             "-y"
         ]
 
+    def search_packages(self, query, max_results=50):
+        env = os.environ.copy()
+        env["LC_ALL"] = "C"
+
+        result = subprocess.run(
+            [
+                "apt-cache",
+                "search",
+                query,
+            ],
+            capture_output=True,
+            text=True,
+            env=env,
+            check=True,
+        )
+
+        query_lower = query.strip().lower()
+
+        packages = []
+
+        for line in result.stdout.splitlines():
+
+            if " - " not in line:
+                continue
+
+            package, description = line.split(
+                " - ",
+                1
+            )
+
+            package = package.strip()
+            description = description.strip()
+
+            if not package:
+                continue
+
+            package_lower = package.lower()
+
+            if package_lower == query_lower:
+                priority = 0
+            elif package_lower.startswith(query_lower):
+                priority = 1
+            elif query_lower in package_lower:
+                priority = 2
+            else:
+                priority = 3
+
+            packages.append({
+                "package": package,
+                "version": None,
+                "description": description,
+                "_priority": priority,
+            })
+
+        packages.sort(
+            key=lambda item: (
+                item["_priority"],
+                item["package"].lower(),
+            )
+        )
+
+        packages = packages[:max_results]
+
+        package_names = [
+            package["package"]
+            for package in packages
+        ]
+
+        if package_names:
+
+            version_result = subprocess.run(
+                [
+                    "apt-cache",
+                    "show",
+                    *package_names,
+                ],
+                capture_output=True,
+                text=True,
+                env=env,
+                check=True,
+            )
+
+            versions = {}
+
+            current_package = None
+
+            for line in version_result.stdout.splitlines():
+
+                if line.startswith("Package: "):
+                    current_package = line[
+                        len("Package: "):
+                    ].strip()
+
+                elif (
+                    current_package
+                    and line.startswith("Version: ")
+                    and current_package not in versions
+                ):
+                    versions[current_package] = line[
+                        len("Version: "):
+                    ].strip()
+
+            for package in packages:
+                package["version"] = versions.get(
+                    package["package"]
+                )
+
+        for package in packages:
+            package.pop("_priority", None)
+
+        return packages
+
     def get_candidate_version(self, package):
         env = os.environ.copy()
         env["LC_ALL"] = "C"
@@ -352,6 +464,92 @@ class PacmanPackageManager:
             "-Syu",
             "--noconfirm"
         ]
+
+    def search_packages(self, query, max_results=50):
+        result = subprocess.run(
+            [
+                "pacman",
+                "-Ss",
+                query,
+            ],
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+
+        packages = []
+        lines = result.stdout.splitlines()
+        query_lower = query.strip().lower()
+
+        index = 0
+
+        while index < len(lines):
+
+            header = lines[index]
+
+            if (
+                not header.startswith(" ")
+                and "/" in header
+            ):
+
+                parts = header.split()
+
+                if len(parts) >= 2:
+
+                    repository_package = parts[0]
+                    version = parts[1]
+
+                    repository, package = (
+                        repository_package.split(
+                            "/",
+                            1
+                        )
+                    )
+
+                    description = ""
+
+                    if index + 1 < len(lines):
+
+                        next_line = lines[index + 1]
+
+                        if next_line.startswith("    "):
+                            description = next_line.strip()
+                            index += 1
+
+                    package_lower = package.lower()
+
+                    if package_lower == query_lower:
+                        priority = 0
+                    elif package_lower.startswith(query_lower):
+                        priority = 1
+                    elif query_lower in package_lower:
+                        priority = 2
+                    else:
+                        priority = 3
+
+                    packages.append({
+                        "package": package,
+                        "version": version,
+                        "description": description,
+                        "repository": repository,
+                        "_priority": priority,
+                    })
+
+            index += 1
+
+        packages.sort(
+            key=lambda item: (
+                item["_priority"],
+                item["package"].lower(),
+            )
+        )
+
+        packages = packages[:max_results]
+
+        for package in packages:
+            package.pop("_priority", None)
+
+        return packages
 
     def get_candidate_version(self, package):
         result = subprocess.run(

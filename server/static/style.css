@@ -5335,3 +5335,219 @@ html[data-theme="admin"] *::after {
 .update-select-column {
     width: 50px;
 }
+
+
+/* ============================================================
+ * PACKAGE MANAGEMENT
+ * ============================================================ */
+
+.package-management-panel {
+    margin-top: 2rem;
+    border: 1px solid var(--border-color, rgba(255, 255, 255, 0.12));
+    border-radius: 14px;
+    overflow: hidden;
+    background: var(--panel-background, rgba(255, 255, 255, 0.02));
+}
+
+
+.package-management-summary {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 1.25rem 1.5rem;
+    cursor: pointer;
+    list-style: none;
+    user-select: none;
+}
+
+
+.package-management-summary::-webkit-details-marker {
+    display: none;
+}
+
+
+.package-management-summary::marker {
+    display: none;
+}
+
+
+.package-management-summary:hover {
+    background: rgba(255, 255, 255, 0.03);
+}
+
+
+.package-management-summary h2 {
+    margin: 0;
+}
+
+
+.package-management-toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 2rem;
+    transition: transform 0.2s ease;
+}
+
+
+.package-management-panel[open]
+.package-management-toggle {
+    transform: rotate(180deg);
+}
+
+
+.package-management-content {
+    padding: 0 1.5rem 1.5rem;
+}
+
+
+.package-management-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+
+.package-management-status-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.3rem 0.65rem;
+    border-radius: 999px;
+    font-size: 0.82rem;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+
+.package-management-status-available {
+    background: rgba(100, 180, 255, 0.12);
+}
+
+
+.package-management-status-installed {
+    background: rgba(100, 220, 150, 0.12);
+}
+
+
+.package-management-status-update {
+    background: rgba(255, 190, 80, 0.14);
+}
+
+
+.package-management-panel
+.table-wrapper {
+    overflow-x: auto;
+}
+
+
+.package-management-panel
+.data-table {
+    min-width: 760px;
+}
+
+
+.package-management-panel
+.data-table th:last-child,
+.package-management-panel
+.data-table td:last-child {
+    min-width: 190px;
+}
+
+
+@media (max-width: 900px) {
+
+    .package-management-summary {
+        padding: 1rem;
+    }
+
+
+    .package-management-content {
+        padding: 0 1rem 1rem;
+    }
+
+
+    .package-management-actions {
+        flex-direction: column;
+    }
+
+
+    .package-management-actions .button {
+        width: 100%;
+    }
+}
+
+/* ============================================================
+   User Management Page
+   ============================================================ */
+
+.user-management-page {
+    margin-top: 2rem;
+}
+
+.user-management-page .panel-content {
+    max-width: 720px;
+}
+
+.topbar-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.topbar-actions a.logout-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    text-decoration: none;
+    cursor: pointer;
+}
+
+@media (max-width: 700px) {
+
+    .topbar-actions {
+        flex-wrap: wrap;
+        justify-content: flex-end;
+    }
+
+}
+
+
+.user-list-table-wrapper {
+    margin-top: 1.5rem;
+    overflow-x: auto;
+}
+
+
+.user-list-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+
+.user-list-table th,
+.user-list-table td {
+    padding: 0.75rem 1rem;
+    text-align: left;
+    border-bottom: 1px solid var(--border-color);
+}
+
+
+.user-list-table th {
+    font-weight: 600;
+}
+
+
+.user-list-table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+
+@media (max-width: 700px) {
+
+    .user-list-table th,
+    .user-list-table td {
+        padding: 0.65rem 0.75rem;
+    }
+
+}

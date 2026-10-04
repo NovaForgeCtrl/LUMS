@@ -57,3 +57,7 @@ lums-agent.conf
 __pycache__/
 *.py[cod]
 .pytest_cache/
+
+# Local backup / historical working copies
+*.bak-*
+*.before-*

@@ -451,7 +451,10 @@ function renderUpdates() {
      * Dieser Bereich wird unabhängig davon angezeigt,
      * ob einzelne Updates verfügbar sind.
      */
-    const systemMaintenance = `
+    const systemMaintenance =
+        window.lumsUserRole === "viewer"
+            ? ""
+            : `
 
         <div class="update-system-actions">
 
@@ -1707,8 +1710,812 @@ if (!clientId) {
 } else {
 
     loadClient();
-    loadUpdates();
     loadPackages();
-    loadJobs();
-    loadHistory();
+
+    if (window.lumsUserRole !== "viewer") {
+        loadUpdates();
+        loadJobs();
+        loadHistory();
+    }
+}
+
+
+/*
+ * Paketverwaltung
+ *
+ * Serverseitige Paketsuche auf dem ausgewählten Client.
+ *
+ * Ablauf:
+ *
+ * Browser
+ *   -> POST package-search
+ *   -> search_id
+ *   -> GET package-search/<search_id>
+ *   -> pending / running / completed / failed
+ *   -> Ergebnisse darstellen
+ *
+ * Paketaktionen verwenden bewusst den normalen
+ * Update-Job-Endpunkt:
+ *
+ *   INSTALL_PACKAGE
+ *   REMOVE_PACKAGE
+ *   UPDATE_PACKAGE
+ *
+ * Dadurch bleiben CSRF, RBAC, Validierung, Agent-Dispatch,
+ * Job-Historie und Recovery zentral im bestehenden System.
+ */
+
+const packageManagementSearchInput =
+    document.getElementById(
+        "package-management-search"
+    );
+
+const packageManagementSearchButton =
+    document.getElementById(
+        "package-management-search-button"
+    );
+
+const packageManagementStatus =
+    document.getElementById(
+        "package-management-status"
+    );
+
+const packageManagementResults =
+    document.getElementById(
+        "package-management-results"
+    );
+
+
+/*
+ * Status anzeigen
+ */
+function setPackageManagementStatus(message) {
+
+    if (!packageManagementStatus) {
+        return;
+    }
+
+    packageManagementStatus.textContent =
+        message;
+}
+
+
+/*
+ * Installationsstatus eines Pakets bestimmen.
+ *
+ * allPackages:
+ *     bereits installierte Pakete des Clients
+ *
+ * updates:
+ *     aktuell verfügbare Updates
+ */
+function getPackageManagementState(packageName) {
+
+    const installedPackage =
+        Array.isArray(allPackages)
+            ? allPackages.find(packageInfo =>
+                packageInfo?.package === packageName ||
+                packageInfo?.name === packageName
+            )
+            : null;
+
+
+    const availableUpdate =
+        Array.isArray(updates)
+            ? updates.find(update =>
+                update?.package === packageName
+            )
+            : null;
+
+
+    if (installedPackage) {
+
+        if (availableUpdate) {
+
+            return {
+                type: "update",
+                label: "Update verfügbar"
+            };
+        }
+
+
+        return {
+            type: "installed",
+            label: "Installiert"
+        };
+    }
+
+
+    return {
+        type: "available",
+        label: "Nicht installiert"
+    };
+}
+
+
+/*
+ * Status-Badge erzeugen
+ */
+function createPackageManagementStatusBadge(
+    state
+) {
+
+    const badge =
+        document.createElement("span");
+
+    badge.className =
+        "package-management-status-badge " +
+        `package-management-status-${state.type}`;
+
+    badge.textContent =
+        state.label;
+
+    return badge;
+}
+
+
+/*
+ * Paket-Job erstellen
+ */
+async function createPackageManagementJob(
+    action,
+    packageName,
+    button
+) {
+
+    if (!packageName) {
+        return;
+    }
+
+
+    if (action === "REMOVE_PACKAGE") {
+
+        const confirmed =
+            window.confirm(
+                `Paket "${packageName}" wirklich entfernen?`
+            );
+
+
+        if (!confirmed) {
+            return;
+        }
+    }
+
+
+    const originalText =
+        button?.textContent || "Aktion";
+
+
+    if (button) {
+
+        button.disabled = true;
+
+        if (action === "INSTALL_PACKAGE") {
+
+            button.textContent =
+                "Installieren...";
+
+        } else if (action === "REMOVE_PACKAGE") {
+
+            button.textContent =
+                "Entfernen...";
+
+        } else if (action === "UPDATE_PACKAGE") {
+
+            button.textContent =
+                "Aktualisieren...";
+        }
+    }
+
+
+    try {
+
+        const csrfToken =
+            document.querySelector(
+                'meta[name="csrf-token"]'
+            )?.content;
+
+
+        if (!csrfToken) {
+
+            throw new Error(
+                "CSRF-Token konnte nicht gefunden werden."
+            );
+        }
+
+
+        const response =
+            await fetch(
+                `/api/clients/${clientId}/update-jobs`,
+                {
+                    method: "POST",
+
+                    headers: {
+                        "Content-Type":
+                            "application/json",
+
+                        "X-CSRF-Token":
+                            csrfToken,
+
+                        "Accept":
+                            "application/json"
+                    },
+
+                    body: JSON.stringify({
+                        action: action,
+                        packages: [packageName]
+                    })
+                }
+            );
+
+
+        let data = null;
+
+        try {
+            data = await response.json();
+        } catch {
+            data = null;
+        }
+
+
+        if (!response.ok) {
+
+            throw new Error(
+                data?.error ||
+                "Paket-Job konnte nicht erstellt werden."
+            );
+        }
+
+
+        setPackageManagementStatus(
+            `Job #${data.job_id} wurde für ` +
+            `"${packageName}" erstellt.`
+        );
+
+
+        /*
+         * Bestehende Job-Anzeige aktualisieren.
+         */
+        await loadJobs();
+
+
+    } catch (error) {
+
+        console.error(
+            "Package management job failed:",
+            error
+        );
+
+
+        setPackageManagementStatus(
+            `Fehler: ${error.message}`
+        );
+
+
+    } finally {
+
+        if (button) {
+
+            button.disabled = false;
+            button.textContent =
+                originalText;
+        }
+    }
+}
+
+
+/*
+ * Aktionsbutton erzeugen
+ */
+function createPackageManagementActionButton(
+    action,
+    packageName,
+    label,
+    className
+) {
+
+    const button =
+        document.createElement("button");
+
+    button.type = "button";
+    button.className = className;
+    button.textContent = label;
+
+
+    button.addEventListener(
+        "click",
+        () => createPackageManagementJob(
+            action,
+            packageName,
+            button
+        )
+    );
+
+
+    return button;
+}
+
+
+/*
+ * Aktionen für ein Paket darstellen
+ */
+function renderPackageManagementActions(
+    packageName,
+    state
+) {
+
+    const container =
+        document.createElement("div");
+
+    container.className =
+        "package-management-actions";
+
+
+    if (state.type === "available") {
+
+        container.appendChild(
+            createPackageManagementActionButton(
+                "INSTALL_PACKAGE",
+                packageName,
+                "Installieren",
+                "button button-primary"
+            )
+        );
+
+        return container;
+    }
+
+
+    if (state.type === "update") {
+
+        container.appendChild(
+            createPackageManagementActionButton(
+                "UPDATE_PACKAGE",
+                packageName,
+                "Aktualisieren",
+                "button button-primary"
+            )
+        );
+    }
+
+
+    /*
+     * Installierte Pakete können entfernt werden.
+     */
+    container.appendChild(
+        createPackageManagementActionButton(
+            "REMOVE_PACKAGE",
+            packageName,
+            "Entfernen",
+            "button button-danger"
+        )
+    );
+
+
+    return container;
+}
+
+
+/*
+ * Ergebnisse darstellen
+ */
+function renderPackageManagementResults(results) {
+
+    if (!packageManagementResults) {
+        return;
+    }
+
+
+    packageManagementResults.innerHTML = "";
+
+
+    if (
+        !Array.isArray(results) ||
+        results.length === 0
+    ) {
+
+        packageManagementResults.innerHTML = `
+            <tr>
+                <td
+                    colspan="5"
+                    class="empty-state"
+                >
+                    Keine passenden Pakete gefunden.
+                </td>
+            </tr>
+        `;
+
+        return;
+    }
+
+
+    results.forEach(packageInfo => {
+
+        const packageName =
+            packageInfo?.package || "–";
+
+        const version =
+            packageInfo?.version || "–";
+
+        const description =
+            packageInfo?.description || "–";
+
+
+        const state =
+            getPackageManagementState(
+                packageName
+            );
+
+
+        const row =
+            document.createElement("tr");
+
+
+        const packageCell =
+            document.createElement("td");
+
+        const packageNameElement =
+            document.createElement("strong");
+
+        packageNameElement.textContent =
+            packageName;
+
+        packageCell.appendChild(
+            packageNameElement
+        );
+
+
+        const versionCell =
+            document.createElement("td");
+
+        versionCell.className =
+            "version";
+
+        versionCell.textContent =
+            version;
+
+
+        const statusCell =
+            document.createElement("td");
+
+        statusCell.appendChild(
+            createPackageManagementStatusBadge(
+                state
+            )
+        );
+
+
+        const descriptionCell =
+            document.createElement("td");
+
+        descriptionCell.textContent =
+            description;
+
+
+        const actionCell =
+            document.createElement("td");
+
+        actionCell.appendChild(
+            renderPackageManagementActions(
+                packageName,
+                state
+            )
+        );
+
+
+        row.appendChild(packageCell);
+        row.appendChild(versionCell);
+        row.appendChild(statusCell);
+        row.appendChild(descriptionCell);
+        row.appendChild(actionCell);
+
+
+        packageManagementResults.appendChild(
+            row
+        );
+    });
+}
+
+
+/*
+ * Suchstatus abfragen
+ */
+async function getPackageManagementSearchStatus(
+    searchId
+) {
+
+    const response =
+        await fetch(
+            `/api/clients/${clientId}/package-search/${searchId}`,
+            {
+                method: "GET",
+
+                headers: {
+                    "Accept":
+                        "application/json"
+                }
+            }
+        );
+
+
+    let data = null;
+
+    try {
+        data = await response.json();
+    } catch {
+        data = null;
+    }
+
+
+    if (!response.ok) {
+
+        throw new Error(
+            data?.error ||
+            "Status der Paketsuche konnte nicht abgefragt werden."
+        );
+    }
+
+
+    return data;
+}
+
+
+/*
+ * Auf Abschluss der Paketsuche warten
+ */
+async function waitForPackageManagementSearch(
+    searchId
+) {
+
+    const maxAttempts = 1200;
+    const pollInterval = 500;
+
+
+    for (
+        let attempt = 0;
+        attempt < maxAttempts;
+        attempt++
+    ) {
+
+        const data =
+            await getPackageManagementSearchStatus(
+                searchId
+            );
+
+
+        if (data.status === "completed") {
+
+            const results =
+                Array.isArray(data.results)
+                    ? data.results
+                    : [];
+
+
+            renderPackageManagementResults(
+                results
+            );
+
+
+            setPackageManagementStatus(
+                `${results.length} Paket` +
+                `${results.length === 1 ? "" : "e"} gefunden.`
+            );
+
+
+            return;
+        }
+
+
+        if (data.status === "failed") {
+
+            throw new Error(
+                data.error_message ||
+                "Die Paketsuche ist fehlgeschlagen."
+            );
+        }
+
+
+        if (
+            data.status !== "pending" &&
+            data.status !== "running"
+        ) {
+
+            throw new Error(
+                `Unbekannter Suchstatus: ${data.status}`
+            );
+        }
+
+
+        setPackageManagementStatus(
+            data.status === "pending"
+                ? "Suche wartet auf den Client..."
+                : "Client führt die Paketsuche aus..."
+        );
+
+
+        await new Promise(resolve =>
+            setTimeout(
+                resolve,
+                pollInterval
+            )
+        );
+    }
+
+
+    throw new Error(
+        "Zeitüberschreitung bei der Paketsuche."
+    );
+}
+
+
+/*
+ * Paketsuche starten
+ */
+async function startPackageManagementSearch() {
+
+    if (
+        !packageManagementSearchInput ||
+        !packageManagementSearchButton
+    ) {
+        return;
+    }
+
+
+    const query =
+        packageManagementSearchInput.value.trim();
+
+
+    if (!query) {
+
+        setPackageManagementStatus(
+            "Bitte einen Paketnamen oder Suchbegriff eingeben."
+        );
+
+        packageManagementSearchInput.focus();
+
+        return;
+    }
+
+
+    packageManagementSearchButton.disabled =
+        true;
+
+    packageManagementSearchButton.textContent =
+        "Suche...";
+
+
+    setPackageManagementStatus(
+        "Paketsuche wird gestartet..."
+    );
+
+
+    try {
+
+        const csrfToken =
+            document.querySelector(
+                'meta[name="csrf-token"]'
+            )?.content;
+
+
+        if (!csrfToken) {
+
+            throw new Error(
+                "CSRF-Token konnte nicht gefunden werden."
+            );
+        }
+
+
+        const response =
+            await fetch(
+                `/api/clients/${clientId}/package-search`,
+                {
+                    method: "POST",
+
+                    headers: {
+                        "Content-Type":
+                            "application/json",
+
+                        "X-CSRF-Token":
+                            csrfToken,
+
+                        "Accept":
+                            "application/json"
+                    },
+
+                    body: JSON.stringify({
+                        query: query
+                    })
+                }
+            );
+
+
+        let data = null;
+
+        try {
+            data = await response.json();
+        } catch {
+            data = null;
+        }
+
+
+        if (!response.ok) {
+
+            throw new Error(
+                data?.error ||
+                "Paketsuche konnte nicht gestartet werden."
+            );
+        }
+
+
+        if (!data?.search_id) {
+
+            throw new Error(
+                "Server hat keine Such-ID zurückgegeben."
+            );
+        }
+
+
+        setPackageManagementStatus(
+            "Paketsuche wurde gestartet..."
+        );
+
+
+        await waitForPackageManagementSearch(
+            data.search_id
+        );
+
+
+    } catch (error) {
+
+        console.error(
+            "Package management search failed:",
+            error
+        );
+
+
+        setPackageManagementStatus(
+            `Fehler: ${error.message}`
+        );
+
+
+    } finally {
+
+        packageManagementSearchButton.disabled =
+            false;
+
+        packageManagementSearchButton.textContent =
+            "Suchen";
+    }
+}
+
+
+/*
+ * Suchbutton
+ */
+if (packageManagementSearchButton) {
+
+    packageManagementSearchButton.addEventListener(
+        "click",
+        startPackageManagementSearch
+    );
+}
+
+
+/*
+ * Enter im Suchfeld
+ */
+if (packageManagementSearchInput) {
+
+    packageManagementSearchInput.addEventListener(
+        "keydown",
+        event => {
+
+            if (event.key === "Enter") {
+
+                event.preventDefault();
+
+                startPackageManagementSearch();
+            }
+        }
+    );
 }
