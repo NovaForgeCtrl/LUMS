@@ -2,903 +2,200 @@
 
 > **One LUMS · Many Interfaces · Same Backend**
 
-> **Linux Update Management without the noise.**
+LUMS provides an optional client-side theme system that allows the user interface to change its visual appearance without changing the underlying LUMS functionality.
+
+Themes are a presentation layer only. They do not replace, modify, or bypass the LUMS backend, authentication, authorization, update execution, package management, client management, job handling, or security controls.
+
+The theme system exists to make LUMS adaptable to different visual preferences while keeping the application itself consistent.
 
 ---
 
-## Overview
+## 1. Overview
 
-LUMS provides an optional client-side theme system for its web interface.
+The optional theme system allows the LUMS web interface to provide multiple visual environments while using the same application backend.
 
-Themes change only the visual presentation of LUMS.
+A theme may change:
 
-The following components remain unchanged:
+* colors
+* typography
+* backgrounds
+* decorative elements
+* visual emphasis
+* navigation appearance
+* animations
+* optional visual effects
+* page-specific presentation
 
-* Backend
-* API
-* Database
-* Authentication
-* Agent communication
-* Update jobs
-* Audit logging
-* Client management
-* Security mechanisms
+A theme must not change:
 
-The original LUMS design remains the `standard` interface.
+* user permissions
+* available API endpoints
+* authentication behavior
+* authorization decisions
+* CSRF protection
+* client authentication
+* update execution
+* package-management permissions
+* job state handling
+* audit logging
+* database behavior
+* security boundaries
 
-The theme system does not create separate LUMS installations. All themes operate on the same application, the same backend and the same persistent database.
+The principle is simple:
 
-```text
-ONE LUMS
-   │
-   ├── Standard LUMS
-   ├── LUMS Stadium
-   ├── Golf Club
-   ├── Nerd Mode
-   ├── Geek Lab
-   └── Enterprise Admin
-   │
-   ▼
-SAME BACKEND
-SAME API
-SAME DATABASE
-SAME SECURITY
-```
+> **Themes change how LUMS looks, not what LUMS is allowed to do.**
 
 ---
 
-# 1. Available Themes
+## 2. Design Principles
 
-| Theme                | Identifier    | Character                         |
-| -------------------- | ------------- | --------------------------------- |
-| 🖥️ Standard LUMS    | `standard`    | Original LUMS interface           |
-| 🏈 LUMS Stadium      | `LUMSStadium` | Stadium / Game-Day                |
-| ⛳ Golf Club          | `golf`        | Golf / Club                       |
-| 🤓 Nerd Mode         | `nerd`        | Terminal / CRT / Matrix           |
-| 🧠 Geek Lab          | `geek`        | Cyber / Network / Laboratory      |
-| 🗄️ Enterprise Admin | `admin`       | Dry Enterprise Operations Console |
+The theme system follows several principles.
 
-The identifier `admin` is the internal technical value for the **Enterprise Admin** theme.
+### 2.1 Optional
 
-The user-facing theme name remains:
+Themes are an optional frontend feature.
 
-```text
-Enterprise Admin
-```
+LUMS remains fully functional without any additional theme being selected.
+
+The standard LUMS appearance acts as the default presentation.
 
 ---
 
-# 2. Design Principles
+### 2.2 Client-Side
 
-The theme system follows these principles:
+Theme selection belongs to the frontend.
 
-* Standard LUMS remains the default design.
-* Themes are optional visual extensions.
-* Theme selection is stored client-side.
-* Themes do not require additional database structures.
-* Themes do not communicate theme information to the backend.
-* Theme-specific CSS is scoped through `data-theme`.
-* Theme-specific JavaScript is limited to presentation.
-* Frontend assets are version-controlled with the project.
-* Security-relevant functionality must not depend on the selected theme.
-* Changing a theme must never modify LUMS data.
-* Themes must not modify API authorization or authentication logic.
+Changing a theme must not require changes to the server-side application state.
 
-The architecture intentionally separates:
-
-```text
-Application functionality
-        │
-        ├── Backend
-        ├── API
-        ├── Database
-        ├── Authentication
-        ├── Agents
-        └── Update Jobs
-
-from
-
-Presentation
-        │
-        ├── CSS
-        ├── Theme JavaScript
-        ├── Visual effects
-        └── Theme assets
-```
+A user's selected theme is therefore a presentation preference rather than an account permission or backend configuration.
 
 ---
 
-# 3. Current Architecture
+### 2.3 Backend Independence
 
-The current LUMS installation uses Docker for the application and Nginx as the TLS reverse proxy.
+All themes use the same LUMS backend.
 
-```text
-Browser
-   │
-   │ HTTPS :443
-   ▼
-Nginx
-   │
-   │ HTTP localhost
-   ▼
-127.0.0.1:5050
-   │
-   │ Docker port mapping
-   ▼
-LUMS Container
-   │
-   │ Flask :5000
-   ▼
-LUMS Application
-   │
-   ▼
-Docker Volume
-lums-data
-```
-
-## Current Application Values
-
-| Component           | Value                       |
-| ------------------- | --------------------------- |
-| Repository          | `/opt/lums-public`          |
-| Docker image        | `lums:latest`               |
-| Docker container    | `lums`                      |
-| Docker volume       | `lums-data`                 |
-| Internal Flask port | `5000`                      |
-| Host binding        | `127.0.0.1:5050`            |
-| External HTTPS      | Nginx on port `443`         |
-| Environment file    | `/etc/lums/docker/lums.env` |
-
-The container is published using:
+The following remain independent of the selected theme:
 
 ```text
-127.0.0.1:5050 → 5000/tcp
+Authentication
+Authorization
+RBAC
+Client Management
+Software Inventory
+Update Detection
+Package Management
+Update Jobs
+Job Recovery
+Audit Logging
+Database Operations
 ```
 
-Port `5000` is internal to the container.
-
-Port `5050` is bound only to localhost.
-
-Neither port should be directly exposed to the network.
+The backend remains the authoritative source for all security- and operation-sensitive decisions.
 
 ---
 
-# 4. Theme Architecture
+### 2.4 No Security by Theme
 
-The theme system is implemented entirely on the client side.
+A theme must never be used as a security mechanism.
 
-```text
-Login Page
-    │
-    ▼
-Theme Selector
-    │
-    ▼
-theme.js
-    │
-    ▼
-localStorage
-    │
-    ▼
-document.documentElement.dataset.theme
-    │
-    ▼
-Theme-specific CSS / JavaScript
-    │
-    ├── Standard
-    ├── LUMS Stadium
-    ├── Golf Club
-    ├── Nerd Mode
-    ├── Geek Lab
-    └── Enterprise Admin
-```
+For example, hiding an action in the interface does not grant or revoke permission.
 
-The currently selected theme is represented on the root HTML element.
+If an operation is not permitted for a user, the server must reject it regardless of which theme is active.
 
-Example:
-
-```html
-<html data-theme="geek">
-```
-
-The CSS then scopes theme-specific rules:
-
-```css
-html[data-theme="geek"] ...
-```
-
-This prevents one theme from unintentionally changing another theme.
+This ensures that frontend presentation cannot become an authorization boundary.
 
 ---
 
-# 5. Browser Storage
+### 2.5 Graceful Fallback
 
-The theme storage key is:
+The theme system should always provide a valid fallback.
 
-```javascript
-const STORAGE_KEY = "lums-theme";
-```
-
-Example:
-
-```javascript
-localStorage.getItem("lums-theme");
-```
-
-Possible result:
-
-```text
-"geek"
-```
-
-The stored value is local to the browser.
-
-The backend does not need to know which theme the user selected.
-
----
-
-# 6. Supported Theme Values
-
-The current `theme.js` contains:
-
-```javascript
-const THEMES = [
-    "standard",
-    "LUMSStadium",
-    "golf",
-    "nerd",
-    "geek",
-    "admin"
-];
-```
-
-The `admin` identifier represents:
-
-```text
-Enterprise Admin
-```
-
-The theme value is applied through:
-
-```javascript
-document.documentElement.dataset.theme = theme;
-```
-
-Example:
-
-```html
-<html data-theme="admin">
-```
-
----
-
-# 7. Standard Fallback
-
-If no theme has been stored or an unknown value is detected, LUMS falls back to:
-
-```text
-standard
-```
-
-The fallback prevents invalid browser state from producing an undefined interface.
-
-Example:
-
-```javascript
-applyTheme(
-    THEMES.includes(savedTheme)
-        ? savedTheme
-        : "standard"
-);
-```
-
-The `standard` theme therefore remains the default when:
+If:
 
 * no theme has been selected,
-* `localStorage` is empty,
-* an invalid theme value is stored,
-* or theme initialization falls back to the default.
+* a stored theme is no longer available,
+* a theme identifier is invalid,
+* a theme asset cannot be loaded,
+
+LUMS should fall back to the standard presentation instead of leaving the interface unusable.
 
 ---
 
-# 8. Theme JavaScript
+## 3. Conceptual Architecture
 
-## Source
+The theme system can be viewed as a separate presentation layer around the existing LUMS application.
 
 ```text
-/opt/lums-public/server/static/theme.js
+┌──────────────────────────────────────┐
+│              LUMS UI                 │
+│                                      │
+│  ┌────────────────────────────────┐  │
+│  │        Theme Presentation      │  │
+│  │                                │  │
+│  │ Standard / Stadium / Golf /    │  │
+│  │ Nerd / Geek / Admin / ...      │  │
+│  └────────────────────────────────┘  │
+│                  │                   │
+│                  ▼                   │
+│        Common Frontend Logic        │
+└──────────────────┬───────────────────┘
+                   │
+                   ▼
+┌──────────────────────────────────────┐
+│             LUMS API                 │
+│                                      │
+│ Authentication / RBAC / Jobs /       │
+│ Clients / Packages / Updates / Logs  │
+└──────────────────┬───────────────────┘
+                   │
+                   ▼
+┌──────────────────────────────────────┐
+│          LUMS Backend                │
+│                                      │
+│ Flask / SQLite / Job Processing /   │
+│ Client Communication                 │
+└──────────────────────────────────────┘
 ```
 
-The theme JavaScript is included in the Docker image during the build process.
+The important boundary is between **presentation** and **application logic**.
 
-It is responsible for:
-
-* Reading the saved theme.
-* Validating the theme.
-* Applying the fallback.
-* Updating `data-theme`.
-* Saving the selected theme.
-* Synchronizing available theme selectors.
-* Starting and stopping theme-specific visual effects.
-
-The theme system must not:
-
-* modify the SQLite database,
-* modify authentication,
-* modify client tokens,
-* modify API authorization,
-* modify update jobs,
-* modify agent communication,
-* send theme data to the backend.
+Themes belong above that boundary.
 
 ---
 
-# 9. Theme Selection
+## 4. Theme Lifecycle
 
-The theme selector is available through the LUMS frontend theme selection mechanism.
-
-The login selector uses:
-
-```html
-<select id="login-theme-select">
-```
-
-The theme JavaScript also supports:
-
-```html
-<select id="theme-select">
-```
-
-when such a selector is present on a page.
-
-Both selectors are synchronized by `theme.js`.
-
-The selected value is written to:
+Conceptually, selecting a theme follows this sequence:
 
 ```text
-localStorage
+User selects theme
+        │
+        ▼
+Frontend stores selection
+        │
+        ▼
+Theme initialization
+        │
+        ▼
+Theme applied to UI
+        │
+        ▼
+LUMS continues using
+the same backend and permissions
 ```
 
-and then applied through:
+The selection itself does not create a new LUMS environment.
 
-```javascript
-document.documentElement.dataset.theme
-```
+There is still only one LUMS application, one backend, and one security model.
 
 ---
 
-# 10. Theme-Day Titles
+## 5. Theme Identifiers
 
-Some themes can provide additional presentation elements through CSS.
+Themes should use stable internal identifiers rather than relying on their display names.
 
-The relevant dashboard element is:
-
-```html
-<div class="theme-day-title" aria-hidden="true"></div>
-```
-
-Examples:
-
-```css
-html[data-theme="LUMSStadium"] .theme-day-title::after {
-    content: "GAMEDAY";
-}
-
-html[data-theme="golf"] .theme-day-title::after {
-    content: "CLUB DAY";
-}
-```
-
-These elements are purely visual.
-
-They do not affect:
-
-* backend functionality,
-* authentication,
-* client management,
-* update jobs,
-* database operations,
-* API requests.
-
-Themes that do not require a theme-day title leave the element visually empty.
-
----
-
-# 11. LUMS Stadium
-
-The Stadium theme provides a Game-Day visual presentation.
-
-Typical elements include:
-
-* stadium background,
-* sports-inspired colors,
-* Game-Day title,
-* football animation,
-* reduced-motion handling.
-
-## Background
-
-Example asset:
-
-```text
-server/static/images/lumsstadium.jpg
-```
-
-Example:
-
-```css
-html[data-theme="LUMSStadium"] body {
-    background:
-        #07120b
-        url("/static/images/lumsstadium.jpg")
-        center top / cover
-        fixed
-        no-repeat;
-}
-```
-
-## Game-Day Title
-
-```css
-html[data-theme="LUMSStadium"] .theme-day-title::after {
-    content: "GAMEDAY";
-}
-```
-
-## Football Animation
-
-```css
-html[data-theme="LUMSStadium"] .topbar::after {
-    content: "🏈";
-}
-```
-
-The animation is presentation-only.
-
-Reduced-motion settings must be respected.
-
----
-
-# 12. Golf Club
-
-The Golf theme provides a relaxed club-style presentation.
-
-Typical elements include:
-
-* golf background,
-* club-style presentation,
-* `CLUB DAY`,
-* golf-ball animation,
-* reduced-motion handling.
-
-## Background
-
-Example asset:
-
-```text
-server/static/images/golf.jpg
-```
-
-Example:
-
-```css
-html[data-theme="golf"] body {
-    background:
-        linear-gradient(
-            rgba(18, 42, 24, 0.28),
-            rgba(18, 42, 24, 0.55)
-        ),
-        url("/static/images/golf.jpg")
-        center top / cover
-        fixed
-        no-repeat;
-}
-```
-
-## Club-Day Title
-
-```css
-html[data-theme="golf"] .theme-day-title::after {
-    content: "CLUB DAY";
-}
-```
-
-## Golf Animation
-
-The golf-ball animation is purely visual and must respect:
-
-```text
-prefers-reduced-motion
-```
-
----
-
-# 13. Nerd Mode
-
-Nerd Mode is the dedicated terminal/CRT-inspired interface.
-
-Typical visual elements include:
-
-* monospace fonts,
-* terminal-inspired styling,
-* dark interface,
-* green accents,
-* CRT effects,
-* Matrix-style rain,
-* technical presentation.
-
-The Matrix layer is created by `theme.js` and styled through CSS.
-
-The visual layer is only activated when:
-
-```text
-data-theme="nerd"
-```
-
-The Nerd theme does not modify LUMS functionality.
-
-> **The Nerdseite changes the interface — not the infrastructure.**
-
----
-
-# 14. Geek Lab
-
-Geek Lab represents the technical laboratory / cyber-oriented interface.
-
-Typical visual elements include:
-
-* dark interface,
-* technical blue/purple accents,
-* blueprint-inspired presentation,
-* grid effects,
-* laboratory styling,
-* technical visual effects.
-
-The Geek theme also contains the **The Living Network** background animation.
-
----
-
-# 15. The Living Network
-
-**The Living Network** is the animated network background of the Geek theme.
-
-It is implemented separately from the normal theme CSS.
-
-## JavaScript Source
-
-```text
-/opt/lums-public/server/static/network.js
-```
-
-The script exposes:
-
-```javascript
-window.LumsNetwork = {
-    start,
-    stop,
-    destroy
-};
-```
-
-The animation consists of:
-
-* slowly moving network nodes,
-* connections between nearby nodes,
-* animated blue network packets,
-* a fixed fullscreen canvas,
-* transparent background,
-* application content above the network.
-
-The network canvas is:
-
-```html
-<canvas id="lums-network-canvas"></canvas>
-```
-
-The CSS restricts it to the Geek theme:
-
-```css
-html[data-theme="geek"] #lums-network-canvas {
-    display: block;
-}
-
-html:not([data-theme="geek"]) #lums-network-canvas {
-    display: none;
-}
-```
-
-The network animation is started by `theme.js` only when:
-
-```javascript
-theme === "geek"
-```
-
-For every other theme:
-
-```javascript
-window.LumsNetwork.stop();
-```
-
-Therefore:
-
-```text
-Geek
-  │
-  └── The Living Network → ACTIVE
-
-Enterprise Admin
-  │
-  └── The Living Network → OFF
-
-Standard
-  │
-  └── The Living Network → OFF
-
-LUMS Stadium
-  │
-  └── The Living Network → OFF
-
-Golf
-  │
-  └── The Living Network → OFF
-
-Nerd
-  │
-  └── The Living Network → OFF
-```
-
-## Reduced Motion
-
-The network canvas is disabled when the browser requests reduced motion:
-
-```css
-@media (prefers-reduced-motion: reduce) {
-    #lums-network-canvas {
-        display: none !important;
-    }
-}
-```
-
-The Geek network therefore remains a visual enhancement only.
-
----
-
-# 16. Enterprise Admin
-
-Enterprise Admin is intentionally designed as a **dry Enterprise Operations Console**.
-
-The objective is not to create another modern SaaS dashboard.
-
-The visual character is:
-
-> **Infrastructure Management Console**
-
-or:
-
-> **Enterprise software that exists to manage infrastructure, not to impress marketing departments.**
-
-😂
-
-## Design Goals
-
-Enterprise Admin uses:
-
-* light gray background,
-* white panels,
-* dark blue/gray header,
-* classic blue accent color,
-* thin borders,
-* compact spacing,
-* small corner radius,
-* dense information presentation,
-* conventional tables,
-* restrained status indicators,
-* minimal shadows,
-* no decorative gradients,
-* no neon effects,
-* no glow,
-* no unnecessary animation.
-
-The theme deliberately avoids:
-
-* glassmorphism,
-* oversized cards,
-* marketing-style layouts,
-* large decorative icons,
-* neon effects,
-* animated backgrounds,
-* cyber effects,
-* unnecessary visual motion.
-
----
-
-# 17. Enterprise Admin Identifier
-
-The internal identifier remains:
-
-```text
-admin
-```
-
-The user-facing name is:
-
-```text
-Enterprise Admin
-```
-
-This distinction is intentional.
-
-The existing theme architecture therefore continues to use:
-
-```html
-<html data-theme="admin">
-```
-
-Enterprise-specific CSS is scoped using:
-
-```css
-html[data-theme="admin"] ...
-```
-
----
-
-# 18. Enterprise Admin CSS Architecture
-
-Enterprise Admin is implemented as a dedicated CSS override layer at the end of:
-
-```text
-server/static/style.css
-```
-
-The section is clearly marked:
-
-```css
-/* =========================================================
-   LUMS // ENTERPRISE ADMIN
-   Operations Console
-   ========================================================= */
-```
-
-This approach avoids rewriting the complete LUMS stylesheet.
-
-Existing styles remain available as the base layer.
-
-Enterprise-specific rules override only the visual presentation when:
-
-```text
-data-theme="admin"
-```
-
-is active.
-
----
-
-# 19. Enterprise Admin Visual Language
-
-## Background
-
-```text
-Light gray
-```
-
-## Panels
-
-```text
-White
-1px border
-Small radius
-Minimal shadow
-```
-
-## Header
-
-```text
-Dark blue/gray
-White text
-Thin bottom border
-```
-
-## Accent
-
-```text
-Classic administrative blue
-```
-
-## Tables
-
-Enterprise tables use:
-
-* compact rows,
-* clear borders,
-* neutral header background,
-* restrained hover states,
-* small uppercase column headings where appropriate.
-
-The goal is information density rather than visual decoration.
-
----
-
-# 20. Enterprise Admin Status Display
-
-Status indicators remain simple and readable.
-
-Typical presentation:
-
-```text
-● Online
-● Offline
-● Unknown
-```
-
-The status presentation must not change the underlying status logic.
-
-The theme only changes how the status is displayed.
-
----
-
-# 21. Enterprise Admin Controls
-
-Buttons and form controls use a conventional administrative design.
-
-Typical characteristics:
-
-* rectangular controls,
-* small radius,
-* blue primary buttons,
-* thin borders,
-* white input fields,
-* compact controls,
-* no glow,
-* no animated hover effects.
-
-The underlying actions remain unchanged.
-
-A button that performs an update job remains the same update-job action regardless of the selected theme.
-
----
-
-# 22. Enterprise Admin Client View
-
-The client page follows the same administrative visual language.
-
-Affected visual areas include:
-
-* client header,
-* client IP information,
-* status,
-* statistics,
-* system information,
-* update tables,
-* update jobs,
-* update history,
-* software/package tables.
-
-The Enterprise Admin theme does not modify the underlying client data.
-
----
-
-# 23. Enterprise Admin Software View
-
-The software/package section uses a compact administrative layout.
-
-Visual characteristics include:
-
-* thin table borders,
-* compact rows,
-* neutral tab styling,
-* classic blue active state,
-* white content areas,
-* restrained controls.
-
-The package information itself is unchanged.
-
----
-
-# 24. Enterprise Admin and Other Themes
-
-Enterprise Admin must remain isolated from the other themes.
-
-The following themes must not inherit Enterprise-specific visual changes:
+For example:
 
 ```text
 standard
@@ -906,980 +203,2677 @@ LUMSStadium
 golf
 nerd
 geek
+admin
 ```
 
-Enterprise CSS therefore uses scoped selectors such as:
+The identifier is an implementation detail.
 
-```css
-html[data-theme="admin"] .panel
-```
+The visible theme name may be changed independently without requiring the backend or application architecture to change.
 
-rather than global rules such as:
-
-```css
-.panel
-```
-
-This is an important architectural rule.
-
-> **Enterprise Admin changes Enterprise Admin only.**
+When a theme identifier is removed or renamed, the theme system should provide a fallback for users who still have the previous identifier stored locally.
 
 ---
 
-# 25. Theme Isolation
+## 6. Separation of Responsibilities
 
-Each visual effect must be restricted to its intended theme.
+The theme system has a deliberately narrow responsibility.
+
+### Theme layer
+
+Responsible for:
+
+* visual presentation
+* theme selection
+* theme-specific styling
+* optional visual effects
+* theme-specific frontend decorations
+* accessibility-related presentation behavior
+
+### Common frontend
+
+Responsible for:
+
+* displaying application data
+* calling LUMS APIs
+* rendering jobs and software information
+* handling user interaction
+* enforcing presentation-level visibility
+
+### Backend
+
+Responsible for:
+
+* authentication
+* authorization
+* RBAC
+* CSRF protection
+* client authentication
+* job creation
+* job execution
+* package management
+* database operations
+* audit logging
+* security decisions
+
+This separation is fundamental to the design.
+
+---
+
+## 7. Security Boundary
+
+The theme system is **not trusted code for authorization purposes**.
+
+Even if a theme modifies or hides an interface element, the backend remains responsible for validating the requested operation.
+
+Conceptually:
+
+```text
+Frontend visibility
+        ≠
+Backend permission
+```
+
+For example:
+
+```text
+Viewer
+  │
+  ├── Theme may display no package-management controls
+  │
+  └── Backend still rejects unauthorized package operations
+```
+
+The same principle applies to administrative functions, update jobs, client management, and every other privileged operation.
+
+---
+
+## 8. Operational Principle
+
+The theme system should remain invisible to the operational architecture of LUMS.
+
+A theme change must not require:
+
+* rebuilding the database
+* changing client configuration
+* changing client tokens
+* restarting update agents
+* changing update jobs
+* modifying RBAC
+* changing network configuration
+* changing package-management behavior
+
+The theme is a presentation preference, not an operational configuration.
+
+---
+
+## 9. Documentation Scope
+
+This document describes the optional LUMS theme system itself.
+
+General LUMS topics are documented separately:
+
+* Installation and deployment → `installation.md`
+* Administration and maintenance → `administration.md`
+* Troubleshooting → `troubleshooting.md`
+* Security architecture and audits → `security.md`
+* General project overview → `README.md`
+
+Keeping these responsibilities separate prevents the theme documentation from becoming a second installation or administration manual.
+
+---
+
+## 10. Core Principle
+
+The optional theme system can therefore be summarized as:
+
+> **One LUMS. One backend. One security model. Many possible**
+
+# LUMS — Optional Theme System
+
+## Part 2 — Theme Structure and Selection
+
+## 11. Theme Structure
+
+The optional theme system separates theme selection from the actual visual presentation.
+
+A theme consists conceptually of three layers:
+
+```text
+Theme Identifier
+       │
+       ▼
+Theme Selection
+       │
+       ▼
+Theme Presentation
+```
+
+The identifier determines which theme has been selected.
+
+The selection mechanism determines which theme should currently be active.
+
+The presentation layer applies the corresponding visual configuration to the LUMS interface.
+
+This separation makes it possible to add or remove themes without changing the fundamental LUMS application architecture.
+
+---
+
+## 12. Theme Selection
+
+Theme selection is handled by the frontend.
+
+The selected theme is treated as a local presentation preference rather than a server-side account property.
+
+Conceptually:
+
+```text
+User
+ │
+ ▼
+Theme Selector
+ │
+ ▼
+Selected Theme Identifier
+ │
+ ▼
+Frontend Theme Initialization
+ │
+ ▼
+Active Theme
+```
+
+The backend does not need to know which visual theme is currently selected.
+
+This also means that changing the theme does not affect other users.
+
+Two users can access the same LUMS instance while using completely different visual themes.
+
+---
+
+## 13. Local Theme Preference
+
+The selected theme may be persisted locally by the browser.
+
+The purpose of local persistence is convenience:
+
+```text
+Browser
+   │
+   ├── Theme preference
+   │
+   └── LUMS application
+```
+
+A stored theme selection should therefore be treated as untrusted client-side state.
+
+It must never be interpreted by the server as:
+
+* a role
+* a permission
+* an authentication state
+* a security setting
+* an administrative preference
+
+The browser may select the appearance, but it does not control authorization.
+
+---
+
+## 14. Theme Initialization
+
+When the LUMS interface is loaded, the frontend determines which theme should be active.
+
+The conceptual sequence is:
+
+```text
+Page Load
+   │
+   ▼
+Read Stored Theme
+   │
+   ▼
+Is Theme Valid?
+   │
+   ├── Yes ──────► Apply Theme
+   │
+   └── No ───────► Use Standard Theme
+```
+
+If no preference exists, the standard LUMS presentation should be used.
+
+If a stored identifier is no longer supported, the same fallback behavior should apply.
+
+This prevents an outdated local preference from breaking the interface.
+
+---
+
+## 15. Default Theme
+
+The standard LUMS theme is the baseline presentation.
+
+It provides the reference appearance against which optional themes are defined.
+
+The standard theme should therefore remain:
+
+* functional
+* readable
+* accessible
+* visually complete
+* independent of optional decorative assets
+
+Optional themes must not become prerequisites for normal LUMS operation.
+
+---
+
+## 16. Theme Application
+
+The frontend can represent the active theme through a shared application state or a root-level theme attribute.
+
+Conceptually:
+
+```html
+<html data-theme="theme-id">
+```
+
+The exact implementation may differ as the frontend evolves.
+
+The important architectural requirement is that the active theme can be identified consistently by the frontend styling system.
+
+This allows theme-specific styling to remain separated from common application structure.
+
+---
+
+## 17. Theme-Specific Styling
+
+Theme styling should primarily be implemented through CSS rather than duplicating application markup.
+
+Conceptually:
+
+```text
+Common HTML
+     │
+     ├── Standard styling
+     ├── Stadium styling
+     ├── Golf styling
+     ├── Nerd styling
+     ├── Geek styling
+     └── Admin styling
+```
+
+This allows the same application components to remain available across themes.
+
+For example, a client table remains a client table regardless of the active theme.
+
+Only its presentation changes.
+
+---
+
+## 18. Shared Application Components
+
+Themes should not create independent versions of LUMS pages.
+
+The following principle should be maintained:
+
+```text
+One component
+       │
+       ├── Theme A
+       ├── Theme B
+       ├── Theme C
+       └── Theme D
+```
+
+Rather than:
+
+```text
+Theme A → separate page
+Theme B → separate page
+Theme C → separate page
+```
+
+Duplicating pages would make maintenance significantly harder and could cause behavioral differences between themes.
+
+A theme should therefore decorate the common interface instead of replacing the application itself.
+
+---
+
+## 19. Theme Assets
+
+Themes may use additional frontend assets where appropriate.
+
+Possible assets include:
+
+* background images
+* decorative graphics
+* icons
+* animations
+* visual overlays
+* theme-specific illustrations
+
+Assets remain part of the frontend presentation layer.
+
+They must not contain:
+
+* credentials
+* client tokens
+* secret keys
+* database files
+* authentication material
+* private operational data
+
+Theme assets should be treated as public frontend resources.
+
+---
+
+## 20. Optional Visual Effects
+
+Some themes may provide additional visual effects.
+
+Examples include:
+
+* animated backgrounds
+* decorative network effects
+* ambient motion
+* themed interface elements
+* dynamic visual decorations
+
+Such effects must remain optional.
+
+They must never be required for the functional operation of LUMS.
+
+---
+
+## 21. Reduced Motion
+
+Visual effects should respect users who prefer reduced motion.
+
+Where animated or continuously changing elements are used, the theme system should provide an appropriate reduced-motion behavior.
+
+Conceptually:
+
+```text
+Normal motion
+     │
+     ├── animations enabled
+     └── visual effects enabled
+
+Reduced motion
+     │
+     ├── animations reduced or disabled
+     └── essential interface remains functional
+```
+
+Accessibility takes priority over decorative animation.
+
+A theme should remain usable even when visual effects are disabled.
+
+---
+
+## 22. Theme Independence
+
+Changing the theme must not trigger operational side effects.
+
+For example:
+
+```text
+Theme change
+     │
+     ├── No client restart
+     ├── No agent restart
+     ├── No job cancellation
+     ├── No database migration
+     ├── No token rotation
+     └── No permission change
+```
+
+The theme system is therefore intentionally isolated from the operational lifecycle of LUMS.
+
+---
+
+## 23. Theme Failure Handling
+
+A theme should fail safely.
+
+If a theme-specific asset or presentation component cannot be loaded, the common LUMS interface should remain usable.
+
+The preferred recovery path is:
+
+```text
+Theme error
+    │
+    ▼
+Fallback to standard presentation
+    │
+    ▼
+LUMS remains usable
+```
+
+A visual problem must not become an application availability problem.
+
+---
+
+## 24. Adding a New Theme
+
+A new theme should follow the existing separation between application behavior and presentation.
+
+Conceptually:
+
+```text
+1. Define theme identifier
+2. Define visual design
+3. Add theme styling
+4. Add optional assets
+5. Add theme to selection mechanism
+6. Test normal pages
+7. Test different RBAC roles
+8. Test reduced-motion behavior
+9. Test fallback behavior
+10. Verify no backend behavior changed
+```
+
+A new theme is complete only when the existing LUMS functionality remains unchanged.
+
+---
+
+## 25. Removing a Theme
+
+Removing a theme should also be handled gracefully.
+
+If an existing user has a removed theme stored locally, the frontend should detect that the identifier is no longer available and fall back to the standard theme.
+
+The removal of a visual theme must therefore not make a user's LUMS interface unusable.
+
+---
+
+## 26. Theme Naming
+
+Theme names should clearly distinguish between:
+
+* internal identifier
+* display name
+* visual concept
+
+For example:
+
+```text
+Internal identifier:  standard
+Display name:         Standard LUMS
+```
+
+This separation allows the visible wording to evolve without unnecessarily changing the internal implementation.
+
+---
+
+## 27. Current Theme Concept
+
+The optional LUMS theme system is designed around multiple visual identities while maintaining a common application.
+
+The current documented theme concepts include:
+
+| Identifier    | Concept          |
+| ------------- | ---------------- |
+| `standard`    | Standard LUMS    |
+| `LUMSStadium` | LUMS Stadium     |
+| `golf`        | Golf Club        |
+| `nerd`        | Nerd Mode        |
+| `geek`        | Geek Lab         |
+| `admin`       | Enterprise Admin |
+
+These themes represent different visual directions rather than different LUMS editions.
+
+All remain part of the same application.
+
+---
+
+## 28. One Backend, Many Interfaces
+
+The final relationship can be summarized as:
+
+```text
+                     ┌── Standard
+                     ├── Stadium
+                     ├── Golf
+                     ├── Nerd
+                     ├── Geek
+                     └── Admin
+                           │
+                           ▼
+                    Common LUMS UI
+                           │
+                           ▼
+                       LUMS API
+                           │
+                           ▼
+                     LUMS Backend
+```
+
+The theme layer ends at the presentation boundary.
+
+Everything below that boundary remains common to all themes.
+
+# LUMS — Optional Theme System
+
+## Part 3 — Theme Concepts
+
+## 29. Standard LUMS
+
+The Standard LUMS theme is the reference presentation for the application.
+
+Its purpose is to provide a clean and functional interface without requiring a specific visual concept.
+
+The standard theme should prioritize:
+
+* readability
+* clear information hierarchy
+* predictable navigation
+* accessibility
+* low visual distraction
+* consistent component presentation
+
+It is the fallback presentation for the theme system.
+
+The Standard LUMS theme should therefore remain usable even if all optional visual themes are unavailable.
+
+---
+
+## 30. LUMS Stadium
+
+**LUMS Stadium** is a more expressive visual interpretation of the LUMS interface.
+
+The concept combines system administration with a stadium-inspired visual identity.
+
+Possible design elements include:
+
+* scoreboard-inspired information panels
+* stronger visual status indicators
+* event-oriented presentation
+* themed backgrounds
+* visual emphasis for operational states
+* decorative stadium elements
+
+The theme remains functionally identical to Standard LUMS.
+
+A successful update is still a successful update.
+
+A failed job is still a failed job.
+
+Only the presentation changes.
+
+---
+
+## 31. Golf Club
+
+The **Golf Club** theme provides a deliberately contrasting visual identity.
+
+Instead of a traditional server or infrastructure aesthetic, the interface uses a calmer recreational concept.
+
+The visual direction may emphasize:
+
+* clean surfaces
+* restrained decoration
+* golf-inspired elements
+* course-like visual metaphors
+* calm status presentation
+* light thematic accents
+
+The concept demonstrates that LUMS does not need to visually resemble a traditional administration console to remain functional.
+
+The backend and application behavior remain unchanged.
+
+---
+
+## 32. Nerd Mode
+
+**Nerd Mode** is aimed at a more technical and playful presentation.
+
+The concept can emphasize the technical nature of LUMS through elements such as:
+
+* terminal-inspired styling
+* technical terminology
+* system-oriented visual elements
+* developer-style presentation
+* diagnostic aesthetics
+* deliberately technical decoration
+
+The theme must still maintain clear information hierarchy.
+
+A playful interface should not make operational information harder to understand.
+
+---
+
+## 33. Geek Lab
+
+**Geek Lab** represents a more experimental technical environment.
+
+The visual concept can combine:
+
+* laboratory aesthetics
+* technical experimentation
+* infrastructure visualization
+* system diagrams
+* scientific or engineering-inspired elements
+* experimental visual effects
+
+The theme is intended to make the interface feel like an infrastructure laboratory while preserving the same LUMS functionality underneath.
+
+The visual experimentation must remain isolated from the operational application.
+
+---
+
+## 34. Enterprise Admin
+
+The **Enterprise Admin** theme represents a more conservative administrative interface.
+
+Its visual direction can emphasize:
+
+* structured information
+* compact layouts
+* administrative dashboards
+* clear status indicators
+* operational density
+* reduced decorative elements
+
+This theme is particularly suitable for users who prefer a conventional administration-console appearance.
+
+It does not introduce additional administrative privileges.
+
+The name describes the visual concept, not an authorization level.
+
+---
+
+## 35. Theme Comparison
+
+The themes can be viewed as different visual interpretations of the same application:
+
+| Theme            | Visual Direction            | Primary Character   |
+| ---------------- | --------------------------- | ------------------- |
+| Standard LUMS    | Clean / functional          | Reference interface |
+| LUMS Stadium     | Stadium / event             | Expressive          |
+| Golf Club        | Recreational / calm         | Relaxed             |
+| Nerd Mode        | Technical / playful         | Developer-oriented  |
+| Geek Lab         | Experimental / technical    | Laboratory          |
+| Enterprise Admin | Structured / administrative | Conservative        |
+
+This table describes presentation concepts only.
+
+It does **not** describe differences in:
+
+* permissions
+* features
+* API access
+* client access
+* job execution
+* package management
+* security
+
+---
+
+## 36. Same Interface, Different Presentation
+
+A central design goal is that the same application component should remain recognizable across themes.
+
+For example:
+
+```text id="5dhlf7"
+Client List
+   │
+   ├── Standard presentation
+   ├── Stadium presentation
+   ├── Golf presentation
+   ├── Nerd presentation
+   ├── Geek presentation
+   └── Enterprise presentation
+```
+
+The underlying client data remains identical.
+
+Only its presentation changes.
+
+The same applies to:
+
+* software inventories
+* available updates
+* update jobs
+* job history
+* user information
+* system status
+* package-management interfaces
+
+---
+
+## 37. Operational Statuses
+
+Themes may visually emphasize different operational states.
+
+For example:
+
+```text id="5wyy17"
+PENDING
+RUNNING
+SUCCESS
+FAILED
+```
+
+A theme may use different visual representations for these states, but the semantic meaning must remain consistent.
+
+The theme must not redefine application states.
+
+For example:
+
+```text id="j4i9qd"
+SUCCESS ≠ "looks green"
+
+SUCCESS = actual LUMS job state
+```
+
+The visual representation is only a rendering of the backend state.
+
+---
+
+## 38. Error Presentation
+
+Themes may also change how errors are presented visually.
+
+However, error information must remain understandable.
+
+A theme should not:
+
+* hide important error information
+* replace technical information with decorative text
+* make warnings indistinguishable from normal states
+* suppress operational failures
+
+Visual styling can improve presentation, but it must not remove diagnostic information required to understand a problem.
+
+---
+
+## 39. Status Consistency
+
+The same status should have a consistent semantic meaning across every theme.
+
+For example:
+
+| State   | Meaning                   |
+| ------- | ------------------------- |
+| Pending | Waiting for execution     |
+| Running | Currently being processed |
+| Success | Completed successfully    |
+| Failed  | Execution failed          |
+
+A theme may represent these states using different colors, icons, typography, or layout.
+
+The underlying meaning must remain unchanged.
+
+---
+
+## 40. Theme-Specific Decoration
+
+Decorative elements should remain secondary to operational information.
+
+Examples include:
+
+* backgrounds
+* patterns
+* illustrations
+* ambient effects
+* themed icons
+* visual ornaments
+
+The following priority should be maintained:
+
+```text id="3m08d7"
+Operational Information
+        │
+        ▼
+Application Usability
+        │
+        ▼
+Accessibility
+        │
+        ▼
+Visual Decoration
+```
+
+Decoration must never take priority over information required to operate LUMS.
+
+---
+
+## 41. Visual Density
+
+Different themes may use different visual densities.
+
+For example:
+
+* Enterprise Admin may prioritize information density.
+* Standard LUMS may prioritize balanced readability.
+* Golf Club may use more whitespace.
+* Nerd Mode may use compact technical elements.
+* Stadium may emphasize large status areas.
+* Geek Lab may provide more visual context.
+
+These differences remain presentation choices.
+
+They do not change the amount or authority of the underlying data.
+
+---
+
+## 42. Accessibility Across Themes
+
+Every theme must preserve basic usability.
+
+This includes:
+
+* readable text
+* sufficient visual distinction
+* usable controls
+* understandable status indicators
+* keyboard accessibility
+* usable focus states
+* compatibility with reduced-motion preferences
+
+Color should not be the only mechanism used to communicate an important state.
+
+For example, a failed job should not be identifiable only because it is displayed in a particular color.
+
+---
+
+## 43. Theme-Specific Animations
+
+Themes may contain animations where they improve the visual concept.
+
+Examples include:
+
+* subtle transitions
+* animated backgrounds
+* network effects
+* status transitions
+* ambient decoration
+
+Animations should remain secondary to the application.
+
+They should not:
+
+* prevent interaction
+* obscure controls
+* continuously distract from operational data
+* interfere with accessibility
+* affect backend operations
+
+---
+
+## 44. The Living Network
+
+Some LUMS themes may use a dynamic network-inspired visual layer.
+
+The concept represents LUMS as a living infrastructure environment:
+
+```text id="7w1v8b"
+Client ─────┐
+            │
+Client ─────┼──── LUMS
+            │
+Client ─────┘
+```
+
+Such a visualization is decorative unless explicitly connected to actual application data.
+
+A visual network should therefore never be interpreted as authoritative network topology unless the application explicitly provides that information.
+
+This distinction is important:
+
+> **A visual representation is not automatically operational telemetry.**
+
+---
+
+## 45. Decorative Data vs. Real Data
+
+Theme-specific visual effects must clearly remain separate from real LUMS data.
+
+For example:
+
+```text id="z6i5j0"
+Decorative node
+    ≠
+Real client
+
+Animated connection
+    ≠
+Real network connection
+
+Visual status effect
+    ≠
+Backend job state
+```
+
+This prevents users from confusing an aesthetic visualization with actual system information.
+
+---
+
+## 46. Theme Identity
+
+Each theme should have a recognizable identity without becoming a separate product.
+
+The goal is:
+
+```text id="qv1fbe"
+Different visual identity
+          +
+Same LUMS functionality
+          =
+Optional LUMS Theme
+```
+
+This keeps the theme system playful and flexible while preserving the technical integrity of the application.
+
+---
+
+## 47. Theme Design Rule
+
+The most important design rule for all themes is:
+
+> **A theme may be expressive, unusual, technical, playful, or conservative — but it must always remain LUMS.**
+
+The application must remain recognizable as the same system regardless of the selected visual presentation.
+
+# LUMS — Optional Theme System
+
+## Part 4 — Frontend Implementation and Accessibility
+
+## 48. Frontend Theme Layer
+
+The optional theme system belongs entirely to the LUMS frontend.
+
+Its responsibility is limited to presentation and user preference handling.
+
+Conceptually:
+
+```text
+┌─────────────────────────────────┐
+│          LUMS Frontend          │
+│                                 │
+│  Common Application Logic       │
+│              │                  │
+│              ▼                  │
+│       Theme Presentation        │
+│              │                  │
+│              ▼                  │
+│       Browser Rendering         │
+└─────────────────────────────────┘
+```
+
+The theme layer does not replace the common frontend logic.
+
+Instead, it provides an additional presentation layer around it.
+
+---
+
+## 49. Theme Initialization
+
+Theme initialization should happen as part of the normal frontend startup process.
+
+The conceptual sequence is:
+
+```text
+Frontend starts
+      │
+      ▼
+Theme system initializes
+      │
+      ▼
+Stored preference is evaluated
+      │
+      ▼
+Theme availability is checked
+      │
+      ├── Valid → selected theme
+      │
+      └── Invalid → standard theme
+      │
+      ▼
+LUMS interface rendered
+```
+
+Initialization should be lightweight and must not depend on backend availability.
+
+A user should be able to load the visual presentation even if an API request later fails.
+
+---
+
+## 50. Theme State
+
+The active theme is frontend state.
+
+It should therefore be treated differently from application state.
+
+### Theme state
 
 Examples:
 
+```text
+Active visual theme
+Reduced-motion preference
+Visual presentation preferences
+```
+
+### Application state
+
+Examples:
+
+```text
+Logged-in user
+User role
+Client state
+Package state
+Update state
+Job state
+Audit state
+```
+
+Theme state must never overwrite or impersonate application state.
+
+---
+
+## 51. Root Theme Attribute
+
+A root-level attribute is a suitable conceptual representation of the active theme.
+
+For example:
+
+```html
+<html data-theme="standard">
+```
+
+or:
+
+```html
+<html data-theme="nerd">
+```
+
+CSS can then use the active theme as a selector.
+
+The exact implementation may evolve, but the architectural goal remains the same:
+
+> **One application structure, multiple presentation definitions.**
+
+---
+
+## 52. CSS Organization
+
+Theme-specific styling should remain distinguishable from common LUMS styling.
+
+Conceptually:
+
+```text
+Common styles
+│
+├── Layout
+├── Forms
+├── Tables
+├── Navigation
+├── Status elements
+└── Shared components
+
+Theme styles
+│
+├── Standard
+├── Stadium
+├── Golf
+├── Nerd
+├── Geek
+└── Admin
+```
+
+Common styles should define the functional structure.
+
+Theme styles should define the visual identity.
+
+This reduces duplication and makes future theme maintenance easier.
+
+---
+
+## 53. CSS Variables
+
+Theme systems can use CSS custom properties to separate semantic values from their visual representation.
+
+For example:
+
 ```css
-html[data-theme="nerd"] ...
+:root {
+    --lums-background: ...;
+    --lums-surface: ...;
+    --lums-text: ...;
+    --lums-accent: ...;
+}
 ```
+
+A theme can then provide its own values:
 
 ```css
-html[data-theme="geek"] ...
+[data-theme="example"] {
+    --lums-background: ...;
+    --lums-surface: ...;
+    --lums-text: ...;
+    --lums-accent: ...;
+}
 ```
 
-```css
-html[data-theme="admin"] ...
-```
-
-The Living Network specifically uses:
-
-```css
-html[data-theme="geek"] #lums-network-canvas
-```
-
-and is hidden for all other themes.
-
-This prevents visual effects from leaking between themes.
+The important principle is that components consume semantic variables instead of hard-coding theme-specific values wherever practical.
 
 ---
 
-# 26. Frontend Assets
+## 54. Shared Components
 
-Theme assets are part of the version-controlled frontend.
+The theme system should style shared components rather than duplicate them.
 
-Supported formats may include:
+Typical components include:
 
-```text
-HTML
-CSS
-JavaScript
-SVG
-JPG
-PNG
-WebP
-```
+* navigation
+* buttons
+* forms
+* tables
+* status indicators
+* cards
+* dialogs
+* package-management elements
+* update-job elements
+* client information
+* system information
 
-## Source Directory
-
-```text
-/opt/lums-public/server/static/
-```
-
-Example assets:
-
-```text
-server/static/images/lumsstadium.jpg
-server/static/images/golf.jpg
-server/static/images/*.svg
-server/static/network.js
-```
-
-The Docker build copies the server source into the application image.
-
-Theme assets therefore become part of the resulting Docker image.
+The same component should remain functionally identical regardless of the active theme.
 
 ---
 
-# 27. Asset Attribution
+## 55. Theme Assets
 
-If external or AI-generated assets are used, their origin should be documented where appropriate.
+Optional themes may use dedicated assets.
 
-Existing theme attribution:
+Possible asset categories include:
 
-> **Pictures by leonardo.ai**
+```text
+Images
+Icons
+Backgrounds
+Decorative graphics
+Fonts
+Animation assets
+Visual effects
+```
 
-Only assets that are legally usable and appropriate for the project should be committed.
+Theme assets should remain frontend resources.
 
-Theme assets must not introduce:
+They must not contain sensitive application information.
 
-* tracking,
-* analytics,
-* external scripts,
-* unexpected network requests,
-* malicious active content.
+In particular, theme assets must never contain:
+
+* passwords
+* secret keys
+* client tokens
+* database contents
+* private certificates
+* authentication material
 
 ---
 
-# 28. Git Asset Management
+## 56. Asset Loading
 
-Check the repository:
+Theme assets should be loaded only when they are required.
 
-```bash
-cd /opt/lums-public
+A theme should not unnecessarily increase the cost of every LUMS page simply because the theme exists.
 
-git status
-```
-
-Check frontend assets:
-
-```bash
-git status --short server/static/
-```
-
-Review changes:
-
-```bash
-git diff
-```
-
-Check whitespace:
-
-```bash
-git diff --check
-```
-
-Commit only intended changes:
-
-```bash
-git add server/static/
-git add server/templates/
-git commit -m "Update LUMS theme system"
-```
-
-Push:
-
-```bash
-git push origin main
-```
-
-Use the configured LUMS Git identity:
+Where practical:
 
 ```text
-Name:  xxxxx
-Email: xxxxx
-```
-
-Never commit:
-
-* passwords,
-* API tokens,
-* private keys,
-* environment files,
-* database files,
-* session secrets,
-* personal data.
-
----
-
-# 29. Current Docker Deployment
-
-The LUMS application runs inside Docker.
-
-The source repository is:
-
-```text
-/opt/lums-public
-```
-
-The Docker image is:
-
-```text
-lums:latest
-```
-
-The running container is:
-
-```text
-lums
-```
-
-The persistent database is stored in:
-
-```text
-lums-data
-```
-
-The runtime application is not updated simply by modifying files inside the running container.
-
-Frontend changes must therefore be:
-
-```text
-Source
-  ↓
-Docker build
-  ↓
-New image
-  ↓
-Container recreation
-```
-
----
-
-# 30. Important Source/Runtime Separation
-
-The current architecture separates:
-
-```text
-Git source
-    ≠
-Docker image
-    ≠
-Running container
-    ≠
-Persistent database volume
-    ≠
-Secret configuration
-```
-
-| Component                 | Location                    |
-| ------------------------- | --------------------------- |
-| Git source                | `/opt/lums-public`          |
-| Docker image              | `lums:latest`               |
-| Running container         | `lums`                      |
-| Persistent database       | Docker volume `lums-data`   |
-| Environment configuration | `/etc/lums/docker/lums.env` |
-| Nginx TLS configuration   | `/etc/nginx/`               |
-
-The repository contains source code and frontend assets.
-
-Runtime state and secrets remain outside the Git repository.
-
----
-
-# 31. Safe Frontend Deployment
-
-Before deployment:
-
-```bash
-cd /opt/lums-public
-
-git status
-git diff
-git diff --check
-```
-
-Build the new image:
-
-```bash
-sudo docker build \
-    -t lums:latest \
-    .
-```
-
-Inspect the image:
-
-```bash
-sudo docker image inspect \
-    lums:latest
-```
-
-Building the image does not automatically update the running container.
-
-The running container must be recreated.
-
----
-
-# 32. SQLite-Aware Backup
-
-Before recreating the production container, create a database backup.
-
-Create the backup directory:
-
-```bash
-sudo mkdir -p /var/backups/lums
-sudo chmod 700 /var/backups/lums
-```
-
-Create a SQLite-aware backup:
-
-```bash
-sudo docker run --rm \
-    -v lums-data:/var/lib/lums:ro \
-    -v /var/backups/lums:/backup \
-    lums:latest \
-    python3 -c '
-import sqlite3
-
-source = sqlite3.connect("/var/lib/lums/lums.db")
-target = sqlite3.connect("/backup/lums.db.backup")
-
-with target:
-    source.backup(target)
-
-target.close()
-source.close()
-
-print("SQLite backup completed")
-'
-```
-
-Protect the backup:
-
-```bash
-sudo chmod 600 \
-    /var/backups/lums/lums.db.backup
-```
-
-The backup must not be committed to Git.
-
----
-
-# 33. Recreate the Docker Container
-
-Confirm the persistent volume:
-
-```bash
-sudo docker volume inspect \
-    lums-data
-```
-
-Stop the existing container:
-
-```bash
-sudo docker stop \
-    lums
-```
-
-Remove only the container:
-
-```bash
-sudo docker rm \
-    lums
-```
-
-Recreate the container:
-
-```bash
-sudo docker run -d \
-    --name lums \
-    --restart unless-stopped \
-    --env-file /etc/lums/docker/lums.env \
-    -p 127.0.0.1:5050:5000 \
-    -v lums-data:/var/lib/lums \
-    lums:latest
-```
-
-The important persistent component is:
-
-```text
--v lums-data:/var/lib/lums
-```
-
-The Docker volume must not be removed during a normal frontend deployment.
-
----
-
-# 34. Container Verification
-
-Check the container:
-
-```bash
-sudo docker ps \
-    --filter "name=^lums$"
-```
-
-Check the logs:
-
-```bash
-sudo docker logs \
-    --tail 100 \
-    lums
-```
-
-Check the local application:
-
-```bash
-curl -i \
-    http://127.0.0.1:5050/
-```
-
-A redirect to `/login` can be an expected result.
-
----
-
-# 35. Nginx and HTTPS Verification
-
-Test the Nginx configuration:
-
-```bash
-sudo nginx -t
-```
-
-Only after a successful configuration test:
-
-```bash
-sudo systemctl reload nginx
-```
-
-Test HTTPS:
-
-```bash
-curl -k -i \
-    https://127.0.0.1/
-```
-
-Check listening ports:
-
-```bash
-sudo ss -lntp | grep -E ':443|:5050|:5000'
-```
-
-Expected architecture:
-
-```text
-443     Nginx HTTPS
-5050    Docker localhost binding
-5000    Flask inside Docker
-```
-
-The theme system must not require direct exposure of ports `5000` or `5050`.
-
----
-
-# 36. Browser Cache
-
-After frontend deployment:
-
-```text
-Ctrl + F5
-```
-
-If the old theme remains visible:
-
-1. Confirm the Docker image was rebuilt.
-2. Confirm the container was recreated.
-3. Check Docker logs.
-4. Test the local application.
-5. Reload the browser.
-6. Inspect the loaded CSS and JavaScript.
-
-Do not immediately delete the database or reinstall LUMS.
-
----
-
-# 37. Browser Verification
-
-Open the browser developer console.
-
-## Stored Theme
-
-```javascript
-localStorage.getItem("lums-theme");
-```
-
-## Currently Applied Theme
-
-```javascript
-document.documentElement.dataset.theme;
-```
-
-Example:
-
-```text
-admin
-```
-
-means:
-
-```text
-Enterprise Admin
-```
-
-## Theme Element
-
-```javascript
-document.querySelector(".theme-day-title")?.outerHTML;
-```
-
-## Current Dashboard
-
-```javascript
-document.querySelector("header.topbar")?.innerHTML;
-```
-
-These checks help distinguish between:
-
-* browser state,
-* loaded HTML,
-* theme state,
-* CSS state,
-* deployed application state.
-
----
-
-# 38. Enterprise Admin Verification
-
-When Enterprise Admin is selected:
-
-```javascript
-document.documentElement.dataset.theme
-```
-
-should return:
-
-```text
-admin
-```
-
-The interface should show:
-
-* light gray background,
-* white panels,
-* dark blue/gray header,
-* classic blue controls,
-* thin borders,
-* compact tables,
-* minimal shadows,
-* small corner radii,
-* no Geek network animation,
-* no Matrix rain,
-* no neon effects.
-
-The Enterprise theme should feel like:
-
-```text
-Operations Console
+Selected theme
+      │
+      ▼
+Required assets
+      │
+      ▼
+Browser
 ```
 
 rather than:
 
 ```text
-Modern SaaS Dashboard
+All themes
+      │
+      ▼
+All assets loaded simultaneously
+```
+
+This becomes increasingly important as additional themes and visual effects are added.
+
+---
+
+## 57. Theme Performance
+
+Visual customization must not significantly degrade the usability of LUMS.
+
+Particular attention should be paid to:
+
+* large background images
+* continuously animated elements
+* canvas effects
+* repeated DOM updates
+* expensive visual filters
+* unnecessary network requests
+
+Operational pages such as client lists, software inventories, and update-job views should remain responsive.
+
+---
+
+## 58. Decorative JavaScript
+
+A theme may use JavaScript for visual effects.
+
+Examples include:
+
+* animated backgrounds
+* network visualizations
+* dynamic decorations
+* theme-specific interactions
+
+Such JavaScript should remain isolated from operational application logic.
+
+A decorative script should never be responsible for:
+
+* authorization
+* job creation
+* package installation
+* package removal
+* update execution
+* client authentication
+* audit logging
+
+The distinction should remain clear:
+
+```text
+Theme JavaScript
+      ≠
+LUMS operational JavaScript
 ```
 
 ---
 
-# 39. Geek Verification
+## 59. Network Visualization
 
-When Geek is selected:
+If a theme uses a network-style visualization, it should be treated as a presentation component.
 
-```javascript
-document.documentElement.dataset.theme
-```
-
-should return:
+For example:
 
 ```text
-geek
+Canvas / Visual Layer
+        │
+        ▼
+Decorative Network
+        │
+        ▼
+Theme Presentation
 ```
 
-The Living Network should be active.
+Unless explicitly connected to authoritative LUMS data, the visualization should not imply that it represents the actual network state.
 
-The canvas should exist:
-
-```javascript
-document.getElementById("lums-network-canvas");
-```
-
-Enterprise-specific styling must not appear.
-
-The Geek theme remains independent from Enterprise Admin.
+This prevents decorative graphics from being mistaken for monitoring or telemetry.
 
 ---
 
-# 40. Theme Isolation Test
+## 60. Reduced Motion
 
-Test all themes after major frontend changes:
+Themes that use animation should support reduced-motion preferences.
+
+The preferred behavior is conceptually:
 
 ```text
+prefers-reduced-motion: reduce
+            │
+            ▼
+Reduce or disable decorative motion
+```
+
+Essential functionality must remain unchanged.
+
+Reduced motion should affect presentation only.
+
+---
+
+## 61. Focus and Keyboard Navigation
+
+Theme styling must preserve keyboard usability.
+
+Important interactive elements should retain visible focus states.
+
+Themes should not remove focus outlines without providing an equally clear alternative.
+
+For example:
+
+```text
+Keyboard focus
+      │
+      ▼
+Clearly visible control state
+```
+
+This applies to:
+
+* navigation
+* buttons
+* links
+* form fields
+* selectors
+* dialogs
+* package-management controls
+
+---
+
+## 62. Color Independence
+
+Important information must not rely solely on color.
+
+For example:
+
+```text
+FAILED
+```
+
+should remain understandable through text, iconography, structure, or another accessible indication even if the theme's colors are unavailable.
+
+This is particularly important because themes may use very different color palettes.
+
+---
+
+## 63. Contrast
+
+Every theme should maintain sufficient contrast between:
+
+* text and backgrounds
+* controls and backgrounds
+* status indicators and surrounding elements
+* focused elements and their surroundings
+
+A visually interesting palette is not a substitute for readable information.
+
+When theme colors conflict with accessibility requirements, readability takes priority.
+
+---
+
+## 64. Theme Selection UI
+
+The theme selector itself is part of the common LUMS interface.
+
+It should remain understandable regardless of the currently active theme.
+
+Conceptually:
+
+```text
+Theme selector
+      │
+      ├── Standard LUMS
+      ├── LUMS Stadium
+      ├── Golf Club
+      ├── Nerd Mode
+      ├── Geek Lab
+      └── Enterprise Admin
+```
+
+Selecting another theme should update the presentation without changing the current LUMS session or operational state.
+
+---
+
+## 65. Session Independence
+
+Changing the theme must not log the user out.
+
+It must not:
+
+* invalidate the session
+* change the role
+* rotate client tokens
+* modify server-side authentication state
+
+The theme preference is separate from authentication.
+
+```text
+Theme change
+     │
+     └── Session remains unchanged
+```
+
+---
+
+## 66. RBAC Independence
+
+Themes must remain independent of RBAC.
+
+For example:
+
+```text
+Administrator
+     │
+     └── sees functionality permitted to administrators
+
+Operator
+     │
+     └── sees functionality permitted to operators
+
+Viewer
+     │
+     └── sees functionality permitted to viewers
+```
+
+The selected theme does not alter these permissions.
+
+A Viewer using Enterprise Admin does not become an administrator.
+
+An Administrator using Nerd Mode does not lose administrative privileges.
+
+The backend remains authoritative in every case.
+
+---
+
+## 67. Error Isolation
+
+A failure in optional visual functionality should not break core LUMS operation.
+
+For example, if a decorative animation fails:
+
+```text
+Animation failure
+      │
+      ▼
+Theme remains usable
+      │
+      ▼
+LUMS remains operational
+```
+
+Where possible, visual features should fail independently from application functionality.
+
+This is especially important for optional effects such as animated backgrounds or network visualizations.
+
+---
+
+## 68. Browser Compatibility
+
+The theme system should use browser features supported by the browsers targeted by the LUMS deployment environment.
+
+When a visual feature is unavailable, the interface should degrade gracefully rather than becoming unusable.
+
+The standard presentation should remain the baseline fallback.
+
+---
+
+## 69. Implementation Principle
+
+The implementation can be summarized as:
+
+```text
+Common HTML
+     +
+Common LUMS JavaScript
+     +
+Theme selection
+     +
+Theme-specific CSS/assets
+     =
+Optional visual layer
+```
+
+The following must remain outside the theme layer:
+
+```text
+Authentication
+Authorization
+Database
+Jobs
+Package management
+Client authentication
+Audit logging
+Security decisions
+```
+
+This separation keeps the theme system powerful enough to be expressive while preventing it from becoming coupled to core LUMS behavior.
+
+# LUMS — Optional Theme System
+
+## Part 5 — Security, Testing and Development
+
+## 70. Security Boundary
+
+The theme system is part of the frontend and therefore operates within an untrusted client environment.
+
+The browser controls the presentation layer.
+
+The browser does **not** control LUMS authorization.
+
+The security boundary remains:
+
+```text id="h8e2ks"
+Browser
+   │
+   │ untrusted presentation
+   ▼
+LUMS API
+   │
+   │ authoritative validation
+   ▼
+LUMS Backend
+```
+
+All security-sensitive decisions must therefore remain server-side.
+
+---
+
+## 71. Theme Selection Is Not Authorization
+
+A selected theme must never be interpreted as an authorization signal.
+
+For example:
+
+```text id="8u3r8v"
+data-theme="admin"
+```
+
+does not mean that the current user is an administrator.
+
+The word `admin` in a theme identifier is purely descriptive.
+
+The user's actual role must always come from the authenticated application session and server-side authorization logic.
+
+---
+
+## 72. Frontend Visibility Is Not Security
+
+A theme or frontend script may hide an interface element.
+
+This is useful for presentation.
+
+It is not sufficient for access control.
+
+For example:
+
+```text id="7m8c6w"
+Hidden button
+      ≠
+Unauthorized operation prevented
+```
+
+The corresponding API endpoint must independently validate the user's permissions.
+
+This applies to all privileged LUMS functionality.
+
+---
+
+## 73. Theme Assets Are Public
+
+Frontend assets should be considered publicly accessible to anyone who can access the LUMS web interface.
+
+Consequently, theme files must never contain secrets.
+
+Never place the following into theme assets:
+
+```text id="1zjz7n"
+Passwords
+API secrets
+Client tokens
+Private keys
+Database files
+Session secrets
+Authentication credentials
+```
+
+If information must remain confidential, it does not belong in a theme asset.
+
+---
+
+## 74. No Backend Secrets in Themes
+
+Theme JavaScript must not contain server credentials or privileged API material.
+
+A theme should communicate with the existing frontend application layer where necessary.
+
+It must not introduce an alternative authentication mechanism.
+
+The following principle applies:
+
+> **Themes consume presentation data; they do not create security credentials.**
+
+---
+
+## 75. Cross-Site Request Forgery
+
+Theme functionality must not bypass existing CSRF protection.
+
+If a theme provides an interface element that triggers an operation requiring a protected request, the request must follow the same security requirements as the common LUMS interface.
+
+The theme does not receive an exemption because it is visual code.
+
+---
+
+## 76. API Usage
+
+A theme should avoid directly implementing its own operational API logic.
+
+Where application data is required, the theme should use the established LUMS frontend/application mechanisms.
+
+This prevents multiple independent implementations of:
+
+* authentication
+* API requests
+* error handling
+* authorization assumptions
+* job handling
+
+The common application logic remains the authoritative frontend integration layer.
+
+---
+
+## 77. Theme Isolation
+
+A theme should be removable without removing core LUMS functionality.
+
+Conceptually:
+
+```text id="3m1o8q"
+Remove optional theme
+        │
+        ▼
+Standard LUMS remains
+        │
+        ▼
+Application remains operational
+```
+
+This makes optional themes genuinely optional.
+
+---
+
+## 78. Security Testing
+
+Security testing should focus on proving that theme changes do not alter the LUMS security model.
+
+Relevant checks include:
+
+* Viewer remains a Viewer
+* Operator remains an Operator
+* Administrator remains an Administrator
+* protected API endpoints remain protected
+* CSRF protection remains active
+* client authentication remains unchanged
+* update-job permissions remain unchanged
+* package-management permissions remain unchanged
+* audit logging remains unchanged
+
+The theme itself should never be used as evidence that an operation is secure.
+
+---
+
+## 79. Functional Theme Testing
+
+Each theme should be tested against the common application.
+
+At minimum:
+
+```text id="9w6h1m"
+Login
+Client list
+Client details
+Installed software
+Available updates
+Update jobs
+Job history
+Package management
+User management
+System maintenance
+Logout
+```
+
+The exact available functions depend on the authenticated user's role.
+
+The purpose of the test is to ensure that theme rendering does not break normal application functionality.
+
+---
+
+## 80. RBAC Theme Testing
+
+Theme testing should include all relevant roles.
+
+A basic matrix is:
+
+| Role          | Theme Testing |
+| ------------- | ------------- |
+| Administrator | Required      |
+| Operator      | Required      |
+| Viewer        | Required      |
+
+For each role, verify that changing the theme does not change the permitted functionality.
+
+For example:
+
+```text id="3n5p2m"
+Viewer + Nerd Mode
+        =
+Viewer permissions
+
+Viewer + Enterprise Admin
+        =
+Viewer permissions
+```
+
+The visual theme must not alter the result.
+
+---
+
+## 81. Theme Switching Tests
+
+Theme switching should be tested repeatedly.
+
+Example sequence:
+
+```text id="gk2j7m"
 Standard
-LUMS Stadium
-Golf Club
-Nerd Mode
-Geek Lab
-Enterprise Admin
+   ↓
+Stadium
+   ↓
+Golf
+   ↓
+Nerd
+   ↓
+Geek
+   ↓
+Admin
+   ↓
+Standard
 ```
 
-The important rule is:
+The application should remain usable throughout the sequence.
 
-> Changing Enterprise Admin must not change the appearance or functionality of any other theme.
+Particular attention should be paid to:
 
-Likewise:
-
-> Adding a Geek visual effect must not activate that effect in Enterprise Admin.
+* layout changes
+* tables
+* navigation
+* dialogs
+* forms
+* status indicators
+* long text
+* responsive behavior
 
 ---
 
-# 41. Common Problems
+## 82. Persistence Testing
 
-## Theme Is Not Saved
+If the theme preference is persisted locally, test:
 
-Check:
+1. Select a theme.
+2. Reload the page.
+3. Confirm the theme remains selected.
+4. Close the browser.
+5. Open LUMS again.
+6. Confirm the preference is still handled correctly.
+7. Remove or invalidate the stored theme.
+8. Confirm fallback to the standard theme.
 
-```javascript
-localStorage.getItem("lums-theme");
-```
-
-If the result is:
-
-```text
-null
-```
-
-no theme has been stored.
+The stored value should never be trusted as application security state.
 
 ---
 
-## Unknown Theme Value
+## 83. Invalid Theme Testing
 
-Example:
+An invalid theme identifier should not break the interface.
 
-```javascript
-localStorage.setItem("lums-theme", "invalid");
+For example:
+
+```text id="4j5cqn"
+unknown-theme
 ```
 
-The next initialization should fall back to:
+should result in a safe fallback rather than an unusable page.
 
-```text
-standard
-```
+The desired behavior is:
 
----
-
-## Enterprise Admin Does Not Look Different
-
-Check:
-
-```javascript
-document.documentElement.dataset.theme;
-```
-
-Expected:
-
-```text
-admin
-```
-
-Then check the deployed CSS inside the container:
-
-```bash
-sudo docker exec \
-    lums \
-    grep -n -A10 -B4 \
-    'LUMS // ENTERPRISE ADMIN' \
-    /app/server/static/style.css
-```
-
-If the path differs, inspect the container:
-
-```bash
-sudo docker exec \
-    lums \
-    find /app -maxdepth 4 \
-    -type f \
-    \( -name "style.css" -o -name "theme.js" \)
+```text id="5x9h2f"
+Invalid theme
+     │
+     ▼
+Standard theme
+     │
+     ▼
+LUMS remains usable
 ```
 
 ---
 
-## Enterprise Shows Geek Network Animation
+## 84. Asset Failure Testing
 
-Check:
+Optional assets should also be tested for failure.
 
-```javascript
-document.documentElement.dataset.theme;
-```
+Examples:
 
-The network animation should only be active for:
+* missing image
+* unavailable animation
+* invalid asset path
+* unsupported visual feature
+* JavaScript error in optional decoration
 
-```text
-geek
-```
-
-Check that:
-
-```html
-html[data-theme="geek"]
-```
-
-is the only theme selector enabling the network canvas.
+The common application should remain usable whenever possible.
 
 ---
 
-## Geek Does Not Show The Living Network
+## 85. Reduced-Motion Testing
 
-Check:
+For themes containing animation, test both normal and reduced-motion environments.
 
-```javascript
-document.getElementById("lums-network-canvas");
+```text id="l1h4nb"
+Normal motion
+     │
+     └── Theme effects available
+
+Reduced motion
+     │
+     └── Effects reduced or disabled
 ```
 
-Check:
-
-```javascript
-window.LumsNetwork
-```
-
-The network script should be present in:
-
-```text
-server/static/network.js
-```
-
-Check the deployed container:
-
-```bash
-sudo docker exec \
-    lums \
-    ls -l /app/server/static/network.js
-```
+Important application controls must remain fully functional in both cases.
 
 ---
 
-## Old Theme Still Appears
+## 86. Responsive Testing
 
-Use:
+Themes should be tested at different viewport sizes.
 
-```text
-Ctrl + F5
-```
+At minimum:
 
-Then verify:
+* desktop
+* tablet-sized viewport
+* narrow/mobile-sized viewport
 
-```javascript
-localStorage.getItem("lums-theme");
-```
+The visual identity should not come at the expense of usable controls or readable application data.
 
-and:
+Particular attention should be given to:
 
-```javascript
-document.documentElement.dataset.theme;
-```
-
-If the source is correct but the browser still displays an old interface:
-
-```text
-1. Check Git source.
-2. Rebuild Docker image.
-3. Recreate container.
-4. Check container logs.
-5. Test localhost.
-6. Reload browser.
-```
+* navigation
+* tables
+* action buttons
+* package-management controls
+* job status information
+* dialogs
+* theme selectors
 
 ---
 
-# 42. Security
+## 87. Performance Testing
 
-The theme system is client-side and does not modify security-relevant functionality.
+Visual effects should be evaluated for their impact on browser performance.
 
-The following remain unchanged:
+Relevant observations include:
 
-* Flask authentication.
-* Session management.
-* CSRF protection.
-* API authentication.
-* Agent tokens.
-* SQLite database.
-* Password hashing.
-* Audit logging.
-* API endpoints.
-* Update jobs.
-* Client reporting.
+* page load time
+* rendering responsiveness
+* CPU usage
+* memory usage
+* animation smoothness
+* repeated DOM updates
+* network requests
 
-The stored theme value is not a security-sensitive setting.
-
-A user can change their own local theme value through browser developer tools.
-
-That does not grant additional permissions.
-
-Theme assets must still be reviewed for:
-
-* external tracking,
-* analytics,
-* untrusted scripts,
-* embedded active content,
-* unexpected network requests,
-* copyright/licensing issues.
-
-Theme JavaScript must not bypass or disable security controls.
+Themes should remain presentation enhancements rather than becoming a performance bottleneck.
 
 ---
 
-# 43. Backup and Rollback
+## 88. Development Workflow
 
-Before major frontend changes:
+A new theme should be developed independently from backend changes whenever possible.
 
-```bash
-cd /opt/lums-public
+Recommended workflow:
 
-git status
-git diff
-git diff --check
+```text id="1i8qz6"
+Design
+   ↓
+Frontend implementation
+   ↓
+Theme selector integration
+   ↓
+Accessibility review
+   ↓
+Functional testing
+   ↓
+RBAC testing
+   ↓
+Fallback testing
+   ↓
+Performance review
+   ↓
+Documentation
 ```
 
-Create a SQLite-aware backup before rebuilding or recreating the production container.
+Backend changes should only be introduced when there is a genuine application requirement.
 
-A frontend rollback consists of:
-
-```text
-1. Restore the required Git version.
-2. Review the changes.
-3. Build the Docker image.
-4. Recreate the container.
-5. Test the application.
-6. Refresh the browser.
-```
-
-A theme rollback must not require:
-
-* database deletion,
-* database migration,
-* token replacement,
-* TLS replacement,
-* authentication changes.
-
-> **The ****`lums-data`**** volume must be preserved during frontend rollback.**
+A visual theme should normally not require backend modifications.
 
 ---
 
-# 44. Source and Runtime Separation
+## 89. Development Rules
 
-The current architecture uses:
+When developing a theme:
 
-```text
-Git source
-    ≠
-Docker image
-    ≠
-Running container
-    ≠
-Persistent database volume
-    ≠
-Secret configuration
-```
-
-| Component            | Location                    |
-| -------------------- | --------------------------- |
-| Git source           | `/opt/lums-public`          |
-| Docker image         | `lums:latest`               |
-| Running container    | `lums`                      |
-| Persistent database  | Docker volume `lums-data`   |
-| Secret configuration | `/etc/lums/docker/lums.env` |
-| Nginx configuration  | `/etc/nginx/`               |
-
-This separation prevents frontend deployment from accidentally replacing persistent application data.
+1. Reuse existing LUMS components.
+2. Avoid duplicating pages.
+3. Keep theme-specific styling isolated.
+4. Keep decorative JavaScript separate from operational logic.
+5. Do not introduce authentication logic.
+6. Do not introduce authorization logic.
+7. Do not expose secrets.
+8. Preserve accessibility.
+9. Preserve reduced-motion behavior.
+10. Test all relevant roles.
+11. Test the standard fallback.
+12. Document new assets and behavior.
 
 ---
 
-# 45. Files
+## 90. Change Verification
 
-| File                                   | Function                            |
-| -------------------------------------- | ----------------------------------- |
-| `server/templates/login.html`          | Login interface and theme selection |
-| `server/templates/index.html`          | Main dashboard                      |
-| `server/templates/client.html`         | Client detail interface             |
-| `server/static/theme.js`               | Theme selection and theme state     |
-| `server/static/style.css`              | Base and theme-specific styling     |
-| `server/static/network.js`             | Geek / The Living Network animation |
-| `server/static/images/lumsstadium.jpg` | Stadium background                  |
-| `server/static/images/golf.jpg`        | Golf background                     |
-| `server/static/images/*.svg`           | Theme/frontend graphics             |
+Before considering a theme change complete, verify both presentation and functionality.
 
-All required frontend files must be included in the Docker image.
+A useful validation sequence is:
+
+```text id="i1v9yb"
+Theme changed
+      │
+      ▼
+Visual inspection
+      │
+      ▼
+Page functionality
+      │
+      ▼
+Role behavior
+      │
+      ▼
+API behavior
+      │
+      ▼
+Browser console
+      │
+      ▼
+Regression tests
+```
+
+A theme is not complete merely because it looks correct.
+
+It must also leave LUMS behavior unchanged.
 
 ---
 
-# 46. Current Status
+## 91. Regression Principle
 
-Current theme functionality:
+Theme development should follow the same general project principle as other LUMS changes:
 
-* [x] Theme selector.
-* [x] Six themes.
-* [x] `localStorage` persistence.
-* [x] Automatic theme activation.
-* [x] Standard fallback.
-* [x] Standard LUMS.
-* [x] LUMS Stadium.
-* [x] Golf Club.
-* [x] Nerd Mode.
-* [x] Matrix visual layer.
-* [x] Geek Lab.
-* [x] The Living Network.
-* [x] Reduced-motion handling.
-* [x] Enterprise Admin.
-* [x] Enterprise Operations Console styling.
-* [x] Theme isolation.
-* [x] Theme-specific CSS.
-* [x] Theme-specific JavaScript.
-* [x] Git-controlled frontend assets.
-* [x] Docker-based deployment.
-* [x] Persistent Docker volume.
-* [x] SQLite-aware backup procedure.
+> **Change → Test → Verify → Document**
+
+A visual change can still cause functional regressions.
+
+Examples include:
+
+* hidden buttons
+* unreadable text
+* broken layout
+* inaccessible controls
+* JavaScript conflicts
+* missing assets
+* incorrect selectors
+* mobile layout failures
+
+Testing is therefore part of theme development rather than an optional final step.
 
 ---
 
-# 47. Troubleshooting Order
+## 92. Troubleshooting: Theme Does Not Load
 
-When a theme problem occurs, inspect the layers in this order:
+If the selected theme does not appear:
 
-```text
-1. localStorage
-       ↓
-2. data-theme
-       ↓
-3. Loaded HTML
-       ↓
-4. Git source
-       ↓
-5. Docker image
-       ↓
-6. Running container
-       ↓
-7. CSS
-       ↓
-8. JavaScript
-       ↓
-9. Static assets
-       ↓
-10. Nginx
-       ↓
-11. Browser cache
-```
+1. Reload the page.
+2. Check whether the standard theme loads.
+3. Check the browser console.
+4. Check whether the selected theme identifier is valid.
+5. Check whether required theme assets are available.
+6. Check for JavaScript errors.
+7. Clear the local theme preference if necessary.
+8. Reload and verify the standard fallback.
 
-Identify the affected layer before making changes.
-
-Do not immediately:
-
-* delete the Docker volume,
-* reinstall LUMS,
-* expose port `5000`,
-* expose port `5050`,
-* modify the database,
-* replace production configuration blindly.
+Do not modify backend security configuration to solve a frontend theme problem.
 
 ---
 
-# 48. Final Principle
+## 93. Troubleshooting: Theme Breaks Layout
 
-```text
-ONE LUMS
-MANY INTERFACES
-SAME BACKEND
-SAME API
-SAME DATABASE
-SAME SECURITY
+If a theme causes layout problems:
+
+1. Switch to the Standard LUMS theme.
+2. Confirm that the common interface works.
+3. Identify the affected component.
+4. Inspect theme-specific CSS.
+5. Check responsive behavior.
+6. Check browser console errors.
+7. Correct the theme-specific styling.
+8. Retest other themes.
+
+The standard theme provides an important diagnostic comparison.
+
+---
+
+## 94. Troubleshooting: Theme Causes JavaScript Errors
+
+If theme-specific JavaScript causes errors:
+
+1. Switch to the standard theme.
+2. Confirm normal LUMS functionality.
+3. Identify the failing theme script.
+4. Determine whether the error is decorative or application-related.
+5. Remove the theme-specific failure.
+6. Verify that common LUMS JavaScript remains unaffected.
+7. Retest theme switching.
+
+Operational JavaScript should not be modified merely to compensate for a decorative theme error.
+
+---
+
+## 95. Troubleshooting: Theme Preference Is Invalid
+
+If an old or invalid theme remains stored locally:
+
+```text id="b9n8wq"
+Invalid stored preference
+        │
+        ▼
+Fallback to Standard
+        │
+        ▼
+Select a valid theme
 ```
 
-The theme system changes the visual experience without creating a separate LUMS installation.
+The preferred solution is safe fallback rather than manual backend intervention.
 
-**Geek can be alive.**
+---
 
-**Nerd can be chaotic.**
+## 96. Theme Documentation
 
-**Stadium can be Game-Day.**
+Every new theme should document:
 
-**Golf can be Club Day.**
+* internal identifier
+* display name
+* visual concept
+* required assets
+* optional visual effects
+* accessibility considerations
+* reduced-motion behavior
+* known limitations
 
-**Enterprise Admin can be deliberately boring.**
+Implementation-specific documentation should describe the actual current code rather than assumptions about how the theme might work.
 
-But underneath all of them:
+---
 
-```text
-ONE LUMS
+## 97. Current Theme Set
+
+The documented theme concepts are currently:
+
+```text id="r0w4u5"
+standard       → Standard LUMS
+LUMSStadium    → LUMS Stadium
+golf           → Golf Club
+nerd           → Nerd Mode
+geek           → Geek Lab
+admin          → Enterprise Admin
 ```
 
-> **Linux Update Management without the noise.**
+The theme set is extensible.
+
+Additional themes may be added without changing the underlying LUMS architecture, provided that the separation between presentation and application behavior remains intact.
+
+---
+
+## 98. Development Principle
+
+The optional theme system should remain a controlled frontend extension.
+
+Its purpose is to make LUMS more expressive and adaptable without making the application more complicated operationally.
+
+The preferred architecture is therefore:
+
+```text id="l2e8o9"
+Common LUMS
+     │
+     ├── Common functionality
+     ├── Common security
+     ├── Common backend
+     └── Common application state
+              │
+              ▼
+       Optional Theme Layer
+              │
+       ┌──────┼──────┐
+       ▼      ▼      ▼
+    Theme A Theme B Theme C
+```
+
+The common application remains the foundation.
+
+Themes remain optional extensions.
+
+# LUMS — Optional Theme System
+
+## Part 6 — Maintenance, Extension and Final Status
+
+## 99. Theme Maintenance
+
+Theme maintenance should remain separate from core LUMS maintenance wherever possible.
+
+A visual theme update should normally involve only frontend resources.
+
+Typical changes include:
+
+* CSS adjustments
+* visual assets
+* theme-specific JavaScript
+* accessibility improvements
+* responsive-layout corrections
+* animation adjustments
+* theme naming or presentation changes
+
+A theme update should not require changes to:
+
+* client configuration
+* client tokens
+* database schema
+* update jobs
+* package-management logic
+* authentication
+* RBAC
+* server-side security controls
+
+If a theme change unexpectedly requires such modifications, the dependency should be reviewed before proceeding.
+
+---
+
+## 100. Theme Updates
+
+Theme updates should follow the normal LUMS development process:
+
+```text id="2p7z9r"
+Modify
+   ↓
+Test
+   ↓
+Verify
+   ↓
+Document
+```
+
+For larger changes:
+
+```text id="p7l5me"
+Design
+   ↓
+Implementation
+   ↓
+Functional testing
+   ↓
+Accessibility testing
+   ↓
+RBAC regression testing
+   ↓
+Performance review
+   ↓
+Documentation
+```
+
+A theme should not be considered complete solely because the visual result looks correct.
+
+---
+
+## 101. Adding a New Theme
+
+A new theme can be introduced without changing the LUMS backend.
+
+Recommended process:
+
+### Step 1 — Define the concept
+
+Describe:
+
+* visual identity
+* target style
+* typography
+* colors
+* decorative elements
+* optional animations
+
+### Step 2 — Define the identifier
+
+Choose a stable internal identifier.
+
+### Step 3 — Implement presentation
+
+Add the required styling and assets.
+
+### Step 4 — Integrate selection
+
+Make the theme available through the common theme selector.
+
+### Step 5 — Test
+
+Verify:
+
+* normal pages
+* interactive controls
+* responsive layouts
+* accessibility
+* reduced motion
+* all relevant RBAC roles
+* fallback behavior
+
+### Step 6 — Document
+
+Record the theme and its relevant implementation details.
+
+---
+
+## 102. Removing a Theme
+
+Removing a theme should be treated as a compatibility change for users who may still have the theme selected locally.
+
+The frontend should therefore handle an obsolete identifier safely.
+
+Preferred behavior:
+
+```text id="x4e7p1"
+Old theme identifier
+       │
+       ▼
+Theme no longer available
+       │
+       ▼
+Standard LUMS
+```
+
+Removing a theme should never require a database migration merely to remove a browser-side preference.
+
+---
+
+## 103. Renaming a Theme
+
+A display name can normally change independently from the internal identifier.
+
+For example:
+
+```text id="8q4n1k"
+Internal identifier
+        │
+        └── remains stable
+
+Display name
+        │
+        └── may change
+```
+
+If the internal identifier itself changes, a migration or compatibility mapping may be required for existing local preferences.
+
+The preferred approach is to keep identifiers stable whenever practical.
+
+---
+
+## 104. Theme Compatibility
+
+Themes should remain compatible with common LUMS UI changes.
+
+When a new shared component is introduced, existing themes should be checked for:
+
+* missing styling
+* broken spacing
+* unreadable text
+* incorrect colors
+* missing responsive behavior
+* incorrect focus states
+* inaccessible controls
+
+A new backend feature does not automatically require a new theme feature.
+
+The common application remains the source of truth.
+
+---
+
+## 105. New LUMS Features
+
+When LUMS gains a new feature, theme support should normally be evaluated after the common feature is functional.
+
+Recommended sequence:
+
+```text id="z4b7jx"
+New LUMS feature
+       │
+       ▼
+Common implementation
+       │
+       ▼
+Functional tests
+       │
+       ▼
+Theme compatibility
+       │
+       ▼
+Theme-specific refinement
+```
+
+This prevents visual customization from becoming a dependency of core feature development.
+
+---
+
+## 106. Theme API Stability
+
+The theme system should avoid creating a separate API layer unless there is a genuine requirement.
+
+Themes should preferably consume the same frontend application state and API mechanisms already used by LUMS.
+
+This reduces:
+
+* duplicated request logic
+* duplicated error handling
+* inconsistent authorization assumptions
+* additional maintenance
+* unnecessary attack surface
+
+The theme system is therefore intentionally lightweight.
+
+---
+
+## 107. Theme Security Review
+
+When adding or significantly changing a theme, review the following:
+
+```text id="3eq4w6"
+[ ] No credentials in assets
+[ ] No client tokens in assets
+[ ] No private keys
+[ ] No authentication bypass
+[ ] No authorization logic
+[ ] No CSRF bypass
+[ ] No direct security decisions
+[ ] No unintended API endpoints
+[ ] No sensitive information in frontend assets
+[ ] Decorative scripts remain isolated
+```
+
+This review should be performed even when the change appears to be purely visual.
+
+Frontend code is still executable code.
+
+---
+
+## 108. Theme Accessibility Review
+
+For every theme, verify:
+
+```text id="1y9xw6"
+[ ] Text remains readable
+[ ] Contrast remains sufficient
+[ ] Focus states are visible
+[ ] Keyboard navigation works
+[ ] Controls remain usable
+[ ] Statuses are not color-only
+[ ] Reduced motion is respected
+[ ] Responsive layout remains usable
+[ ] Decorative effects do not obscure information
+```
+
+Accessibility should be treated as part of theme quality rather than an optional enhancement.
+
+---
+
+## 109. Theme Regression Checklist
+
+Before accepting a theme change:
+
+```text id="8j6x4e"
+[ ] Standard theme works
+[ ] Changed theme works
+[ ] Other themes still work
+[ ] Theme switching works
+[ ] Stored preference works
+[ ] Invalid preference falls back safely
+[ ] Login works
+[ ] Logout works
+[ ] Client views work
+[ ] Software views work
+[ ] Update views work
+[ ] Package-management views work
+[ ] User-management views work where authorized
+[ ] Job information remains readable
+[ ] Error messages remain understandable
+[ ] RBAC remains unchanged
+[ ] Backend behavior remains unchanged
+```
+
+The exact feature set visible during the test depends on the user's role.
+
+---
+
+## 110. Operational Independence
+
+The optional theme system is intentionally independent of the LUMS operational lifecycle.
+
+Changing a theme must not require:
+
+```text id="b2i1k4"
+Agent restart
+Watcher restart
+Database restart
+Client re-registration
+Token rotation
+Job cancellation
+Package-manager changes
+Network changes
+```
+
+This allows the presentation layer to evolve independently from the infrastructure layer.
+
+---
+
+## 111. Deployment Independence
+
+Theme resources are part of the LUMS application frontend.
+
+General deployment procedures remain documented in the main installation and administration documentation.
+
+This document intentionally does not duplicate:
+
+* Docker deployment procedures
+* container hardening commands
+* Nginx configuration
+* database backup procedures
+* server recovery procedures
+* client installation procedures
+
+Those topics belong to the appropriate operational documentation.
+
+This separation prevents theme documentation from becoming outdated when deployment architecture changes.
+
+---
+
+## 112. Source and Runtime Separation
+
+The theme system should be understood as part of the application source.
+
+There is a distinction between:
+
+```text id="b6q7jv"
+Source
+   │
+   ├── Theme definitions
+   ├── CSS
+   ├── JavaScript
+   └── Assets
+
+Runtime
+   │
+   ├── Built LUMS image
+   └── Running LUMS application
+```
+
+A theme change in source code does not automatically mean that an already running deployment has received that change.
+
+The normal LUMS build and deployment process remains responsible for delivering updated frontend resources.
+
+---
+
+## 113. Versioning
+
+Themes do not need to introduce a separate LUMS backend version.
+
+A theme may evolve as part of the frontend/application version.
+
+If a theme change introduces compatibility concerns, those concerns should be documented explicitly.
+
+For example:
+
+```text id="5y1p8f"
+Theme change
+     │
+     ├── visual-only
+     │
+     └── compatibility-affecting
+```
+
+The second category requires additional regression testing.
+
+---
+
+## 114. Release Readiness
+
+Before a LUMS release containing theme changes, verify:
+
+```text id="v2h3f7"
+Theme rendering
+Theme selection
+Theme fallback
+Accessibility
+Reduced motion
+Responsive layout
+RBAC behavior
+API behavior
+Security boundaries
+Regression tests
+Documentation
+```
+
+Theme changes must not be allowed to hide regressions in the core application.
+
+---
+
+## 115. Current Theme Set
+
+The current documented theme concepts are:
+
+| Identifier    | Display Name     | Concept                     |
+| ------------- | ---------------- | --------------------------- |
+| `standard`    | Standard LUMS    | Reference interface         |
+| `LUMSStadium` | LUMS Stadium     | Stadium / event             |
+| `golf`        | Golf Club        | Calm / recreational         |
+| `nerd`        | Nerd Mode        | Technical / playful         |
+| `geek`        | Geek Lab         | Experimental / technical    |
+| `admin`       | Enterprise Admin | Structured / administrative |
+
+These themes share the same LUMS application and backend.
+
+They are visual variants, not separate products or permission levels.
+
+---
+
+## 116. Current Status
+
+The optional theme system is an extension of the LUMS frontend architecture.
+
+Its intended properties are:
+
+```text id="2xq1w8"
+[✓] Optional
+[✓] Client-side presentation
+[✓] Common backend
+[✓] Common security model
+[✓] Common RBAC model
+[✓] Standard fallback
+[✓] Theme-specific visual identity
+[✓] Reduced-motion consideration
+[✓] Accessibility consideration
+[✓] No theme-based authorization
+```
+
+Implementation-specific details should always be kept synchronized with the current frontend source.
+
+---
+
+## 117. Future Extensions
+
+The theme system can be extended in several directions without changing the underlying architecture.
+
+Possible future additions include:
+
+* additional themes
+* improved theme previews
+* more granular visual preferences
+* additional accessibility settings
+* improved responsive behavior
+* theme-specific dashboard layouts
+* additional optional visualizations
+
+Such extensions should continue to respect the same separation between presentation and application behavior.
+
+---
+
+## 118. Final Architecture
+
+The complete concept can be summarized as:
+
+```text id="x8j7z2"
+                    LUMS
+                     │
+          ┌──────────┴──────────┐
+          │                     │
+     Application             Theme Layer
+          │                     │
+          │             ┌───────┼────────┐
+          │             │       │        │
+          │          Standard Stadium  Golf
+          │
+          │             Nerd   Geek   Admin
+          │
+          └──────────────┬──────────────┘
+                         │
+                         ▼
+                  Common Backend
+                         │
+             ┌───────────┼───────────┐
+             │           │           │
+          Security      Jobs       Clients
+             │           │           │
+             └───────────┼───────────┘
+                         ▼
+                      SQLite
+```
+
+The visual layer remains optional.
+
+The application layer remains authoritative.
+
+The security layer remains independent.
+
+---
+
+## 119. Final Principle
+
+The optional theme system exists to make LUMS more personal, expressive, and adaptable without compromising the technical architecture.
+
+The fundamental rule remains:
+
+> **One LUMS · Many Interfaces · Same Backend**
+
+A theme may change the atmosphere of LUMS.
+
+It must never change what LUMS actually is allowed to do.
