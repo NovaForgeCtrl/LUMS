@@ -39,3 +39,7 @@ metadata/
 # Local backup / historical working copies
 *.bak-*
 *.before-*
+
+# Local test environments and test artifacts
+.venv-test/
+.pytest_cache/
