@@ -266,7 +266,7 @@ The production SQLite database was reviewed for its runtime configuration.
 
 The verified production configuration is:
 
-* `journal_mode`: `delete`
+* `journal_mode`: `wal`
 * `busy_timeout`: `5000`
 * `synchronous`: `2`
 
@@ -274,7 +274,7 @@ The application explicitly enables:
 
 `PRAGMA foreign_keys = ON`
 
-The production database therefore does **not** currently use WAL mode.
+The production database currently uses WAL mode.
 
 The database configuration was documented based on the actual verified production state rather than the historical development configuration.
 
@@ -1162,11 +1162,11 @@ Documentation must distinguish between:
 
 Historical implementation details must not be presented as current production configuration.
 
-In particular, the documentation reflects the current SQLite production configuration rather than the previously used WAL configuration.
+In particular, the documentation reflects the current SQLite production configuration rather than the current WAL configuration.
 
 The current production runtime is documented as:
 
-* `journal_mode = delete`
+* `journal_mode = wal`
 * `busy_timeout = 5000`
 * `synchronous = 2`
 * application-level `PRAGMA foreign_keys = ON`

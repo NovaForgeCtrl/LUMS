@@ -430,13 +430,13 @@ The application explicitly enables SQLite foreign-key enforcement for database c
 The current production SQLite baseline is:
 
 ```text
-journal_mode = delete
+journal_mode = wal
 busy_timeout = 5000
 synchronous = 2
 foreign_keys = ON
 ```
 
-LUMS does not rely on SQLite WAL mode in the current production configuration.
+LUMS uses SQLite WAL mode in the current production configuration.
 
 ---
 
@@ -1103,7 +1103,7 @@ The goal is to keep data values separate from SQL instructions.
 The current production SQLite configuration is:
 
 ```text
-journal_mode = delete
+journal_mode = wal
 busy_timeout = 5000
 synchronous = 2
 foreign_keys = ON
@@ -1111,7 +1111,7 @@ foreign_keys = ON
 
 Foreign-key enforcement is explicitly enabled by the application for database connections.
 
-The current configuration does not use WAL mode.
+The current configuration uses WAL mode.
 
 The database is stored in the persistent Docker volume rather than inside the disposable application container filesystem.
 

@@ -1223,7 +1223,7 @@ or committed to Git.
 The current LUMS production baseline uses:
 
 ```text
-journal_mode = delete
+journal_mode = wal
 busy_timeout = 5000 ms
 synchronous = 2
 foreign_keys = ON
@@ -1231,14 +1231,14 @@ foreign_keys = ON
 
 The application explicitly enables foreign-key enforcement for database connections.
 
-The database does not rely on WAL mode for normal production operation.
+The database uses WAL mode for normal production operation.
 
 The runtime configuration can be inspected from the application database.
 
 For example:
 
 ```bash
-sudo docker exec lums \
+sudo docker exec -i lums \
     python3 - <<'PY'
 import sqlite3
 
@@ -1259,10 +1259,10 @@ PY
 Expected values are equivalent to:
 
 ```text
-journal_mode=delete
+journal_mode=wal
 busy_timeout=5000
 synchronous=2
-foreign_keys=1
+foreign_keys=0
 ```
 
 The application enables foreign keys explicitly.
@@ -2969,6 +2969,16 @@ This is not by itself an error.
 
 # 83. Verify the Watcher Timer
 
+Before enabling the Watcher timer, verify that:
+
+- `/etc/default/lums-agent` exists and contains the correct client configuration.
+- The LUMS server endpoint and client token are configured correctly.
+- A manual Agent run succeeded and the server accepted the client report.
+- Both Watcher unit files were installed from the repository.
+
+Do not enable the timer while authentication or reporting is failing.
+
+
 Inspect the timer:
 
 ```bash
@@ -2976,7 +2986,7 @@ systemctl cat \
     lums-agent-watcher.timer
 ```
 
-Enable the timer:
+Enable the timer only after verifying all prerequisites above:
 
 ```bash
 sudo systemctl enable --now \
@@ -3888,7 +3898,7 @@ Do not store the production database only inside the container filesystem.
 Inspect the current SQLite runtime configuration:
 
 ```bash
-sudo docker exec lums \
+sudo docker exec -i lums \
     python3 - <<'PY'
 import sqlite3
 
@@ -3912,10 +3922,10 @@ PY
 The current baseline is:
 
 ```text
-journal_mode=delete
+journal_mode=wal
 busy_timeout=5000
 synchronous=2
-foreign_keys=1
+foreign_keys=0
 ```
 
 The application explicitly enables foreign-key enforcement.
@@ -3927,7 +3937,7 @@ The application explicitly enables foreign-key enforcement.
 Run:
 
 ```bash
-sudo docker exec lums \
+sudo docker exec -i lums \
     python3 - <<'PY'
 import sqlite3
 
@@ -5745,10 +5755,10 @@ LUMS Watcher
     Version 1.2.1
 
 Database
-    journal_mode=delete
+    journal_mode=wal
     busy_timeout=5000
     synchronous=2
-    foreign_keys=1
+    foreign_keys=ON (application connections)
 
 Container
     non-root

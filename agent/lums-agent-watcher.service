@@ -1,0 +1,12 @@
+[Unit]
+Description=LUMS Linux Update Management Agent Watcher
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/python3 /opt/lums-agent/watcher.py
+EnvironmentFile=-/etc/default/lums-agent
+
+[Install]
+WantedBy=multi-user.target

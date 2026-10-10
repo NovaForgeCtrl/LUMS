@@ -1,0 +1,13 @@
+[Unit]
+Description=Run LUMS Linux Update Management Agent Watcher periodically
+After=network-online.target
+Wants=network-online.target
+
+[Timer]
+OnBootSec=30s
+OnUnitActiveSec=30s
+Persistent=true
+Unit=lums-agent-watcher.service
+
+[Install]
+WantedBy=timers.target

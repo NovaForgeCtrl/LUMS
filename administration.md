@@ -1658,7 +1658,7 @@ The current production SQLite baseline is:
 
 | Setting        | Value                      |
 | -------------- | -------------------------- |
-| `journal_mode` | `delete`                   |
+| `journal_mode` | `wal`                      |
 | `busy_timeout` | `5000`                     |
 | `synchronous`  | `2`                        |
 | `foreign_keys` | enabled by the application |

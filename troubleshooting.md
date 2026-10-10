@@ -1982,7 +1982,7 @@ sudo docker logs \
 The production application uses:
 
 ```text id="2d3m8x"
-journal_mode = delete
+journal_mode = wal
 busy_timeout = 5000
 synchronous = 2
 ```
