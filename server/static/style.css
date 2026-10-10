@@ -5551,3 +5551,496 @@ html[data-theme="admin"] *::after {
     }
 
 }
+
+/* ============================================================
+   LUMS User Management — visual refinement
+   Scoped to the user management page.
+   ============================================================ */
+
+.user-management-page {
+    --users-accent: var(--primary-color, #60a5fa);
+    --users-surface: var(--card-background, #151b28);
+    --users-border: var(--border-color, #30394a);
+
+    margin: 2rem auto 3rem;
+    max-width: 1120px;
+    overflow: hidden;
+    border: 1px solid var(--users-border);
+    border-radius: 16px;
+    box-shadow: 0 18px 48px rgb(0 0 0 / 16%);
+}
+
+.user-management-page > .panel-header {
+    padding: 1.75rem 2rem;
+    border-bottom: 1px solid var(--users-border);
+    background:
+        linear-gradient(
+            120deg,
+            rgb(96 165 250 / 10%),
+            transparent 65%
+        );
+}
+
+.user-management-page > .panel-header h2 {
+    margin: 0;
+    font-size: clamp(1.4rem, 2.5vw, 1.85rem);
+    letter-spacing: -0.035em;
+}
+
+.user-management-page .panel-description {
+    margin-top: 0.4rem;
+    line-height: 1.6;
+    opacity: 0.78;
+}
+
+.user-management-page > .panel-content {
+    max-width: none;
+    padding: 1.75rem 2rem;
+}
+
+.user-management-page > .panel-content + .panel-content {
+    border-top: 1px solid var(--users-border);
+}
+
+.user-management-page .panel-content > .panel-header {
+    margin-bottom: 1.5rem;
+}
+
+.user-management-page .panel-content h3 {
+    margin: 0;
+    font-size: 1.12rem;
+    letter-spacing: -0.015em;
+}
+
+.user-management-page .user-management-form {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1.35rem 1.5rem;
+    align-items: start;
+}
+
+.user-management-page .user-management-form .form-group {
+    display: flex;
+    min-width: 0;
+    flex-direction: column;
+    gap: 0.55rem;
+}
+
+.user-management-page .user-management-form label {
+    font-size: 0.9rem;
+    font-weight: 650;
+}
+
+.user-management-page .user-management-form input,
+.user-management-page .user-management-form select {
+    box-sizing: border-box;
+    width: 100%;
+    min-height: 46px;
+    padding: 0.7rem 0.85rem;
+    color: inherit;
+    background: var(--input-background, var(--users-surface));
+    border: 1px solid var(--users-border);
+    border-radius: 9px;
+    transition:
+        border-color 160ms ease,
+        box-shadow 160ms ease,
+        background-color 160ms ease;
+}
+
+.user-management-page .user-management-form input:hover,
+.user-management-page .user-management-form select:hover {
+    border-color: var(--users-accent);
+}
+
+.user-management-page .user-management-form input:focus-visible,
+.user-management-page .user-management-form select:focus-visible {
+    outline: 2px solid transparent;
+    border-color: var(--users-accent);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--users-accent) 22%, transparent);
+}
+
+.user-management-page .user-management-form input::placeholder {
+    color: inherit;
+    opacity: 0.5;
+}
+
+.user-management-page .user-management-form .form-group .panel-description {
+    margin-top: 0;
+    font-size: 0.82rem;
+}
+
+.user-management-page #create-user-error:not([hidden]) {
+    grid-column: 1 / -1;
+    padding: 0.8rem 1rem;
+    color: #fecaca;
+    background: rgb(220 38 38 / 10%);
+    border: 1px solid rgb(248 113 113 / 35%);
+    border-radius: 9px;
+}
+
+.user-management-page .user-management-form .modal-actions {
+    grid-column: 1 / -1;
+    display: flex;
+    justify-content: flex-start;
+    margin-top: 0.15rem;
+}
+
+.user-management-page #create-user-button {
+    min-height: 44px;
+    padding: 0.75rem 1.15rem;
+    border-radius: 9px;
+    font-weight: 650;
+    transition:
+        filter 160ms ease,
+        transform 160ms ease,
+        box-shadow 160ms ease;
+}
+
+.user-management-page #create-user-button:hover {
+    filter: brightness(1.08);
+    box-shadow: 0 5px 18px rgb(0 0 0 / 15%);
+}
+
+.user-management-page #create-user-button:active {
+    transform: translateY(1px);
+}
+
+.user-management-page #create-user-button:focus-visible {
+    outline: 2px solid var(--users-accent);
+    outline-offset: 3px;
+}
+
+.user-management-page #users-list-status {
+    padding: 0.85rem 1rem;
+    background: rgb(127 127 127 / 5%);
+    border: 1px solid var(--users-border);
+    border-radius: 9px;
+}
+
+.user-management-page .user-list-table-wrapper {
+    margin-top: 1rem;
+    overflow-x: auto;
+    border: 1px solid var(--users-border);
+    border-radius: 11px;
+    scrollbar-width: thin;
+}
+
+.user-management-page .user-list-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    text-align: left;
+}
+
+.user-management-page .user-list-table th {
+    padding: 0.95rem 1.1rem;
+    font-size: 0.78rem;
+    font-weight: 700;
+    letter-spacing: 0.055em;
+    text-transform: uppercase;
+    white-space: nowrap;
+    background: rgb(127 127 127 / 8%);
+    border-bottom: 1px solid var(--users-border);
+}
+
+.user-management-page .user-list-table td {
+    padding: 1rem 1.1rem;
+    border-bottom: 1px solid var(--users-border);
+    vertical-align: middle;
+}
+
+.user-management-page .user-list-table tbody tr {
+    transition: background-color 140ms ease;
+}
+
+.user-management-page .user-list-table tbody tr:hover {
+    background: rgb(96 165 250 / 5%);
+}
+
+.user-management-page .user-list-table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+.user-management-page .user-list-table th:first-child,
+.user-management-page .user-list-table td:first-child {
+    overflow-wrap: anywhere;
+}
+
+@media (max-width: 700px) {
+    .user-management-page {
+        margin-top: 1rem;
+        border-radius: 12px;
+    }
+
+    .user-management-page > .panel-header,
+    .user-management-page > .panel-content {
+        padding: 1.2rem;
+    }
+
+    .user-management-page .user-management-form {
+        grid-template-columns: minmax(0, 1fr);
+        gap: 1.1rem;
+    }
+
+    .user-management-page .user-list-table th,
+    .user-management-page .user-list-table td {
+        padding: 0.8rem;
+    }
+
+    .user-management-page .user-list-table {
+        min-width: 420px;
+    }
+
+    .user-management-page #create-user-button {
+        width: 100%;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .user-management-page *,
+    .user-management-page *::before,
+    .user-management-page *::after {
+        scroll-behavior: auto !important;
+        transition-duration: 0.01ms !important;
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+    }
+}
+
+/* ============================================================
+   LUMS User Management — theme-specific colors
+   ============================================================ */
+
+/* Standard: clean light administration */
+html[data-theme="standard"] .user-management-page,
+html:not([data-theme]) .user-management-page {
+    --users-accent: #2563eb;
+    --users-surface: #ffffff;
+    --users-border: #e5e7eb;
+
+    background: #ffffff;
+    color: #1f2937;
+}
+
+html[data-theme="standard"] .user-management-form input,
+html[data-theme="standard"] .user-management-form select,
+html:not([data-theme]) .user-management-form input,
+html:not([data-theme]) .user-management-form select {
+    background: #ffffff;
+    color: #1f2937;
+}
+
+html[data-theme="standard"] #create-user-error:not([hidden]),
+html:not([data-theme]) #create-user-error:not([hidden]) {
+    color: #991b1b;
+    background: #fef2f2;
+    border-color: #fecaca;
+}
+
+/* Golf: clubhouse green and warm neutral surfaces */
+html[data-theme="golf"] .user-management-page {
+    --users-accent: #31583b;
+    --users-surface: #f8f7ef;
+    --users-border: #c4c8b8;
+
+    background: #f8f7ef;
+    color: #263326;
+    box-shadow: 0 12px 32px rgb(38 51 38 / 10%);
+}
+
+html[data-theme="golf"] .user-management-page > .panel-header {
+    background: linear-gradient(
+        120deg,
+        rgb(49 88 59 / 12%),
+        transparent 70%
+    );
+}
+
+html[data-theme="golf"] .user-management-page .user-management-form input,
+html[data-theme="golf"] .user-management-page .user-management-form select {
+    background: #ffffff;
+    color: #263326;
+}
+
+html[data-theme="golf"] .user-management-page .user-list-table th {
+    background: #dce1d1;
+    color: #536452;
+}
+
+html[data-theme="golf"] .user-management-page .user-list-table tbody tr:hover {
+    background: rgb(49 88 59 / 6%);
+}
+
+html[data-theme="golf"] .user-management-page #create-user-error:not([hidden]) {
+    color: #991b1b;
+    background: #fef2f2;
+    border-color: #fecaca;
+}
+
+/* Enterprise Admin: use the existing enterprise design tokens */
+html[data-theme="admin"] .user-management-page {
+    --users-accent: var(--enterprise-blue);
+    --users-surface: var(--enterprise-surface);
+    --users-border: var(--enterprise-border);
+
+    background: var(--enterprise-surface);
+    color: var(--enterprise-text);
+    border-radius: 4px;
+    box-shadow: none;
+}
+
+html[data-theme="admin"] .user-management-page > .panel-header {
+    background: var(--enterprise-surface-alt);
+    border-radius: 0;
+}
+
+html[data-theme="admin"] .user-management-page .panel-content > .panel-header {
+    background: transparent;
+    border-bottom: 1px solid var(--enterprise-border);
+}
+
+html[data-theme="admin"] .user-management-page .panel-description {
+    color: var(--enterprise-text-muted);
+    opacity: 1;
+}
+
+html[data-theme="admin"] .user-management-page .user-management-form input,
+html[data-theme="admin"] .user-management-page .user-management-form select {
+    background: var(--enterprise-surface);
+    color: var(--enterprise-text);
+    border-color: var(--enterprise-border-dark);
+    border-radius: 3px;
+}
+
+html[data-theme="admin"] .user-management-page #create-user-button {
+    background: var(--enterprise-blue);
+    border-color: var(--enterprise-blue-dark);
+    color: #ffffff;
+    border-radius: 3px;
+}
+
+html[data-theme="admin"] .user-management-page #create-user-error:not([hidden]) {
+    color: #991b1b;
+    background: #fef2f2;
+    border-color: #fecaca;
+}
+
+html[data-theme="admin"] .user-management-page .user-list-table th {
+    background: #e9ecef;
+    color: #39424c;
+}
+
+html[data-theme="admin"] .user-management-page .user-list-table tbody tr:hover {
+    background: #f5f7f9;
+}
+
+/* LUMSStadium: dark green with gold accents */
+html[data-theme="LUMSStadium"] .user-management-page {
+    --users-accent: #d6a928;
+    --users-surface: #0b2414;
+    --users-border: #31583b;
+
+    background: #0b2414;
+    color: #e8efe9;
+}
+
+html[data-theme="LUMSStadium"] .user-management-page > .panel-header {
+    background: linear-gradient(
+        120deg,
+        rgb(214 169 40 / 12%),
+        transparent 70%
+    );
+}
+
+html[data-theme="LUMSStadium"] .user-management-page .user-management-form input,
+html[data-theme="LUMSStadium"] .user-management-page .user-management-form select {
+    background: #07120b;
+    color: #e8efe9;
+}
+
+html[data-theme="LUMSStadium"] .user-management-page .user-list-table th {
+    background: #102d1a;
+    color: #d6a928;
+}
+
+html[data-theme="LUMSStadium"] .user-management-page .user-list-table tbody tr:hover {
+    background: rgb(214 169 40 / 7%);
+}
+
+html[data-theme="LUMSStadium"] .user-management-page #create-user-error:not([hidden]) {
+    color: #fecaca;
+    background: rgb(220 38 38 / 12%);
+    border-color: rgb(248 113 113 / 35%);
+}
+
+/* Nerd: terminal green on near-black */
+html[data-theme="nerd"] .user-management-page {
+    --users-accent: #7cff7c;
+    --users-surface: #050b05;
+    --users-border: #1f6b1f;
+
+    background: #050b05;
+    color: #b8ffb8;
+    font-family: "Courier New", monospace;
+}
+
+html[data-theme="nerd"] .user-management-page > .panel-header {
+    background: rgb(124 255 124 / 5%);
+}
+
+html[data-theme="nerd"] .user-management-page .user-management-form input,
+html[data-theme="nerd"] .user-management-page .user-management-form select {
+    background: #010401;
+    color: #b8ffb8;
+}
+
+html[data-theme="nerd"] .user-management-page .user-list-table th {
+    background: #071207;
+    color: #7cff7c;
+}
+
+html[data-theme="nerd"] .user-management-page .user-list-table tbody tr:hover {
+    background: rgb(124 255 124 / 5%);
+}
+
+/* Geek: dark interface with cool blue accents */
+html[data-theme="geek"] .user-management-page {
+    --users-accent: #8ca8ff;
+    --users-surface: #080b17;
+    --users-border: #344064;
+
+    background: #080b17;
+    color: #dce5ff;
+}
+
+html[data-theme="geek"] .user-management-page > .panel-header {
+    background: rgb(140 168 255 / 7%);
+}
+
+html[data-theme="geek"] .user-management-page .user-management-form input,
+html[data-theme="geek"] .user-management-page .user-management-form select {
+    background: #080b17;
+    color: #dce5ff;
+}
+
+html[data-theme="geek"] .user-management-page .user-list-table th {
+    background: #11172a;
+    color: #8ca8ff;
+}
+
+html[data-theme="geek"] .user-management-page .user-list-table tbody tr:hover {
+    background: rgb(140 168 255 / 6%);
+}
+
+/* Nerd and Geek: accessible error messages on dark surfaces */
+html[data-theme="nerd"] .user-management-page #create-user-error:not([hidden]) {
+    color: #ffb4b4;
+    background: rgb(220 38 38 / 14%);
+    border-color: rgb(248 113 113 / 45%);
+}
+
+html[data-theme="geek"] .user-management-page #create-user-error:not([hidden]) {
+    color: #ffc4c4;
+    background: rgb(220 38 38 / 14%);
+    border-color: rgb(248 113 113 / 45%);
+}

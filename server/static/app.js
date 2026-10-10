@@ -997,10 +997,17 @@ if (finishAddClientButton) {
 }
 
 
-loadClients();
+const clientsTable =
+    document.getElementById("clients-table");
 
 
-setInterval(
-    loadClients,
-    30000
-);
+if (clientsTable) {
+
+    loadClients();
+
+    setInterval(
+        loadClients,
+        30000
+    );
+
+}
