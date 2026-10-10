@@ -1737,3 +1737,222 @@ def test_users_page_denied_for_viewer(
         response = client.get("/users")
 
     assert response.status_code == 403
+
+
+def test_real_route_delete_user_as_administrator(
+    monkeypatch,
+    tmp_path,
+):
+    from server import app as app_module
+
+    db_path = str(tmp_path / "real-delete-user.db")
+    create_user_test_database(db_path)
+
+    connection = sqlite3.connect(db_path)
+    connection.execute(
+        """
+        INSERT INTO users (
+            username, password_hash, created_at, enabled, role
+        )
+        VALUES (?, ?, ?, 1, ?)
+        """,
+        (
+            "delete-me",
+            "pytest-password-hash",
+            "2026-01-02T00:00:00+00:00",
+            ROLE_OPERATOR,
+        ),
+    )
+    target_id = connection.execute(
+        "SELECT id FROM users WHERE username = ?",
+        ("delete-me",),
+    ).fetchone()[0]
+    connection.commit()
+    connection.close()
+
+    app = configure_real_app_session_user(
+        monkeypatch, app_module, db_path, 1, "administrator"
+    )
+
+    with app.test_client() as client:
+        login_as(client, 1, "administrator")
+        with client.session_transaction() as session:
+            session["csrf_token"] = "pytest-csrf-token"
+
+        response = client.delete(
+            f"/api/users/{target_id}",
+            headers={"X-CSRF-Token": "pytest-csrf-token"},
+        )
+
+    assert response.status_code == 200
+    assert response.get_json() == {
+        "status": "deleted",
+        "user_id": target_id,
+    }
+
+    connection = sqlite3.connect(db_path)
+    remaining = connection.execute(
+        "SELECT id FROM users WHERE id = ?", (target_id,)
+    ).fetchone()
+    audit = connection.execute(
+        """
+        SELECT actor_id, action, target, result, details
+        FROM audit_log
+        WHERE action = 'user.delete'
+        """
+    ).fetchone()
+    connection.close()
+
+    assert remaining is None
+    assert audit is not None
+    assert audit[0] == "1"
+    assert audit[1] == "user.delete"
+    assert audit[2] == f"user:{target_id}"
+    assert audit[3] == "success"
+    assert "delete-me" in audit[4]
+
+
+def test_real_route_delete_user_rejects_self_deletion(
+    monkeypatch,
+    tmp_path,
+):
+    from server import app as app_module
+
+    db_path = str(tmp_path / "delete-self.db")
+    create_user_test_database(db_path)
+
+    app = configure_real_app_session_user(
+        monkeypatch, app_module, db_path, 1, "administrator"
+    )
+
+    with app.test_client() as client:
+        login_as(client, 1, "administrator")
+        with client.session_transaction() as session:
+            session["csrf_token"] = "pytest-csrf-token"
+
+        response = client.delete(
+            "/api/users/1",
+            headers={"X-CSRF-Token": "pytest-csrf-token"},
+        )
+
+    assert response.status_code == 400
+    assert response.get_json() == {"error": "cannot_delete_self"}
+
+    connection = sqlite3.connect(db_path)
+    user = connection.execute(
+        "SELECT username FROM users WHERE id = 1"
+    ).fetchone()
+    connection.close()
+    assert user == ("administrator",)
+
+
+def test_real_route_delete_user_requires_csrf(
+    monkeypatch,
+    tmp_path,
+):
+    from server import app as app_module
+
+    db_path = str(tmp_path / "delete-csrf.db")
+    create_user_test_database(db_path)
+
+    connection = sqlite3.connect(db_path)
+    connection.execute(
+        """
+        INSERT INTO users (
+            username, password_hash, created_at, enabled, role
+        )
+        VALUES (?, ?, ?, 1, ?)
+        """,
+        (
+            "delete-me",
+            "pytest-password-hash",
+            "2026-01-02T00:00:00+00:00",
+            ROLE_OPERATOR,
+        ),
+    )
+    target_id = connection.execute(
+        "SELECT id FROM users WHERE username = ?",
+        ("delete-me",),
+    ).fetchone()[0]
+    connection.commit()
+    connection.close()
+
+    app = configure_real_app_session_user(
+        monkeypatch, app_module, db_path, 1, "administrator"
+    )
+
+    with app.test_client() as client:
+        login_as(client, 1, "administrator")
+        response = client.delete(f"/api/users/{target_id}")
+
+    assert response.status_code == 400
+    assert response.get_json() == {"error": "csrf_validation_failed"}
+
+    connection = sqlite3.connect(db_path)
+    user = connection.execute(
+        "SELECT username FROM users WHERE id = ?", (target_id,)
+    ).fetchone()
+    connection.close()
+    assert user == ("delete-me",)
+
+
+
+def test_real_route_delete_user_preserves_enabled_administrator(
+    monkeypatch,
+    tmp_path,
+):
+    from server import app as app_module
+
+    db_path = str(tmp_path / "delete-admin-preserves-one.db")
+    create_user_test_database(db_path)
+
+    connection = sqlite3.connect(db_path)
+    connection.execute(
+        """
+        INSERT INTO users (
+            username, password_hash, created_at, enabled, role
+        )
+        VALUES (?, ?, ?, 1, ?)
+        """,
+        (
+            "second-admin",
+            "pytest-password-hash",
+            "2026-01-02T00:00:00+00:00",
+            ROLE_ADMINISTRATOR,
+        ),
+    )
+    second_admin_id = connection.execute(
+        "SELECT id FROM users WHERE username = ?",
+        ("second-admin",),
+    ).fetchone()[0]
+    connection.commit()
+    connection.close()
+
+    app = configure_real_app_session_user(
+        monkeypatch, app_module, db_path, 1, "administrator"
+    )
+
+    with app.test_client() as client:
+        login_as(client, 1, "administrator")
+        with client.session_transaction() as session:
+            session["csrf_token"] = "pytest-csrf-token"
+
+        response = client.delete(
+            f"/api/users/{second_admin_id}",
+            headers={"X-CSRF-Token": "pytest-csrf-token"},
+        )
+
+    assert response.status_code == 200
+    assert response.get_json() == {
+        "status": "deleted",
+        "user_id": second_admin_id,
+    }
+
+    connection = sqlite3.connect(db_path)
+    remaining_admins = connection.execute(
+        "SELECT id FROM users WHERE enabled = 1 AND role = ?",
+        (ROLE_ADMINISTRATOR,),
+    ).fetchall()
+    connection.close()
+
+    assert remaining_admins == [(1,)]

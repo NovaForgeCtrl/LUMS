@@ -683,6 +683,77 @@ def create_user():
 
 
 
+@app.route("/api/users/<int:user_id>", methods=["DELETE"])
+@login_required
+@role_required(ROLE_ADMINISTRATOR)
+@csrf_required
+def delete_user(user_id):
+    actor_id = current_user_id()
+
+    if actor_id == user_id:
+        return jsonify({"error": "cannot_delete_self"}), 400
+
+    connection = get_connection()
+
+    try:
+        target = connection.execute(
+            """
+            SELECT id, username, role, enabled
+            FROM users
+            WHERE id = ?
+            """,
+            (user_id,),
+        ).fetchone()
+
+        if target is None:
+            return jsonify({"error": "user_not_found"}), 404
+
+        if target["enabled"] and target["role"] == ROLE_ADMINISTRATOR:
+            active_admins = connection.execute(
+                """
+                SELECT COUNT(*)
+                FROM users
+                WHERE enabled = 1 AND role = ?
+                """,
+                (ROLE_ADMINISTRATOR,),
+            ).fetchone()[0]
+
+            if active_admins <= 1:
+                return jsonify({
+                    "error": "last_enabled_administrator"
+                }), 409
+
+        connection.execute(
+            "DELETE FROM users WHERE id = ?",
+            (user_id,),
+        )
+
+        audit_log(
+            connection,
+            actor_type="user",
+            actor_id=actor_id,
+            action="user.delete",
+            target=f"user:{user_id}",
+            result="success",
+            details=f"username={target['username']}, role={target['role']}",
+        )
+
+        connection.commit()
+
+        return jsonify({
+            "status": "deleted",
+            "user_id": user_id,
+        }), 200
+
+    except Exception:
+        connection.rollback()
+        raise
+
+    finally:
+        connection.close()
+
+
+
 # ============================================================
 # CLIENT MANAGEMENT
 # ============================================================

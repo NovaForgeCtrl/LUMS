@@ -6044,3 +6044,10 @@ html[data-theme="geek"] .user-management-page #create-user-error:not([hidden]) {
     background: rgb(220 38 38 / 14%);
     border-color: rgb(248 113 113 / 45%);
 }
+
+
+/* Standard-Theme: gut lesbare Tabellenwerte, andere Themes unverändert */
+html[data-theme="standard"] .user-management-page .user-list-table tbody td,
+html:not([data-theme]) .user-management-page .user-list-table tbody td {
+    color: #111827;
+}

@@ -652,6 +652,43 @@ function showCreateUserError(message) {
 
 
 
+// Liest eine API-Antwort, ohne ungültiges JSON nach außen zu werfen.
+async function readDeleteResponse(response) {
+    let body = "";
+
+    try {
+        body = await response.text();
+    } catch (error) {
+        return {
+            result: null,
+            readError: true,
+            invalidJson: false
+        };
+    }
+
+    if (!body.trim()) {
+        return {
+            result: null,
+            readError: false,
+            invalidJson: false
+        };
+    }
+
+    try {
+        return {
+            result: JSON.parse(body),
+            readError: false,
+            invalidJson: false
+        };
+    } catch (error) {
+        return {
+            result: null,
+            readError: false,
+            invalidJson: true
+        };
+    }
+}
+
 async function loadUsers() {
 
     const status =
@@ -727,9 +764,130 @@ async function loadUsers() {
                     ? "Aktiv"
                     : "Deaktiviert";
 
+            const actionCell =
+                document.createElement("td");
+
+            const deleteButton =
+                document.createElement("button");
+
+            deleteButton.type = "button";
+            deleteButton.className = "button-danger";
+            deleteButton.textContent = "Löschen";
+            deleteButton.setAttribute(
+                "aria-label",
+                `Benutzer ${user.username} löschen`
+            );
+
+            deleteButton.addEventListener("click", async () => {
+                if (!window.confirm(
+                    `Soll der Benutzer "${user.username}" wirklich gelöscht werden?`
+                )) {
+                    return;
+                }
+
+                const csrfToken = document.querySelector(
+                    'meta[name="csrf-token"]'
+                )?.content;
+
+                if (!csrfToken) {
+                    status.textContent =
+                        "CSRF-Token konnte nicht gefunden werden.";
+                    return;
+                }
+
+                deleteButton.disabled = true;
+                deleteButton.textContent = "Wird gelöscht …";
+
+                try {
+                    const deleteResponse = await fetch(
+                        `/api/users/${encodeURIComponent(user.id)}`,
+                        {
+                            method: "DELETE",
+                            headers: {
+                                "X-CSRF-Token": csrfToken
+                            }
+                        }
+                    );
+
+                    const {
+                        result,
+                        readError,
+                        invalidJson
+                    } = await readDeleteResponse(deleteResponse);
+
+                    if (readError) {
+                        console.warn(
+                            "Serverantwort konnte nicht gelesen werden."
+                        );
+                    }
+
+                    if (invalidJson) {
+                        console.warn(
+                            "Serverantwort war kein gültiges JSON."
+                        );
+                    }
+
+                    if (!deleteResponse.ok) {
+                        const messages = {
+                            cannot_delete_self:
+                                "Das eigene Benutzerkonto kann nicht gelöscht werden.",
+                            last_enabled_administrator:
+                                "Der letzte aktive Administrator kann nicht gelöscht werden.",
+                            user_not_found:
+                                "Der Benutzer wurde nicht gefunden.",
+                            csrf_validation_failed:
+                                "CSRF-Prüfung fehlgeschlagen.",
+                            authorization_required:
+                                "Dafür fehlen die Berechtigungen."
+                        };
+
+                        if (result?.error && messages[result.error]) {
+                            throw new Error(messages[result.error]);
+                        }
+
+                        if (
+                            deleteResponse.status === 401 ||
+                            deleteResponse.status === 403
+                        ) {
+                            throw new Error(
+                                "Die Löschanfrage wurde nicht autorisiert."
+                            );
+                        }
+
+                        throw new Error(
+                            `Benutzer konnte nicht gelöscht werden ` +
+                            `(HTTP ${deleteResponse.status}). ` +
+                            "Bitte die Benutzerliste aktualisieren und den Status prüfen."
+                        );
+                    }
+
+                    if (!result || result.status !== "deleted") {
+                        await loadUsers();
+
+                        status.textContent =
+                            "Keine gültige Löschbestätigung vom Server. " +
+                            "Bitte prüfen, ob der Benutzer noch in der Liste steht.";
+
+                        return;
+                    }
+
+                    await loadUsers();
+                    status.textContent =
+                        `Benutzer "${user.username}" wurde gelöscht.`;
+
+                } catch (error) {
+                    console.error(error);
+                    status.textContent = error.message;
+                    deleteButton.disabled = false;
+                    deleteButton.textContent = "Löschen";
+                }
+            });
+
+            actionCell.appendChild(deleteButton);
             row.appendChild(usernameCell);
             row.appendChild(roleCell);
             row.appendChild(statusCell);
+            row.appendChild(actionCell);
 
             body.appendChild(row);
 
