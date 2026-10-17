@@ -21,6 +21,7 @@ from server.security import (
     ROLE_ADMINISTRATOR,
     ROLE_OPERATOR,
     ROLE_VIEWER,
+    ROLE_DEFAULT_PERMISSIONS,
     VALID_ROLES,
     current_user_role,
     login_required,
@@ -40,7 +41,8 @@ def create_rbac_database(db_path):
             password_hash TEXT NOT NULL,
             created_at TEXT NOT NULL,
             enabled INTEGER NOT NULL DEFAULT 1,
-            role TEXT NOT NULL DEFAULT 'administrator'
+            role TEXT NOT NULL DEFAULT 'administrator',
+            admin_note TEXT NOT NULL DEFAULT ''
         )
         """
     )
@@ -82,6 +84,32 @@ def create_rbac_database(db_path):
                 1,
                 ROLE_VIEWER,
             ),
+        ],
+    )
+
+    connection.execute(
+        """
+        CREATE TABLE user_permissions (
+            user_id INTEGER NOT NULL,
+            permission TEXT NOT NULL,
+            PRIMARY KEY (user_id, permission),
+            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+        )
+        """
+    )
+    connection.executemany(
+        """
+        INSERT INTO user_permissions (user_id, permission)
+        VALUES (?, ?)
+        """,
+        [
+            (user_id, permission)
+            for user_id, role in [
+                (1, ROLE_ADMINISTRATOR),
+                (2, ROLE_OPERATOR),
+                (3, ROLE_VIEWER),
+            ]
+            for permission in ROLE_DEFAULT_PERMISSIONS[role]
         ],
     )
 
@@ -582,6 +610,17 @@ def create_package_job_database(db_path):
 
     connection.execute(
         """
+        CREATE TABLE user_permissions (
+            user_id INTEGER NOT NULL,
+            permission TEXT NOT NULL,
+            PRIMARY KEY (user_id, permission),
+            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+        )
+        """
+    )
+
+    connection.execute(
+        """
         INSERT INTO users (
             id,
             username,
@@ -598,6 +637,16 @@ def create_package_job_database(db_path):
             1,
             ROLE_ADMINISTRATOR,
         ),
+    )
+    connection.executemany(
+        """
+        INSERT INTO user_permissions (user_id, permission)
+        VALUES (1, ?)
+        """,
+        [
+            (permission,)
+            for permission in ROLE_DEFAULT_PERMISSIONS[ROLE_ADMINISTRATOR]
+        ],
     )
 
     connection.execute(
@@ -965,7 +1014,8 @@ def create_user_test_database(db_path):
             password_hash TEXT NOT NULL,
             created_at TEXT NOT NULL,
             enabled INTEGER NOT NULL DEFAULT 1,
-            role TEXT NOT NULL DEFAULT 'administrator'
+            role TEXT NOT NULL DEFAULT 'administrator',
+            admin_note TEXT NOT NULL DEFAULT ''
         )
         """
     )
@@ -981,6 +1031,17 @@ def create_user_test_database(db_path):
             target TEXT,
             result TEXT NOT NULL,
             details TEXT
+        )
+        """
+    )
+
+    connection.execute(
+        """
+        CREATE TABLE user_permissions (
+            user_id INTEGER NOT NULL,
+            permission TEXT NOT NULL,
+            PRIMARY KEY (user_id, permission),
+            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
         )
         """
     )
@@ -1003,6 +1064,16 @@ def create_user_test_database(db_path):
             1,
             ROLE_ADMINISTRATOR,
         ),
+    )
+    connection.executemany(
+        """
+        INSERT INTO user_permissions (user_id, permission)
+        VALUES (1, ?)
+        """,
+        [
+            (permission,)
+            for permission in ROLE_DEFAULT_PERMISSIONS[ROLE_ADMINISTRATOR]
+        ],
     )
 
     connection.commit()
@@ -1103,6 +1174,9 @@ def test_real_route_create_user_as_administrator(
     assert data["status"] == "created"
     assert data["user"]["username"] == "test-operator"
     assert data["user"]["role"] == ROLE_OPERATOR
+    assert data["user"]["permissions"] == sorted(
+        ROLE_DEFAULT_PERMISSIONS[ROLE_OPERATOR]
+    )
     assert data["user"]["enabled"] is True
 
     connection = sqlite3.connect(db_path)
@@ -1152,9 +1226,509 @@ def test_real_route_create_user_as_administrator(
     assert audit["target"] == f"user:{user['id']}"
     assert audit["result"] == "success"
     assert audit["details"] == (
-        "username=test-operator, role=operator"
+        "username=test-operator, role=operator, "
+        "permissions=clients.view,jobs.manage,packages.search,"
+        "software.view,updates.view"
     )
     assert "pytest-password-123" not in audit["details"]
+
+
+def test_permission_migration_seeds_role_presets():
+    from server.security_migration import migrate_user_permissions
+
+    connection = sqlite3.connect(":memory:")
+    connection.execute(
+        """
+        CREATE TABLE users (
+            id INTEGER PRIMARY KEY,
+            role TEXT NOT NULL
+        )
+        """
+    )
+    connection.executemany(
+        "INSERT INTO users (id, role) VALUES (?, ?)",
+        [
+            (1, ROLE_ADMINISTRATOR),
+            (2, ROLE_OPERATOR),
+            (3, ROLE_VIEWER),
+        ],
+    )
+
+    migrate_user_permissions(connection)
+
+    for user_id, role in [
+        (1, ROLE_ADMINISTRATOR),
+        (2, ROLE_OPERATOR),
+        (3, ROLE_VIEWER),
+    ]:
+        stored = {
+            row[0]
+            for row in connection.execute(
+                "SELECT permission FROM user_permissions WHERE user_id = ?",
+                (user_id,),
+            ).fetchall()
+        }
+        assert stored == ROLE_DEFAULT_PERMISSIONS[role]
+
+    connection.close()
+
+
+def test_create_user_stores_custom_permissions(
+    monkeypatch,
+    tmp_path,
+):
+    from server import app as app_module
+
+    db_path = str(tmp_path / "create-user-custom-permissions.db")
+    create_user_test_database(db_path)
+    app = configure_real_app_session_user(
+        monkeypatch,
+        app_module,
+        db_path,
+        1,
+        "administrator",
+    )
+    permissions = ["clients.view", "software.view"]
+
+    with app.test_client() as client:
+        login_as(client, 1, "administrator")
+        with client.session_transaction() as session:
+            session["csrf_token"] = "pytest-csrf-token"
+
+        response = client.post(
+            "/api/users",
+            headers={"X-CSRF-Token": "pytest-csrf-token"},
+            json={
+                "username": "inventory-reader",
+                "password": "pytest-password-123",
+                "role": ROLE_OPERATOR,
+                "permissions": permissions,
+            },
+        )
+
+    assert response.status_code == 201
+    assert response.get_json()["user"]["permissions"] == permissions
+
+    connection = sqlite3.connect(db_path)
+    stored_permissions = [
+        row[0]
+        for row in connection.execute(
+            """
+            SELECT permission
+            FROM user_permissions
+            WHERE user_id = 2
+            ORDER BY permission
+            """
+        ).fetchall()
+    ]
+    connection.close()
+    assert stored_permissions == permissions
+
+
+def test_user_admin_note_migration_adds_empty_note():
+    from server.security_migration import migrate_user_admin_notes
+
+    connection = sqlite3.connect(":memory:")
+    connection.execute(
+        """
+        CREATE TABLE users (
+            id INTEGER PRIMARY KEY,
+            username TEXT NOT NULL
+        )
+        """
+    )
+    connection.execute(
+        "INSERT INTO users (id, username) VALUES (1, 'existing-user')"
+    )
+
+    migrate_user_admin_notes(connection)
+
+    assert connection.execute(
+        "SELECT admin_note FROM users WHERE id = 1"
+    ).fetchone()[0] == ""
+    connection.close()
+
+
+def test_user_admin_note_migration_is_idempotent():
+    from server.security_migration import migrate_user_admin_notes
+
+    connection = sqlite3.connect(":memory:")
+    connection.execute(
+        "CREATE TABLE users (id INTEGER PRIMARY KEY)"
+    )
+
+    migrate_user_admin_notes(connection)
+    migrate_user_admin_notes(connection)
+
+    note_columns = [
+        row[1]
+        for row in connection.execute("PRAGMA table_info(users)")
+    ]
+    assert note_columns.count("admin_note") == 1
+    connection.close()
+
+
+def test_create_user_starts_without_permissions(
+    monkeypatch,
+    tmp_path,
+):
+    from server import app as app_module
+
+    db_path = str(tmp_path / "create-user-unassigned-permissions.db")
+    create_user_test_database(db_path)
+    app = configure_real_app_session_user(
+        monkeypatch,
+        app_module,
+        db_path,
+        1,
+        "administrator",
+    )
+
+    with app.test_client() as client:
+        login_as(client, 1, "administrator")
+        with client.session_transaction() as session:
+            session["csrf_token"] = "pytest-csrf-token"
+
+        response = client.post(
+            "/api/users",
+            headers={"X-CSRF-Token": "pytest-csrf-token"},
+            json={
+                "username": "needs-manual-permissions",
+                "password": "pytest-password-123",
+                "role": ROLE_VIEWER,
+                "permissions": [],
+            },
+        )
+
+    assert response.status_code == 201
+    assert response.get_json()["user"]["permissions"] == []
+
+    connection = sqlite3.connect(db_path)
+    stored_permissions = connection.execute(
+        "SELECT permission FROM user_permissions WHERE user_id = 2"
+    ).fetchall()
+    connection.close()
+    assert stored_permissions == []
+
+
+def test_admin_note_can_be_saved_without_auditing_note_content(
+    monkeypatch,
+    tmp_path,
+):
+    from server import app as app_module
+
+    db_path = str(tmp_path / "admin-note.db")
+    create_user_test_database(db_path)
+    connection = sqlite3.connect(db_path)
+    connection.execute(
+        """
+        INSERT INTO users (
+            username, password_hash, created_at, enabled, role
+        )
+        VALUES (?, ?, ?, ?, ?)
+        """,
+        (
+            "noted-user",
+            "pytest-password-hash",
+            "2026-01-01T00:00:00+00:00",
+            1,
+            ROLE_VIEWER,
+        ),
+    )
+    connection.commit()
+    connection.close()
+
+    app = configure_real_app_session_user(
+        monkeypatch,
+        app_module,
+        db_path,
+        1,
+        "administrator",
+    )
+    note = "Internal follow-up: <script>not executable</script>"
+
+    with app.test_client() as client:
+        login_as(client, 1, "administrator")
+        with client.session_transaction() as session:
+            session["csrf_token"] = "pytest-csrf-token"
+
+        response = client.put(
+            "/api/users/2/note",
+            headers={"X-CSRF-Token": "pytest-csrf-token"},
+            json={"note": note},
+        )
+        users_response = client.get("/api/users")
+
+    assert response.status_code == 200
+    assert response.get_json()["note"] == note
+    assert users_response.status_code == 200
+    assert users_response.get_json()[1]["admin_note"] == note
+
+    connection = sqlite3.connect(db_path)
+    saved_note = connection.execute(
+        "SELECT admin_note FROM users WHERE id = 2"
+    ).fetchone()[0]
+    audit_details = connection.execute(
+        "SELECT details FROM audit_log WHERE action = 'user.admin_note.update'"
+    ).fetchone()[0]
+    connection.close()
+
+    assert saved_note == note
+    assert note not in audit_details
+
+
+def test_admin_note_rejects_oversized_value(
+    monkeypatch,
+    tmp_path,
+):
+    from server import app as app_module
+
+    db_path = str(tmp_path / "oversized-admin-note.db")
+    create_user_test_database(db_path)
+    connection = sqlite3.connect(db_path)
+    connection.execute(
+        """
+        INSERT INTO users (
+            username, password_hash, created_at, enabled, role
+        )
+        VALUES (?, ?, ?, ?, ?)
+        """,
+        (
+            "noted-user",
+            "pytest-password-hash",
+            "2026-01-01T00:00:00+00:00",
+            1,
+            ROLE_VIEWER,
+        ),
+    )
+    connection.commit()
+    connection.close()
+    app = configure_real_app_session_user(
+        monkeypatch,
+        app_module,
+        db_path,
+        1,
+        "administrator",
+    )
+
+    with app.test_client() as client:
+        login_as(client, 1, "administrator")
+        with client.session_transaction() as session:
+            session["csrf_token"] = "pytest-csrf-token"
+
+        response = client.put(
+            "/api/users/2/note",
+            headers={"X-CSRF-Token": "pytest-csrf-token"},
+            json={"note": "x" * 2001},
+        )
+
+    assert response.status_code == 400
+    assert response.get_json() == {
+        "error": "invalid_admin_note",
+    }
+
+
+def test_admin_note_endpoint_requires_user_management_permission(
+    monkeypatch,
+    tmp_path,
+):
+    from server import app as app_module
+
+    db_path = str(tmp_path / "admin-note-permission.db")
+    create_rbac_database(db_path)
+    app = configure_real_app_session_user(
+        monkeypatch,
+        app_module,
+        db_path,
+        2,
+        "operator",
+    )
+
+    with app.test_client() as client:
+        login_as(client, 2, "operator")
+        with client.session_transaction() as session:
+            session["csrf_token"] = "pytest-csrf-token"
+
+        response = client.put(
+            "/api/users/1/note",
+            headers={"X-CSRF-Token": "pytest-csrf-token"},
+            json={"note": "not authorized"},
+        )
+
+    assert response.status_code == 403
+    assert response.get_json() == {
+        "error": "authorization_required",
+    }
+
+
+@pytest.mark.parametrize(
+    "permissions",
+    [
+        ["jobs.manage"],
+        ["clients.view", "unknown.permission"],
+        "clients.view",
+    ],
+)
+def test_create_user_rejects_invalid_permissions(
+    monkeypatch,
+    tmp_path,
+    permissions,
+):
+    from server import app as app_module
+
+    db_path = str(tmp_path / "invalid-user-permissions.db")
+    create_user_test_database(db_path)
+    app = configure_real_app_session_user(
+        monkeypatch,
+        app_module,
+        db_path,
+        1,
+        "administrator",
+    )
+
+    with app.test_client() as client:
+        login_as(client, 1, "administrator")
+        with client.session_transaction() as session:
+            session["csrf_token"] = "pytest-csrf-token"
+
+        response = client.post(
+            "/api/users",
+            headers={"X-CSRF-Token": "pytest-csrf-token"},
+            json={
+                "username": "invalid-rights",
+                "password": "pytest-password-123",
+                "role": ROLE_OPERATOR,
+                "permissions": permissions,
+            },
+        )
+
+    assert response.status_code == 400
+    assert response.get_json() == {
+        "error": "invalid_user_permissions",
+    }
+
+
+def test_update_user_permissions_controls_custom_role_access(
+    monkeypatch,
+    tmp_path,
+):
+    from server import app as app_module
+
+    db_path = str(tmp_path / "update-user-permissions.db")
+    create_user_test_database(db_path)
+    connection = sqlite3.connect(db_path)
+    connection.execute(
+        """
+        INSERT INTO users (
+            username, password_hash, created_at, enabled, role
+        )
+        VALUES (?, ?, ?, 1, ?)
+        """,
+        (
+            "custom-viewer",
+            "pytest-password-hash",
+            "2026-01-02T00:00:00+00:00",
+            ROLE_VIEWER,
+        ),
+    )
+    connection.commit()
+    connection.close()
+
+    app = configure_real_app_session_user(
+        monkeypatch,
+        app_module,
+        db_path,
+        1,
+        "administrator",
+    )
+    permissions = [
+        "clients.view",
+        "updates.view",
+        "jobs.manage",
+    ]
+
+    with app.test_client() as client:
+        login_as(client, 1, "administrator")
+        with client.session_transaction() as session:
+            session["csrf_token"] = "pytest-csrf-token"
+
+        response = client.put(
+            "/api/users/2/permissions",
+            headers={"X-CSRF-Token": "pytest-csrf-token"},
+            json={
+                "role": ROLE_VIEWER,
+                "permissions": permissions,
+            },
+        )
+
+    assert response.status_code == 200
+    assert response.get_json()["user"]["permissions"] == sorted(permissions)
+
+    def get_test_connection():
+        connection = sqlite3.connect(db_path)
+        connection.row_factory = sqlite3.Row
+        return connection
+
+    permission_app = Flask(__name__)
+    permission_app.secret_key = "pytest-secret"
+    permission_app.config["LUMS_GET_CONNECTION"] = get_test_connection
+
+    @permission_app.route("/jobs")
+    @login_required
+    @role_required(
+        ROLE_ADMINISTRATOR,
+        ROLE_OPERATOR,
+        permission="jobs.manage",
+    )
+    def jobs_route():
+        return {"status": "allowed"}
+
+    @permission_app.route("/users")
+    @login_required
+    @role_required(ROLE_ADMINISTRATOR, permission="users.manage")
+    def users_route():
+        return {"status": "allowed"}
+
+    with permission_app.test_client() as client:
+        login_as(client, 2, "custom-viewer")
+        assert client.get("/jobs").status_code == 200
+        assert client.get("/users").status_code == 403
+
+
+def test_update_permissions_preserves_last_user_manager(
+    monkeypatch,
+    tmp_path,
+):
+    from server import app as app_module
+
+    db_path = str(tmp_path / "preserve-user-manager.db")
+    create_user_test_database(db_path)
+    app = configure_real_app_session_user(
+        monkeypatch,
+        app_module,
+        db_path,
+        1,
+        "administrator",
+    )
+
+    with app.test_client() as client:
+        login_as(client, 1, "administrator")
+        with client.session_transaction() as session:
+            session["csrf_token"] = "pytest-csrf-token"
+
+        response = client.put(
+            "/api/users/1/permissions",
+            headers={"X-CSRF-Token": "pytest-csrf-token"},
+            json={
+                "role": ROLE_VIEWER,
+                "permissions": ["clients.view"],
+            },
+        )
+
+    assert response.status_code == 409
+    assert response.get_json() == {
+        "error": "last_enabled_administrator",
+    }
 
 
 @pytest.mark.parametrize(
@@ -1673,6 +2247,17 @@ def test_users_page_visible_for_administrator(
     assert b'id="users-list-status"' in response.data
     assert b'id="users-list-container"' in response.data
     assert b'id="users-list-body"' in response.data
+    assert b'class="role-template-list"' in response.data
+    assert b'id="create-user-permissions"' not in response.data
+    assert (
+        "Clients und installierte Software ansehen.".encode("utf-8")
+        in response.data
+    )
+    assert (
+        "Update-Jobs verwalten.".encode("utf-8")
+        in response.data
+    )
+    assert "Benutzerkonten.".encode("utf-8") in response.data
 
 
 def test_users_page_denied_for_operator(

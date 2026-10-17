@@ -30,6 +30,7 @@ from security import (
     logout_user,
     current_username,
     current_user_role,
+    current_user_permissions,
     get_csrf_token,
     audit_log,
     current_user_id,
@@ -39,6 +40,10 @@ from security import (
     ROLE_OPERATOR,
     ROLE_VIEWER,
     VALID_ROLES,
+    PERMISSIONS,
+    ROLE_DEFAULT_PERMISSIONS,
+    ROLE_DESCRIPTIONS,
+    PERMISSION_DEPENDENCIES,
     csrf_required,
     client_auth_required,
     authenticated_client,
@@ -84,10 +89,14 @@ app.secret_key = load_secret_key()
 
 configure_session(app)
 
-DB_PATH = "/var/lib/lums/lums.db"
+DB_PATH = os.environ.get(
+    "LUMS_DB_PATH",
+    "/var/lib/lums/lums.db",
+)
 
 PACKAGE_SEARCH_QUERY_MAX_LENGTH = 128
 PACKAGE_SEARCH_MAX_RESULTS = 50
+ADMIN_NOTE_MAX_LENGTH = 2000
 
 
 def normalize_package_search_query(query):
@@ -128,142 +137,251 @@ def get_connection():
     return connection
 
 
+def get_user_permissions(connection, user_id, role):
+    permissions_table = connection.execute(
+        """
+        SELECT 1
+        FROM sqlite_master
+        WHERE type = 'table' AND name = 'user_permissions'
+        """
+    ).fetchone()
+
+    if permissions_table is None:
+        return sorted(ROLE_DEFAULT_PERMISSIONS[role])
+
+    return [
+        row["permission"]
+        for row in connection.execute(
+            """
+            SELECT permission
+            FROM user_permissions
+            WHERE user_id = ?
+            ORDER BY permission
+            """,
+            (user_id,),
+        ).fetchall()
+    ]
+
+
+def validate_permission_selection(permissions):
+    if (
+        not isinstance(permissions, list)
+        or any(
+            not isinstance(permission, str)
+            or permission not in PERMISSIONS
+            for permission in permissions
+        )
+        or len(permissions) != len(set(permissions))
+    ):
+        return False
+
+    selected = set(permissions)
+
+    return all(
+        dependencies.issubset(selected)
+        for permission, dependencies in PERMISSION_DEPENDENCIES.items()
+        if permission in selected
+    )
+
+
+def count_active_user_managers(connection):
+    permissions_table = connection.execute(
+        """
+        SELECT 1
+        FROM sqlite_master
+        WHERE type = 'table' AND name = 'user_permissions'
+        """
+    ).fetchone()
+
+    if permissions_table is None:
+        return connection.execute(
+            "SELECT COUNT(*) FROM users WHERE enabled = 1 AND role = ?",
+            (ROLE_ADMINISTRATOR,),
+        ).fetchone()[0]
+
+    return connection.execute(
+        """
+        SELECT COUNT(DISTINCT users.id)
+        FROM users
+        JOIN user_permissions
+            ON user_permissions.user_id = users.id
+        WHERE users.enabled = 1
+          AND user_permissions.permission = 'users.manage'
+        """
+    ).fetchone()[0]
+
+
+def permission_ui_context():
+    return {
+        "user_permissions": sorted(current_user_permissions()),
+        "permission_definitions": [
+            {"key": key, "label": label}
+            for key, label in PERMISSIONS.items()
+        ],
+        "role_default_permissions": {
+            role: sorted(permissions)
+            for role, permissions in ROLE_DEFAULT_PERMISSIONS.items()
+        },
+        "role_descriptions": ROLE_DESCRIPTIONS,
+    }
+
+
 # ============================================================
 # CLIENT REPORT
 # ============================================================
 
-def save_client(client_id, data):
-
-    connection = get_connection()
-    cursor = connection.cursor()
-
-    last_seen = datetime.now(timezone.utc).isoformat()
-
-    idle = 1 if data.get("idle") else 0
-
-    try:
-        idle_seconds = max(0, int(data.get("idle_seconds", 0)))
-    except (TypeError, ValueError):
-        idle_seconds = 0
-
-    try:
-        idle_threshold_seconds = max(
-            1,
-            int(data.get("idle_threshold_seconds", 300))
-        )
-    except (TypeError, ValueError):
-        idle_threshold_seconds = 300
-
-    idle_source = str(
-        data.get("idle_source", "unknown") or "unknown"
-    ).strip()
-
-    idle_supported = 1 if data.get("idle_supported") else 0
-
-    cursor.execute("""
-        UPDATE clients
-        SET hostname = ?,
-            ip = ?,
-            os = ?,
-            kernel = ?,
-            architecture = ?,
-            agent_version = ?,
-            last_seen = ?,
-            idle = ?,
-            idle_seconds = ?,
-            idle_threshold_seconds = ?,
-            idle_source = ?,
-            idle_supported = ?
-        WHERE id = ?
-    """, (
-        data.get("hostname"),
-        data.get("ip"),
-        data.get("os"),
-        data.get("kernel"),
-        data.get("architecture"),
-        data.get("agent_version"),
-        last_seen,
-        idle,
-        idle_seconds,
-        idle_threshold_seconds,
-        idle_source,
-        idle_supported,
-        client_id
-    ))
-
-    connection.commit()
-    connection.close()
-
-    return client_id
-
-def save_updates(client_id, updates):
-
-    connection = get_connection()
-    cursor = connection.cursor()
-
-    cursor.execute(
-        "DELETE FROM available_updates WHERE client_id = ?",
-        (client_id,)
+def validate_client_report(data):
+    text_fields = (
+        "hostname",
+        "ip",
+        "os",
+        "kernel",
+        "architecture",
+        "agent_version",
     )
+
+    if any(
+        not isinstance(data.get(field), str) or not data[field].strip()
+        for field in text_fields
+    ):
+        return False
+
+    if "idle" in data and not isinstance(data["idle"], bool):
+        return False
+
+    for field in ("idle_seconds", "idle_threshold_seconds"):
+        if field in data and (
+            not isinstance(data[field], int)
+            or isinstance(data[field], bool)
+            or data[field] < (1 if field == "idle_threshold_seconds" else 0)
+        ):
+            return False
+
+    if "idle_source" in data and not isinstance(data["idle_source"], str):
+        return False
+
+    if "idle_supported" in data and not isinstance(data["idle_supported"], bool):
+        return False
+
+    updates = data.get("updates", [])
+    if not isinstance(updates, list):
+        return False
 
     for update in updates:
+        if not isinstance(update, dict):
+            return False
 
         package = update.get("package")
-        installed_version = update.get("installed_version")
         available_version = update.get("available_version")
+        installed_version = update.get("installed_version")
 
-        if not package or not available_version:
-            continue
-
-        cursor.execute("""
-            INSERT INTO available_updates (
-                client_id,
-                package,
-                installed_version,
-                available_version
+        if (
+            not is_valid_package_name(package)
+            or not isinstance(available_version, str)
+            or not available_version.strip()
+            or (
+                installed_version is not None
+                and not isinstance(installed_version, str)
             )
-            VALUES (?, ?, ?, ?)
-        """, (
-            client_id,
-            package,
-            installed_version,
-            available_version
-        ))
+        ):
+            return False
 
-    connection.commit()
-    connection.close()
+    packages = data.get("packages", {})
+    if not isinstance(packages, dict):
+        return False
 
-
-def save_packages(client_id, packages):
-
-    connection = get_connection()
-    cursor = connection.cursor()
-
-    cursor.execute(
-        "DELETE FROM installed_packages WHERE client_id = ?",
-        (client_id,)
+    return all(
+        is_valid_package_name(package)
+        and isinstance(version, str)
+        and bool(version.strip())
+        for package, version in packages.items()
     )
 
-    for package, version in packages.items():
 
-        if not package or not version:
-            continue
+def save_client_report(client_id, data):
+    connection = get_connection()
 
+    try:
+        cursor = connection.cursor()
         cursor.execute("""
-            INSERT INTO installed_packages (
-                client_id,
-                package,
-                version
-            )
-            VALUES (?, ?, ?)
+            UPDATE clients
+            SET hostname = ?,
+                ip = ?,
+                os = ?,
+                kernel = ?,
+                architecture = ?,
+                agent_version = ?,
+                last_seen = ?,
+                idle = ?,
+                idle_seconds = ?,
+                idle_threshold_seconds = ?,
+                idle_source = ?,
+                idle_supported = ?
+            WHERE id = ?
         """, (
+            data["hostname"],
+            data["ip"],
+            data["os"],
+            data["kernel"],
+            data["architecture"],
+            data["agent_version"],
+            datetime.now(timezone.utc).isoformat(),
+            int(data.get("idle", False)),
+            data.get("idle_seconds", 0),
+            data.get("idle_threshold_seconds", 300),
+            data.get("idle_source", "unknown").strip() or "unknown",
+            int(data.get("idle_supported", False)),
             client_id,
-            package,
-            version
         ))
 
-    connection.commit()
-    connection.close()
+        cursor.execute(
+            "DELETE FROM available_updates WHERE client_id = ?",
+            (client_id,),
+        )
+
+        for update in data.get("updates", []):
+            cursor.execute("""
+                INSERT INTO available_updates (
+                    client_id,
+                    package,
+                    installed_version,
+                    available_version
+                )
+                VALUES (?, ?, ?, ?)
+            """, (
+                client_id,
+                update["package"],
+                update.get("installed_version"),
+                update["available_version"],
+            ))
+
+        cursor.execute(
+            "DELETE FROM installed_packages WHERE client_id = ?",
+            (client_id,),
+        )
+
+        for package, version in data.get("packages", {}).items():
+            cursor.execute("""
+                INSERT INTO installed_packages (
+                    client_id,
+                    package,
+                    version
+                )
+                VALUES (?, ?, ?)
+            """, (
+                client_id,
+                package,
+                version,
+            ))
+
+        connection.commit()
+    except sqlite3.Error:
+        connection.rollback()
+        raise
+    finally:
+        connection.close()
+
+    return client_id
 
 
 # ============================================================
@@ -492,23 +610,26 @@ def logout():
     ROLE_ADMINISTRATOR,
     ROLE_OPERATOR,
     ROLE_VIEWER,
+    permission="clients.view",
 )
 def index():
     return render_template(
         "index.html",
         csrf_token=get_csrf_token(),
         user_role=current_user_role(),
+        **permission_ui_context(),
     )
 
 
 @app.route("/users")
 @login_required
-@role_required(ROLE_ADMINISTRATOR)
+@role_required(ROLE_ADMINISTRATOR, permission="users.manage")
 def users_page():
     return render_template(
         "users.html",
         csrf_token=get_csrf_token(),
         user_role=current_user_role(),
+        **permission_ui_context(),
     )
 
 
@@ -518,6 +639,7 @@ def users_page():
     ROLE_ADMINISTRATOR,
     ROLE_OPERATOR,
     ROLE_VIEWER,
+    permission="clients.view",
 )
 def client_page():
 
@@ -525,6 +647,7 @@ def client_page():
         "client.html",
         csrf_token=get_csrf_token(),
         user_role=current_user_role(),
+        **permission_ui_context(),
     )
 
 
@@ -534,7 +657,7 @@ def client_page():
 
 @app.route("/api/users", methods=["GET"])
 @login_required
-@role_required(ROLE_ADMINISTRATOR)
+@role_required(ROLE_ADMINISTRATOR, permission="users.manage")
 def list_users():
 
     connection = get_connection()
@@ -547,7 +670,8 @@ def list_users():
                 username,
                 role,
                 enabled,
-                created_at
+                created_at,
+                admin_note
             FROM users
             ORDER BY username COLLATE NOCASE ASC
             """
@@ -558,8 +682,14 @@ def list_users():
                 "id": row["id"],
                 "username": row["username"],
                 "role": row["role"],
+                "permissions": get_user_permissions(
+                    connection,
+                    row["id"],
+                    row["role"],
+                ),
                 "enabled": bool(row["enabled"]),
                 "created_at": row["created_at"],
+                "admin_note": row["admin_note"],
             }
             for row in rows
         ])
@@ -570,7 +700,7 @@ def list_users():
 
 @app.route("/api/users", methods=["POST"])
 @login_required
-@role_required(ROLE_ADMINISTRATOR)
+@role_required(ROLE_ADMINISTRATOR, permission="users.manage")
 @csrf_required
 def create_user():
 
@@ -579,6 +709,10 @@ def create_user():
     username = str(data.get("username", "")).strip()
     password = str(data.get("password", ""))
     role = str(data.get("role", "")).strip()
+    permissions = data.get(
+        "permissions",
+        sorted(ROLE_DEFAULT_PERMISSIONS.get(role, ())),
+    )
 
     if not username:
         return jsonify({
@@ -603,6 +737,11 @@ def create_user():
     if role not in VALID_ROLES:
         return jsonify({
             "error": "invalid_user_role"
+        }), 400
+
+    if not validate_permission_selection(permissions):
+        return jsonify({
+            "error": "invalid_user_permissions"
         }), 400
 
     connection = get_connection()
@@ -644,6 +783,16 @@ def create_user():
         )
 
         user_id = cursor.lastrowid
+        connection.executemany(
+            """
+            INSERT INTO user_permissions (user_id, permission)
+            VALUES (?, ?)
+            """,
+            [
+                (user_id, permission)
+                for permission in permissions
+            ],
+        )
 
         audit_log(
             connection,
@@ -652,7 +801,10 @@ def create_user():
             action="user.create",
             target=f"user:{user_id}",
             result="success",
-            details=f"username={username}, role={role}",
+            details=(
+                f"username={username}, role={role}, "
+                f"permissions={','.join(sorted(permissions))}"
+            ),
         )
 
         connection.commit()
@@ -663,6 +815,7 @@ def create_user():
                 "id": user_id,
                 "username": username,
                 "role": role,
+                "permissions": sorted(permissions),
                 "enabled": True,
             },
         }), 201
@@ -683,9 +836,162 @@ def create_user():
 
 
 
+@app.route("/api/users/<int:user_id>/permissions", methods=["PUT"])
+@login_required
+@role_required(ROLE_ADMINISTRATOR, permission="users.manage")
+@csrf_required
+def update_user_permissions(user_id):
+    data = request.get_json(silent=True)
+
+    if not isinstance(data, dict):
+        return jsonify({"error": "invalid_request"}), 400
+
+    role = data.get("role")
+    permissions = data.get("permissions")
+
+    if role not in VALID_ROLES:
+        return jsonify({"error": "invalid_user_role"}), 400
+
+    if not validate_permission_selection(permissions):
+        return jsonify({"error": "invalid_user_permissions"}), 400
+
+    connection = get_connection()
+
+    try:
+        target = connection.execute(
+            "SELECT id, username, role, enabled FROM users WHERE id = ?",
+            (user_id,),
+        ).fetchone()
+
+        if target is None:
+            return jsonify({"error": "user_not_found"}), 404
+
+        had_user_management = "users.manage" in get_user_permissions(
+            connection,
+            user_id,
+            target["role"],
+        )
+
+        if (
+            target["enabled"]
+            and had_user_management
+            and "users.manage" not in permissions
+            and count_active_user_managers(connection) <= 1
+        ):
+            return jsonify({
+                "error": "last_enabled_administrator"
+            }), 409
+
+        connection.execute(
+            "UPDATE users SET role = ? WHERE id = ?",
+            (role, user_id),
+        )
+        connection.execute(
+            "DELETE FROM user_permissions WHERE user_id = ?",
+            (user_id,),
+        )
+        connection.executemany(
+            """
+            INSERT INTO user_permissions (user_id, permission)
+            VALUES (?, ?)
+            """,
+            [
+                (user_id, permission)
+                for permission in permissions
+            ],
+        )
+
+        audit_log(
+            connection,
+            actor_type="user",
+            actor_id=current_user_id(),
+            action="user.permissions.update",
+            target=f"user:{user_id}",
+            result="success",
+            details=(
+                f"username={target['username']}, role={role}, "
+                f"permissions={','.join(sorted(permissions))}"
+            ),
+        )
+        connection.commit()
+
+        return jsonify({
+            "status": "updated",
+            "user": {
+                "id": user_id,
+                "username": target["username"],
+                "role": role,
+                "permissions": sorted(permissions),
+            },
+        })
+    except Exception:
+        connection.rollback()
+        raise
+    finally:
+        connection.close()
+
+
+@app.route("/api/users/<int:user_id>/note", methods=["PUT"])
+@login_required
+@role_required(ROLE_ADMINISTRATOR, permission="users.manage")
+@csrf_required
+def update_user_admin_note(user_id):
+    data = request.get_json(silent=True)
+
+    if not isinstance(data, dict):
+        return jsonify({"error": "invalid_request"}), 400
+
+    note = data.get("note")
+    if (
+        not isinstance(note, str)
+        or len(note) > ADMIN_NOTE_MAX_LENGTH
+    ):
+        return jsonify({"error": "invalid_admin_note"}), 400
+
+    connection = get_connection()
+
+    try:
+        target = connection.execute(
+            "SELECT username FROM users WHERE id = ?",
+            (user_id,),
+        ).fetchone()
+
+        if target is None:
+            return jsonify({"error": "user_not_found"}), 404
+
+        connection.execute(
+            "UPDATE users SET admin_note = ? WHERE id = ?",
+            (note.strip(), user_id),
+        )
+        audit_log(
+            connection,
+            actor_type="user",
+            actor_id=current_user_id(),
+            action="user.admin_note.update",
+            target=f"user:{user_id}",
+            result="success",
+            details=(
+                f"username={target['username']}, "
+                f"note_length={len(note.strip())}"
+            ),
+        )
+        connection.commit()
+
+        return jsonify({
+            "status": "updated",
+            "user_id": user_id,
+            "note": note.strip(),
+        })
+    except Exception:
+        connection.rollback()
+        raise
+    finally:
+        connection.close()
+
+
 @app.route("/api/users/<int:user_id>", methods=["DELETE"])
 @login_required
-@role_required(ROLE_ADMINISTRATOR)
+@role_required(ROLE_ADMINISTRATOR, permission="users.manage")
 @csrf_required
 def delete_user(user_id):
     actor_id = current_user_id()
@@ -708,20 +1014,20 @@ def delete_user(user_id):
         if target is None:
             return jsonify({"error": "user_not_found"}), 404
 
-        if target["enabled"] and target["role"] == ROLE_ADMINISTRATOR:
-            active_admins = connection.execute(
-                """
-                SELECT COUNT(*)
-                FROM users
-                WHERE enabled = 1 AND role = ?
-                """,
-                (ROLE_ADMINISTRATOR,),
-            ).fetchone()[0]
+        target_permissions = get_user_permissions(
+            connection,
+            user_id,
+            target["role"],
+        )
 
-            if active_admins <= 1:
-                return jsonify({
-                    "error": "last_enabled_administrator"
-                }), 409
+        if (
+            target["enabled"]
+            and "users.manage" in target_permissions
+            and count_active_user_managers(connection) <= 1
+        ):
+            return jsonify({
+                "error": "last_enabled_administrator"
+            }), 409
 
         connection.execute(
             "DELETE FROM users WHERE id = ?",
@@ -760,7 +1066,7 @@ def delete_user(user_id):
 
 @app.route("/api/clients", methods=["POST"])
 @login_required
-@role_required(ROLE_ADMINISTRATOR)
+@role_required(ROLE_ADMINISTRATOR, permission="clients.manage")
 @csrf_required
 def create_client():
 
@@ -872,7 +1178,7 @@ def create_client():
     methods=["POST"],
 )
 @login_required
-@role_required(ROLE_ADMINISTRATOR)
+@role_required(ROLE_ADMINISTRATOR, permission="clients.manage")
 @csrf_required
 def rotate_client_token(client_id):
     connection = get_connection()
@@ -947,7 +1253,7 @@ def rotate_client_token(client_id):
 
 @app.route("/api/clients/<int:client_id>", methods=["DELETE"])
 @login_required
-@role_required(ROLE_ADMINISTRATOR)
+@role_required(ROLE_ADMINISTRATOR, permission="clients.manage")
 @csrf_required
 def delete_client(client_id):
 
@@ -1055,22 +1361,23 @@ def report():
             "message": "Invalid or missing JSON data"
         }), 400
 
-    client_id = save_client(
-        client["id"],
-        data
-    )
+    if not validate_client_report(data):
+        return jsonify({
+            "status": "error",
+            "message": "Invalid client report data",
+        }), 400
 
-    if client_id is not None:
-
-        save_updates(
-            client_id,
-            data.get("updates", [])
+    try:
+        save_client_report(client["id"], data)
+    except sqlite3.Error:
+        logger.exception(
+            "Failed to save report from client %s",
+            client["id"],
         )
-
-        save_packages(
-            client_id,
-            data.get("packages", {})
-        )
+        return jsonify({
+            "status": "error",
+            "message": "Failed to save client report",
+        }), 500
 
     logger.info(
         "Client report: %s (%s) Updates: %d Pakete: %d",
@@ -1112,6 +1419,7 @@ def client_me():
     ROLE_ADMINISTRATOR,
     ROLE_OPERATOR,
     ROLE_VIEWER,
+    permission="clients.view",
 )
 def clients():
 
@@ -1174,6 +1482,7 @@ def clients():
     ROLE_ADMINISTRATOR,
     ROLE_OPERATOR,
     ROLE_VIEWER,
+    permission="clients.view",
 )
 def client(client_id):
 
@@ -1243,6 +1552,7 @@ def client(client_id):
     ROLE_ADMINISTRATOR,
     ROLE_OPERATOR,
     ROLE_VIEWER,
+    permission="updates.view",
 )
 def client_updates(client_id):
 
@@ -1280,6 +1590,7 @@ def client_updates(client_id):
     ROLE_ADMINISTRATOR,
     ROLE_OPERATOR,
     ROLE_VIEWER,
+    permission="software.view",
 )
 def client_packages(client_id):
 
@@ -1314,7 +1625,11 @@ def client_packages(client_id):
     methods=["POST"]
 )
 @login_required
-@role_required(ROLE_ADMINISTRATOR, ROLE_OPERATOR)
+@role_required(
+    ROLE_ADMINISTRATOR,
+    ROLE_OPERATOR,
+    permission="packages.search",
+)
 @csrf_required
 def create_package_search(client_id):
 
@@ -1420,7 +1735,11 @@ def create_package_search(client_id):
     methods=["POST"]
 )
 @login_required
-@role_required(ROLE_ADMINISTRATOR, ROLE_OPERATOR)
+@role_required(
+    ROLE_ADMINISTRATOR,
+    ROLE_OPERATOR,
+    permission="jobs.manage",
+)
 @csrf_required
 def create_update_job(client_id):
 
@@ -1675,6 +1994,7 @@ def create_update_job(client_id):
     ROLE_ADMINISTRATOR,
     ROLE_OPERATOR,
     ROLE_VIEWER,
+    permission="updates.view",
 )
 def client_update_jobs(client_id):
 
@@ -2609,7 +2929,11 @@ def get_pending_package_search(client_id):
     methods=["GET"]
 )
 @login_required
-@role_required(ROLE_ADMINISTRATOR, ROLE_OPERATOR)
+@role_required(
+    ROLE_ADMINISTRATOR,
+    ROLE_OPERATOR,
+    permission="packages.search",
+)
 def get_package_search_status(client_id, search_id):
 
     connection = get_connection()
@@ -2992,6 +3316,7 @@ def claim_update_job(client_id, job_id):
     ROLE_ADMINISTRATOR,
     ROLE_OPERATOR,
     ROLE_VIEWER,
+    permission="updates.view",
 )
 def update_job(job_id):
 
@@ -3080,6 +3405,7 @@ def update_job(job_id):
     ROLE_ADMINISTRATOR,
     ROLE_OPERATOR,
     ROLE_VIEWER,
+    permission="updates.view",
 )
 def client_update_history(client_id):
 
@@ -3126,6 +3452,7 @@ def client_update_history(client_id):
     ROLE_ADMINISTRATOR,
     ROLE_OPERATOR,
     ROLE_VIEWER,
+    permission="updates.view",
 )
 def update_history():
 

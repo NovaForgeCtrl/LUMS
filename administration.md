@@ -18,13 +18,15 @@ Security architecture and audit information are documented separately in `securi
 
 LUMS provides centralized administration of Linux software inventory, available updates, package operations, update jobs, managed clients, users, and operational history.
 
-The administrative model separates responsibilities between three roles:
+The administrative interface provides three role templates:
 
 * **Administrator**
 * **Operator**
 * **Viewer**
 
-The role assigned to a user determines which administrative functions are available.
+When an account is created, its selected role fills in a recommended set of
+permissions. Administrators can adjust those permissions per user; the saved
+permissions, rather than the role label, determine access.
 
 LUMS also separates server-side administrative operations from client-side package execution.
 
@@ -80,11 +82,11 @@ Administrators manage:
 * account status
 * administrative access
 
-User management is restricted to the **Administrator** role.
+User management requires the `users.manage` permission.
 
-Operators cannot create or manage LUMS users.
+The Administrator template includes this permission by default.
 
-Viewers have no user-management permissions.
+Operators and Viewers do not receive it by default.
 
 ---
 
@@ -99,13 +101,14 @@ Administrators manage:
 * token rotation
 * client enablement and disablement
 
-Client administration is intentionally restricted because client authentication determines which systems are allowed to report to LUMS.
+Client administration requires the `clients.manage` permission because client
+authentication determines which systems are allowed to report to LUMS.
 
 ---
 
 ### Update Administration
 
-Administrators and Operators can:
+The Administrator and Operator templates grant permissions to:
 
 * view available updates
 * create update jobs
@@ -114,7 +117,7 @@ Administrators and Operators can:
 * manage individual packages
 * perform system updates
 
-The Viewer role cannot perform update operations.
+The Viewer template is read-only and cannot perform update operations.
 
 ---
 
@@ -159,7 +162,8 @@ LUMS currently provides three roles.
 | Operator      | Day-to-day operational management        |
 | Viewer        | Read-only client and software visibility |
 
-The role is enforced server-side.
+Each role is a permission template. The account's individually saved
+permissions are enforced server-side.
 
 Hiding an interface element is therefore not considered a security control by itself.
 
@@ -169,7 +173,8 @@ Unauthorized API operations must also be rejected by the server.
 
 ## 4. Administrator
 
-The Administrator role provides the highest level of LUMS application privileges.
+The Administrator template provides the full set of LUMS application
+permissions by default.
 
 Administrators can:
 
@@ -184,9 +189,10 @@ Administrators can:
 * disable clients
 * rotate client tokens
 * create and manage LUMS users
-* assign user roles
+* assign role templates and individual permissions
 
-Administrator privileges should be granted only to users who require full administrative access.
+Full Administrator-template permissions should be granted only to users who
+require them.
 
 Administrative accounts should not be used for routine read-only monitoring when an Operator or Viewer account is sufficient.
 
@@ -194,7 +200,8 @@ Administrative accounts should not be used for routine read-only monitoring when
 
 ## 5. Operator
 
-The Operator role is intended for day-to-day update and system administration.
+The Operator template is intended for day-to-day update and system
+administration.
 
 Operators can:
 
@@ -206,27 +213,29 @@ Operators can:
 * perform package-management operations
 * perform system maintenance
 
-Operators cannot:
+The Operator template does not grant:
 
 * create or manage LUMS users
 * assign user roles
 * create or disable clients
 * rotate client tokens
 
-This separation allows routine update operations without granting full account and client-management privileges.
+This default separation allows routine update operations without granting
+account and client-management privileges. Individual grants can be changed by
+a user with `users.manage`.
 
 ---
 
 ## 6. Viewer
 
-The Viewer role provides read-only visibility.
+The Viewer template provides read-only visibility.
 
 Viewers can:
 
 * view managed clients
 * view installed software
 
-The following administrative functions are unavailable to Viewers:
+The Viewer template does not grant the following administrative functions:
 
 * available update management
 * update-job creation
@@ -358,7 +367,7 @@ Instead, it describes what administrators can manage, what each operation means,
 
 ## 11. User Management
 
-User management is available only to users with the **Administrator** role.
+User management is available to users with the `users.manage` permission.
 
 Administrators can create and manage LUMS application accounts through the dedicated user-management interface.
 
@@ -391,21 +400,40 @@ LUMS API
 
 ## 12. Creating Users
 
-Only Administrators can create new LUMS users.
+Users with `users.manage` can create new LUMS users.
 
 When creating a user, the Administrator specifies:
 
 * username
 * password
-* role
+* a role label, with a role template available for later permission assignment
 
-Available roles are:
+Available role templates are:
 
 * `administrator`
 * `operator`
 * `viewer`
 
 The server validates the supplied values before creating the account.
+
+New accounts start without permissions. After creation, administrators can
+assign individual checkboxes or apply one of the role templates. Applying a
+template preselects its default permissions, which can then be customized.
+Available permissions are:
+
+| Permission        | Access granted                                      |
+| ----------------- | --------------------------------------------------- |
+| `clients.view`    | View the client list and system information        |
+| `software.view`   | View installed software                             |
+| `updates.view`    | View updates, jobs, and update history              |
+| `packages.search` | Search package repositories                         |
+| `jobs.manage`     | Create package operations and update jobs           |
+| `clients.manage`  | Register/remove clients and rotate client tokens    |
+| `users.manage`    | Create users and manage roles, permissions, and internal notes |
+
+Client-related permissions require `clients.view`; `jobs.manage` also requires
+`updates.view`. LUMS prevents removing the final active account with
+`users.manage`, so administrators cannot accidentally lock themselves out.
 
 Passwords are not stored as plaintext.
 
@@ -414,7 +442,7 @@ LUMS uses Argon2-based password hashing for application credentials.
 After creation, verify that:
 
 * the username appears in the user list
-* the assigned role is correct
+* the role template and individual permissions are correct
 * the account is enabled
 * the user can authenticate successfully
 
@@ -424,15 +452,18 @@ Do not transmit passwords through documentation, tickets, screenshots, or other 
 
 ## 13. User Roles
 
-User roles should be assigned according to the minimum required privilege.
+Select a role template according to the minimum required privilege, then
+review the individual permissions for each account.
 
-| Role          | User Management | Client Management | Updates | Package Management | Read-only Access |
+| Role template | User Management | Client Management | Updates | Package Management | Read-only Access |
 | ------------- | --------------: | ----------------: | ------: | -----------------: | ---------------: |
 | Administrator |             Yes |               Yes |     Yes |                Yes |              Yes |
 | Operator      |              No |                No |     Yes |                Yes |              Yes |
 | Viewer        |              No |                No |      No |                 No |              Yes |
 
-Role enforcement occurs on the server.
+These are defaults, not fixed boundaries. Administrators can customize each
+user's permission set. Role enforcement occurs on the server through the
+resulting per-user permissions.
 
 The web interface reflects the assigned role, but the server remains the authoritative security boundary.
 

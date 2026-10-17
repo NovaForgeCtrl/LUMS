@@ -39,6 +39,53 @@ VALID_ROLES = {
     ROLE_VIEWER,
 }
 
+PERMISSIONS = {
+    "clients.view": "Clients und Systeminformationen ansehen",
+    "software.view": "Installierte Software ansehen",
+    "updates.view": "Updates, Jobs und Verlauf ansehen",
+    "packages.search": "Pakete suchen",
+    "jobs.manage": "Paketänderungen und Update-Jobs anlegen",
+    "clients.manage": "Clients registrieren, entfernen und Tokens rotieren",
+    "users.manage": "Benutzer und Berechtigungen verwalten",
+}
+
+ROLE_DEFAULT_PERMISSIONS = {
+    ROLE_VIEWER: frozenset({
+        "clients.view",
+        "software.view",
+    }),
+    ROLE_OPERATOR: frozenset({
+        "clients.view",
+        "software.view",
+        "updates.view",
+        "packages.search",
+        "jobs.manage",
+    }),
+    ROLE_ADMINISTRATOR: frozenset(PERMISSIONS),
+}
+
+ROLE_DESCRIPTIONS = {
+    ROLE_VIEWER: (
+        "Clients und installierte Software ansehen."
+    ),
+    ROLE_OPERATOR: (
+        "Viewer-Rechte sowie Updates ansehen, Pakete suchen "
+        "und Update-Jobs verwalten."
+    ),
+    ROLE_ADMINISTRATOR: (
+        "Alle Bereiche verwalten, einschließlich Clients, "
+        "Update-Jobs und Benutzerkonten."
+    ),
+}
+
+PERMISSION_DEPENDENCIES = {
+    "software.view": {"clients.view"},
+    "updates.view": {"clients.view"},
+    "packages.search": {"clients.view"},
+    "jobs.manage": {"clients.view", "updates.view"},
+    "clients.manage": {"clients.view"},
+}
+
 SAFE_METHODS = {"GET", "HEAD", "OPTIONS"}
 
 PACKAGE_NAME_MAX_LENGTH = 256
@@ -356,6 +403,10 @@ def current_user_role():
     return user["role"]
 
 
+def current_user_permissions():
+    return request.environ.get("lums.permissions", frozenset())
+
+
 def is_authenticated():
     return current_user_id() is not None
 
@@ -387,6 +438,8 @@ def login_required(view):
             "LUMS_GET_CONNECTION"
         ]()
 
+        permissions = None
+
         try:
             user = connection.execute(
                 """
@@ -396,6 +449,27 @@ def login_required(view):
                 """,
                 (user_id,),
             ).fetchone()
+
+            permissions_table = connection.execute(
+                """
+                SELECT 1
+                FROM sqlite_master
+                WHERE type = 'table' AND name = 'user_permissions'
+                """
+            ).fetchone()
+
+            if user is not None and permissions_table is not None:
+                permissions = frozenset(
+                    row["permission"]
+                    for row in connection.execute(
+                        """
+                        SELECT permission
+                        FROM user_permissions
+                        WHERE user_id = ?
+                        """,
+                        (user_id,),
+                    ).fetchall()
+                )
         finally:
             connection.close()
 
@@ -426,16 +500,21 @@ def login_required(view):
             }), 403
 
         request.environ["lums.user"] = user
+        request.environ["lums.permissions"] = (
+            permissions
+            if permissions is not None
+            else ROLE_DEFAULT_PERMISSIONS[user["role"]]
+        )
 
         return view(*args, **kwargs)
 
     return wrapped
 
 
-def role_required(*roles):
+def role_required(*roles, permission=None):
     required_roles = set(roles)
 
-    if not required_roles:
+    if not required_roles and permission is None:
         raise ValueError(
             "role_required() requires at least one role."
         )
@@ -446,6 +525,11 @@ def role_required(*roles):
         )
         raise ValueError(
             f"Unknown LUMS role(s): {invalid_roles}"
+        )
+
+    if permission is not None and permission not in PERMISSIONS:
+        raise ValueError(
+            f"Unknown LUMS permission: {permission}"
         )
 
     def decorator(view):
@@ -464,7 +548,13 @@ def role_required(*roles):
                     url_for("login")
                 )
 
-            if user["role"] not in required_roles:
+            authorized = (
+                permission in current_user_permissions()
+                if permission is not None
+                else user["role"] in required_roles
+            )
+
+            if not authorized:
                 return jsonify({
                     "error": "authorization_required"
                 }), 403

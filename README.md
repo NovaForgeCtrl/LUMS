@@ -390,19 +390,14 @@ Client authentication is separate from administrative authentication.
 
 ### RBAC
 
-LUMS uses role-based access control.
+LUMS combines role templates with per-user permissions. The Administrator,
+Operator, and Viewer templates provide starting permission sets that can be
+customized for each account.
 
-The current roles are:
+Authorization is enforced on the server using the account's stored permissions.
 
-```text
-Administrator
-Operator
-Viewer
-```
-
-Authorization is enforced on the server.
-
-The frontend additionally hides functionality that the current role cannot use.
+The frontend additionally hides functionality that the user's permissions do
+not allow.
 
 This means that hiding a button is never treated as a security boundary.
 
@@ -916,7 +911,8 @@ Viewer
 
 Authorization is enforced server-side.
 
-The frontend additionally adapts the visible interface to the current role, but frontend visibility is never considered a security boundary.
+The frontend additionally adapts the visible interface to the user's
+permissions, but frontend visibility is never considered a security boundary.
 
 ### Administrator
 
@@ -975,22 +971,26 @@ The server independently enforces these restrictions.
 
 ## User Management
 
-LUMS provides administrator-only user management.
+LUMS provides user management to accounts with the `users.manage` permission.
 
-Administrators can create users and assign their role.
+Users with this permission can create accounts using a role template and
+then assign permissions individually or explicitly apply that template. New
+accounts start without permissions; the permission editor opens after creation.
+User managers can also save private administrative notes that are not visible
+to the account owner.
 
 User passwords are stored using Argon2 password hashing rather than plaintext or reversible encryption.
 
 User-management operations are protected by:
 
 * authentication
-* administrator-only authorization
+* permission-based authorization
 * CSRF protection
 * input validation
 * duplicate-user checks
 * audit logging
 
-The user-management interface is not exposed to Operators or Viewers.
+The user-management interface is not exposed without `users.manage`.
 
 ---
 
@@ -1066,7 +1066,7 @@ LUMS validates API input before performing state-changing operations.
 Security controls include:
 
 * authentication
-* role authorization
+* per-user permission authorization
 * CSRF protection where applicable
 * input validation
 * package-name validation
@@ -1480,7 +1480,7 @@ The client performs local package operations and reports the results to the serv
 * Argon2 password hashing
 * server-side sessions
 * CSRF protection
-* role-based access control
+* role templates with per-user permissions
 * SHA-256 client-token digests
 * HTTPS
 * audit logging
@@ -1776,9 +1776,10 @@ The result-processing layer therefore acts as another boundary between an authen
 
 ## User Management
 
-User management is an administrator-only function.
+User management requires the `users.manage` permission.
 
-The server exposes administrative operations for creating users and assigning roles.
+Authorized users can create users from a role template and customize the
+individual permissions assigned to each account.
 
 The current roles are:
 
@@ -1788,7 +1789,8 @@ Operator
 Viewer
 ```
 
-User-management actions are authenticated, authorized, validated, protected against CSRF where applicable, and recorded in the audit trail.
+User-management actions are authenticated, permission-checked, validated,
+protected against CSRF where applicable, and recorded in the audit trail.
 
 ---
 

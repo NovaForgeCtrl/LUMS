@@ -48,7 +48,7 @@
 
         </div>
 
-        {% if user_role == "administrator" %}
+        {% if "users.manage" in user_permissions %}
         <a
             href="/users"
             class="logout-button"
@@ -109,6 +109,7 @@
 
 
 
+        {% if "updates.view" in user_permissions %}
         <div class="card">
 
             <div class="card-title">
@@ -123,7 +124,7 @@
             </div>
 
         </div>
-
+        {% endif %}
 
     </section>
 
@@ -149,12 +150,14 @@
 
             <div class="client-actions">
 
-                <button
-                    type="button"
-                    id="add-client-button"
-                >
-                    ＋ Client hinzufügen
-                </button>
+                {% if "clients.manage" in user_permissions %}
+                    <button
+                        type="button"
+                        id="add-client-button"
+                    >
+                        ＋ Client hinzufügen
+                    </button>
+                {% endif %}
 
                 <button
                     type="button"
@@ -356,9 +359,9 @@
 
 </main>
 
-
-
-
+<script>
+    window.lumsUserPermissions = {{ user_permissions | tojson }};
+</script>
 <script src="/static/app.js"></script>
 <script src="{{ url_for('static', filename='network.js') }}"></script>
 

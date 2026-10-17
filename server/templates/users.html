@@ -144,7 +144,7 @@
                 <div class="form-group">
 
                     <label for="create-user-role">
-                        Rolle
+                        Rollen-Vorlage für den nächsten Schritt
                     </label>
 
                     <select
@@ -167,8 +167,26 @@
 
                     </select>
 
-                </div>
+                    <div class="panel-description">
+                        Der Benutzer wird zuerst ohne Berechtigungen angelegt.
+                        Danach kannst du Rechte einzeln auswählen oder eine
+                        Vorlage übernehmen.
+                    </div>
+                    <div
+                        id="create-user-role-description"
+                        class="role-template-description"
+                        aria-live="polite"
+                    ></div>
+                    <ul class="role-template-list">
+                        {% for role, description in role_descriptions.items() %}
+                        <li>
+                            <strong>{{ role | capitalize }}</strong>
+                            <span>{{ description }}</span>
+                        </li>
+                        {% endfor %}
+                    </ul>
 
+                </div>
 
                 <div
                     id="create-user-error"
@@ -202,7 +220,7 @@
                     <h3>Benutzer</h3>
 
                     <div class="panel-description">
-                        Vorhandene Benutzerkonten und deren Rollen
+                        Vorhandene Benutzerkonten, Rollen und individuelle Rechte
                     </div>
                 </div>
 
@@ -229,6 +247,7 @@
                         <tr>
                             <th>Benutzername</th>
                             <th>Rolle</th>
+                            <th>Berechtigungen</th>
                             <th>Status</th>
                             <th>Aktion</th>
                         </tr>
@@ -246,6 +265,14 @@
 
 </main>
 
+<script>
+    window.lumsRoleDefaultPermissions =
+        {{ role_default_permissions | tojson }};
+    window.lumsPermissionDefinitions =
+        {{ permission_definitions | tojson }};
+    window.lumsRoleDescriptions =
+        {{ role_descriptions | tojson }};
+</script>
 
 <script
     src="{{ url_for('static', filename='app.js') }}"

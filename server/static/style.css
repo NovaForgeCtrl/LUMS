@@ -5632,7 +5632,8 @@ html[data-theme="admin"] *::after {
 }
 
 .user-management-page .user-management-form input,
-.user-management-page .user-management-form select {
+.user-management-page .user-management-form select,
+.user-management-page .user-management-form textarea {
     box-sizing: border-box;
     width: 100%;
     min-height: 46px;
@@ -5648,12 +5649,14 @@ html[data-theme="admin"] *::after {
 }
 
 .user-management-page .user-management-form input:hover,
-.user-management-page .user-management-form select:hover {
+.user-management-page .user-management-form select:hover,
+.user-management-page .user-management-form textarea:hover {
     border-color: var(--users-accent);
 }
 
 .user-management-page .user-management-form input:focus-visible,
-.user-management-page .user-management-form select:focus-visible {
+.user-management-page .user-management-form select:focus-visible,
+.user-management-page .user-management-form textarea:focus-visible {
     outline: 2px solid transparent;
     border-color: var(--users-accent);
     box-shadow: 0 0 0 3px color-mix(in srgb, var(--users-accent) 22%, transparent);
@@ -5664,9 +5667,191 @@ html[data-theme="admin"] *::after {
     opacity: 0.5;
 }
 
+.user-management-page .role-template-description {
+    margin: 0.45rem 0 0;
+    max-width: 60ch;
+    color: inherit;
+    font-size: 0.86rem;
+    line-height: 1.5;
+    opacity: 0.86;
+}
+
+.user-management-page .role-template-list {
+    display: grid;
+    gap: 0.45rem;
+    margin: 0.65rem 0 0;
+    padding: 0;
+    list-style: none;
+    font-size: 0.82rem;
+    line-height: 1.45;
+}
+
+.user-management-page .role-template-list li {
+    display: grid;
+    grid-template-columns: 7.5rem minmax(0, 1fr);
+    gap: 0.5rem;
+}
+
+.user-management-page .role-template-list strong {
+    font-weight: 700;
+}
+
+.user-management-page .permission-editor > label {
+    display: inline-block;
+    margin-bottom: 0.5rem;
+    font-weight: 650;
+}
+
+.user-management-page .permission-editor > .button {
+    margin-top: 0.75rem;
+}
+
 .user-management-page .user-management-form .form-group .panel-description {
     margin-top: 0;
     font-size: 0.82rem;
+}
+
+.user-management-page .permission-picker {
+    grid-column: 1 / -1;
+    min-width: 0;
+    margin: 0;
+    padding: 1rem;
+    border: 1px solid var(--users-border);
+    border-radius: 10px;
+}
+
+.user-management-page .permission-picker legend {
+    padding: 0 0.35rem;
+    font-weight: 650;
+}
+
+.user-management-page .permission-picker > .panel-description {
+    margin: 0 0 0.85rem;
+    font-size: 0.85rem;
+}
+
+.user-management-page .permission-options {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.7rem 1rem;
+}
+
+.user-management-page .permission-option {
+    display: flex;
+    min-width: 0;
+    align-items: flex-start;
+    gap: 0.65rem;
+    font-size: 0.88rem;
+    line-height: 1.45;
+}
+
+.user-management-page .permission-option input {
+    width: 1rem;
+    min-width: 1rem;
+    height: 1rem;
+    min-height: 1rem;
+    margin: 0.15rem 0 0;
+    accent-color: var(--users-accent);
+}
+
+.user-management-page .permission-option input:focus-visible {
+    outline: 2px solid var(--users-accent);
+    outline-offset: 3px;
+}
+
+.user-management-page .permission-editor-row > td {
+    padding: 0;
+    background: rgb(127 127 127 / 4%);
+}
+
+.user-management-page .permission-editor {
+    padding: 1rem 1.1rem 1.25rem;
+}
+
+.user-management-page .permission-editor .permission-picker {
+    margin: 0.85rem 0;
+}
+
+.user-management-page .permission-editor select {
+    min-height: 40px;
+    padding: 0.5rem 0.75rem;
+    color: inherit;
+    background: var(--input-background, var(--users-surface));
+    border: 1px solid var(--users-border);
+    border-radius: 8px;
+}
+
+.user-management-page .permission-editor-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.65rem;
+}
+
+.user-management-page .admin-note-section {
+    display: grid;
+    gap: 0.55rem;
+    max-width: 48rem;
+    margin: 1.25rem 0;
+    padding-top: 1rem;
+    border-top: 1px solid var(--users-border);
+}
+
+.user-management-page .admin-note-section label {
+    font-weight: 650;
+}
+
+.user-management-page .admin-note-section .panel-description {
+    margin: 0;
+    font-size: 0.84rem;
+}
+
+.user-management-page .admin-note-section textarea {
+    width: 100%;
+    min-height: 6rem;
+    padding: 0.75rem 0.85rem;
+    resize: vertical;
+    color: inherit;
+    background: var(--users-surface);
+    border: 1px solid var(--users-border);
+    border-radius: 8px;
+    font: inherit;
+    line-height: 1.5;
+}
+
+.user-management-page .admin-note-section textarea:focus-visible {
+    outline: 2px solid var(--users-accent);
+    outline-offset: 2px;
+}
+
+.user-management-page .admin-note-status {
+    min-height: 1.25em;
+    margin: 0;
+    font-size: 0.85rem;
+}
+
+.user-management-page .admin-note-status[data-state="success"] {
+    color: #166534;
+}
+
+.user-management-page .admin-note-status[data-state="error"] {
+    color: #991b1b;
+}
+
+html[data-theme="LUMSStadium"] .user-management-page .admin-note-status[data-state="success"],
+html[data-theme="nerd"] .user-management-page .admin-note-status[data-state="success"],
+html[data-theme="geek"] .user-management-page .admin-note-status[data-state="success"] {
+    color: #bbf7d0;
+}
+
+html[data-theme="LUMSStadium"] .user-management-page .admin-note-status[data-state="error"],
+html[data-theme="nerd"] .user-management-page .admin-note-status[data-state="error"],
+html[data-theme="geek"] .user-management-page .admin-note-status[data-state="error"] {
+    color: #fecaca;
+}
+
+.user-management-page .permission-editor-error:not([hidden]) {
+    margin: 0.75rem 0;
+    color: #fecaca;
 }
 
 .user-management-page #create-user-error:not([hidden]) {
@@ -5788,7 +5973,16 @@ html[data-theme="admin"] *::after {
     }
 
     .user-management-page .user-list-table {
-        min-width: 420px;
+        min-width: 640px;
+    }
+
+    .user-management-page .permission-options {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .user-management-page .role-template-list li {
+        grid-template-columns: minmax(0, 1fr);
+        gap: 0.1rem;
     }
 
     .user-management-page #create-user-button {
@@ -6050,4 +6244,159 @@ html[data-theme="geek"] .user-management-page #create-user-error:not([hidden]) {
 html[data-theme="standard"] .user-management-page .user-list-table tbody td,
 html:not([data-theme]) .user-management-page .user-list-table tbody td {
     color: #111827;
+}
+
+.user-management-page .permission-picker {
+    background: rgb(127 127 127 / 3%);
+}
+
+.user-management-page .permission-option {
+    min-height: 46px;
+    align-items: center;
+    padding: 0.7rem 0.8rem;
+    border: 1px solid var(--users-border);
+    border-radius: 8px;
+    cursor: pointer;
+    transition:
+        background-color 150ms ease,
+        border-color 150ms ease,
+        box-shadow 150ms ease;
+}
+
+.user-management-page .permission-option:hover {
+    border-color: var(--users-accent);
+}
+
+.user-management-page .permission-option:focus-within {
+    outline: 2px solid var(--users-accent);
+    outline-offset: 2px;
+}
+
+.user-management-page .permission-option:has(input:checked) {
+    background: color-mix(
+        in srgb,
+        var(--users-accent) 10%,
+        var(--users-surface)
+    );
+    border-color: var(--users-accent);
+}
+
+.user-management-page .permission-option input {
+    width: 1.1rem;
+    min-width: 1.1rem;
+    height: 1.1rem;
+    min-height: 1.1rem;
+    margin: 0;
+}
+
+.user-management-page .permission-editor select {
+    min-width: min(100%, 16rem);
+}
+
+.user-management-page .permission-editor-error:not([hidden]) {
+    padding: 0.75rem 0.9rem;
+    color: #991b1b;
+    background: #fef2f2;
+    border: 1px solid #fecaca;
+    border-radius: 8px;
+}
+
+.user-management-page .user-list-table th:nth-child(3),
+.user-management-page .user-list-table td:nth-child(3) {
+    min-width: 18rem;
+}
+
+.user-management-page .user-list-table td:last-child {
+    white-space: nowrap;
+}
+
+.user-management-page .user-list-table td:last-child button + button {
+    margin-left: 0.35rem;
+}
+
+.user-role-badge,
+.user-status-badge,
+.user-role-customized,
+.permission-chip {
+    display: inline-flex;
+    align-items: center;
+    width: fit-content;
+    border: 1px solid var(--users-border);
+    border-radius: 999px;
+    font-size: 0.78rem;
+    font-weight: 650;
+    line-height: 1.3;
+}
+
+.user-role-badge,
+.user-status-badge,
+.user-role-customized {
+    padding: 0.3rem 0.6rem;
+    white-space: nowrap;
+}
+
+.user-role-badge {
+    background: rgb(127 127 127 / 8%);
+}
+
+.user-role-customized {
+    margin-left: 0.4rem;
+    color: var(--users-accent);
+    background: color-mix(
+        in srgb,
+        var(--users-accent) 10%,
+        var(--users-surface)
+    );
+}
+
+.permission-chip-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+}
+
+.permission-chip {
+    padding: 0.3rem 0.55rem;
+    background: rgb(127 127 127 / 7%);
+}
+
+.permission-empty {
+    color: inherit;
+    opacity: 0.72;
+}
+
+.user-status-badge--active {
+    color: #166534;
+    background: #f0fdf4;
+    border-color: #bbf7d0;
+}
+
+.user-status-badge--disabled {
+    color: #4b5563;
+    background: #f3f4f6;
+    border-color: #d1d5db;
+}
+
+html[data-theme="LUMSStadium"] .user-status-badge--active,
+html[data-theme="nerd"] .user-status-badge--active,
+html[data-theme="geek"] .user-status-badge--active {
+    color: #bbf7d0;
+    background: rgb(34 197 94 / 12%);
+    border-color: rgb(74 222 128 / 35%);
+}
+
+html[data-theme="LUMSStadium"] .user-status-badge--disabled,
+html[data-theme="nerd"] .user-status-badge--disabled,
+html[data-theme="geek"] .user-status-badge--disabled {
+    color: #d1d5db;
+    background: rgb(156 163 175 / 12%);
+    border-color: rgb(156 163 175 / 30%);
+}
+
+html[data-theme="LUMSStadium"] .permission-editor-error:not([hidden]),
+html[data-theme="nerd"] .permission-editor-error:not([hidden]),
+html[data-theme="geek"] .permission-editor-error:not([hidden]) {
+    color: #fecaca;
+    background: rgb(220 38 38 / 14%);
+    border-color: rgb(248 113 113 / 45%);
 }
