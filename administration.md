@@ -462,12 +462,15 @@ The interface supports native `.db` and compressed `.db.gz` files. It uses
 SQLite's online backup API, validates the completed database, and stores files
 with owner-only permissions. The UI lists the ten newest files. Backups are
 not encrypted, automatically deleted, scheduled, downloaded, or restored by
-LUMS; protect the destination accordingly.
+LUMS; administrators with `backups.manage` can delete individual backups from
+the list after confirmation. Protect the destination accordingly.
 
-The target directory is fixed by the server-side `LUMS_BACKUP_DIR` setting;
-administrators cannot enter arbitrary filesystem paths in the browser. For a
-Docker deployment, create a separate host directory writable by the
-container's UID/GID `10001`, then mount it and set the environment variable:
+The base target directory is fixed by the server-side `LUMS_BACKUP_DIR`
+setting. The interface allows choosing a relative subdirectory beneath this
+base and creates it when needed; absolute paths, parent traversal, and
+symlinked subdirectories are rejected. Host paths must be mounted into Docker
+by the server administrator. For a Docker deployment, create a separate host
+directory writable by the container's UID/GID `10001`:
 
 ```bash
 sudo install -d -o 10001 -g 10001 -m 0700 /srv/lums-backups
@@ -481,8 +484,13 @@ Add these options to the LUMS container configuration:
 ```
 
 Use a separate disk or remote storage for resilience against host failure.
+For example, mount a NAS on the Debian host first, then use that mounted path
+as the left side of the Docker bind mount. The backup UI displays the
+container-side base directory; the selected relative path is beneath it.
 The backup destination must be available and writable inside the container;
 otherwise the interface reports that backup storage is unavailable.
+
+For restore steps, see [`server/static/backup-restore.md`](server/static/backup-restore.md).
 
 ---
 

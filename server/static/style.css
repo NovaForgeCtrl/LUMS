@@ -6018,6 +6018,92 @@ html[data-theme="geek"] .user-management-page .admin-note-status[data-state="err
     overflow-wrap: anywhere;
 }
 
+.backup-location {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 0.9rem;
+}
+
+.backup-location > div {
+    display: grid;
+    gap: 0.3rem;
+    min-width: 0;
+}
+
+.backup-location code,
+.backup-location span {
+    overflow-wrap: anywhere;
+}
+
+.backup-delete-button {
+    padding: 0.45rem 0.7rem;
+    background: #b42318;
+}
+
+.backup-delete-button:hover {
+    background: #8f1d14;
+}
+
+.backup-location-dialog {
+    width: min(32rem, calc(100vw - 2rem));
+    padding: 1.4rem;
+    color: inherit;
+    background: Canvas;
+    border: 1px solid color-mix(in srgb, currentColor 25%, transparent);
+    border-radius: 10px;
+}
+
+.backup-location-dialog::backdrop {
+    background: rgb(0 0 0 / 55%);
+}
+
+.backup-location-dialog form {
+    display: grid;
+    gap: 0.8rem;
+}
+
+.backup-location-dialog h2,
+.backup-location-dialog p {
+    margin: 0;
+}
+
+.backup-location-dialog label {
+    font-weight: 650;
+}
+
+.backup-location-dialog input {
+    width: 100%;
+    min-height: 44px;
+    padding: 0.65rem 0.75rem;
+    color: inherit;
+    background: transparent;
+    border: 1px solid color-mix(in srgb, currentColor 32%, transparent);
+    border-radius: 7px;
+    font: inherit;
+}
+
+.backup-location-dialog input:focus-visible {
+    outline: 2px solid currentColor;
+    outline-offset: 2px;
+}
+
+.backup-location-dialog .modal-actions {
+    display: flex;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+    gap: 0.6rem;
+    margin-top: 0.5rem;
+}
+
+.backup-location-error:not([hidden]) {
+    font-weight: 650;
+    text-decoration: underline;
+    text-decoration-color: color-mix(in srgb, currentColor 45%, transparent);
+    text-underline-offset: 0.2em;
+}
+
 .backup-create-form {
     display: flex;
     align-items: end;
@@ -6094,6 +6180,15 @@ html[data-theme="geek"] .user-management-page .admin-note-status[data-state="err
     .backup-create-form .form-group,
     .backup-create-form button {
         width: 100%;
+    }
+
+    .backup-location {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .backup-location-dialog .modal-actions button {
+        flex: 1 1 100%;
     }
 }
 

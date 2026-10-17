@@ -1645,10 +1645,10 @@ def test_administrator_can_create_and_list_database_backups(
             headers={"X-CSRF-Token": "pytest-csrf-token"},
             json={
                 "format": "db",
-                "path": str(tmp_path / "untrusted-path"),
+                "path": "nas/manual",
             },
         )
-        backups_response = client.get("/api/backups")
+        backups_response = client.get("/api/backups?path=nas/manual")
         page_response = client.get("/backups")
 
     assert response.status_code == 201
@@ -1661,11 +1661,16 @@ def test_administrator_can_create_and_list_database_backups(
     )
     assert page_response.status_code == 200
     assert b'id="create-backup-button"' in page_response.data
+    assert b'id="backup-location-dialog"' in page_response.data
+    assert b'id="backup-relative-path"' in page_response.data
+    assert b'id="delete-backup-dialog"' in page_response.data
+    assert b'id="confirm-delete-backup-button"' in page_response.data
     assert b"Vorhandene Backups" in page_response.data
+    assert b"backup-restore.md" in page_response.data
     assert b'name="path"' not in page_response.data
 
     connection = sqlite3.connect(
-        backup_directory / backup["filename"]
+        backup_directory / "nas" / "manual" / backup["filename"]
     )
     assert connection.execute(
         "PRAGMA integrity_check"
@@ -1680,6 +1685,36 @@ def test_administrator_can_create_and_list_database_backups(
         "SELECT action FROM audit_log"
     ).fetchone()[0] == "database.backup.create"
     connection.close()
+
+    with app.test_client() as client:
+        login_as(client, 1, "administrator")
+        with client.session_transaction() as session:
+            session["csrf_token"] = "pytest-csrf-token"
+
+        delete_response = client.delete(
+            f"/api/backups/{backup['filename']}?path=nas/manual",
+            headers={"X-CSRF-Token": "pytest-csrf-token"},
+        )
+        after_delete_response = client.get(
+            "/api/backups?path=nas/manual"
+        )
+
+    assert delete_response.status_code == 200
+    assert delete_response.get_json() == {
+        "status": "deleted",
+        "filename": backup["filename"],
+    }
+    assert after_delete_response.get_json()["backups"] == []
+
+    connection = sqlite3.connect(db_path)
+    audit_actions = connection.execute(
+        "SELECT action FROM audit_log ORDER BY id"
+    ).fetchall()
+    connection.close()
+    assert audit_actions == [
+        ("database.backup.create",),
+        ("database.backup.delete",),
+    ]
 
 
 def test_database_backup_requires_explicit_permission_and_supports_delegation(
@@ -1705,9 +1740,14 @@ def test_database_backup_requires_explicit_permission_and_supports_delegation(
         login_as(client, 2, "operator")
         page_response = client.get("/backups")
         api_response = client.get("/api/backups")
+        delete_response = client.delete(
+            "/api/backups/lums-backup-20261017T000000.000000Z-0123456789abcdef.db",
+            headers={"X-CSRF-Token": "pytest-csrf-token"},
+        )
 
     assert page_response.status_code == 403
     assert api_response.status_code == 403
+    assert delete_response.status_code == 403
 
     connection = sqlite3.connect(db_path)
     connection.execute(
@@ -1759,6 +1799,41 @@ def test_database_backup_rejects_invalid_format(
     assert response.get_json() == {
         "error": "invalid_backup_format",
     }
+
+
+def test_database_backup_rejects_parent_path_traversal(
+    monkeypatch,
+    tmp_path,
+):
+    from server import app as app_module
+
+    db_path = str(tmp_path / "backup-path-traversal.db")
+    backup_directory = tmp_path / "backups"
+    backup_directory.mkdir()
+    create_rbac_database(db_path)
+    app = configure_real_app_session_user(
+        monkeypatch,
+        app_module,
+        db_path,
+        1,
+        "administrator",
+    )
+    app.config["LUMS_BACKUP_DIR"] = backup_directory
+    monkeypatch.setattr(app_module, "DB_PATH", db_path)
+
+    with app.test_client() as client:
+        login_as(client, 1, "administrator")
+        with client.session_transaction() as session:
+            session["csrf_token"] = "pytest-csrf-token"
+
+        response = client.post(
+            "/api/backups",
+            headers={"X-CSRF-Token": "pytest-csrf-token"},
+            json={"format": "db", "path": "../outside"},
+        )
+
+    assert response.status_code == 400
+    assert response.get_json()["error"] == "invalid_backup_path"
 
 
 @pytest.mark.parametrize(

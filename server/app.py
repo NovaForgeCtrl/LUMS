@@ -58,8 +58,10 @@ from security import (
 )
 from database_backup import (
     BACKUP_FORMATS,
+    BackupPathError,
     BackupStorageError,
     create_database_backup,
+    delete_database_backup,
     list_database_backups,
 )
 
@@ -657,7 +659,7 @@ def backups_page():
     return render_template(
         "backups.html",
         csrf_token=get_csrf_token(),
-        backup_directory=str(BACKUP_DIRECTORY),
+        backup_root=str(BACKUP_DIRECTORY),
     )
 
 
@@ -670,10 +672,17 @@ def backups_page():
     permission="backups.manage",
 )
 def list_backups():
+    relative_path = request.args.get("path", "")
     try:
         backups = list_database_backups(
-            app.config.get("LUMS_BACKUP_DIR", BACKUP_DIRECTORY)
+            app.config.get("LUMS_BACKUP_DIR", BACKUP_DIRECTORY),
+            relative_path=relative_path,
         )
+    except BackupPathError as error:
+        return jsonify({
+            "error": "invalid_backup_path",
+            "message": str(error),
+        }), 400
     except BackupStorageError as error:
         return jsonify({
             "error": "backup_storage_unavailable",
@@ -707,12 +716,22 @@ def create_backup():
     ):
         return jsonify({"error": "invalid_backup_format"}), 400
 
+    relative_path = data.get("path", "")
+    if not isinstance(relative_path, str):
+        return jsonify({"error": "invalid_backup_path"}), 400
+
     try:
         backup = create_database_backup(
             DB_PATH,
             app.config.get("LUMS_BACKUP_DIR", BACKUP_DIRECTORY),
             backup_format,
+            relative_path=relative_path,
         )
+    except BackupPathError as error:
+        return jsonify({
+            "error": "invalid_backup_path",
+            "message": str(error),
+        }), 400
     except BackupStorageError as error:
         return jsonify({
             "error": "backup_storage_unavailable",
@@ -754,6 +773,67 @@ def create_backup():
             connection.close()
 
     return jsonify({"backup": backup}), 201
+
+
+@app.route("/api/backups/<filename>", methods=["DELETE"])
+@login_required
+@role_required(
+    ROLE_ADMINISTRATOR,
+    ROLE_OPERATOR,
+    ROLE_VIEWER,
+    permission="backups.manage",
+)
+@csrf_required
+def delete_backup(filename):
+    relative_path = request.args.get("path", "")
+
+    try:
+        delete_database_backup(
+            app.config.get("LUMS_BACKUP_DIR", BACKUP_DIRECTORY),
+            filename,
+            relative_path=relative_path,
+        )
+    except BackupPathError as error:
+        return jsonify({
+            "error": "invalid_backup_path",
+            "message": str(error),
+        }), 400
+    except FileNotFoundError:
+        return jsonify({"error": "backup_not_found"}), 404
+    except BackupStorageError as error:
+        return jsonify({
+            "error": "backup_storage_unavailable",
+            "message": str(error),
+        }), 503
+    except OSError:
+        logger.exception("Unable to delete LUMS backup %s.", filename)
+        return jsonify({"error": "backup_delete_failed"}), 500
+
+    connection = None
+    try:
+        connection = get_connection()
+        audit_log(
+            connection,
+            actor_type="user",
+            actor_id=current_user_id(),
+            action="database.backup.delete",
+            target=filename,
+            result="success",
+        )
+        connection.commit()
+    except sqlite3.Error:
+        if connection is not None:
+            connection.rollback()
+        logger.exception(
+            "Backup %s was deleted, but its audit entry failed.",
+            filename,
+        )
+        return jsonify({"error": "backup_audit_failed"}), 500
+    finally:
+        if connection is not None:
+            connection.close()
+
+    return jsonify({"status": "deleted", "filename": filename})
 
 
 @app.route("/client")

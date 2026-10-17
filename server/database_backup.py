@@ -7,6 +7,7 @@ import tempfile
 from contextlib import closing
 from datetime import datetime, timezone
 from pathlib import Path
+from pathlib import PurePosixPath
 from secrets import token_hex
 
 
@@ -18,6 +19,71 @@ BACKUP_FILENAME_PATTERN = re.compile(
 
 class BackupStorageError(Exception):
     pass
+
+
+class BackupPathError(BackupStorageError):
+    pass
+
+
+def resolve_backup_directory(root_directory, relative_path="", create=False):
+    if (
+        not isinstance(relative_path, str)
+        or len(relative_path) > 512
+        or "\x00" in relative_path
+        or "\\" in relative_path
+    ):
+        raise BackupPathError("Ungültiger Backup-Unterordner.")
+
+    relative = PurePosixPath(relative_path or ".")
+    if relative.is_absolute() or ".." in relative.parts:
+        raise BackupPathError("Ungültiger Backup-Unterordner.")
+
+    root = Path(root_directory)
+    if not root.is_dir():
+        raise BackupStorageError(
+            "Backup-Zielordner fehlt oder ist kein Verzeichnis."
+        )
+
+    root = root.resolve(strict=True)
+    directory = root
+
+    for part in relative.parts:
+        if part in {"", "."}:
+            continue
+
+        directory = directory / part
+        if directory.is_symlink():
+            raise BackupPathError(
+                "Backup-Unterordner darf keine symbolischen Links enthalten."
+            )
+
+        if not directory.exists():
+            if not create:
+                raise BackupStorageError(
+                    "Backup-Unterordner ist nicht vorhanden."
+                )
+            try:
+                directory.mkdir(mode=0o700)
+            except FileExistsError:
+                if directory.is_symlink() or not directory.is_dir():
+                    raise BackupPathError(
+                        "Ungültiger Backup-Unterordner."
+                    )
+
+        if not directory.is_dir():
+            raise BackupPathError(
+                "Backup-Unterordner ist kein Verzeichnis."
+            )
+
+    try:
+        directory.resolve(strict=True).relative_to(root)
+    except (OSError, ValueError) as error:
+        raise BackupPathError(
+            "Backup-Unterordner muss innerhalb des Speicherziels liegen."
+        ) from error
+
+    _require_backup_directory(directory)
+    return directory
 
 
 def _require_backup_directory(directory):
@@ -36,8 +102,11 @@ def _require_backup_directory(directory):
     return directory
 
 
-def list_database_backups(directory, limit=10):
-    directory = _require_backup_directory(directory)
+def list_database_backups(directory, limit=10, relative_path=""):
+    directory = resolve_backup_directory(
+        directory,
+        relative_path=relative_path,
+    )
     backups = []
 
     for path in directory.iterdir():
@@ -65,11 +134,43 @@ def list_database_backups(directory, limit=10):
     return backups[:limit]
 
 
-def create_database_backup(database_path, directory, backup_format):
+def delete_database_backup(directory, filename, relative_path=""):
+    if (
+        not isinstance(filename, str)
+        or not BACKUP_FILENAME_PATTERN.fullmatch(filename)
+    ):
+        raise BackupPathError("Ungültiger Backup-Dateiname.")
+
+    directory = resolve_backup_directory(
+        directory,
+        relative_path=relative_path,
+    )
+    backup_path = directory / filename
+
+    if backup_path.is_symlink():
+        raise BackupPathError("Backup-Datei darf kein symbolischer Link sein.")
+
+    if not backup_path.is_file():
+        raise FileNotFoundError("Backup-Datei nicht gefunden.")
+
+    backup_path.unlink()
+    return filename
+
+
+def create_database_backup(
+    database_path,
+    directory,
+    backup_format,
+    relative_path="",
+):
     if backup_format not in BACKUP_FORMATS:
         raise ValueError("Unsupported database backup format.")
 
-    directory = _require_backup_directory(directory)
+    directory = resolve_backup_directory(
+        directory,
+        relative_path=relative_path,
+        create=True,
+    )
     timestamp = datetime.now(timezone.utc).strftime(
         "%Y%m%dT%H%M%S.%fZ"
     )
