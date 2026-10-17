@@ -10,10 +10,16 @@ from getpass import getpass
 from argon2 import PasswordHasher
 from argon2.exceptions import HashingError
 
+if __package__:
+    from .security import ROLE_DEFAULT_PERMISSIONS
+else:
+    from security import ROLE_DEFAULT_PERMISSIONS
+
 
 DEFAULT_DB_PATH = "/var/lib/lums/lums.db"
 MIGRATION_VERSION = "001-security-foundation"
 RBAC_MIGRATION_VERSION = "002-rbac"
+PERMISSIONS_MIGRATION_VERSION = "003-user-permissions"
 
 
 def utc_now():
@@ -94,6 +100,38 @@ def migrate_rbac(connection):
         "role",
         "TEXT NOT NULL DEFAULT 'administrator'"
     )
+
+
+def migrate_user_permissions(connection):
+    connection.execute("""
+        CREATE TABLE IF NOT EXISTS user_permissions (
+            user_id INTEGER NOT NULL,
+            permission TEXT NOT NULL,
+            PRIMARY KEY (user_id, permission),
+            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+        )
+    """)
+
+    users = connection.execute(
+        "SELECT id, role FROM users"
+    ).fetchall()
+
+    for user in users:
+        permissions = ROLE_DEFAULT_PERMISSIONS.get(
+            user[1],
+            ROLE_DEFAULT_PERMISSIONS["viewer"],
+        )
+
+        connection.executemany(
+            """
+            INSERT OR IGNORE INTO user_permissions (user_id, permission)
+            VALUES (?, ?)
+            """,
+            [
+                (user[0], permission)
+                for permission in permissions
+            ],
+        )
 
 
 def migrate_clients(connection):
@@ -224,6 +262,7 @@ def print_schema(connection):
 
     for table in (
         "users",
+        "user_permissions",
         "audit_log",
         "schema_migrations"
     ):
@@ -330,6 +369,29 @@ def run_migration(db_path, admin_username, skip_admin):
             print()
             print(
                 f"[OK] Migration {RBAC_MIGRATION_VERSION} completed"
+            )
+
+        if migration_already_applied(
+            connection,
+            PERMISSIONS_MIGRATION_VERSION
+        ):
+            print(
+                f"[INFO] Migration {PERMISSIONS_MIGRATION_VERSION} "
+                "is already recorded"
+            )
+        else:
+            migrate_user_permissions(connection)
+
+            record_migration(
+                connection,
+                PERMISSIONS_MIGRATION_VERSION
+            )
+
+            connection.commit()
+
+            print()
+            print(
+                f"[OK] Migration {PERMISSIONS_MIGRATION_VERSION} completed"
             )
 
         print_schema(connection)

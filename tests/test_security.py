@@ -409,6 +409,31 @@ def create_report_test_database(db_path):
 
     connection.execute(
         """
+        CREATE TABLE available_updates (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            client_id INTEGER NOT NULL,
+            package TEXT NOT NULL,
+            installed_version TEXT,
+            available_version TEXT NOT NULL,
+            UNIQUE(client_id, package)
+        )
+        """
+    )
+
+    connection.execute(
+        """
+        CREATE TABLE installed_packages (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            client_id INTEGER NOT NULL,
+            package TEXT NOT NULL,
+            version TEXT NOT NULL,
+            UNIQUE(client_id, package)
+        )
+        """
+    )
+
+    connection.execute(
+        """
         INSERT INTO clients (
             hostname,
             last_seen,
@@ -510,20 +535,8 @@ def test_report_accepts_valid_json(monkeypatch, tmp_path):
 
     monkeypatch.setattr(
         app,
-        "save_client",
-        lambda client_id, data: client_id,
-    )
-
-    monkeypatch.setattr(
-        app,
-        "save_updates",
-        lambda client_id, updates: None,
-    )
-
-    monkeypatch.setattr(
-        app,
-        "save_packages",
-        lambda client_id, packages: None,
+        "get_connection",
+        get_test_connection,
     )
 
     client = app.app.test_client()
@@ -536,8 +549,18 @@ def test_report_accepts_valid_json(monkeypatch, tmp_path):
         json={
             "hostname": "test-client",
             "ip": "192.168.2.141",
-            "updates": [],
-            "packages": {},
+            "os": "Linux",
+            "kernel": "6.12.0",
+            "architecture": "x86_64",
+            "agent_version": "1.7.0",
+            "updates": [
+                {
+                    "package": "curl",
+                    "installed_version": "8.10.1",
+                    "available_version": "8.11.0",
+                },
+            ],
+            "packages": {"bash": "5.2.37"},
         },
     )
 
@@ -545,6 +568,177 @@ def test_report_accepts_valid_json(monkeypatch, tmp_path):
     assert response.get_json() == {
         "status": "received",
     }
+
+    connection = get_test_connection()
+    assert connection.execute(
+        "SELECT hostname FROM clients WHERE id = 1"
+    ).fetchone()[0] == "test-client"
+    assert connection.execute(
+        "SELECT package, available_version FROM available_updates"
+    ).fetchone()[:] == ("curl", "8.11.0")
+    assert connection.execute(
+        "SELECT package, version FROM installed_packages"
+    ).fetchone()[:] == ("bash", "5.2.37")
+    connection.close()
+
+
+@pytest.mark.parametrize(
+    "field,value",
+    [
+        ("updates", {}),
+        ("updates", ["not-an-update"]),
+        ("updates", [{"package": "curl", "available_version": []}]),
+        ("packages", []),
+        ("packages", {"bash": []}),
+        ("idle", "yes"),
+    ],
+)
+def test_report_rejects_invalid_fields_without_saving(
+    monkeypatch,
+    tmp_path,
+    field,
+    value,
+):
+    from server import app
+
+    db_path = str(tmp_path / "invalid-report-test.db")
+    create_report_test_database(db_path)
+
+    def get_test_connection():
+        connection = sqlite3.connect(db_path)
+        connection.row_factory = sqlite3.Row
+        return connection
+
+    monkeypatch.setitem(
+        app.app.config,
+        "LUMS_GET_CONNECTION",
+        get_test_connection,
+    )
+    monkeypatch.setattr(app, "get_connection", get_test_connection)
+
+    payload = {
+        "hostname": "test-client",
+        "ip": "192.168.2.141",
+        "os": "Linux",
+        "kernel": "6.12.0",
+        "architecture": "x86_64",
+        "agent_version": "1.7.0",
+        "updates": [],
+        "packages": {},
+    }
+    payload[field] = value
+
+    response = app.app.test_client().post(
+        "/api/report",
+        headers={"Authorization": "Bearer pytest-client-token"},
+        json=payload,
+    )
+
+    assert response.status_code == 400
+    assert response.get_json() == {
+        "status": "error",
+        "message": "Invalid client report data",
+    }
+
+    connection = get_test_connection()
+    assert connection.execute(
+        "SELECT hostname FROM clients WHERE id = 1"
+    ).fetchone()[0] == "pytest-client"
+    assert connection.execute(
+        "SELECT COUNT(*) FROM available_updates"
+    ).fetchone()[0] == 0
+    assert connection.execute(
+        "SELECT COUNT(*) FROM installed_packages"
+    ).fetchone()[0] == 0
+    connection.close()
+
+
+def test_report_rolls_back_all_changes_when_persistence_fails(
+    monkeypatch,
+    tmp_path,
+):
+    from server import app
+
+    db_path = str(tmp_path / "report-rollback-test.db")
+    create_report_test_database(db_path)
+
+    connection = sqlite3.connect(db_path)
+    connection.execute(
+        """
+        INSERT INTO available_updates (
+            client_id, package, installed_version, available_version
+        )
+        VALUES (1, 'old-update', '1.0', '2.0')
+        """
+    )
+    connection.execute(
+        """
+        INSERT INTO installed_packages (client_id, package, version)
+        VALUES (1, 'old-package', '1.0')
+        """
+    )
+    connection.execute(
+        """
+        CREATE TRIGGER reject_package_insert
+        BEFORE INSERT ON installed_packages
+        BEGIN
+            SELECT RAISE(ABORT, 'test persistence failure');
+        END
+        """
+    )
+    connection.commit()
+    connection.close()
+
+    def get_test_connection():
+        connection = sqlite3.connect(db_path)
+        connection.row_factory = sqlite3.Row
+        return connection
+
+    monkeypatch.setitem(
+        app.app.config,
+        "LUMS_GET_CONNECTION",
+        get_test_connection,
+    )
+    monkeypatch.setattr(app, "get_connection", get_test_connection)
+
+    response = app.app.test_client().post(
+        "/api/report",
+        headers={"Authorization": "Bearer pytest-client-token"},
+        json={
+            "hostname": "updated-client",
+            "ip": "192.168.2.141",
+            "os": "Linux",
+            "kernel": "6.12.0",
+            "architecture": "x86_64",
+            "agent_version": "1.7.0",
+            "updates": [
+                {
+                    "package": "new-update",
+                    "installed_version": "1.0",
+                    "available_version": "2.0",
+                },
+            ],
+            "packages": {"new-package": "2.0"},
+        },
+    )
+
+    assert response.status_code == 500
+    assert response.get_json() == {
+        "status": "error",
+        "message": "Failed to save client report",
+    }
+
+    connection = get_test_connection()
+    assert connection.execute(
+        "SELECT hostname FROM clients WHERE id = 1"
+    ).fetchone()[0] == "pytest-client"
+    assert connection.execute(
+        "SELECT package FROM available_updates"
+    ).fetchone()[0] == "old-update"
+    assert connection.execute(
+        "SELECT package FROM installed_packages"
+    ).fetchone()[0] == "old-package"
+    connection.close()
 
 
 def test_get_ip_uses_route_source(monkeypatch):

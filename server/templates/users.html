@@ -144,7 +144,7 @@
                 <div class="form-group">
 
                     <label for="create-user-role">
-                        Rolle
+                        Rollen-Vorlage
                     </label>
 
                     <select
@@ -169,6 +169,17 @@
 
                 </div>
 
+                <fieldset class="permission-picker">
+                    <legend>Berechtigungen</legend>
+                    <p class="panel-description">
+                        Die Rolle aktiviert passende Startrechte. Passe sie danach
+                        für diesen Benutzer an.
+                    </p>
+                    <div
+                        id="create-user-permissions"
+                        class="permission-options"
+                    ></div>
+                </fieldset>
 
                 <div
                     id="create-user-error"
@@ -202,7 +213,7 @@
                     <h3>Benutzer</h3>
 
                     <div class="panel-description">
-                        Vorhandene Benutzerkonten und deren Rollen
+                        Vorhandene Benutzerkonten, Rollen und individuelle Rechte
                     </div>
                 </div>
 
@@ -229,6 +240,7 @@
                         <tr>
                             <th>Benutzername</th>
                             <th>Rolle</th>
+                            <th>Berechtigungen</th>
                             <th>Status</th>
                             <th>Aktion</th>
                         </tr>
@@ -246,6 +258,12 @@
 
 </main>
 
+<script>
+    window.lumsRoleDefaultPermissions =
+        {{ role_default_permissions | tojson }};
+    window.lumsPermissionDefinitions =
+        {{ permission_definitions | tojson }};
+</script>
 
 <script
     src="{{ url_for('static', filename='app.js') }}"

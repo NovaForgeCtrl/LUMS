@@ -38,21 +38,23 @@
                 –
             </div>
 
-            <button
-                type="button"
-                id="rotate-client-token-button"
-                class="button button-primary"
-            >
-                🔐 Token rotieren
-            </button>
+            {% if "clients.manage" in user_permissions %}
+                <button
+                    type="button"
+                    id="rotate-client-token-button"
+                    class="button button-primary"
+                >
+                    🔐 Token rotieren
+                </button>
 
-            <button
-                type="button"
-                id="delete-client-button"
-                class="button button-danger"
-            >
-                🗑️ Client entfernen
-            </button>
+                <button
+                    type="button"
+                    id="delete-client-button"
+                    class="button button-danger"
+                >
+                    🗑️ Client entfernen
+                </button>
+            {% endif %}
 
         </div>
 
@@ -60,6 +62,7 @@
 
 
     <!-- Token Rotation Result -->
+    {% if "clients.manage" in user_permissions %}
     <section
         id="token-rotation-result"
         class="panel token-rotation-result"
@@ -100,20 +103,25 @@
         </div>
 
     </section>
+    {% endif %}
 
 
     <!-- Statistics -->
     <section class="stats-grid">
 
+        {% if "software.view" in user_permissions %}
         <div class="stat-card">
             <div class="stat-label">Pakete</div>
             <div class="stat-value" id="package-count">–</div>
         </div>
+        {% endif %}
 
+        {% if "updates.view" in user_permissions %}
         <div class="stat-card">
             <div class="stat-label">Updates</div>
             <div class="stat-value" id="update-count">–</div>
         </div>
+        {% endif %}
 
         <div class="stat-card">
             <div class="stat-label">Kernel</div>
@@ -158,7 +166,7 @@
 
 
     <!-- Updates -->
-    {% if user_role != "viewer" %}
+    {% if "updates.view" in user_permissions %}
     <section class="panel">
 
         <div class="panel-header">
@@ -240,6 +248,7 @@
 
 
     <!-- Software -->
+    {% if "software.view" in user_permissions %}
     <section class="panel">
 
         <div class="panel-header software-header">
@@ -340,7 +349,7 @@
 
 
         <!-- Package Management -->
-        {% if user_role != "viewer" %}
+        {% if "packages.search" in user_permissions %}
         <details
             id="package-management"
             class="package-management-panel"
@@ -440,12 +449,14 @@
         {% endif %}
 
     </section>
+    {% endif %}
 
 </main>
 
 
 <script>
     window.lumsUserRole = {{ user_role | tojson }};
+    window.lumsUserPermissions = {{ user_permissions | tojson }};
 </script>
 <script src="/static/client.js"></script>
 <script src="{{ url_for('static', filename='network.js') }}"></script>

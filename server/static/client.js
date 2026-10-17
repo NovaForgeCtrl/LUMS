@@ -9,6 +9,10 @@ let updateHistory = [];
 let currentFilter = "system";
 let currentSearch = "";
 
+function userHasPermission(permission) {
+    return (window.lumsUserPermissions || []).includes(permission);
+}
+
 
 /*
  * HTML sicher ausgeben
@@ -243,6 +247,10 @@ function renderPackages() {
     const table = document.getElementById("packages-table");
     const count = document.getElementById("visible-package-count");
 
+    if (!table || !count) {
+        return;
+    }
+
     const packages = getFilteredPackages();
 
 
@@ -302,6 +310,7 @@ function renderUpdates() {
         return;
     }
 
+    const canManageJobs = userHasPermission("jobs.manage");
 
     /*
      * Systemstatus
@@ -334,6 +343,7 @@ function renderUpdates() {
     const updateList = updates.length
         ? `
 
+            ${canManageJobs ? `
             <div class="update-actions">
 
                 <button
@@ -361,6 +371,7 @@ function renderUpdates() {
                 </button>
 
             </div>
+            ` : ""}
 
 
             <div class="table-wrapper">
@@ -371,6 +382,7 @@ function renderUpdates() {
 
                         <tr>
 
+                            ${canManageJobs ? `
                             <th class="update-select-column">
                                 <input
                                     type="checkbox"
@@ -378,6 +390,7 @@ function renderUpdates() {
                                     title="Alle Updates auswählen"
                                 >
                             </th>
+                            ` : ""}
 
                             <th>Paket</th>
 
@@ -395,6 +408,7 @@ function renderUpdates() {
 
                             <tr>
 
+                                ${canManageJobs ? `
                                 <td>
 
                                     <input
@@ -404,6 +418,7 @@ function renderUpdates() {
                                     >
 
                                 </td>
+                                ` : ""}
 
                                 <td>
                                     <strong>
@@ -434,12 +449,12 @@ function renderUpdates() {
             </div>
 
 
-            <div
+            ${canManageJobs ? `<div
                 id="update-selection-info"
                 class="package-summary"
             >
                 0 Updates ausgewählt
-            </div>
+            </div>` : ""}
 
         `
         : "";
@@ -452,7 +467,7 @@ function renderUpdates() {
      * ob einzelne Updates verfügbar sind.
      */
     const systemMaintenance =
-        window.lumsUserRole === "viewer"
+        !canManageJobs
             ? ""
             : `
 
@@ -1231,12 +1246,21 @@ async function loadClient() {
             formatDate(client.last_seen);
 
 
-        document.getElementById("package-count").textContent =
-            client.package_count ?? "–";
+        const packageCount =
+            document.getElementById("package-count");
 
+        if (packageCount) {
+            packageCount.textContent =
+                client.package_count ?? "–";
+        }
 
-        document.getElementById("update-count").textContent =
-            client.update_count ?? "–";
+        const updateCount =
+            document.getElementById("update-count");
+
+        if (updateCount) {
+            updateCount.textContent =
+                client.update_count ?? "–";
+        }
 
 
         const status =
@@ -1340,15 +1364,16 @@ async function loadPackages() {
 
         console.error(error);
 
-        document.getElementById(
-            "packages-table"
-        ).innerHTML = `
-            <tr>
-                <td colspan="3" class="empty-state">
-                    Pakete konnten nicht geladen werden.
-                </td>
-            </tr>
-        `;
+        const table = document.getElementById("packages-table");
+        if (table) {
+            table.innerHTML = `
+                <tr>
+                    <td colspan="3" class="empty-state">
+                        Pakete konnten nicht geladen werden.
+                    </td>
+                </tr>
+            `;
+        }
     }
 }
 
@@ -1389,7 +1414,7 @@ document
  */
 document
     .getElementById("package-search")
-    .addEventListener(
+    ?.addEventListener(
         "input",
         event => {
 
@@ -1710,9 +1735,12 @@ if (!clientId) {
 } else {
 
     loadClient();
-    loadPackages();
 
-    if (window.lumsUserRole !== "viewer") {
+    if (userHasPermission("software.view")) {
+        loadPackages();
+    }
+
+    if (userHasPermission("updates.view")) {
         loadUpdates();
         loadJobs();
         loadHistory();
@@ -2049,6 +2077,11 @@ function renderPackageManagementActions(
 
     container.className =
         "package-management-actions";
+
+    if (!userHasPermission("jobs.manage")) {
+        container.textContent = "Nur anzeigen";
+        return container;
+    }
 
 
     if (state.type === "available") {

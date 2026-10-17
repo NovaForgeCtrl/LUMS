@@ -5669,6 +5669,87 @@ html[data-theme="admin"] *::after {
     font-size: 0.82rem;
 }
 
+.user-management-page .permission-picker {
+    grid-column: 1 / -1;
+    min-width: 0;
+    margin: 0;
+    padding: 1rem;
+    border: 1px solid var(--users-border);
+    border-radius: 10px;
+}
+
+.user-management-page .permission-picker legend {
+    padding: 0 0.35rem;
+    font-weight: 650;
+}
+
+.user-management-page .permission-picker > .panel-description {
+    margin: 0 0 0.85rem;
+    font-size: 0.85rem;
+}
+
+.user-management-page .permission-options {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.7rem 1rem;
+}
+
+.user-management-page .permission-option {
+    display: flex;
+    min-width: 0;
+    align-items: flex-start;
+    gap: 0.65rem;
+    font-size: 0.88rem;
+    line-height: 1.45;
+}
+
+.user-management-page .permission-option input {
+    width: 1rem;
+    min-width: 1rem;
+    height: 1rem;
+    min-height: 1rem;
+    margin: 0.15rem 0 0;
+    accent-color: var(--users-accent);
+}
+
+.user-management-page .permission-option input:focus-visible {
+    outline: 2px solid var(--users-accent);
+    outline-offset: 3px;
+}
+
+.user-management-page .permission-editor-row > td {
+    padding: 0;
+    background: rgb(127 127 127 / 4%);
+}
+
+.user-management-page .permission-editor {
+    padding: 1rem 1.1rem 1.25rem;
+}
+
+.user-management-page .permission-editor .permission-picker {
+    margin: 0.85rem 0;
+}
+
+.user-management-page .permission-editor select {
+    min-height: 40px;
+    padding: 0.5rem 0.75rem;
+    color: inherit;
+    background: var(--input-background, var(--users-surface));
+    border: 1px solid var(--users-border);
+    border-radius: 8px;
+}
+
+.user-management-page .permission-editor-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.65rem;
+}
+
+.user-management-page .permission-editor-error:not([hidden]) {
+    margin: 0.75rem 0;
+    color: #fecaca;
+}
+
 .user-management-page #create-user-error:not([hidden]) {
     grid-column: 1 / -1;
     padding: 0.8rem 1rem;
@@ -5788,7 +5869,11 @@ html[data-theme="admin"] *::after {
     }
 
     .user-management-page .user-list-table {
-        min-width: 420px;
+        min-width: 640px;
+    }
+
+    .user-management-page .permission-options {
+        grid-template-columns: minmax(0, 1fr);
     }
 
     .user-management-page #create-user-button {

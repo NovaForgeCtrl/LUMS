@@ -63,7 +63,9 @@ function updateDashboard(clients) {
     ).textContent = onlineCount;
 
 
-    loadUpdateCount(clients);
+    if ((window.lumsUserPermissions || []).includes("updates.view")) {
+        loadUpdateCount(clients);
+    }
 
 }
 
@@ -689,6 +691,232 @@ async function readDeleteResponse(response) {
     }
 }
 
+function renderPermissionOptions(container, selectedPermissions) {
+    container.replaceChildren();
+
+    for (const permission of window.lumsPermissionDefinitions || []) {
+        const label = document.createElement("label");
+        label.className = "permission-option";
+
+        const checkbox = document.createElement("input");
+        checkbox.type = "checkbox";
+        checkbox.value = permission.key;
+        checkbox.checked = selectedPermissions.includes(permission.key);
+        checkbox.addEventListener("change", () => {
+            syncPermissionDependencies(container, checkbox);
+        });
+
+        const text = document.createElement("span");
+        text.textContent = permission.label;
+
+        label.append(checkbox, text);
+        container.appendChild(label);
+    }
+}
+
+
+function syncPermissionDependencies(container, changedCheckbox) {
+    const checkboxes = new Map(
+        Array.from(
+            container.querySelectorAll('input[type="checkbox"]')
+        ).map(checkbox => [checkbox.value, checkbox])
+    );
+
+    const clientView = checkboxes.get("clients.view");
+    const updatesView = checkboxes.get("updates.view");
+    const jobsManage = checkboxes.get("jobs.manage");
+
+    if (changedCheckbox.checked) {
+        if (changedCheckbox.value !== "users.manage" && clientView) {
+            clientView.checked = true;
+        }
+
+        if (changedCheckbox.value === "jobs.manage" && updatesView) {
+            updatesView.checked = true;
+        }
+
+        return;
+    }
+
+    if (changedCheckbox.value === "clients.view") {
+        for (const checkbox of checkboxes.values()) {
+            if (checkbox.value !== "users.manage") {
+                checkbox.checked = false;
+            }
+        }
+    } else if (
+        changedCheckbox.value === "updates.view" &&
+        jobsManage
+    ) {
+        jobsManage.checked = false;
+    }
+}
+
+
+function selectedPermissions(container) {
+    return Array.from(
+        container.querySelectorAll('input[type="checkbox"]:checked')
+    ).map(checkbox => checkbox.value);
+}
+
+
+function applyRolePermissionPreset(role, container) {
+    const permissions =
+        window.lumsRoleDefaultPermissions?.[role] || [];
+    renderPermissionOptions(container, permissions);
+}
+
+
+function createPermissionEditorRow(user) {
+    const row = document.createElement("tr");
+    row.className = "permission-editor-row";
+
+    const cell = document.createElement("td");
+    cell.colSpan = 5;
+
+    const editor = document.createElement("div");
+    editor.className = "permission-editor";
+
+    const heading = document.createElement("h3");
+    heading.textContent = `Berechtigungen für ${user.username}`;
+    editor.appendChild(heading);
+
+    const roleLabel = document.createElement("label");
+    roleLabel.textContent = "Rollen-Vorlage ";
+
+    const roleSelect = document.createElement("select");
+    roleSelect.setAttribute("aria-label", "Rollen-Vorlage");
+    for (const [value, labelText] of [
+        ["viewer", "Viewer"],
+        ["operator", "Operator"],
+        ["administrator", "Administrator"],
+    ]) {
+        const option = document.createElement("option");
+        option.value = value;
+        option.textContent = labelText;
+        option.selected = user.role === value;
+        roleSelect.appendChild(option);
+    }
+    roleLabel.appendChild(roleSelect);
+    editor.appendChild(roleLabel);
+
+    const help = document.createElement("p");
+    help.className = "panel-description";
+    help.textContent =
+        "Wähle eine Rolle, um ihre Standardrechte zu laden, und passe sie anschließend an.";
+    editor.appendChild(help);
+
+    const fieldset = document.createElement("fieldset");
+    fieldset.className = "permission-picker";
+    const legend = document.createElement("legend");
+    legend.textContent = "Berechtigungen";
+    fieldset.appendChild(legend);
+
+    const options = document.createElement("div");
+    options.className = "permission-options";
+    renderPermissionOptions(options, user.permissions || []);
+    fieldset.appendChild(options);
+    editor.appendChild(fieldset);
+
+    roleSelect.addEventListener("change", () => {
+        applyRolePermissionPreset(roleSelect.value, options);
+    });
+
+    const error = document.createElement("p");
+    error.className = "permission-editor-error";
+    error.hidden = true;
+    editor.appendChild(error);
+
+    const actions = document.createElement("div");
+    actions.className = "permission-editor-actions";
+
+    const saveButton = document.createElement("button");
+    saveButton.type = "button";
+    saveButton.className = "button-primary";
+    saveButton.textContent = "Berechtigungen speichern";
+
+    const cancelButton = document.createElement("button");
+    cancelButton.type = "button";
+    cancelButton.className = "button";
+    cancelButton.textContent = "Abbrechen";
+    cancelButton.addEventListener("click", () => row.remove());
+
+    saveButton.addEventListener("click", async () => {
+        const csrfToken = document.querySelector(
+            'meta[name="csrf-token"]'
+        )?.content;
+
+        if (!csrfToken) {
+            error.textContent = "CSRF-Token konnte nicht gefunden werden.";
+            error.hidden = false;
+            return;
+        }
+
+        saveButton.disabled = true;
+        saveButton.textContent = "Wird gespeichert …";
+        error.hidden = true;
+
+        try {
+            const response = await fetch(
+                `/api/users/${encodeURIComponent(user.id)}/permissions`,
+                {
+                    method: "PUT",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "X-CSRF-Token": csrfToken,
+                    },
+                    body: JSON.stringify({
+                        role: roleSelect.value,
+                        permissions: selectedPermissions(options),
+                    }),
+                }
+            );
+            const result = await response.json();
+
+            if (!response.ok) {
+                const messages = {
+                    invalid_user_role:
+                        "Die ausgewählte Rollen-Vorlage ist ungültig.",
+                    invalid_user_permissions:
+                        "Die Auswahl enthält ungültige Rechte oder erforderliche Basisrechte fehlen.",
+                    last_enabled_administrator:
+                        "Mindestens ein aktiver Benutzer muss Benutzer verwalten dürfen.",
+                    user_not_found:
+                        "Der Benutzer wurde nicht gefunden.",
+                    csrf_validation_failed:
+                        "CSRF-Prüfung fehlgeschlagen.",
+                    authorization_required:
+                        "Dafür fehlen die Berechtigungen.",
+                };
+
+                throw new Error(
+                    messages[result.error] ||
+                    `Berechtigungen konnten nicht gespeichert werden (HTTP ${response.status}).`
+                );
+            }
+
+            await loadUsers();
+            const status = document.getElementById("users-list-status");
+            status.textContent =
+                `Berechtigungen für "${user.username}" wurden gespeichert.`;
+        } catch (saveError) {
+            console.error(saveError);
+            error.textContent = saveError.message;
+            error.hidden = false;
+            saveButton.disabled = false;
+            saveButton.textContent = "Berechtigungen speichern";
+        }
+    });
+
+    actions.append(saveButton, cancelButton);
+    editor.appendChild(actions);
+    cell.appendChild(editor);
+    row.appendChild(cell);
+
+    return row;
+}
+
+
 async function loadUsers() {
 
     const status =
@@ -756,6 +984,36 @@ async function loadUsers() {
             roleCell.textContent =
                 user.role;
 
+            const defaultPermissions =
+                window.lumsRoleDefaultPermissions?.[user.role] || [];
+            const actualPermissions =
+                [...(user.permissions || [])].sort();
+            const isCustomized =
+                JSON.stringify(actualPermissions) !==
+                JSON.stringify([...defaultPermissions].sort());
+
+            if (isCustomized) {
+                roleCell.textContent += " (angepasst)";
+            }
+
+            const permissionsCell =
+                document.createElement("td");
+
+            const permissionLabels = new Map(
+                (window.lumsPermissionDefinitions || [])
+                    .map(permission => [
+                        permission.key,
+                        permission.label,
+                    ])
+            );
+            permissionsCell.textContent =
+                actualPermissions.length
+                    ? actualPermissions
+                        .map(permission => permissionLabels.get(permission))
+                        .filter(Boolean)
+                        .join(", ")
+                    : "Keine";
+
             const statusCell =
                 document.createElement("td");
 
@@ -766,6 +1024,33 @@ async function loadUsers() {
 
             const actionCell =
                 document.createElement("td");
+
+            const editButton =
+                document.createElement("button");
+
+            editButton.type = "button";
+            editButton.className = "button";
+            editButton.textContent = "Rechte";
+            editButton.setAttribute(
+                "aria-label",
+                `Berechtigungen für ${user.username} bearbeiten`
+            );
+            editButton.addEventListener("click", () => {
+                const nextRow = row.nextElementSibling;
+                if (nextRow?.classList.contains("permission-editor-row")) {
+                    nextRow.remove();
+                    editButton.setAttribute("aria-expanded", "false");
+                    return;
+                }
+
+                body.querySelectorAll(".permission-editor-row")
+                    .forEach(editorRow => editorRow.remove());
+                body.querySelectorAll('[aria-expanded="true"]')
+                    .forEach(button => button.setAttribute("aria-expanded", "false"));
+                row.after(createPermissionEditorRow(user));
+                editButton.setAttribute("aria-expanded", "true");
+            });
+            editButton.setAttribute("aria-expanded", "false");
 
             const deleteButton =
                 document.createElement("button");
@@ -883,9 +1168,10 @@ async function loadUsers() {
                 }
             });
 
-            actionCell.appendChild(deleteButton);
+            actionCell.append(editButton, deleteButton);
             row.appendChild(usernameCell);
             row.appendChild(roleCell);
+            row.appendChild(permissionsCell);
             row.appendChild(statusCell);
             row.appendChild(actionCell);
 
@@ -930,6 +1216,9 @@ async function createUser(event) {
         document
             .getElementById("create-user-role")
             .value;
+
+    const permissionOptions =
+        document.getElementById("create-user-permissions");
 
     const error =
         document.getElementById("create-user-error");
@@ -976,7 +1265,8 @@ async function createUser(event) {
                     body: JSON.stringify({
                         username: username,
                         password: password,
-                        role: role
+                        role: role,
+                        permissions: selectedPermissions(permissionOptions),
                     })
                 }
             );
@@ -1002,6 +1292,9 @@ async function createUser(event) {
                 invalid_user_role:
                     "Die ausgewählte Benutzerrolle ist ungültig.",
 
+                invalid_user_permissions:
+                    "Die Auswahl enthält ungültige Rechte oder erforderliche Basisrechte fehlen.",
+
                 user_already_exists:
                     "Dieser Benutzername existiert bereits.",
 
@@ -1019,6 +1312,10 @@ async function createUser(event) {
         document
             .getElementById("create-user-form")
             .reset();
+        applyRolePermissionPreset(
+            document.getElementById("create-user-role").value,
+            permissionOptions
+        );
 
         error.hidden = false;
         error.textContent =
@@ -1063,6 +1360,22 @@ const createUserForm =
 
 
 if (createUserForm) {
+
+    const createUserRole =
+        document.getElementById("create-user-role");
+    const createUserPermissions =
+        document.getElementById("create-user-permissions");
+
+    applyRolePermissionPreset(
+        createUserRole.value,
+        createUserPermissions
+    );
+    createUserRole.addEventListener("change", () => {
+        applyRolePermissionPreset(
+            createUserRole.value,
+            createUserPermissions
+        );
+    });
 
     createUserForm.addEventListener(
         "submit",

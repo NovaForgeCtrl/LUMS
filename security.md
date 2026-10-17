@@ -77,7 +77,8 @@ Administrative sessions use:
 
 Authentication and authorization remain separate security controls.
 
-A successfully authenticated user must still possess the required role for protected operations.
+A successfully authenticated user must still possess the required permission
+for protected operations.
 
 ---
 
@@ -89,9 +90,12 @@ LUMS currently supports three web-user roles:
 * `operator`
 * `viewer`
 
-Roles are stored server-side in the `users.role` database field.
+Role templates are stored in `users.role`; individual permissions are stored
+server-side in `user_permissions`.
 
-The server determines the effective role from the authenticated session. Client-side role information is used only to control presentation of the web interface and never replaces server-side authorization.
+The server loads the effective permissions for each authenticated account.
+Client-side permission information controls presentation only and never
+replaces server-side authorization.
 
 ## Administrator
 
@@ -154,7 +158,8 @@ The following management areas are hidden from Viewer accounts:
 
 Viewer accounts cannot perform state-changing update-management operations.
 
-The server independently enforces these restrictions through authentication and role authorization.
+The server independently enforces these restrictions through authentication
+and per-user permission checks.
 
 ---
 
@@ -939,55 +944,52 @@ The documentation review is tracked separately as:
 
 ## Role-Based Access Control
 
-LUMS implements server-side Role-Based Access Control (RBAC) for administrative users.
+LUMS combines role templates with individually assigned permissions. The
+supported templates are `administrator`, `operator`, and `viewer`; choosing a
+template selects its default permissions, which an administrator can customize
+for each account.
 
-The currently supported roles are:
-
-* `administrator`
-* `operator`
-* `viewer`
-
-The authenticated user's role is stored in the server-side session and is evaluated by protected routes.
-
-The web interface may hide functionality that is unavailable to the current role, but this is only a usability measure.
-
-The user interface is not considered a security boundary.
-
-All security-sensitive authorization decisions are enforced server-side.
+The role remains account metadata. Protected routes authorize against the
+account's server-stored permission set, not the role label. The interface hides
+unavailable functions for usability, while the server remains the security
+boundary.
 
 ---
 
 ## RBAC Permission Model
 
-| Function                  | Administrator | Operator | Viewer |
-| ------------------------- | ------------: | -------: | -----: |
-| View clients              |           Yes |      Yes |    Yes |
-| View installed software   |           Yes |      Yes |    Yes |
-| View available updates    |           Yes |      Yes |     No |
-| Create update jobs        |           Yes |      Yes |     No |
-| Execute update operations |           Yes |      Yes |     No |
-| View update-job history   |           Yes |      Yes |     No |
-| Package Management        |           Yes |      Yes |     No |
-| System Maintenance        |           Yes |      Yes |     No |
-| Create clients            |           Yes |       No |     No |
-| Disable clients           |           Yes |       No |     No |
-| Rotate client tokens      |           Yes |       No |     No |
-| User Management           |           Yes |       No |     No |
-| Change user roles         |           Yes |       No |     No |
+| Permission        | Access granted |
+| ----------------- | -------------- |
+| `clients.view`    | View clients and system information |
+| `software.view`   | View installed software |
+| `updates.view`    | View available updates, jobs, and history |
+| `packages.search` | Search package repositories |
+| `jobs.manage`     | Create package operations and update jobs |
+| `clients.manage`  | Register/remove clients and rotate client tokens |
+| `users.manage`    | Create users and manage roles and permissions |
 
-Viewer accounts therefore provide intentionally limited read-only access.
+The default role templates are:
 
-Viewer users can access client information and installed software, but they cannot access the operational update-management areas.
+| Template        | Default permissions |
+| --------------- | ------------------- |
+| `administrator` | All permissions |
+| `operator`      | Client/software/update visibility, package search, and job management |
+| `viewer`        | Client visibility and installed-software visibility |
+
+Client-related permissions require `clients.view`. `jobs.manage` also requires
+`updates.view`. The UI loads permissions for the authenticated account and
+omits controls the user cannot use; server-side checks independently enforce
+the same grants.
 
 ---
 
 ## Authorization Enforcement
 
-Protected operations use server-side authentication and role checks.
+Protected operations use server-side authentication and permission checks.
 
 The authorization model follows the principle:
 
-`Authenticate → Determine Role → Authorize Operation → Execute`
+`Authenticate → Load User Permissions → Authorize Operation → Execute`
 
 Authentication alone is not sufficient to access privileged operations.
 
@@ -1007,9 +1009,11 @@ Examples of protected administrative operations include:
 * user creation
 * user-management functions
 
-Protected endpoints explicitly define the roles that are permitted to perform the corresponding operation.
+Protected endpoints explicitly define the permission required for the
+corresponding operation.
 
-An unauthorized role is rejected by the server even if the user manually constructs the corresponding HTTP request.
+A missing permission is rejected by the server even if the user manually
+constructs the corresponding HTTP request.
 
 This prevents bypassing the RBAC model by directly calling an API endpoint that is hidden in the web interface.
 
@@ -1017,9 +1021,9 @@ This prevents bypassing the RBAC model by directly calling an API endpoint that 
 
 ## Viewer Restrictions
 
-Viewer access was reviewed separately because the Viewer role is intentionally restricted.
+The Viewer template is intentionally restricted by its default permission set.
 
-For Viewer sessions, the client interface does not expose:
+For accounts without the corresponding grants, the client interface does not expose:
 
 * Updates
 * Update Jobs
@@ -1027,9 +1031,11 @@ For Viewer sessions, the client interface does not expose:
 * Package Management
 * System Maintenance
 
-The server additionally prevents Viewer accounts from performing the corresponding protected operations.
+The server additionally prevents accounts without the corresponding grants
+from performing protected operations.
 
-The JavaScript interface does not load privileged update-management data for Viewer sessions.
+The JavaScript interface does not load update-management data without
+`updates.view`.
 
 This reduces unnecessary exposure of operational information while maintaining server-side authorization as the actual security control.
 
@@ -1039,9 +1045,10 @@ Installed software remains available to Viewer accounts as a read-only informati
 
 ## Administrative User Management
 
-User management is restricted to Administrators.
+User management requires the `users.manage` permission.
 
-Administrators can create users and assign supported roles.
+Users with that permission can create accounts from a role template, customize
+permissions at creation, and later edit the permission set.
 
 User creation includes:
 
@@ -1054,7 +1061,11 @@ User creation includes:
 * CSRF protection
 * server-side authorization
 
-User-management endpoints are not accessible to Operators or Viewers.
+User-management endpoints are not accessible without `users.manage`.
+
+The server rejects unknown permissions and invalid dependency combinations.
+At least one active account must retain `users.manage`; changes that would
+remove the last user manager are rejected.
 
 Passwords are never stored in plaintext.
 
@@ -1062,13 +1073,11 @@ Passwords are never stored in plaintext.
 
 ## RBAC Database Migration
 
-Role information is stored in the user database record.
-
-The application validates supported role values before storing them.
-
-The RBAC database migration introduced the role information required by the authorization model while preserving existing user accounts.
-
-Database-level constraints and application-level validation work together to prevent unsupported role values from becoming active authorization states.
+Role-template information remains in the user database record. Individual
+grants are stored in the `user_permissions` table with a foreign key to the
+user account. Migration `003-user-permissions` creates that table and seeds
+existing accounts from their current role template, preserving their access
+during the transition.
 
 ---
 
@@ -1087,21 +1096,12 @@ The tests include:
 * update-job restrictions
 * user-management restrictions
 * client-page visibility
-* role-specific interface behavior
+* permission-specific interface behavior
 
-Focused RBAC testing was performed after the Viewer-RBAC changes.
-
-The complete RBAC test suite passed with:
-
-`45 passed`
-
-The complete application test suite subsequently passed with:
-
-`155 passed`
-
-The production deployment was additionally verified with separate Administrator, Operator, and Viewer accounts.
-
-The production Viewer interface was verified to expose only the functionality intended for the Viewer role.
+RBAC tests cover role-template defaults, custom permissions, permission
+dependencies, and server-side authorization. Production verification should
+include accounts with customized permissions as well as the default
+Administrator, Operator, and Viewer templates.
 
 ---
 
@@ -1110,8 +1110,8 @@ The production Viewer interface was verified to expose only the functionality in
 The RBAC implementation provides layered authorization:
 
 1. Authentication establishes the user identity.
-2. The server determines the user's role.
-3. Protected routes enforce the required role.
+2. The server loads the user's permissions.
+3. Protected routes enforce the required permission.
 4. CSRF protection applies to relevant browser state changes.
 5. The web interface hides unavailable functionality.
 6. Automated tests verify authorization boundaries.
