@@ -1368,6 +1368,43 @@ def test_user_admin_note_migration_is_idempotent():
     connection.close()
 
 
+def test_backup_permission_migration_grants_existing_administrators():
+    from server.security_migration import migrate_backup_permission
+
+    connection = sqlite3.connect(":memory:")
+    connection.execute(
+        "CREATE TABLE users (id INTEGER PRIMARY KEY, role TEXT NOT NULL)"
+    )
+    connection.execute(
+        """
+        CREATE TABLE user_permissions (
+            user_id INTEGER NOT NULL,
+            permission TEXT NOT NULL,
+            PRIMARY KEY (user_id, permission)
+        )
+        """
+    )
+    connection.executemany(
+        "INSERT INTO users (id, role) VALUES (?, ?)",
+        [
+            (1, ROLE_ADMINISTRATOR),
+            (2, ROLE_OPERATOR),
+        ],
+    )
+
+    migrate_backup_permission(connection)
+    migrate_backup_permission(connection)
+
+    assert connection.execute(
+        """
+        SELECT user_id, permission
+        FROM user_permissions
+        ORDER BY user_id, permission
+        """
+    ).fetchall() == [(1, "backups.manage")]
+    connection.close()
+
+
 def test_create_user_starts_without_permissions(
     monkeypatch,
     tmp_path,
@@ -1558,6 +1595,169 @@ def test_admin_note_endpoint_requires_user_management_permission(
     assert response.status_code == 403
     assert response.get_json() == {
         "error": "authorization_required",
+    }
+
+
+def test_administrator_can_create_and_list_database_backups(
+    monkeypatch,
+    tmp_path,
+):
+    from server import app as app_module
+
+    db_path = str(tmp_path / "admin-backup.db")
+    backup_directory = tmp_path / "backups"
+    backup_directory.mkdir()
+    create_rbac_database(db_path)
+    connection = sqlite3.connect(db_path)
+    connection.execute(
+        """
+        CREATE TABLE audit_log (
+            id INTEGER PRIMARY KEY,
+            timestamp TEXT NOT NULL,
+            actor_type TEXT NOT NULL,
+            actor_id TEXT,
+            action TEXT NOT NULL,
+            target TEXT,
+            result TEXT NOT NULL,
+            details TEXT
+        )
+        """
+    )
+    connection.commit()
+    connection.close()
+    app = configure_real_app_session_user(
+        monkeypatch,
+        app_module,
+        db_path,
+        1,
+        "administrator",
+    )
+    app.config["LUMS_BACKUP_DIR"] = backup_directory
+    monkeypatch.setattr(app_module, "DB_PATH", db_path)
+
+    with app.test_client() as client:
+        login_as(client, 1, "administrator")
+        with client.session_transaction() as session:
+            session["csrf_token"] = "pytest-csrf-token"
+
+        response = client.post(
+            "/api/backups",
+            headers={"X-CSRF-Token": "pytest-csrf-token"},
+            json={
+                "format": "db",
+                "path": str(tmp_path / "untrusted-path"),
+            },
+        )
+        backups_response = client.get("/api/backups")
+        page_response = client.get("/backups")
+
+    assert response.status_code == 201
+    backup = response.get_json()["backup"]
+    assert backup["filename"].endswith(".db")
+    assert backup["size_bytes"] > 0
+    assert backups_response.status_code == 200
+    assert backups_response.get_json()["backups"][0]["filename"] == (
+        backup["filename"]
+    )
+    assert page_response.status_code == 200
+    assert b'id="create-backup-button"' in page_response.data
+    assert b"Vorhandene Backups" in page_response.data
+    assert b'name="path"' not in page_response.data
+
+    connection = sqlite3.connect(
+        backup_directory / backup["filename"]
+    )
+    assert connection.execute(
+        "PRAGMA integrity_check"
+    ).fetchone()[0] == "ok"
+    assert connection.execute(
+        "SELECT username FROM users WHERE id = 1"
+    ).fetchone()[0] == "administrator"
+    connection.close()
+
+    connection = sqlite3.connect(db_path)
+    assert connection.execute(
+        "SELECT action FROM audit_log"
+    ).fetchone()[0] == "database.backup.create"
+    connection.close()
+
+
+def test_database_backup_requires_explicit_permission_and_supports_delegation(
+    monkeypatch,
+    tmp_path,
+):
+    from server import app as app_module
+
+    db_path = str(tmp_path / "backup-permission.db")
+    create_rbac_database(db_path)
+    backup_directory = tmp_path / "operator-backups"
+    backup_directory.mkdir()
+    app = configure_real_app_session_user(
+        monkeypatch,
+        app_module,
+        db_path,
+        2,
+        "operator",
+    )
+    app.config["LUMS_BACKUP_DIR"] = backup_directory
+
+    with app.test_client() as client:
+        login_as(client, 2, "operator")
+        page_response = client.get("/backups")
+        api_response = client.get("/api/backups")
+
+    assert page_response.status_code == 403
+    assert api_response.status_code == 403
+
+    connection = sqlite3.connect(db_path)
+    connection.execute(
+        """
+        INSERT INTO user_permissions (user_id, permission)
+        VALUES (2, 'backups.manage')
+        """
+    )
+    connection.commit()
+    connection.close()
+
+    with app.test_client() as client:
+        login_as(client, 2, "operator")
+        page_response = client.get("/backups")
+        api_response = client.get("/api/backups")
+
+    assert page_response.status_code == 200
+    assert api_response.status_code == 200
+
+
+def test_database_backup_rejects_invalid_format(
+    monkeypatch,
+    tmp_path,
+):
+    from server import app as app_module
+
+    db_path = str(tmp_path / "invalid-backup-format.db")
+    create_rbac_database(db_path)
+    app = configure_real_app_session_user(
+        monkeypatch,
+        app_module,
+        db_path,
+        1,
+        "administrator",
+    )
+
+    with app.test_client() as client:
+        login_as(client, 1, "administrator")
+        with client.session_transaction() as session:
+            session["csrf_token"] = "pytest-csrf-token"
+
+        response = client.post(
+            "/api/backups",
+            headers={"X-CSRF-Token": "pytest-csrf-token"},
+            json={"format": []},
+        )
+
+    assert response.status_code == 400
+    assert response.get_json() == {
+        "error": "invalid_backup_format",
     }
 
 
@@ -2257,7 +2457,7 @@ def test_users_page_visible_for_administrator(
         "Update-Jobs verwalten.".encode("utf-8")
         in response.data
     )
-    assert "Benutzerkonten.".encode("utf-8") in response.data
+    assert "Datenbank-Backups.".encode("utf-8") in response.data
 
 
 def test_users_page_denied_for_operator(

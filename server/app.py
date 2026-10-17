@@ -56,6 +56,12 @@ from security import (
     record_login_failure,
     clear_login_rate_limit,
 )
+from database_backup import (
+    BACKUP_FORMATS,
+    BackupStorageError,
+    create_database_backup,
+    list_database_backups,
+)
 
 
 app = Flask(__name__)
@@ -97,6 +103,12 @@ DB_PATH = os.environ.get(
 PACKAGE_SEARCH_QUERY_MAX_LENGTH = 128
 PACKAGE_SEARCH_MAX_RESULTS = 50
 ADMIN_NOTE_MAX_LENGTH = 2000
+BACKUP_DIRECTORY = Path(
+    os.environ.get(
+        "LUMS_BACKUP_DIR",
+        "/var/backups/lums",
+    )
+)
 
 
 def normalize_package_search_query(query):
@@ -631,6 +643,117 @@ def users_page():
         user_role=current_user_role(),
         **permission_ui_context(),
     )
+
+
+@app.route("/backups")
+@login_required
+@role_required(
+    ROLE_ADMINISTRATOR,
+    ROLE_OPERATOR,
+    ROLE_VIEWER,
+    permission="backups.manage",
+)
+def backups_page():
+    return render_template(
+        "backups.html",
+        csrf_token=get_csrf_token(),
+        backup_directory=str(BACKUP_DIRECTORY),
+    )
+
+
+@app.route("/api/backups", methods=["GET"])
+@login_required
+@role_required(
+    ROLE_ADMINISTRATOR,
+    ROLE_OPERATOR,
+    ROLE_VIEWER,
+    permission="backups.manage",
+)
+def list_backups():
+    try:
+        backups = list_database_backups(
+            app.config.get("LUMS_BACKUP_DIR", BACKUP_DIRECTORY)
+        )
+    except BackupStorageError as error:
+        return jsonify({
+            "error": "backup_storage_unavailable",
+            "message": str(error),
+        }), 503
+    except OSError:
+        logger.exception("Unable to list LUMS database backups.")
+        return jsonify({"error": "backup_storage_unavailable"}), 503
+
+    return jsonify({"backups": backups})
+
+
+@app.route("/api/backups", methods=["POST"])
+@login_required
+@role_required(
+    ROLE_ADMINISTRATOR,
+    ROLE_OPERATOR,
+    ROLE_VIEWER,
+    permission="backups.manage",
+)
+@csrf_required
+def create_backup():
+    data = request.get_json(silent=True)
+    if not isinstance(data, dict):
+        return jsonify({"error": "invalid_request"}), 400
+
+    backup_format = data.get("format")
+    if (
+        not isinstance(backup_format, str)
+        or backup_format not in BACKUP_FORMATS
+    ):
+        return jsonify({"error": "invalid_backup_format"}), 400
+
+    try:
+        backup = create_database_backup(
+            DB_PATH,
+            app.config.get("LUMS_BACKUP_DIR", BACKUP_DIRECTORY),
+            backup_format,
+        )
+    except BackupStorageError as error:
+        return jsonify({
+            "error": "backup_storage_unavailable",
+            "message": str(error),
+        }), 503
+    except (OSError, sqlite3.Error):
+        logger.exception("Unable to create LUMS database backup.")
+        return jsonify({"error": "backup_failed"}), 500
+
+    connection = None
+    try:
+        connection = get_connection()
+        audit_log(
+            connection,
+            actor_type="user",
+            actor_id=current_user_id(),
+            action="database.backup.create",
+            target=backup["filename"],
+            result="success",
+            details=(
+                f"format={backup['format']}, "
+                f"size_bytes={backup['size_bytes']}"
+            ),
+        )
+        connection.commit()
+    except sqlite3.Error:
+        if connection is not None:
+            connection.rollback()
+        logger.exception(
+            "Backup %s was created, but its audit entry failed.",
+            backup["filename"],
+        )
+        return jsonify({
+            "error": "backup_audit_failed",
+            "backup": backup,
+        }), 500
+    finally:
+        if connection is not None:
+            connection.close()
+
+    return jsonify({"backup": backup}), 201
 
 
 @app.route("/client")

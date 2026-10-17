@@ -6001,6 +6001,102 @@ html[data-theme="geek"] .user-management-page .admin-note-status[data-state="err
     }
 }
 
+.backup-management,
+.backup-history {
+    margin-bottom: 1.5rem;
+}
+
+.backup-content {
+    padding: 1.25rem 1.5rem;
+}
+
+.backup-content > p:first-child {
+    margin-top: 0;
+}
+
+.backup-content code {
+    overflow-wrap: anywhere;
+}
+
+.backup-create-form {
+    display: flex;
+    align-items: end;
+    flex-wrap: wrap;
+    gap: 1rem;
+    margin-top: 1.25rem;
+}
+
+.backup-create-form .form-group {
+    display: flex;
+    min-width: min(100%, 18rem);
+    flex-direction: column;
+    gap: 0.45rem;
+}
+
+.backup-create-form select {
+    min-height: 42px;
+    padding: 0.6rem 0.75rem;
+    color: inherit;
+    background: transparent;
+    border: 1px solid color-mix(in srgb, currentColor 32%, transparent);
+    border-radius: 7px;
+    font: inherit;
+}
+
+.backup-create-form select:focus-visible,
+.backup-management button:focus-visible,
+.backup-history button:focus-visible {
+    outline: 2px solid currentColor;
+    outline-offset: 2px;
+}
+
+.backup-status,
+.backup-list-status {
+    min-height: 1.4em;
+    margin: 1rem 0 0;
+    line-height: 1.5;
+}
+
+.backup-status[data-state="success"] {
+    font-weight: 650;
+}
+
+.backup-status[data-state="error"],
+.backup-list-status[data-state="error"] {
+    font-weight: 650;
+    text-decoration: underline;
+    text-decoration-color: color-mix(in srgb, currentColor 45%, transparent);
+    text-underline-offset: 0.2em;
+}
+
+.backup-history .table-container {
+    overflow-x: auto;
+}
+
+.backup-history table {
+    min-width: 42rem;
+}
+
+.backup-history td:first-child {
+    overflow-wrap: anywhere;
+}
+
+@media (max-width: 700px) {
+    .backup-content {
+        padding: 1.1rem;
+    }
+
+    .backup-create-form {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .backup-create-form .form-group,
+    .backup-create-form button {
+        width: 100%;
+    }
+}
+
 /* ============================================================
    LUMS User Management — theme-specific colors
    ============================================================ */

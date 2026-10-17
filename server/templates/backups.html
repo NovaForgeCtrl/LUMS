@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+    <meta
+        name="csrf-token"
+        content="{{ csrf_token }}"
+    >
+    <title>Datenbank-Backups – LUMS</title>
+
+    <link
+        rel="stylesheet"
+        href="{{ url_for('static', filename='style.css') }}"
+    >
+</head>
+
+<body>
+
+<header class="topbar">
+    <div>
+        <h1>LUMS</h1>
+        <span>Datenbank-Backups</span>
+    </div>
+
+    <div class="topbar-actions">
+        <a href="/" class="logout-button">Dashboard</a>
+        <form action="/logout" method="POST" class="logout-form">
+            <input
+                type="hidden"
+                name="csrf_token"
+                value="{{ csrf_token }}"
+            >
+            <button type="submit" class="logout-button">
+                Abmelden
+            </button>
+        </form>
+    </div>
+</header>
+
+<main class="container">
+    <section class="panel backup-management">
+        <div class="panel-header">
+            <div>
+                <h2>Datenbank sichern</h2>
+                <p>
+                    Erstellt eine konsistente SQLite-Sicherung der LUMS-Datenbank.
+                </p>
+            </div>
+        </div>
+
+        <div class="backup-content">
+            <p>
+                Speicherziel auf dem Server:
+                <code>{{ backup_directory }}</code>
+            </p>
+            <p class="panel-description">
+                Das Zielverzeichnis wird vom Serveradministrator konfiguriert.
+                Backups sind nicht verschlüsselt und werden nicht automatisch
+                gelöscht. Schütze das Zielverzeichnis entsprechend.
+            </p>
+
+            <form id="backup-create-form" class="backup-create-form">
+                <div class="form-group">
+                    <label for="backup-format">Dateiformat</label>
+                    <select id="backup-format" name="format">
+                        <option value="db">SQLite-Datenbank (.db)</option>
+                        <option value="db.gz">
+                            Komprimierte SQLite-Datenbank (.db.gz)
+                        </option>
+                    </select>
+                </div>
+
+                <button
+                    type="submit"
+                    id="create-backup-button"
+                    class="button"
+                >
+                    Backup jetzt erstellen
+                </button>
+            </form>
+
+            <p
+                id="backup-status"
+                class="backup-status"
+                role="status"
+                aria-live="polite"
+            ></p>
+        </div>
+    </section>
+
+    <section class="panel backup-history">
+        <div class="panel-header">
+            <div>
+                <h2>Vorhandene Backups</h2>
+                <p>Die zehn zuletzt erstellten Sicherungen</p>
+            </div>
+            <button
+                type="button"
+                id="refresh-backups-button"
+                class="button"
+            >
+                Aktualisieren
+            </button>
+        </div>
+
+        <p
+            id="backup-list-status"
+            class="backup-list-status"
+            role="status"
+            aria-live="polite"
+        >Backups werden geladen …</p>
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Datei</th>
+                        <th>Format</th>
+                        <th>Erstellt (UTC)</th>
+                        <th>Größe</th>
+                    </tr>
+                </thead>
+                <tbody id="backup-list-body"></tbody>
+            </table>
+        </div>
+    </section>
+</main>
+
+<script src="{{ url_for('static', filename='backups.js') }}" defer></script>
+<script src="{{ url_for('static', filename='theme.js') }}" defer></script>
+</body>
+</html>

@@ -21,6 +21,7 @@ MIGRATION_VERSION = "001-security-foundation"
 RBAC_MIGRATION_VERSION = "002-rbac"
 PERMISSIONS_MIGRATION_VERSION = "003-user-permissions"
 USER_NOTES_MIGRATION_VERSION = "004-user-admin-notes"
+BACKUP_PERMISSION_MIGRATION_VERSION = "005-backup-permission"
 
 
 def utc_now():
@@ -141,6 +142,17 @@ def migrate_user_admin_notes(connection):
         "users",
         "admin_note",
         "TEXT NOT NULL DEFAULT ''",
+    )
+
+
+def migrate_backup_permission(connection):
+    connection.execute(
+        """
+        INSERT OR IGNORE INTO user_permissions (user_id, permission)
+        SELECT users.id, 'backups.manage'
+        FROM users
+        WHERE users.role = 'administrator'
+        """
     )
 
 
@@ -421,6 +433,26 @@ def run_migration(db_path, admin_username, skip_admin):
             connection.commit()
             print(
                 f"[OK] Migration {USER_NOTES_MIGRATION_VERSION} completed"
+            )
+
+        if migration_already_applied(
+            connection,
+            BACKUP_PERMISSION_MIGRATION_VERSION
+        ):
+            print(
+                f"[INFO] Migration {BACKUP_PERMISSION_MIGRATION_VERSION} "
+                "is already recorded"
+            )
+        else:
+            migrate_backup_permission(connection)
+            record_migration(
+                connection,
+                BACKUP_PERMISSION_MIGRATION_VERSION
+            )
+            connection.commit()
+            print(
+                f"[OK] Migration "
+                f"{BACKUP_PERMISSION_MIGRATION_VERSION} completed"
             )
 
         print_schema(connection)

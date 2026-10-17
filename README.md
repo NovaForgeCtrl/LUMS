@@ -979,6 +979,11 @@ accounts start without permissions; the permission editor opens after creation.
 User managers can also save private administrative notes that are not visible
 to the account owner.
 
+Administrators with `backups.manage` can create validated `.db` or `.db.gz`
+database backups in a server-configured directory. See
+[`administration.md`](administration.md) for Docker storage setup and recovery
+guidance.
+
 User passwords are stored using Argon2 password hashing rather than plaintext or reversible encryption.
 
 User-management operations are protected by:
