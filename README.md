@@ -2,6 +2,44 @@
 
 **Linux Update Management without the noise.**
 
+## Getting Started
+
+LUMS centrally manages Linux updates. A server displays clients, installed
+software, and available updates. An agent on each managed Linux system performs
+approved package actions using that system's package manager. LUMS does not
+replace APT on Debian/Ubuntu or pacman on Arch Linux.
+
+**Only using an existing LUMS installation?** Open the address provided by
+your administrator and sign in with your own account. If a feature is missing,
+your account may not have permission to use it. Ask your administrator for
+help; do not share accounts or use a client token as a web password.
+
+**Installing or operating LUMS?** Start with the
+[installation guide](install.md), then read the
+[administration guide](administration.md). If something goes wrong, use the
+[troubleshooting guide](troubleshooting.md). These detailed technical guides
+are maintained in English; concise translated beginner guides are available in
+[`docs/locales/`](docs/README.md).
+
+A test run or a successfully built Docker image is **not** a production
+installation. A production deployment also needs HTTPS, a protected application
+secret, persistent data, verified backups, and a hardened container. Do not
+copy production commands until you have checked their placeholders and storage
+paths against your own installation.
+
+### Web interface languages
+
+The web interface offers German, English (US and UK), French, Spanish,
+Simplified Chinese, Japanese, Polish, Swedish, Norwegian Bokmål, and Finnish.
+Choose a language from the upper-right corner of the login page. If you do not
+choose one, LUMS tries to use the browser language; after sign-in, a language
+saved to your account takes precedence. Some technical or dynamic text may
+remain in its original language when a translation is not available. Markdown
+guides are separate from the web interface and are not translated
+automatically.
+
+---
+
 LUMS is a Linux update management server designed to provide controlled, auditable, and secure software and update management for Linux clients.
 
 Instead of relying on uncontrolled client-side update activity, LUMS provides a central management layer for software inventory, update detection, package operations, update jobs, execution monitoring, and result reporting.
@@ -1350,13 +1388,15 @@ The remaining documentation review is handled separately as part of the final re
 
 LUMS includes automated tests covering core application behavior and security controls.
 
-The current full test baseline is:
+Run the complete test suite from the repository root:
 
-```text
-155 passed
+```bash
+./.venv-test/bin/pytest -q
 ```
 
-The test suite includes coverage for areas such as:
+The number of tests changes over time. The required result is that the complete
+suite finishes successfully with no failures. The test suite includes coverage
+for areas such as:
 
 * authentication
 * RBAC
@@ -1888,11 +1928,14 @@ Tests cover security-sensitive application behavior and regression cases.
 
 ### Full Suite
 
-The current full test baseline is:
+Run the complete test suite from the repository root:
 
-```text id="7cn4f6"
-155 passed
+```bash
+./.venv-test/bin/pytest -q
 ```
+
+The test count changes as the project evolves; rely on the command's result,
+not a fixed number printed in this document.
 
 ---
 

@@ -312,7 +312,7 @@ This document describes the optional LUMS theme system itself.
 
 General LUMS topics are documented separately:
 
-* Installation and deployment → `installation.md`
+* Installation and deployment → `install.md`
 * Administration and maintenance → `administration.md`
 * Troubleshooting → `troubleshooting.md`
 * Security architecture and audits → `security.md`

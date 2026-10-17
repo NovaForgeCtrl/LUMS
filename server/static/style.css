@@ -2523,6 +2523,11 @@ button:active {
         padding: 25px 16px;
     }
 
+    .login-language-selector {
+        top: 10px;
+        right: 10px;
+    }
+
     .login-card {
         padding: 30px 24px;
     }
@@ -2747,6 +2752,62 @@ button:active {
 .login-theme-selector select:focus {
     border-color: #666666;
     box-shadow: 0 0 0 3px rgba(255,255,255,0.05);
+}
+
+.login-language-selector,
+.language-form {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 0;
+}
+
+.login-language-selector {
+    position: fixed;
+    top: 18px;
+    right: 18px;
+    z-index: 10;
+}
+
+.login-language-selector label,
+.language-form label {
+    color: #aeb7c2;
+    font-size: 12px;
+}
+
+.login-language-selector select,
+.language-form select {
+    max-width: 180px;
+    min-width: 0;
+    padding: 7px 9px;
+    border: 1px solid #465261;
+    border-radius: 5px;
+    background: #111820;
+    color: #e7edf4;
+    font: inherit;
+}
+
+.login-language-selector select {
+    max-width: min(180px, calc(100vw - 112px));
+}
+
+.login-language-selector button,
+.language-form button {
+    padding: 7px 10px;
+    border: 1px solid #465261;
+    border-radius: 5px;
+    background: #202a35;
+    color: #e7edf4;
+    font: inherit;
+    cursor: pointer;
+}
+
+.login-language-selector select:focus-visible,
+.login-language-selector button:focus-visible,
+.language-form select:focus-visible,
+.language-form button:focus-visible {
+    outline: 2px solid #77bdfb;
+    outline-offset: 2px;
 }
 
 

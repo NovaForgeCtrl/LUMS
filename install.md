@@ -8,6 +8,67 @@
 
 ---
 
+## Getting Started: Understand the Installation Before You Begin
+
+This guide covers a complete server installation, including advanced
+maintenance and verification procedures. It is **not** a single script to run
+without review: the server name, TLS certificate, secret file, backup
+destination, network, and database vary between installations.
+
+### What gets installed?
+
+* **LUMS server:** the web interface and API, running in a Docker container.
+* **Nginx:** accepts external HTTPS connections and forwards them locally to
+  the container.
+* **Data volume:** contains the SQLite database. This volume must survive
+  upgrades and must never be deleted during a normal container replacement.
+* **Secret file:** protects application sessions, among other things. Never
+  put it in the Git repository, a Docker image, or a chat message.
+* **LUMS Agent and Watcher:** installed separately on managed Linux clients. A
+  working server alone does not update any clients.
+
+| Term | Meaning |
+| --- | --- |
+| Terminal / shell | A text window where you enter Linux commands. |
+| `sudo` | Runs the command that follows with administrator rights. Linux may ask for your password. |
+| Host | The Linux computer running Docker and the LUMS server. |
+| Container | An isolated process running the LUMS web application. |
+| Image | A prepared template Docker uses to start a container. |
+| Volume | Persistent Docker storage that remains when a container is replaced. |
+| Placeholder | Text such as `LUMS-SERVER` that must be replaced with your actual value. |
+
+### Run tests only (this does not install a server)
+
+These steps are suitable for Debian 13 to check out the source and run tests
+locally. They do **not** create a production server reachable over the network
+and do not install an agent on another computer. `sudo` is only needed to
+install Debian packages.
+
+```bash
+sudo apt update
+sudo apt install -y git python3 python3-venv
+git clone https://github.com/NovaForgeCtrl/LUMS.git ~/LUMS
+cd ~/LUMS
+python3 -m venv .venv-test
+./.venv-test/bin/python -m pip install -r server/requirements.txt -r requirements-dev.txt
+./.venv-test/bin/pytest -q
+```
+
+`apt update` refreshes package lists; it does not upgrade all installed
+software. The `.venv-test` Python virtual environment keeps test dependencies
+separate from the rest of the system. A successful test run exits with code
+`0`; the number of tests can change as the project grows. If creating the
+environment fails, check that `python3-venv` is installed. If a test fails,
+save the complete error and read the
+[troubleshooting guide](troubleshooting.md); do not delete production data.
+
+For a real installation, continue with the numbered sections and read the
+security and backup instructions first. If LUMS is already running, use the
+upgrade procedure in [`administration.md`](administration.md), not the
+first-install procedure.
+
+---
+
 # 1. Overview
 
 LUMS is a centralized Linux update management platform for controlled update distribution, client reporting, package management, update-job execution, result validation and auditable administration.
@@ -1557,9 +1618,13 @@ Never print the private-key contents.
 Test HTTPS locally:
 
 ```bash
-curl -kI \
-    https://127.0.0.1/
+curl -I \
+    https://LUMS-SERVER/
 ```
+
+Replace `LUMS-SERVER` with the hostname covered by the server's TLS
+certificate. Do not use `-k` for routine verification; it skips certificate
+validation.
 
 When the certificate is trusted by the system, use certificate verification:
 
@@ -1642,7 +1707,7 @@ The Docker application port is an internal reverse-proxy endpoint.
 Inspect the HTTPS response headers:
 
 ```bash
-curl -kI \
+curl -I \
     https://LUMS-SERVER/
 ```
 
@@ -3993,13 +4058,8 @@ Run:
 ./.venv-test/bin/pytest -q
 ```
 
-The installation baseline currently includes:
-
-```text
-155 passed
-```
-
-The exact number may increase as additional tests are added.
+The number of tests changes as the project evolves; rely on the command's
+result, not a fixed count in this document.
 
 The important requirement is:
 
@@ -4998,17 +5058,8 @@ Run:
 
 All tests must pass.
 
-The current baseline is:
-
-```text
-155 passed
-```
-
-The exact count can increase as new tests are added.
-
-A changed test count is not automatically a problem.
-
-The requirement is that the complete suite finishes successfully.
+A changed test count is not automatically a problem. The requirement is that
+the complete suite finishes successfully.
 
 ---
 
@@ -5688,10 +5739,16 @@ Before declaring the installation complete, verify that the documentation matche
 At minimum, review:
 
 ```text
-docs/installation.md
-docs/security.md
-docs/troubleshooting.md
+install.md
+security.md
+troubleshooting.md
+administration.md
+docs/README.md
 ```
+
+The root-level technical guides are the English source of truth. The localized
+guides in `docs/locales/` are concise beginner guides, not word-for-word copies
+of every technical section.
 
 The documentation must not contain:
 

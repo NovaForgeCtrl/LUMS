@@ -1,3 +1,12 @@
+function t(message, values = {}) {
+    const translated = window.lumsT?.[message] || message;
+    return Object.entries(values).reduce(
+        (text, [key, value]) =>
+            text.split(`{${key}}`).join(String(value)),
+        translated
+    );
+}
+
 async function loadClients() {
 
     try {
@@ -6,7 +15,7 @@ async function loadClients() {
 
         if (!response.ok) {
 
-            throw new Error("API-Fehler");
+            throw new Error(t("API error"));
 
         }
 
@@ -29,7 +38,7 @@ async function loadClients() {
                 <td colspan="6"
                     class="loading">
 
-                    Fehler beim Laden der Clients
+                    ${t("Error loading clients")}
 
                 </td>
 
@@ -55,12 +64,16 @@ function updateDashboard(clients) {
 
     document.getElementById(
         "client-count"
-    ).textContent = clientCount;
+    ).textContent = new Intl.NumberFormat(window.lumsLocale).format(
+        clientCount
+    );
 
 
     document.getElementById(
         "online-count"
-    ).textContent = onlineCount;
+    ).textContent = new Intl.NumberFormat(window.lumsLocale).format(
+        onlineCount
+    );
 
 
     if ((window.lumsUserPermissions || []).includes("updates.view")) {
@@ -77,7 +90,7 @@ function formatIdleStatus(client) {
 
         return `
             <span class="idle-status idle-active">
-                ● Aktiv
+                ● ${t("Active")}
             </span>
         `;
 
@@ -100,7 +113,7 @@ function formatIdleStatus(client) {
 
     return `
         <span class="idle-status idle-ready">
-            ◷ Idle
+            ◷ ${t("Idle")}
             ${formatDuration(idleSeconds)}
             / ${formatDuration(thresholdSeconds)}
         </span>
@@ -174,7 +187,9 @@ async function loadUpdateCount(clients) {
 
     document.getElementById(
         "update-count"
-    ).textContent = totalUpdates;
+    ).textContent = new Intl.NumberFormat(window.lumsLocale).format(
+        totalUpdates
+    );
 
 }
 
@@ -198,7 +213,7 @@ function renderClients(clients) {
                 <td colspan="6"
                     class="loading">
 
-                    Keine Clients registriert
+                    ${t("No clients registered")}
 
                 </td>
 
@@ -218,11 +233,13 @@ function renderClients(clients) {
             document.createElement("tr");
 
 
+        const normalizedStatus =
+            String(client.status || "unknown").toLowerCase();
         let statusClass =
             "status-offline";
 
 
-        if (client.status === "online") {
+        if (normalizedStatus === "online") {
 
             statusClass =
                 "status-online";
@@ -230,7 +247,7 @@ function renderClients(clients) {
         }
 
 
-        if (client.status === "unknown") {
+        if (normalizedStatus === "unknown") {
 
             statusClass =
                 "status-unknown";
@@ -270,7 +287,11 @@ function renderClients(clients) {
 
                     <span class="status-indicator"></span>
 
-                    ${escapeHtml(client.status)}
+                    ${escapeHtml({
+                        online: t("Online"),
+                        offline: t("Offline"),
+                        unknown: t("Unknown"),
+                    }[normalizedStatus] || client.status || t("Unknown"))}
 
                 </span>
 
@@ -285,7 +306,7 @@ function renderClients(clients) {
 
             <td id="updates-${client.id}">
 
-                Lade...
+                ${t("Loading...")}
 
             </td>
 
@@ -330,7 +351,7 @@ async function loadClientUpdates(clientId) {
 
         if (!response.ok) {
 
-            throw new Error("API-Fehler");
+            throw new Error(t("API error"));
 
         }
 
@@ -356,7 +377,7 @@ async function loadClientUpdates(clientId) {
 
             element.innerHTML =
                 `<span class="updates-none">
-                    Keine
+                    ${t("None")}
                 </span>`;
 
         } else {
@@ -384,9 +405,7 @@ function formatDate(dateString) {
         new Date(dateString);
 
 
-    return date.toLocaleString(
-        "de-DE"
-    );
+    return date.toLocaleString(window.lumsLocale);
 
 }
 
@@ -499,7 +518,7 @@ async function createClient(event) {
     if (!ip) {
 
         showAddClientError(
-            "Bitte eine IP-Adresse eingeben."
+            t("Please enter an IP address.")
         );
 
         return;
@@ -514,7 +533,7 @@ async function createClient(event) {
     if (!csrfToken) {
 
         showAddClientError(
-            "CSRF-Token konnte nicht gefunden werden."
+            t("CSRF token could not be found.")
         );
 
         return;
@@ -527,7 +546,7 @@ async function createClient(event) {
         );
 
     submitButton.disabled = true;
-    submitButton.textContent = "Wird angelegt...";
+    submitButton.textContent = t("Creating...");
 
     try {
 
@@ -559,14 +578,14 @@ async function createClient(event) {
             ) {
 
                 throw new Error(
-                    "Ein Client mit diesen Daten existiert bereits."
+                    t("A client with this information already exists.")
                 );
 
             }
 
             throw new Error(
                 data.error ||
-                "Client konnte nicht angelegt werden."
+                t("Could not create client.")
             );
 
         }
@@ -598,7 +617,7 @@ async function createClient(event) {
     } finally {
 
         submitButton.disabled = false;
-        submitButton.textContent = "Client anlegen";
+        submitButton.textContent = t("Create client");
 
     }
 }
@@ -626,7 +645,7 @@ async function copyClientToken() {
         await navigator.clipboard.writeText(token);
 
         alert(
-            "Client-Token wurde in die Zwischenablage kopiert."
+            t("Client token copied to clipboard.")
         );
 
     } catch (error) {
@@ -634,7 +653,7 @@ async function copyClientToken() {
         console.error(error);
 
         alert(
-            "Token konnte nicht automatisch kopiert werden."
+            t("Token could not be copied automatically.")
         );
 
     }
@@ -768,7 +787,7 @@ function applyRolePermissionPreset(role, container) {
 
 function roleTemplateDescription(role) {
     return window.lumsRoleDescriptions?.[role] ||
-        "Keine Beschreibung für diese Vorlage verfügbar.";
+        t("No description is available for this template.");
 }
 
 
@@ -783,18 +802,20 @@ function createPermissionEditorRow(user) {
     editor.className = "permission-editor";
 
     const heading = document.createElement("h3");
-    heading.textContent = `Berechtigungen für ${user.username}`;
+    heading.textContent = t("Permissions for {username}", {
+        username: user.username,
+    });
     editor.appendChild(heading);
 
     const roleLabel = document.createElement("label");
-    roleLabel.textContent = "Rollen-Vorlage ";
+    roleLabel.textContent = `${t("Role template")} `;
 
     const roleSelect = document.createElement("select");
-    roleSelect.setAttribute("aria-label", "Rollen-Vorlage");
+    roleSelect.setAttribute("aria-label", t("Role template"));
     for (const [value, labelText] of [
-        ["viewer", "Viewer"],
-        ["operator", "Operator"],
-        ["administrator", "Administrator"],
+        ["viewer", t("Viewer")],
+        ["operator", t("Operator")],
+        ["administrator", t("Administrator")],
     ]) {
         const option = document.createElement("option");
         option.value = value;
@@ -820,9 +841,9 @@ function createPermissionEditorRow(user) {
         const item = document.createElement("li");
         const label = document.createElement("strong");
         label.textContent = {
-            administrator: "Administrator",
-            operator: "Operator",
-            viewer: "Viewer",
+            administrator: t("Administrator"),
+            operator: t("Operator"),
+            viewer: t("Viewer"),
         }[role] || role;
         const detail = document.createElement("span");
         detail.textContent = description;
@@ -834,7 +855,7 @@ function createPermissionEditorRow(user) {
     const fieldset = document.createElement("fieldset");
     fieldset.className = "permission-picker";
     const legend = document.createElement("legend");
-    legend.textContent = "Berechtigungen";
+    legend.textContent = t("Permissions");
     fieldset.appendChild(legend);
 
     const options = document.createElement("div");
@@ -851,7 +872,7 @@ function createPermissionEditorRow(user) {
     const applyTemplateButton = document.createElement("button");
     applyTemplateButton.type = "button";
     applyTemplateButton.className = "button";
-    applyTemplateButton.textContent = "Vorlage übernehmen";
+    applyTemplateButton.textContent = t("Apply template");
     applyTemplateButton.addEventListener("click", () => {
         applyRolePermissionPreset(roleSelect.value, options);
     });
@@ -868,26 +889,26 @@ function createPermissionEditorRow(user) {
     const saveButton = document.createElement("button");
     saveButton.type = "button";
     saveButton.className = "button-primary";
-    saveButton.textContent = "Berechtigungen speichern";
+    saveButton.textContent = t("Save permissions");
 
     const cancelButton = document.createElement("button");
     cancelButton.type = "button";
     cancelButton.className = "button";
-    cancelButton.textContent = "Abbrechen";
+    cancelButton.textContent = t("Cancel");
     cancelButton.addEventListener("click", () => row.remove());
 
     const noteSection = document.createElement("section");
     noteSection.className = "admin-note-section";
 
     const noteLabel = document.createElement("label");
-    noteLabel.textContent = "Interne Admin-Notiz";
+    noteLabel.textContent = t("Internal admin note");
     noteLabel.htmlFor = `admin-note-${user.id}`;
     noteSection.appendChild(noteLabel);
 
     const noteHelp = document.createElement("p");
     noteHelp.className = "panel-description";
     noteHelp.textContent =
-        "Nur für Benutzer mit users.manage sichtbar; der Benutzer selbst sieht diese Notiz nicht.";
+        t("Only visible to users with users.manage; the user cannot see this note.");
     noteSection.appendChild(noteHelp);
 
     const noteInput = document.createElement("textarea");
@@ -897,7 +918,9 @@ function createPermissionEditorRow(user) {
     noteInput.value = user.admin_note || "";
     noteInput.setAttribute(
         "aria-label",
-        `Interne Admin-Notiz für ${user.username}`
+        t("Internal admin note for {username}", {
+            username: user.username,
+        })
     );
     noteSection.appendChild(noteInput);
 
@@ -909,7 +932,7 @@ function createPermissionEditorRow(user) {
     const saveNoteButton = document.createElement("button");
     saveNoteButton.type = "button";
     saveNoteButton.className = "button";
-    saveNoteButton.textContent = "Notiz speichern";
+    saveNoteButton.textContent = t("Save note");
     saveNoteButton.addEventListener("click", async () => {
         const csrfToken = document.querySelector(
             'meta[name="csrf-token"]'
@@ -917,13 +940,13 @@ function createPermissionEditorRow(user) {
 
         if (!csrfToken) {
             noteStatus.textContent =
-                "CSRF-Token konnte nicht gefunden werden.";
+                t("CSRF token could not be found.");
             noteStatus.dataset.state = "error";
             return;
         }
 
         saveNoteButton.disabled = true;
-        saveNoteButton.textContent = "Wird gespeichert …";
+        saveNoteButton.textContent = t("Saving...");
         noteStatus.textContent = "";
 
         try {
@@ -945,23 +968,25 @@ function createPermissionEditorRow(user) {
             if (!response.ok) {
                 const messages = {
                     invalid_admin_note:
-                        "Die Notiz darf höchstens 2.000 Zeichen enthalten.",
+                        t("The note must be 2,000 characters or fewer."),
                     user_not_found:
-                        "Der Benutzer wurde nicht gefunden.",
+                        t("User not found."),
                     csrf_validation_failed:
-                        "CSRF-Prüfung fehlgeschlagen.",
+                        t("CSRF validation failed."),
                     authorization_required:
-                        "Dafür fehlen die Berechtigungen.",
+                        t("You do not have permission to do that."),
                 };
                 throw new Error(
                     messages[result.error] ||
-                    `Notiz konnte nicht gespeichert werden (HTTP ${response.status}).`
+                    t("Could not save note (HTTP {status}).", {
+                        status: response.status,
+                    })
                 );
             }
 
             user.admin_note = result.note;
             noteInput.value = result.note;
-            noteStatus.textContent = "Interne Notiz gespeichert.";
+            noteStatus.textContent = t("Internal note saved.");
             noteStatus.dataset.state = "success";
         } catch (saveError) {
             console.error(saveError);
@@ -969,7 +994,7 @@ function createPermissionEditorRow(user) {
             noteStatus.dataset.state = "error";
         } finally {
             saveNoteButton.disabled = false;
-            saveNoteButton.textContent = "Notiz speichern";
+            saveNoteButton.textContent = t("Save note");
         }
     });
     noteSection.appendChild(saveNoteButton);
@@ -981,13 +1006,13 @@ function createPermissionEditorRow(user) {
         )?.content;
 
         if (!csrfToken) {
-            error.textContent = "CSRF-Token konnte nicht gefunden werden.";
+            error.textContent = t("CSRF token could not be found.");
             error.hidden = false;
             return;
         }
 
         saveButton.disabled = true;
-        saveButton.textContent = "Wird gespeichert …";
+        saveButton.textContent = t("Saving...");
         error.hidden = true;
 
         try {
@@ -1010,35 +1035,39 @@ function createPermissionEditorRow(user) {
             if (!response.ok) {
                 const messages = {
                     invalid_user_role:
-                        "Die ausgewählte Rollen-Vorlage ist ungültig.",
+                        t("The selected role template is invalid."),
                     invalid_user_permissions:
-                        "Die Auswahl enthält ungültige Rechte oder erforderliche Basisrechte fehlen.",
+                        t("The selection contains invalid permissions or is missing required base permissions."),
                     last_enabled_administrator:
-                        "Mindestens ein aktiver Benutzer muss Benutzer verwalten dürfen.",
+                        t("At least one active user must be allowed to manage users."),
                     user_not_found:
-                        "Der Benutzer wurde nicht gefunden.",
+                        t("User not found."),
                     csrf_validation_failed:
-                        "CSRF-Prüfung fehlgeschlagen.",
+                        t("CSRF validation failed."),
                     authorization_required:
-                        "Dafür fehlen die Berechtigungen.",
+                        t("You do not have permission to do that."),
                 };
 
                 throw new Error(
                     messages[result.error] ||
-                    `Berechtigungen konnten nicht gespeichert werden (HTTP ${response.status}).`
+                    t("Could not save permissions (HTTP {status}).", {
+                        status: response.status,
+                    })
                 );
             }
 
             await loadUsers();
             const status = document.getElementById("users-list-status");
             status.textContent =
-                `Berechtigungen für "${user.username}" wurden gespeichert.`;
+                t('Permissions for "{username}" were saved.', {
+                    username: user.username,
+                });
         } catch (saveError) {
             console.error(saveError);
             error.textContent = saveError.message;
             error.hidden = false;
             saveButton.disabled = false;
-            saveButton.textContent = "Berechtigungen speichern";
+            saveButton.textContent = t("Save permissions");
         }
     });
 
@@ -1069,7 +1098,7 @@ async function loadUsers(focusUserId = null) {
     }
 
     status.textContent =
-        "Benutzer werden geladen …";
+        t("Loading users...");
 
     container.hidden = true;
 
@@ -1085,7 +1114,7 @@ async function loadUsers(focusUserId = null) {
 
             throw new Error(
                 data.error ||
-                "Benutzer konnten nicht geladen werden."
+                t("Could not load users.")
             );
 
         }
@@ -1095,7 +1124,7 @@ async function loadUsers(focusUserId = null) {
         if (!Array.isArray(data) || data.length === 0) {
 
             status.textContent =
-                "Keine Benutzer vorhanden.";
+                t("No users found.");
 
             return;
 
@@ -1120,9 +1149,9 @@ async function loadUsers(focusUserId = null) {
             roleBadge.className =
                 `user-role-badge user-role-badge--${user.role}`;
             roleBadge.textContent = {
-                administrator: "Administrator",
-                operator: "Operator",
-                viewer: "Viewer",
+                administrator: t("Administrator"),
+                operator: t("Operator"),
+                viewer: t("Viewer"),
             }[user.role] || user.role;
             roleCell.appendChild(roleBadge);
 
@@ -1139,7 +1168,7 @@ async function loadUsers(focusUserId = null) {
                     document.createElement("span");
                 customizedBadge.className =
                     "user-role-customized";
-                customizedBadge.textContent = "Angepasst";
+                customizedBadge.textContent = t("Customized");
                 roleCell.appendChild(customizedBadge);
             }
 
@@ -1174,7 +1203,7 @@ async function loadUsers(focusUserId = null) {
                     document.createElement("span");
                 emptyPermissions.className =
                     "permission-empty";
-                emptyPermissions.textContent = "Keine";
+                emptyPermissions.textContent = t("None");
                 permissionList.appendChild(emptyPermissions);
             }
             permissionsCell.appendChild(permissionList);
@@ -1188,8 +1217,8 @@ async function loadUsers(focusUserId = null) {
                 ? "user-status-badge user-status-badge--active"
                 : "user-status-badge user-status-badge--disabled";
             statusBadge.textContent = user.enabled
-                ? "Aktiv"
-                : "Deaktiviert";
+                ? t("Active")
+                : t("Disabled");
             statusCell.appendChild(statusBadge);
 
             const actionCell =
@@ -1200,10 +1229,12 @@ async function loadUsers(focusUserId = null) {
 
             editButton.type = "button";
             editButton.className = "button";
-            editButton.textContent = "Rechte";
+            editButton.textContent = t("Permissions");
             editButton.setAttribute(
                 "aria-label",
-                `Berechtigungen für ${user.username} bearbeiten`
+                t("Edit permissions for {username}", {
+                    username: user.username,
+                })
             );
             editButton.addEventListener("click", () => {
                 const nextRow = row.nextElementSibling;
@@ -1227,15 +1258,19 @@ async function loadUsers(focusUserId = null) {
 
             deleteButton.type = "button";
             deleteButton.className = "button-danger";
-            deleteButton.textContent = "Löschen";
+            deleteButton.textContent = t("Delete");
             deleteButton.setAttribute(
                 "aria-label",
-                `Benutzer ${user.username} löschen`
+                t("Delete user {username}", {
+                    username: user.username,
+                })
             );
 
             deleteButton.addEventListener("click", async () => {
                 if (!window.confirm(
-                    `Soll der Benutzer "${user.username}" wirklich gelöscht werden?`
+                    t('Are you sure you want to delete user "{username}"?', {
+                        username: user.username,
+                    })
                 )) {
                     return;
                 }
@@ -1246,12 +1281,12 @@ async function loadUsers(focusUserId = null) {
 
                 if (!csrfToken) {
                     status.textContent =
-                        "CSRF-Token konnte nicht gefunden werden.";
+                        t("CSRF token could not be found.");
                     return;
                 }
 
                 deleteButton.disabled = true;
-                deleteButton.textContent = "Wird gelöscht …";
+                deleteButton.textContent = t("Deleting...");
 
                 try {
                     const deleteResponse = await fetch(
@@ -1272,28 +1307,28 @@ async function loadUsers(focusUserId = null) {
 
                     if (readError) {
                         console.warn(
-                            "Serverantwort konnte nicht gelesen werden."
+                            t("Could not read server response.")
                         );
                     }
 
                     if (invalidJson) {
                         console.warn(
-                            "Serverantwort war kein gültiges JSON."
+                            t("Server response was not valid JSON.")
                         );
                     }
 
                     if (!deleteResponse.ok) {
                         const messages = {
                             cannot_delete_self:
-                                "Das eigene Benutzerkonto kann nicht gelöscht werden.",
+                                t("You cannot delete your own account."),
                             last_enabled_administrator:
-                                "Der letzte aktive Administrator kann nicht gelöscht werden.",
+                                t("The last active administrator cannot be deleted."),
                             user_not_found:
-                                "Der Benutzer wurde nicht gefunden.",
+                                t("User not found."),
                             csrf_validation_failed:
-                                "CSRF-Prüfung fehlgeschlagen.",
+                                t("CSRF validation failed."),
                             authorization_required:
-                                "Dafür fehlen die Berechtigungen."
+                                t("You do not have permission to do that.")
                         };
 
                         if (result?.error && messages[result.error]) {
@@ -1305,14 +1340,14 @@ async function loadUsers(focusUserId = null) {
                             deleteResponse.status === 403
                         ) {
                             throw new Error(
-                                "Die Löschanfrage wurde nicht autorisiert."
+                                t("The delete request was not authorized.")
                             );
                         }
 
                         throw new Error(
-                            `Benutzer konnte nicht gelöscht werden ` +
-                            `(HTTP ${deleteResponse.status}). ` +
-                            "Bitte die Benutzerliste aktualisieren und den Status prüfen."
+                            t("Could not delete user (HTTP {status}). Refresh the user list and check the status.", {
+                                status: deleteResponse.status,
+                            })
                         );
                     }
 
@@ -1320,21 +1355,22 @@ async function loadUsers(focusUserId = null) {
                         await loadUsers();
 
                         status.textContent =
-                            "Keine gültige Löschbestätigung vom Server. " +
-                            "Bitte prüfen, ob der Benutzer noch in der Liste steht.";
+                            t("The server did not confirm deletion. Check whether the user is still listed.");
 
                         return;
                     }
 
                     await loadUsers();
                     status.textContent =
-                        `Benutzer "${user.username}" wurde gelöscht.`;
+                        t('User "{username}" was deleted.', {
+                            username: user.username,
+                        });
 
                 } catch (error) {
                     console.error(error);
                     status.textContent = error.message;
                     deleteButton.disabled = false;
-                    deleteButton.textContent = "Löschen";
+                    deleteButton.textContent = t("Delete");
                 }
             });
 
@@ -1371,8 +1407,10 @@ async function loadUsers(focusUserId = null) {
         }
 
         status.textContent = focusUserId === null
-            ? `${data.length} Benutzer`
-            : `${data.length} Benutzer · Vorlage prüfen und Rechte für den neuen Benutzer manuell zuweisen.`;
+            ? t("{count} users", { count: data.length })
+            : t("{count} users · Review the role template and assign permissions to the new user.", {
+                count: data.length,
+            });
 
         container.hidden = false;
 
@@ -1381,7 +1419,7 @@ async function loadUsers(focusUserId = null) {
         console.error(error);
 
         status.textContent =
-            "Benutzer konnten nicht geladen werden.";
+            t("Could not load users.");
 
     }
 
@@ -1423,7 +1461,7 @@ async function createUser(event) {
     if (!csrfToken) {
 
         showCreateUserError(
-            "CSRF-Token konnte nicht gefunden werden."
+            t("CSRF token could not be found.")
         );
 
         return;
@@ -1436,7 +1474,7 @@ async function createUser(event) {
         );
 
     submitButton.disabled = true;
-    submitButton.textContent = "Wird angelegt...";
+    submitButton.textContent = t("Creating...");
 
     try {
 
@@ -1467,33 +1505,33 @@ async function createUser(event) {
 
             const messages = {
                 username_required:
-                    "Bitte einen Benutzernamen eingeben.",
+                    t("Enter a username."),
 
                 username_too_long:
-                    "Der Benutzername darf höchstens 64 Zeichen lang sein.",
+                    t("Username must be 64 characters or fewer."),
 
                 password_required:
-                    "Bitte ein Passwort eingeben.",
+                    t("Enter a password."),
 
                 password_too_short:
-                    "Das Passwort muss mindestens 12 Zeichen lang sein.",
+                    t("Password must be at least 12 characters."),
 
                 invalid_user_role:
-                    "Die ausgewählte Benutzerrolle ist ungültig.",
+                    t("The selected user role is invalid."),
 
                 invalid_user_permissions:
-                    "Die Auswahl enthält ungültige Rechte oder erforderliche Basisrechte fehlen.",
+                    t("The selection contains invalid permissions or is missing required base permissions."),
 
                 user_already_exists:
-                    "Dieser Benutzername existiert bereits.",
+                    t("That username already exists."),
 
                 csrf_validation_failed:
-                    "CSRF-Prüfung fehlgeschlagen."
+                    t("CSRF validation failed.")
             };
 
             throw new Error(
                 messages[data.error] ||
-                "Benutzer konnte nicht angelegt werden."
+                t("Could not create user.")
             );
 
         }
@@ -1518,7 +1556,7 @@ async function createUser(event) {
     } finally {
 
         submitButton.disabled = false;
-        submitButton.textContent = "Benutzer anlegen";
+        submitButton.textContent = t("Create user");
 
     }
 }

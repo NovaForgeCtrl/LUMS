@@ -1,11 +1,11 @@
 <!DOCTYPE html>
-<html lang="de">
+<html lang="{{ language }}" data-locale="{{ language_locale }}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="csrf-token" content="{{ csrf_token }}">
 
-    <title>LUMS – Client</title>
+    <title>LUMS – {{ tr("Client") }}</title>
 
     <link rel="stylesheet" href="/static/style.css">
 </head>
@@ -15,10 +15,22 @@
 <header class="topbar">
     <div>
         <div class="brand">LUMS</div>
-        <div class="subtitle">Linux Update Management Server</div>
+        <div class="subtitle">{{ tr("Linux Update Management Server") }}</div>
     </div>
 
-    <a href="/" class="back-link">← Dashboard</a>
+    <div class="topbar-actions">
+        <a href="/" class="back-link">← {{ tr("Dashboard") }}</a>
+        <form action="/language" method="POST" class="language-form">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            <label for="language-select">{{ tr("Language") }}</label>
+            <select id="language-select" name="language">
+                {% for code, name in languages.items() %}
+                <option value="{{ code }}" {% if code == language %}selected{% endif %}>{{ name }}</option>
+                {% endfor %}
+            </select>
+            <button type="submit">{{ tr("Save") }}</button>
+        </form>
+    </div>
 </header>
 
 
@@ -28,7 +40,7 @@
     <section class="client-header">
 
         <div>
-            <h1 id="hostname">Client</h1>
+            <h1 id="hostname">{{ tr("Client") }}</h1>
             <div class="client-ip" id="ip">–</div>
         </div>
 
@@ -44,7 +56,7 @@
                     id="rotate-client-token-button"
                     class="button button-primary"
                 >
-                    🔐 Token rotieren
+                    🔐 {{ tr("Rotate token") }}
                 </button>
 
                 <button
@@ -52,7 +64,7 @@
                     id="delete-client-button"
                     class="button button-danger"
                 >
-                    🗑️ Client entfernen
+                    🗑️ {{ tr("Remove client") }}
                 </button>
             {% endif %}
 
@@ -72,20 +84,18 @@
         <div class="panel-header">
 
             <div>
-                <h2>Neuer Client-Token</h2>
+                <h2>{{ tr("New client token") }}</h2>
 
                 <div class="panel-description">
-                    Der neue Token wurde erfolgreich erstellt.
+                    {{ tr("The new token was created successfully.") }}
                 </div>
             </div>
 
         </div>
 
         <div class="token-warning">
-            <strong>⚠️ Wichtig:</strong>
-            Dieser Token wird nur jetzt angezeigt.
-            Speichere ihn sicher und aktualisiere anschließend
-            die Token-Konfiguration des LUMS-Agenten.
+            <strong>⚠️ {{ tr("Important:") }}</strong>
+            {{ tr("This token is shown only once. Store it securely, then update the LUMS agent token configuration.") }}
         </div>
 
         <div class="token-display">
@@ -97,7 +107,7 @@
                 id="copy-rotated-client-token"
                 class="button"
             >
-                📋 Token kopieren
+                📋 {{ tr("Copy token") }}
             </button>
 
         </div>
@@ -111,25 +121,25 @@
 
         {% if "software.view" in user_permissions %}
         <div class="stat-card">
-            <div class="stat-label">Pakete</div>
+            <div class="stat-label">{{ tr("Packages") }}</div>
             <div class="stat-value" id="package-count">–</div>
         </div>
         {% endif %}
 
         {% if "updates.view" in user_permissions %}
         <div class="stat-card">
-            <div class="stat-label">Updates</div>
+            <div class="stat-label">{{ tr("Updates") }}</div>
             <div class="stat-value" id="update-count">–</div>
         </div>
         {% endif %}
 
         <div class="stat-card">
-            <div class="stat-label">Kernel</div>
+            <div class="stat-label">{{ tr("Kernel") }}</div>
             <div class="stat-value small" id="kernel">–</div>
         </div>
 
         <div class="stat-card">
-            <div class="stat-label">Agent</div>
+            <div class="stat-label">{{ tr("Agent") }}</div>
             <div class="stat-value" id="agent-version">–</div>
         </div>
 
@@ -140,23 +150,23 @@
     <section class="panel">
 
         <div class="panel-header">
-            <h2>Systeminformationen</h2>
+            <h2>{{ tr("System information") }}</h2>
         </div>
 
         <div class="info-grid">
 
             <div>
-                <span class="info-label">Betriebssystem</span>
+                <span class="info-label">{{ tr("Operating system") }}</span>
                 <span id="os">–</span>
             </div>
 
             <div>
-                <span class="info-label">Architektur</span>
+                <span class="info-label">{{ tr("Architecture") }}</span>
                 <span id="architecture">–</span>
             </div>
 
             <div>
-                <span class="info-label">Letzte Meldung</span>
+                <span class="info-label">{{ tr("Last report") }}</span>
                 <span id="last-seen">–</span>
             </div>
 
@@ -172,10 +182,10 @@
         <div class="panel-header">
 
             <div>
-                <h2>Updates</h2>
+                <h2>{{ tr("Updates") }}</h2>
 
                 <div class="panel-description" id="update-description">
-                    Verfügbare Updates für diesen Client
+                    {{ tr("Available updates for this client") }}
                 </div>
             </div>
 
@@ -184,7 +194,7 @@
         <div id="updates-container">
 
             <div class="empty-state">
-                Lade Updates...
+                {{ tr("Loading updates...") }}
             </div>
 
         </div>
@@ -198,10 +208,10 @@
         <div class="panel-header">
 
             <div>
-                <h2>Update-Jobs</h2>
+                <h2>{{ tr("Update jobs") }}</h2>
 
                 <div class="panel-description">
-                    Manuell angeforderte Updates
+                    {{ tr("Manually requested updates") }}
                 </div>
             </div>
 
@@ -210,7 +220,7 @@
         <div id="jobs-container">
 
             <div class="empty-state">
-                Lade Update-Jobs...
+                {{ tr("Loading update jobs...") }}
             </div>
 
         </div>
@@ -225,10 +235,10 @@
 
             <div>
 
-                <h2>Update-Verlauf</h2>
+                <h2>{{ tr("Update history") }}</h2>
 
                 <div class="panel-description">
-                    Vergangene Update-Vorgänge
+                    {{ tr("Previous update operations") }}
                 </div>
 
             </div>
@@ -238,7 +248,7 @@
         <div id="history-container">
 
             <div class="empty-state">
-                Lade Update-Verlauf...
+                {{ tr("Loading update history...") }}
             </div>
 
         </div>
@@ -254,10 +264,10 @@
         <div class="panel-header software-header">
 
             <div>
-                <h2>Software</h2>
+                <h2>{{ tr("Software") }}</h2>
 
                 <div class="panel-description">
-                    Installierte Software und Systempakete
+                    {{ tr("Installed software and system packages") }}
                 </div>
             </div>
 
@@ -271,21 +281,21 @@
                 class="software-tab active"
                 data-filter="system"
             >
-                Systemsoftware
+                {{ tr("System software") }}
             </button>
 
             <button
                 class="software-tab"
                 data-filter="additional"
             >
-                Zusätzliche Software
+                {{ tr("Additional software") }}
             </button>
 
             <button
                 class="software-tab"
                 data-filter="all"
             >
-                Alle Pakete
+                {{ tr("All packages") }}
             </button>
 
         </div>
@@ -297,7 +307,7 @@
             <input
                 type="search"
                 id="package-search"
-                placeholder="Software oder Paket suchen..."
+                placeholder="{{ tr('Search software or package...') }}"
                 autocomplete="off"
             >
 
@@ -308,7 +318,7 @@
         <div class="package-summary">
 
             <span id="visible-package-count">0</span>
-            Einträge angezeigt
+            {{ tr("entries shown") }}
 
         </div>
 
@@ -321,9 +331,9 @@
                 <thead>
 
                     <tr>
-                        <th>Paket / Software</th>
-                        <th>Installierte Version</th>
-                        <th>Status</th>
+                        <th>{{ tr("Package / software") }}</th>
+                        <th>{{ tr("Installed version") }}</th>
+                        <th>{{ tr("Status") }}</th>
                     </tr>
 
                 </thead>
@@ -336,7 +346,7 @@
                             colspan="3"
                             class="empty-state"
                         >
-                            Lade Pakete...
+                            {{ tr("Loading packages...") }}
                         </td>
 
                     </tr>
@@ -358,10 +368,10 @@
             <summary class="package-management-summary">
 
                 <div>
-                    <h2>Paketverwaltung</h2>
+                    <h2>{{ tr("Package management") }}</h2>
 
                     <div class="panel-description">
-                        Pakete auf diesem Client suchen und verwalten
+                        {{ tr("Search and manage packages on this client") }}
                     </div>
                 </div>
 
@@ -383,7 +393,7 @@
                     <input
                         type="search"
                         id="package-management-search"
-                        placeholder="Paket suchen..."
+                        placeholder="{{ tr('Search packages...') }}"
                         autocomplete="off"
                     >
 
@@ -392,7 +402,7 @@
                         id="package-management-search-button"
                         class="primary-button"
                     >
-                        Suchen
+                        {{ tr("Search") }}
                     </button>
 
                 </div>
@@ -403,7 +413,7 @@
                     id="package-management-status"
                     class="package-summary"
                 >
-                    Bereit
+                    {{ tr("Ready") }}
                 </div>
 
 
@@ -415,11 +425,11 @@
                         <thead>
 
                             <tr>
-                                <th>Paket</th>
-                                <th>Version</th>
-                                <th>Status</th>
-                                <th>Beschreibung</th>
-                                <th>Aktion</th>
+                                <th>{{ tr("Package") }}</th>
+                                <th>{{ tr("Version") }}</th>
+                                <th>{{ tr("Status") }}</th>
+                                <th>{{ tr("Description") }}</th>
+                                <th>{{ tr("Action") }}</th>
                             </tr>
 
                         </thead>
@@ -432,7 +442,7 @@
                                     colspan="5"
                                     class="empty-state"
                                 >
-                                    Noch keine Paketsuche durchgeführt.
+                                    {{ tr("No package search has been performed yet.") }}
                                 </td>
 
                             </tr>
@@ -457,6 +467,8 @@
 <script>
     window.lumsUserRole = {{ user_role | tojson }};
     window.lumsUserPermissions = {{ user_permissions | tojson }};
+    window.lumsT = {{ translations | tojson }};
+    window.lumsLocale = {{ language_locale | tojson }};
 </script>
 <script src="/static/client.js"></script>
 <script src="{{ url_for('static', filename='network.js') }}"></script>

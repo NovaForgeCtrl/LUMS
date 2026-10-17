@@ -6,11 +6,50 @@ This guide describes the day-to-day administration and operation of LUMS after t
 
 It focuses on administrative tasks performed through the LUMS web interface and on controlled operational tasks on the LUMS server and managed clients.
 
-Installation procedures are documented separately in `installation.md`.
+Installation procedures are documented separately in `install.md`.
 
 Troubleshooting procedures are documented separately in `troubleshooting.md`.
 
 Security architecture and audit information are documented separately in `security.md`.
+
+---
+
+## Getting Started: Day-to-Day Administration
+
+This guide is for the person responsible for an existing LUMS installation.
+The detailed technical sections are maintained in English. Start with these
+terms:
+
+* **User account:** determines what a person can do in the LUMS web interface.
+  Do not share accounts; give each person their own account.
+* **Client:** a managed Linux computer. Its client token is a secret and is not
+  the same as a web-account password.
+* **Update job:** a requested operation that the agent retrieves and runs
+  using APT or pacman on the target computer. Check the target and packages
+  before starting it.
+* **Backup:** a separate, verified copy of the database. A copy in the same
+  Docker volume does not protect against loss of that volume.
+* **Upgrade:** replaces the container version, not the database. A normal
+  upgrade must not delete or recreate `lums-data`.
+
+### Safe checklist before making a change
+
+1. Check whether update jobs are running and whether a maintenance window is
+   needed.
+2. Confirm that a recent, usable database backup exists.
+3. Record the running image, container settings, and data paths.
+4. Build and test the new image before stopping the active container.
+5. Replace the container with the same data, secret, and backup mounts and the
+   same security options.
+6. Check container status, logs, HTTPS sign-in, and data after startup.
+7. Keep the old container as a rollback option until the new version has been
+   verified.
+
+**Do not run** `docker volume rm lums-data`, `docker system prune --volumes`,
+or other deletion commands as part of a normal upgrade. They can permanently
+remove data. If you are unsure which container or path is active, stop and
+inspect the current setup first; do not copy an example command without
+checking it.
 
 ---
 
@@ -356,7 +395,7 @@ The LUMS documentation set is intentionally divided into separate operational gu
 
 | Document             | Purpose                                 |
 | -------------------- | --------------------------------------- |
-| `installation.md`    | Installation and initial deployment     |
+| `install.md`         | Installation and initial deployment     |
 | `administration.md`  | Day-to-day administration               |
 | `security.md`        | Security architecture and audit results |
 | `troubleshooting.md` | Diagnosis and recovery                  |
@@ -473,13 +512,13 @@ by the server administrator. For a Docker deployment, create a separate host
 directory writable by the container's UID/GID `10001`:
 
 ```bash
-sudo install -d -o 10001 -g 10001 -m 0700 /srv/lums-backups
+sudo install -d -o 10001 -g 10001 -m 0700 /var/backups/lums
 ```
 
 Add these options to the LUMS container configuration:
 
 ```bash
--v /srv/lums-backups:/var/backups/lums \
+-v /var/backups/lums:/var/backups/lums \
 -e LUMS_BACKUP_DIR=/var/backups/lums \
 ```
 
@@ -1964,8 +2003,12 @@ sudo systemctl reload nginx
 Then verify HTTPS:
 
 ```bash id="2w8v6c"
-curl -kI https://127.0.0.1/
+curl -I https://LUMS-SERVER/
 ```
+
+Replace `LUMS-SERVER` with the hostname covered by the server's TLS
+certificate. Do not use `-k` for routine verification; it skips certificate
+validation.
 
 A successful HTTPS response confirms that Nginx can reach the LUMS application.
 
@@ -2320,6 +2363,30 @@ Before replacing the production container:
 [ ] Rollback image identified
 ```
 
+Before running the example, compare it with the actual running container. The
+values below are an example, not a command that is safe for every installation.
+In particular, Docker bind-mount source paths on the left side of `:` must
+match your host, and the old container may have a different name.
+
+Display the image, mounts, published ports, restart policy and hardening
+settings without printing environment-variable values:
+
+```bash
+sudo docker inspect lums --format 'Image={{.Config.Image}}
+Mounts={{json .Mounts}}
+Ports={{json .HostConfig.PortBindings}}
+Restart={{json .HostConfig.RestartPolicy}}
+Readonly={{.HostConfig.ReadonlyRootfs}}
+CapDrop={{json .HostConfig.CapDrop}}
+SecurityOpt={{json .HostConfig.SecurityOpt}}
+Tmpfs={{json .HostConfig.Tmpfs}}'
+```
+
+Save the output somewhere private and use it to check that the new container
+keeps the same database volume, secret file, backup directory, local-only port
+binding and security options. Do not paste secret contents or environment
+values into notes or messages.
+
 Stop the existing container only after these conditions have been considered.
 
 The production container should retain the hardened runtime configuration.
@@ -2345,7 +2412,7 @@ sudo docker run -d \
     -p 127.0.0.1:5050:5000 \
     -v /etc/lums/secrets/lums_secret:/run/secrets/lums_secret:ro \
     -v lums-data:/var/lib/lums \
-    -v /srv/lums-backups:/var/backups/lums \
+    -v /var/backups/lums:/var/backups/lums \
     -e LUMS_SECRET_KEY_FILE=/run/secrets/lums_secret \
     -e LUMS_BACKUP_DIR=/var/backups/lums \
     lums:new
@@ -2372,10 +2439,39 @@ sudo docker logs --tail 100 lums
 Verify HTTPS:
 
 ```bash id="w9x1kf"
-curl -kI https://127.0.0.1/
+curl -I https://LUMS-SERVER/
 ```
 
+Replace `LUMS-SERVER` with the hostname covered by the server's TLS
+certificate. Do not use `-k` for routine verification; it skips certificate
+validation.
+
 Then verify the application through the normal administrative interface.
+
+Check that existing users, clients, and recent history are still present.
+Review the logs for startup or migration errors. A running container alone
+does not prove that the application or its database is healthy.
+
+### Roll back if the new container does not work
+
+Keep the old container until the new version has passed validation. If the
+new container is unusable and you have confirmed that the old container is
+named `lums-before-upgrade`, stop and remove **only the new container**, then
+rename and restart the old one:
+
+```bash
+sudo docker stop lums
+sudo docker rm lums
+sudo docker rename lums-before-upgrade lums
+sudo docker start lums
+```
+
+`docker rm lums` without `-v` removes the container, not the `lums-data`
+volume. Never add `-v` to this rollback command. If the container name differs,
+or you are not certain which container is old versus new, do not run these
+commands; inspect the current state or ask an administrator for help. After
+rollback, inspect logs and verify that the web interface and data are
+available.
 
 ---
 
@@ -2801,7 +2897,7 @@ The most important operational principles are:
 
 > **Keep a tested recovery path.**
 
-For installation procedures, see `installation.md`.
+For installation procedures, see `install.md`.
 
 For security architecture and audit results, see `security.md`.
 

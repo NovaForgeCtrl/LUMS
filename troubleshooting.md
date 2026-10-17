@@ -8,6 +8,56 @@ The objective is to identify the first component where the expected behavior sto
 
 ---
 
+## Getting Started: Troubleshoot Safely
+
+If you are new to Linux, an error does not automatically mean that data has
+been lost. Do not change several things at once. Start with the checks below
+and note **when** the problem occurs and **what action** happened immediately
+before it.
+
+### First checks on the LUMS server
+
+```bash
+sudo docker ps -a --filter name=lums
+sudo docker logs --tail 100 lums
+sudo systemctl status nginx --no-pager
+sudo nginx -t
+```
+
+`docker ps -a` also shows stopped containers. `docker logs` reads recent
+application messages. `systemctl status` shows whether Nginx is running;
+`nginx -t` checks its configuration without changing it. If `nginx -t` fails,
+do **not** reload Nginx until the cause has been corrected.
+
+### First checks on a managed client
+
+```bash
+sudo systemctl status lums-agent.service --no-pager
+sudo journalctl -u lums-agent.service -n 100 --no-pager
+sudo systemctl status lums-agent-watcher.service --no-pager
+sudo journalctl -u lums-agent-watcher.service -n 100 --no-pager
+```
+
+The Agent and Watcher are separate services: a successful Agent report does
+not prove that the Watcher can run update jobs. For a `oneshot` service,
+`inactive` can be normal after a successful run; check the result and log
+messages as well.
+
+### Before sharing command output
+
+Check logs and configuration for passwords, client tokens, session or API
+keys, private keys, and personal information. Never share secret-file contents
+or complete environment-variable values. If you need help, share only the
+relevant error messages after removing sensitive information.
+
+**Do not start by** deleting the database or Docker volume, running the
+container as privileged, disabling security options, removing package-manager
+lock files, or rotating tokens. These actions can damage data, erase evidence,
+or make the problem worse. If a check fails, save its output and continue to
+the relevant section below.
+
+---
+
 # 1. Troubleshooting Philosophy
 
 LUMS consists of several independent components.
@@ -3243,15 +3293,9 @@ Run the complete test suite from the repository:
 
 A successful run should report all tests as passed.
 
-The current project baseline is:
-
-```text id="v7c3nm"
-155 passed
-```
-
-The exact number may increase as additional tests are added.
-
-Therefore, the important condition is that the complete test suite succeeds rather than relying permanently on a fixed test count.
+The number of tests changes as additional tests are added. The important
+condition is that the complete test suite succeeds rather than relying on a
+fixed test count.
 
 ---
 

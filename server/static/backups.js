@@ -1,3 +1,7 @@
+function t(message) {
+    return window.lumsT?.[message] || message;
+}
+
 const backupForm = document.getElementById("backup-create-form");
 const backupStatus = document.getElementById("backup-status");
 const backupListStatus = document.getElementById("backup-list-status");
@@ -53,11 +57,7 @@ function updateBackupLocationLabel() {
 
 
 function formatBackupCount(count) {
-    if (count === 1) {
-        return "1 Backup wird angezeigt.";
-    }
-
-    return `${count} Backups werden angezeigt.`;
+    return `${t("Backups")}: ${new Intl.NumberFormat(window.lumsLocale).format(count)}`;
 }
 
 
@@ -75,7 +75,9 @@ function formatBackupSize(bytes) {
         unitIndex += 1;
     }
 
-    return `${size.toFixed(1)} ${units[unitIndex]}`;
+    return `${new Intl.NumberFormat(window.lumsLocale, {
+        maximumFractionDigits: 1,
+    }).format(size)} ${units[unitIndex]}`;
 }
 
 
@@ -86,7 +88,7 @@ function renderBackups(backups) {
         const row = document.createElement("tr");
         const cell = document.createElement("td");
         cell.colSpan = 5;
-        cell.textContent = "Noch keine Backups vorhanden.";
+        cell.textContent = t("No backups yet.");
         row.appendChild(cell);
         backupListBody.appendChild(row);
         return;
@@ -103,18 +105,23 @@ function renderBackups(backups) {
 
         filenameCell.textContent = backup.filename;
         formatCell.textContent = backup.format === "db.gz"
-            ? "SQLite (.db.gz)"
-            : "SQLite (.db)";
-        createdCell.textContent = backup.created_at
-            .replace("T", " ")
-            .replace("+00:00", " UTC");
+            ? t("Compressed SQLite (.db.gz)")
+            : t("SQLite (.db)");
+        createdCell.textContent = new Intl.DateTimeFormat(
+            window.lumsLocale,
+            {
+                dateStyle: "medium",
+                timeStyle: "medium",
+                timeZone: "UTC",
+            }
+        ).format(new Date(backup.created_at)) + " UTC";
         sizeCell.textContent = formatBackupSize(backup.size_bytes);
         deleteButton.type = "button";
         deleteButton.className = "backup-delete-button";
-        deleteButton.textContent = "Löschen";
+        deleteButton.textContent = t("Delete");
         deleteButton.setAttribute(
             "aria-label",
-            `Backup ${backup.filename} löschen`
+            `${t("Delete backup")} ${backup.filename}`
         );
         deleteButton.addEventListener("click", () => {
             selectedBackupFilename = backup.filename;
@@ -138,7 +145,7 @@ function renderBackups(backups) {
 
 
 async function loadBackups() {
-    backupListStatus.textContent = "Backups werden geladen …";
+    backupListStatus.textContent = t("Loading backups...");
     backupListStatus.dataset.state = "";
     refreshBackupsButton.disabled = true;
 
@@ -152,7 +159,7 @@ async function loadBackups() {
         if (!response.ok) {
             throw new Error(
                 result.message ||
-                "Backup-Ordner fehlt oder ist für LUMS nicht beschreibbar."
+                t("Backup folder is missing or not writable by LUMS.")
             );
         }
 
@@ -180,14 +187,14 @@ async function createBackup(event) {
 
     if (!csrfToken) {
         backupStatus.textContent =
-            "CSRF-Token konnte nicht gefunden werden.";
+            t("CSRF token could not be found.");
         backupStatus.dataset.state = "error";
         return;
     }
 
     createBackupButton.disabled = true;
     refreshBackupsButton.disabled = true;
-    createBackupButton.textContent = "Backup wird erstellt …";
+    createBackupButton.textContent = t("Creating backup...");
     backupStatus.textContent = "";
     backupStatus.dataset.state = "";
 
@@ -209,28 +216,28 @@ async function createBackup(event) {
             const messages = {
                 invalid_backup_path:
                     result.message ||
-                    "Bitte wähle einen gültigen Unterordner im Backup-Speicher.",
+                    t("Choose a valid subfolder in backup storage."),
                 invalid_backup_format:
-                    "Bitte wähle ein unterstütztes Dateiformat.",
+                    t("Choose a supported file format."),
                 backup_storage_unavailable:
                     result.message ||
-                    "Backup-Zielordner fehlt oder ist nicht beschreibbar.",
+                    t("Backup destination is missing or not writable."),
                 backup_failed:
-                    "Die Datenbanksicherung ist fehlgeschlagen. Serverprotokoll prüfen.",
+                    t("Database backup failed. Check the server log."),
                 backup_audit_failed:
                     `Backup ${result.backup?.filename || ""} wurde erstellt, ` +
-                    "aber der Audit-Eintrag konnte nicht gespeichert werden. Serverprotokoll prüfen.",
+                    `${t("but its audit entry could not be saved. Check the server log.")}`,
                 csrf_validation_failed:
-                    "CSRF-Prüfung fehlgeschlagen. Bitte Seite neu laden.",
+                    t("CSRF validation failed. Reload the page."),
             };
             throw new Error(
                 messages[result.error] ||
-                `Backup konnte nicht erstellt werden (HTTP ${response.status}).`
+                `${t("Could not create backup")} (HTTP ${response.status}).`
             );
         }
 
         backupStatus.textContent =
-            `Backup erstellt: ${result.backup.filename} ` +
+            `${t("Backup created")}: ${result.backup.filename} ` +
             `(${formatBackupSize(result.backup.size_bytes)}).`;
         backupStatus.dataset.state = "success";
         await loadBackups();
@@ -240,7 +247,7 @@ async function createBackup(event) {
         backupStatus.dataset.state = "error";
     } finally {
         createBackupButton.disabled = false;
-        createBackupButton.textContent = "Backup jetzt erstellen";
+        createBackupButton.textContent = t("Create backup now");
         refreshBackupsButton.disabled = false;
     }
 }
@@ -254,15 +261,15 @@ async function deleteBackup(event) {
 
     if (!csrfToken || !selectedBackupFilename) {
         deleteBackupError.textContent = !csrfToken
-            ? "CSRF-Token konnte nicht gefunden werden."
-            : "Es wurde kein Backup zum Löschen ausgewählt.";
+            ? t("CSRF token could not be found.")
+            : t("No backup selected for deletion.");
         deleteBackupError.hidden = false;
         return;
     }
 
     confirmDeleteBackupButton.disabled = true;
     cancelDeleteBackupButton.disabled = true;
-    confirmDeleteBackupButton.textContent = "Wird gelöscht …";
+    confirmDeleteBackupButton.textContent = t("Deleting...");
 
     try {
         const query = new URLSearchParams({
@@ -282,27 +289,27 @@ async function deleteBackup(event) {
         if (!response.ok) {
             const messages = {
                 invalid_backup_path:
-                    result.message || "Ungültiger Backup-Pfad.",
+                    result.message || t("Invalid backup path."),
                 backup_not_found:
-                    "Das Backup ist nicht mehr vorhanden. Aktualisiere die Liste.",
+                    t("Backup no longer exists. Refresh the list."),
                 backup_storage_unavailable:
-                    result.message || "Backup-Speicher ist nicht verfügbar.",
+                    result.message || t("Backup storage is unavailable."),
                 backup_delete_failed:
-                    "Backup konnte nicht gelöscht werden. Serverprotokoll prüfen.",
+                    t("Could not delete backup. Check the server log."),
                 backup_audit_failed:
-                    "Backup wurde gelöscht, aber der Audit-Eintrag schlug fehl. Serverprotokoll prüfen.",
+                    t("Backup was deleted, but its audit entry failed. Check the server log."),
                 csrf_validation_failed:
-                    "CSRF-Prüfung fehlgeschlagen. Bitte Seite neu laden.",
+                    t("CSRF validation failed. Reload the page."),
             };
             throw new Error(
                 messages[result.error] ||
-                `Backup konnte nicht gelöscht werden (HTTP ${response.status}).`
+                `${t("Could not delete backup")} (HTTP ${response.status}).`
             );
         }
 
         deleteBackupDialog.close();
         selectedBackupFilename = null;
-        backupStatus.textContent = `Backup gelöscht: ${result.filename}`;
+        backupStatus.textContent = `${t("Backup deleted")}: ${result.filename}`;
         backupStatus.dataset.state = "success";
         await loadBackups();
     } catch (error) {
@@ -312,7 +319,7 @@ async function deleteBackup(event) {
     } finally {
         confirmDeleteBackupButton.disabled = false;
         cancelDeleteBackupButton.disabled = false;
-        confirmDeleteBackupButton.textContent = "Backup löschen";
+        confirmDeleteBackupButton.textContent = t("Delete backup");
     }
 }
 
@@ -340,7 +347,7 @@ backupLocationForm.addEventListener("submit", event => {
         pathParts.includes("..")
     ) {
         backupLocationError.textContent =
-            "Bitte einen relativen Unterordner ohne „..“ oder Backslashes angeben.";
+            t("Enter a relative subfolder without '..' or backslashes.");
         backupLocationError.hidden = false;
         return;
     }

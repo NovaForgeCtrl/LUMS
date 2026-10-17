@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="de">
+<html lang="{{ language }}" data-locale="{{ language_locale }}">
 
 <head>
 
@@ -32,7 +32,7 @@
         <h1>LUMS</h1>
 
         <span>
-            Linux Update Management Server
+            {{ tr("Linux Update Management Server") }}
         </span>
 
     </div>
@@ -44,7 +44,7 @@
 
             <span class="status-dot"></span>
 
-            API Online
+            {{ tr("API Online") }}
 
         </div>
 
@@ -53,7 +53,7 @@
             href="/users"
             class="logout-button"
         >
-            Benutzerverwaltung
+            {{ tr("User management") }}
         </a>
         {% endif %}
         {% if "backups.manage" in user_permissions %}
@@ -61,15 +61,25 @@
             href="/backups"
             class="logout-button"
         >
-            Datenbank-Backups
+            {{ tr("Database backups") }}
         </a>
         {% endif %}
 
         <form action="/logout" method="POST" class="logout-form">
             <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
             <button type="submit" class="logout-button">
-                Abmelden
+                {{ tr("Sign out") }}
             </button>
+        </form>
+        <form action="/language" method="POST" class="language-form">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            <label for="language-select">{{ tr("Language") }}</label>
+            <select id="language-select" name="language">
+                {% for code, name in languages.items() %}
+                <option value="{{ code }}" {% if code == language %}selected{% endif %}>{{ name }}</option>
+                {% endfor %}
+            </select>
+            <button type="submit">{{ tr("Save") }}</button>
         </form>
     </div>
 
@@ -86,7 +96,7 @@
         <div class="card">
 
             <div class="card-title">
-                Clients
+                {{ tr("Clients") }}
             </div>
 
             <div class="card-value"
@@ -103,7 +113,7 @@
         <div class="card">
 
             <div class="card-title">
-                Online
+                {{ tr("Online") }}
             </div>
 
             <div class="card-value"
@@ -121,7 +131,7 @@
         <div class="card">
 
             <div class="card-title">
-                Updates
+                {{ tr("Updates") }}
             </div>
 
             <div class="card-value"
@@ -146,11 +156,11 @@
             <div>
 
                 <h2>
-                    Clients
+                    {{ tr("Clients") }}
                 </h2>
 
                 <p>
-                    Registrierte Linux-Systeme
+                    {{ tr("Registered Linux systems") }}
                 </p>
 
             </div>
@@ -163,7 +173,7 @@
                         type="button"
                         id="add-client-button"
                     >
-                        ＋ Client hinzufügen
+                        ＋ {{ tr("Add client") }}
                     </button>
                 {% endif %}
 
@@ -171,7 +181,7 @@
                     type="button"
                     id="refresh-clients-button"
                 >
-                    Aktualisieren
+                    {{ tr("Refresh") }}
                 </button>
 
             </div>
@@ -191,27 +201,27 @@
                     <tr>
 
                         <th>
-                            Hostname
+                            {{ tr("Hostname") }}
                         </th>
 
                         <th>
-                            IP-Adresse
+                            {{ tr("IP address") }}
                         </th>
 
                         <th>
-                            Status
+                            {{ tr("Status") }}
                         </th>
 
                         <th>
-                            Updates
+                            {{ tr("Updates") }}
                         </th>
 
                         <th>
-                            Agent
+                            {{ tr("Agent") }}
                         </th>
 
                         <th>
-                            Letzte Meldung
+                            {{ tr("Last report") }}
                         </th>
 
                     </tr>
@@ -228,7 +238,7 @@
                         <td colspan="6"
                             class="loading">
 
-                            Lade Clients...
+                            {{ tr("Loading clients...") }}
 
                         </td>
 
@@ -261,10 +271,10 @@
 
                 <div>
 
-                    <h2>Client hinzufügen</h2>
+                    <h2>{{ tr("Add client") }}</h2>
 
                     <p>
-                        Neues Linux-System bei LUMS registrieren
+                        {{ tr("Add client to LUMS") }}
                     </p>
 
                 </div>
@@ -283,14 +293,14 @@
                         <form id="add-client-form">
 
                 <label for="client-ip">
-                    IP-Adresse
+                    {{ tr("IP address") }}
                 </label>
 
                 <input
                     type="text"
                     id="client-ip"
                     name="ip"
-                    placeholder="z. B. 192.168.2.210"
+                    placeholder="e.g. 192.168.2.210"
                     autocomplete="off"
                     required
                 >
@@ -307,14 +317,14 @@
                         type="button"
                         id="cancel-add-client-button"
                     >
-                        Abbrechen
+                        {{ tr("Cancel") }}
                     </button>
 
                     <button
                         type="submit"
                         class="button-primary"
                     >
-                        Client anlegen
+                        {{ tr("Create client") }}
                     </button>
 
                 </div>
@@ -327,11 +337,10 @@
                 hidden
             >
 
-                <h3>Client-Token</h3>
+                <h3>{{ tr("Client token") }}</h3>
 
                 <p>
-                    Dieses Token wird nur jetzt angezeigt.
-                    Speichere es für die Konfiguration des Agents.
+                    {{ tr("This token is shown only once. Save it to configure the agent.") }}
                 </p>
 
                 <div class="token-box">
@@ -342,7 +351,7 @@
                         type="button"
                         id="copy-client-token-button"
                     >
-                        Kopieren
+                        {{ tr("Copy") }}
                     </button>
 
                 </div>
@@ -353,7 +362,7 @@
                         type="button"
                         id="finish-add-client-button"
                     >
-                        Fertig
+                        {{ tr("Done") }}
                     </button>
 
                 </div>
@@ -369,6 +378,8 @@
 
 <script>
     window.lumsUserPermissions = {{ user_permissions | tojson }};
+    window.lumsT = {{ translations | tojson }};
+    window.lumsLocale = {{ language_locale | tojson }};
 </script>
 <script src="/static/app.js"></script>
 <script src="{{ url_for('static', filename='network.js') }}"></script>

@@ -1,12 +1,12 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="{{ language }}" data-locale="{{ language_locale }}">
 <head>
     <meta charset="UTF-8">
     <meta
         name="viewport"
         content="width=device-width, initial-scale=1.0"
     >
-    <title>LUMS // Login</title>
+    <title>LUMS // {{ tr("System Login") }}</title>
     <link
         rel="stylesheet"
         href="{{ url_for('static', filename='style.css') }}"
@@ -23,45 +23,55 @@
             </div>
 
             <div class="login-brand-sub">
-                Linux Update Management Server
+                {{ tr("Linux Update Management Server") }}
             </div>
         </div>
 
         <div class="login-theme-selector">
-            <label for="login-theme-select">Theme</label>
+            <label for="login-theme-select">{{ tr("Theme") }}</label>
             <select id="login-theme-select">
-                <option value="standard">🖥️ Standard LUMS</option>
-                <option value="LUMSStadium">🏈 LUMS Stadium</option>
-                <option value="golf">⛳ Golf Club</option>
-                <option value="nerd">🤓 Nerd Mode</option>
-                <option value="geek">🧠 Geek Lab</option>
-                <option value="admin">🗄️ Enterprise Admin</option>
+                <option value="standard">🖥️ {{ tr("Standard LUMS") }}</option>
+                <option value="LUMSStadium">🏈 {{ tr("LUMS Stadium") }}</option>
+                <option value="golf">⛳ {{ tr("Golf Club") }}</option>
+                <option value="nerd">🤓 {{ tr("Nerd Mode") }}</option>
+                <option value="geek">🧠 {{ tr("Geek Lab") }}</option>
+                <option value="admin">🗄️ {{ tr("Enterprise Admin") }}</option>
             </select>
         </div>
+
+        <form action="/language" method="POST" class="login-language-selector">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            <label for="login-language-select">{{ tr("Language") }}</label>
+            <select id="login-language-select" name="language" aria-label="{{ tr('Language') }}">
+                {% for code, name in languages.items() %}
+                <option value="{{ code }}" {% if code == language %}selected{% endif %}>{{ name }}</option>
+                {% endfor %}
+            </select>
+        </form>
 
         <section class="login-card">
 
             <div class="login-card-header">
                 <span class="login-status-dot"></span>
-                <span>SECURE ACCESS</span>
+                <span>{{ tr("SECURE ACCESS") }}</span>
             </div>
 
-            <h1>System Login</h1>
+            <h1>{{ tr("System Login") }}</h1>
 
             <p class="login-description">
-                Authenticate to access the LUMS management interface.
+                {{ tr("Authenticate to access the LUMS management interface.") }}
             </p>
 
             {% if error %}
             <div class="login-error">
-                {{ error }}
+                {{ tr(error) }}
             </div>
             {% endif %}
 
             <form method="post" class="login-form">
 
                 <div class="login-field">
-                    <label for="username">Username</label>
+                    <label for="username">{{ tr("Username") }}</label>
                     <input
                         type="text"
                         id="username"
@@ -73,7 +83,7 @@
                 </div>
 
                 <div class="login-field">
-                    <label for="password">Password</label>
+                    <label for="password">{{ tr("Password") }}</label>
                     <input
                         type="password"
                         id="password"
@@ -88,17 +98,18 @@
                     name="csrf_token"
                     value="{{ csrf_token }}"
                 >
+                <input type="hidden" name="language" value="{{ language }}">
 
                 <button
                     type="submit"
                     class="login-button">
-                    AUTHENTICATE
+                    {{ tr("Sign in") }}
                 </button>
 
             </form>
 
             <div class="login-footer">
-                LUMS // INTERNAL MANAGEMENT SYSTEM
+                LUMS // {{ tr("Internal management system") }}
             </div>
 
         </section>

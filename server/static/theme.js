@@ -191,6 +191,15 @@
             );
         });
 
+        const loginLanguageSelector = document.getElementById(
+            "login-language-select"
+        );
+        if (loginLanguageSelector) {
+            loginLanguageSelector.addEventListener("change", () => {
+                loginLanguageSelector.form.requestSubmit();
+            });
+        }
+
         loadTheme();
     }
 

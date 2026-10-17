@@ -22,6 +22,7 @@ RBAC_MIGRATION_VERSION = "002-rbac"
 PERMISSIONS_MIGRATION_VERSION = "003-user-permissions"
 USER_NOTES_MIGRATION_VERSION = "004-user-admin-notes"
 BACKUP_PERMISSION_MIGRATION_VERSION = "005-backup-permission"
+USER_LANGUAGE_MIGRATION_VERSION = "006-user-language"
 
 
 def utc_now():
@@ -153,6 +154,15 @@ def migrate_backup_permission(connection):
         FROM users
         WHERE users.role = 'administrator'
         """
+    )
+
+
+def migrate_user_language(connection):
+    add_column_if_missing(
+        connection,
+        "users",
+        "language",
+        "TEXT NOT NULL DEFAULT ''",
     )
 
 
@@ -453,6 +463,26 @@ def run_migration(db_path, admin_username, skip_admin):
             print(
                 f"[OK] Migration "
                 f"{BACKUP_PERMISSION_MIGRATION_VERSION} completed"
+            )
+
+        if migration_already_applied(
+            connection,
+            USER_LANGUAGE_MIGRATION_VERSION
+        ):
+            print(
+                f"[INFO] Migration {USER_LANGUAGE_MIGRATION_VERSION} "
+                "is already recorded"
+            )
+        else:
+            migrate_user_language(connection)
+            record_migration(
+                connection,
+                USER_LANGUAGE_MIGRATION_VERSION
+            )
+            connection.commit()
+            print(
+                f"[OK] Migration "
+                f"{USER_LANGUAGE_MIGRATION_VERSION} completed"
             )
 
         print_schema(connection)

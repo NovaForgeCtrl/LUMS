@@ -1,10 +1,38 @@
-from flask import Flask, request, jsonify, render_template, url_for, redirect
+from flask import (
+    Flask,
+    request,
+    jsonify,
+    render_template,
+    url_for,
+    redirect,
+    session,
+)
 import os
 import logging
 from pathlib import Path
 import sqlite3
 import json
 from datetime import datetime, timezone
+from urllib.parse import urlsplit
+
+if __package__:
+    from .i18n import (
+        LANGUAGES,
+        browser_language,
+        locale_for,
+        normalize_language,
+        translations_for,
+        translate,
+    )
+else:
+    from i18n import (
+        LANGUAGES,
+        browser_language,
+        locale_for,
+        normalize_language,
+        translations_for,
+        translate,
+    )
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -19,51 +47,98 @@ if not logger.handlers:
     logger.addHandler(handler)
 
 
-from security import (
-    configure_session,
-    apply_security_headers,
-    find_user,
-    verify_password,
-    password_needs_rehash,
-    hash_password,
-    login_user,
-    logout_user,
-    current_username,
-    current_user_role,
-    current_user_permissions,
-    get_csrf_token,
-    audit_log,
-    current_user_id,
-    login_required,
-    role_required,
-    ROLE_ADMINISTRATOR,
-    ROLE_OPERATOR,
-    ROLE_VIEWER,
-    VALID_ROLES,
-    PERMISSIONS,
-    ROLE_DEFAULT_PERMISSIONS,
-    ROLE_DESCRIPTIONS,
-    PERMISSION_DEPENDENCIES,
-    csrf_required,
-    client_auth_required,
-    authenticated_client,
-    generate_client_token,
-    hash_client_token,
-    get_login_rate_limit_key,
-    is_login_rate_limited,
-    is_valid_package_name,
-    PACKAGE_NAME_MAX_LENGTH,
-    record_login_failure,
-    clear_login_rate_limit,
-)
-from database_backup import (
-    BACKUP_FORMATS,
-    BackupPathError,
-    BackupStorageError,
-    create_database_backup,
-    delete_database_backup,
-    list_database_backups,
-)
+if __package__:
+    from .security import (
+        configure_session,
+        apply_security_headers,
+        find_user,
+        verify_password,
+        password_needs_rehash,
+        hash_password,
+        login_user,
+        logout_user,
+        current_username,
+        current_user_role,
+        current_user_permissions,
+        get_csrf_token,
+        audit_log,
+        current_user_id,
+        login_required,
+        role_required,
+        ROLE_ADMINISTRATOR,
+        ROLE_OPERATOR,
+        ROLE_VIEWER,
+        VALID_ROLES,
+        PERMISSIONS,
+        ROLE_DEFAULT_PERMISSIONS,
+        ROLE_DESCRIPTIONS,
+        PERMISSION_DEPENDENCIES,
+        csrf_required,
+        client_auth_required,
+        authenticated_client,
+        generate_client_token,
+        hash_client_token,
+        get_login_rate_limit_key,
+        is_login_rate_limited,
+        is_valid_package_name,
+        PACKAGE_NAME_MAX_LENGTH,
+        record_login_failure,
+        clear_login_rate_limit,
+    )
+    from .database_backup import (
+        BACKUP_FORMATS,
+        BackupPathError,
+        BackupStorageError,
+        create_database_backup,
+        delete_database_backup,
+        list_database_backups,
+    )
+else:
+    from security import (
+        configure_session,
+        apply_security_headers,
+        find_user,
+        verify_password,
+        password_needs_rehash,
+        hash_password,
+        login_user,
+        logout_user,
+        current_username,
+        current_user_role,
+        current_user_permissions,
+        get_csrf_token,
+        audit_log,
+        current_user_id,
+        login_required,
+        role_required,
+        ROLE_ADMINISTRATOR,
+        ROLE_OPERATOR,
+        ROLE_VIEWER,
+        VALID_ROLES,
+        PERMISSIONS,
+        ROLE_DEFAULT_PERMISSIONS,
+        ROLE_DESCRIPTIONS,
+        PERMISSION_DEPENDENCIES,
+        csrf_required,
+        client_auth_required,
+        authenticated_client,
+        generate_client_token,
+        hash_client_token,
+        get_login_rate_limit_key,
+        is_login_rate_limited,
+        is_valid_package_name,
+        PACKAGE_NAME_MAX_LENGTH,
+        record_login_failure,
+        clear_login_rate_limit,
+    )
+    from database_backup import (
+        BACKUP_FORMATS,
+        BackupPathError,
+        BackupStorageError,
+        create_database_backup,
+        delete_database_backup,
+        list_database_backups,
+    )
 
 
 app = Flask(__name__)
@@ -137,6 +212,26 @@ app.config["LUMS_GET_CONNECTION"] = lambda: get_connection()
 @app.after_request
 def security_headers(response):
     return apply_security_headers(response)
+
+
+@app.before_request
+def initialize_language():
+    if normalize_language(session.get("language")) is None:
+        session["language"] = browser_language(request.accept_languages)
+
+
+@app.context_processor
+def language_context():
+    language = normalize_language(
+        session.get("language")
+    ) or browser_language(request.accept_languages)
+    return {
+        "language": language,
+        "language_locale": locale_for(language),
+        "languages": LANGUAGES,
+        "translations": translations_for(language),
+        "tr": lambda message: translate(message, language),
+    }
 
 
 # ============================================================
@@ -226,17 +321,23 @@ def count_active_user_managers(connection):
 
 
 def permission_ui_context():
+    language = normalize_language(
+        session.get("language")
+    ) or browser_language(request.accept_languages)
     return {
         "user_permissions": sorted(current_user_permissions()),
         "permission_definitions": [
-            {"key": key, "label": label}
+            {"key": key, "label": translate(label, language)}
             for key, label in PERMISSIONS.items()
         ],
         "role_default_permissions": {
             role: sorted(permissions)
             for role, permissions in ROLE_DEFAULT_PERMISSIONS.items()
         },
-        "role_descriptions": ROLE_DESCRIPTIONS,
+        "role_descriptions": {
+            role: translate(description, language)
+            for role, description in ROLE_DESCRIPTIONS.items()
+        },
     }
 
 
@@ -572,6 +673,34 @@ def login():
             user_id=user["id"],
             username=user["username"],
         )
+        language_column_exists = any(
+            column["name"] == "language"
+            for column in connection.execute(
+                "PRAGMA table_info(users)"
+            ).fetchall()
+        )
+        preferred_language_row = (
+            connection.execute(
+                "SELECT language FROM users WHERE id = ?",
+                (user["id"],),
+            ).fetchone()
+            if language_column_exists
+            else None
+        )
+        preferred_language = normalize_language(
+            preferred_language_row["language"]
+            if preferred_language_row is not None
+            else None
+        )
+        selected_language = normalize_language(
+            request.form.get("language")
+        ) or browser_language(request.accept_languages)
+        session["language"] = preferred_language or selected_language
+        if preferred_language is None and language_column_exists:
+            connection.execute(
+                "UPDATE users SET language = ? WHERE id = ?",
+                (selected_language, user["id"]),
+            )
 
         audit_log(
             connection,
@@ -616,6 +745,41 @@ def logout():
     logout_user()
 
     return redirect(url_for("login"))
+
+
+@app.route("/language", methods=["POST"])
+@csrf_required
+def change_language():
+    language = normalize_language(request.form.get("language"))
+    if language is None:
+        return jsonify({"error": "invalid_language"}), 400
+
+    session["language"] = language
+    user_id = current_user_id()
+    if user_id is not None:
+        connection = get_connection()
+        try:
+            cursor = connection.execute(
+                "UPDATE users SET language = ? WHERE id = ?",
+                (language, user_id),
+            )
+            if cursor.rowcount != 1:
+                connection.rollback()
+                return jsonify({"error": "user_not_found"}), 404
+            connection.commit()
+        except sqlite3.Error:
+            connection.rollback()
+            logger.exception("Unable to save the user's language preference.")
+            return jsonify({"error": "language_preference_save_failed"}), 500
+        finally:
+            connection.close()
+
+    referrer = request.referrer
+    if referrer and urlsplit(referrer).netloc == request.host:
+        return redirect(referrer)
+    return redirect(
+        url_for("index") if user_id is not None else url_for("login")
+    )
 
 
 @app.route("/")
