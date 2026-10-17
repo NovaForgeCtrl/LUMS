@@ -42,6 +42,7 @@ from security import (
     VALID_ROLES,
     PERMISSIONS,
     ROLE_DEFAULT_PERMISSIONS,
+    ROLE_DESCRIPTIONS,
     PERMISSION_DEPENDENCIES,
     csrf_required,
     client_auth_required,
@@ -95,6 +96,7 @@ DB_PATH = os.environ.get(
 
 PACKAGE_SEARCH_QUERY_MAX_LENGTH = 128
 PACKAGE_SEARCH_MAX_RESULTS = 50
+ADMIN_NOTE_MAX_LENGTH = 2000
 
 
 def normalize_package_search_query(query):
@@ -220,6 +222,7 @@ def permission_ui_context():
             role: sorted(permissions)
             for role, permissions in ROLE_DEFAULT_PERMISSIONS.items()
         },
+        "role_descriptions": ROLE_DESCRIPTIONS,
     }
 
 
@@ -667,7 +670,8 @@ def list_users():
                 username,
                 role,
                 enabled,
-                created_at
+                created_at,
+                admin_note
             FROM users
             ORDER BY username COLLATE NOCASE ASC
             """
@@ -685,6 +689,7 @@ def list_users():
                 ),
                 "enabled": bool(row["enabled"]),
                 "created_at": row["created_at"],
+                "admin_note": row["admin_note"],
             }
             for row in rows
         ])
@@ -918,6 +923,64 @@ def update_user_permissions(user_id):
                 "role": role,
                 "permissions": sorted(permissions),
             },
+        })
+    except Exception:
+        connection.rollback()
+        raise
+    finally:
+        connection.close()
+
+
+@app.route("/api/users/<int:user_id>/note", methods=["PUT"])
+@login_required
+@role_required(ROLE_ADMINISTRATOR, permission="users.manage")
+@csrf_required
+def update_user_admin_note(user_id):
+    data = request.get_json(silent=True)
+
+    if not isinstance(data, dict):
+        return jsonify({"error": "invalid_request"}), 400
+
+    note = data.get("note")
+    if (
+        not isinstance(note, str)
+        or len(note) > ADMIN_NOTE_MAX_LENGTH
+    ):
+        return jsonify({"error": "invalid_admin_note"}), 400
+
+    connection = get_connection()
+
+    try:
+        target = connection.execute(
+            "SELECT username FROM users WHERE id = ?",
+            (user_id,),
+        ).fetchone()
+
+        if target is None:
+            return jsonify({"error": "user_not_found"}), 404
+
+        connection.execute(
+            "UPDATE users SET admin_note = ? WHERE id = ?",
+            (note.strip(), user_id),
+        )
+        audit_log(
+            connection,
+            actor_type="user",
+            actor_id=current_user_id(),
+            action="user.admin_note.update",
+            target=f"user:{user_id}",
+            result="success",
+            details=(
+                f"username={target['username']}, "
+                f"note_length={len(note.strip())}"
+            ),
+        )
+        connection.commit()
+
+        return jsonify({
+            "status": "updated",
+            "user_id": user_id,
+            "note": note.strip(),
         })
     except Exception:
         connection.rollback()

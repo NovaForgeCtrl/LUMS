@@ -766,6 +766,11 @@ function applyRolePermissionPreset(role, container) {
     renderPermissionOptions(container, permissions);
 }
 
+function roleTemplateDescription(role) {
+    return window.lumsRoleDescriptions?.[role] ||
+        "Keine Beschreibung für diese Vorlage verfügbar.";
+}
+
 
 function createPermissionEditorRow(user) {
     const row = document.createElement("tr");
@@ -800,11 +805,31 @@ function createPermissionEditorRow(user) {
     roleLabel.appendChild(roleSelect);
     editor.appendChild(roleLabel);
 
-    const help = document.createElement("p");
-    help.className = "panel-description";
-    help.textContent =
-        "Wähle eine Rolle, um ihre Standardrechte zu laden, und passe sie anschließend an.";
-    editor.appendChild(help);
+    const roleDescription = document.createElement("p");
+    roleDescription.className = "role-template-description";
+    roleDescription.setAttribute("aria-live", "polite");
+    roleDescription.textContent =
+        roleTemplateDescription(roleSelect.value);
+    editor.appendChild(roleDescription);
+
+    const roleTemplateList = document.createElement("ul");
+    roleTemplateList.className = "role-template-list";
+    for (const [role, description] of Object.entries(
+        window.lumsRoleDescriptions || {}
+    )) {
+        const item = document.createElement("li");
+        const label = document.createElement("strong");
+        label.textContent = {
+            administrator: "Administrator",
+            operator: "Operator",
+            viewer: "Viewer",
+        }[role] || role;
+        const detail = document.createElement("span");
+        detail.textContent = description;
+        item.append(label, detail);
+        roleTemplateList.appendChild(item);
+    }
+    editor.appendChild(roleTemplateList);
 
     const fieldset = document.createElement("fieldset");
     fieldset.className = "permission-picker";
@@ -819,8 +844,18 @@ function createPermissionEditorRow(user) {
     editor.appendChild(fieldset);
 
     roleSelect.addEventListener("change", () => {
+        roleDescription.textContent =
+            roleTemplateDescription(roleSelect.value);
+    });
+
+    const applyTemplateButton = document.createElement("button");
+    applyTemplateButton.type = "button";
+    applyTemplateButton.className = "button";
+    applyTemplateButton.textContent = "Vorlage übernehmen";
+    applyTemplateButton.addEventListener("click", () => {
         applyRolePermissionPreset(roleSelect.value, options);
     });
+    editor.appendChild(applyTemplateButton);
 
     const error = document.createElement("p");
     error.className = "permission-editor-error";
@@ -840,6 +875,105 @@ function createPermissionEditorRow(user) {
     cancelButton.className = "button";
     cancelButton.textContent = "Abbrechen";
     cancelButton.addEventListener("click", () => row.remove());
+
+    const noteSection = document.createElement("section");
+    noteSection.className = "admin-note-section";
+
+    const noteLabel = document.createElement("label");
+    noteLabel.textContent = "Interne Admin-Notiz";
+    noteLabel.htmlFor = `admin-note-${user.id}`;
+    noteSection.appendChild(noteLabel);
+
+    const noteHelp = document.createElement("p");
+    noteHelp.className = "panel-description";
+    noteHelp.textContent =
+        "Nur für Benutzer mit users.manage sichtbar; der Benutzer selbst sieht diese Notiz nicht.";
+    noteSection.appendChild(noteHelp);
+
+    const noteInput = document.createElement("textarea");
+    noteInput.id = `admin-note-${user.id}`;
+    noteInput.maxLength = 2000;
+    noteInput.rows = 4;
+    noteInput.value = user.admin_note || "";
+    noteInput.setAttribute(
+        "aria-label",
+        `Interne Admin-Notiz für ${user.username}`
+    );
+    noteSection.appendChild(noteInput);
+
+    const noteStatus = document.createElement("p");
+    noteStatus.className = "admin-note-status";
+    noteStatus.setAttribute("aria-live", "polite");
+    noteSection.appendChild(noteStatus);
+
+    const saveNoteButton = document.createElement("button");
+    saveNoteButton.type = "button";
+    saveNoteButton.className = "button";
+    saveNoteButton.textContent = "Notiz speichern";
+    saveNoteButton.addEventListener("click", async () => {
+        const csrfToken = document.querySelector(
+            'meta[name="csrf-token"]'
+        )?.content;
+
+        if (!csrfToken) {
+            noteStatus.textContent =
+                "CSRF-Token konnte nicht gefunden werden.";
+            noteStatus.dataset.state = "error";
+            return;
+        }
+
+        saveNoteButton.disabled = true;
+        saveNoteButton.textContent = "Wird gespeichert …";
+        noteStatus.textContent = "";
+
+        try {
+            const response = await fetch(
+                `/api/users/${encodeURIComponent(user.id)}/note`,
+                {
+                    method: "PUT",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "X-CSRF-Token": csrfToken,
+                    },
+                    body: JSON.stringify({
+                        note: noteInput.value,
+                    }),
+                }
+            );
+            const result = await response.json();
+
+            if (!response.ok) {
+                const messages = {
+                    invalid_admin_note:
+                        "Die Notiz darf höchstens 2.000 Zeichen enthalten.",
+                    user_not_found:
+                        "Der Benutzer wurde nicht gefunden.",
+                    csrf_validation_failed:
+                        "CSRF-Prüfung fehlgeschlagen.",
+                    authorization_required:
+                        "Dafür fehlen die Berechtigungen.",
+                };
+                throw new Error(
+                    messages[result.error] ||
+                    `Notiz konnte nicht gespeichert werden (HTTP ${response.status}).`
+                );
+            }
+
+            user.admin_note = result.note;
+            noteInput.value = result.note;
+            noteStatus.textContent = "Interne Notiz gespeichert.";
+            noteStatus.dataset.state = "success";
+        } catch (saveError) {
+            console.error(saveError);
+            noteStatus.textContent = saveError.message;
+            noteStatus.dataset.state = "error";
+        } finally {
+            saveNoteButton.disabled = false;
+            saveNoteButton.textContent = "Notiz speichern";
+        }
+    });
+    noteSection.appendChild(saveNoteButton);
+    editor.appendChild(noteSection);
 
     saveButton.addEventListener("click", async () => {
         const csrfToken = document.querySelector(
@@ -917,7 +1051,7 @@ function createPermissionEditorRow(user) {
 }
 
 
-async function loadUsers() {
+async function loadUsers(focusUserId = null) {
 
     const status =
         document.getElementById("users-list-status");
@@ -1213,10 +1347,32 @@ async function loadUsers() {
 
             body.appendChild(row);
 
+            if (
+                focusUserId !== null &&
+                String(user.id) === String(focusUserId)
+            ) {
+                const editorRow =
+                    createPermissionEditorRow(user);
+                row.after(editorRow);
+                editButton.setAttribute("aria-expanded", "true");
+                editorRow
+                    .querySelector('input[type="checkbox"]')
+                    ?.focus();
+                row.scrollIntoView({
+                    behavior: window.matchMedia(
+                        "(prefers-reduced-motion: reduce)"
+                    ).matches
+                        ? "auto"
+                        : "smooth",
+                    block: "center",
+                });
+            }
+
         }
 
-        status.textContent =
-            `${data.length} Benutzer`;
+        status.textContent = focusUserId === null
+            ? `${data.length} Benutzer`
+            : `${data.length} Benutzer · Vorlage prüfen und Rechte für den neuen Benutzer manuell zuweisen.`;
 
         container.hidden = false;
 
@@ -1252,9 +1408,6 @@ async function createUser(event) {
         document
             .getElementById("create-user-role")
             .value;
-
-    const permissionOptions =
-        document.getElementById("create-user-permissions");
 
     const error =
         document.getElementById("create-user-error");
@@ -1302,7 +1455,7 @@ async function createUser(event) {
                         username: username,
                         password: password,
                         role: role,
-                        permissions: selectedPermissions(permissionOptions),
+                        permissions: [],
                     })
                 }
             );
@@ -1348,16 +1501,11 @@ async function createUser(event) {
         document
             .getElementById("create-user-form")
             .reset();
-        applyRolePermissionPreset(
-            document.getElementById("create-user-role").value,
-            permissionOptions
-        );
 
-        error.hidden = false;
-        error.textContent =
-            `Benutzer "${data.user.username}" wurde erfolgreich angelegt.`;
+        error.hidden = true;
+        error.textContent = "";
 
-        await loadUsers();
+        await loadUsers(data.user.id);
 
     } catch (error) {
 
@@ -1396,22 +1544,21 @@ const createUserForm =
 
 
 if (createUserForm) {
-
     const createUserRole =
         document.getElementById("create-user-role");
-    const createUserPermissions =
-        document.getElementById("create-user-permissions");
+    const createUserRoleDescription =
+        document.getElementById("create-user-role-description");
 
-    applyRolePermissionPreset(
-        createUserRole.value,
-        createUserPermissions
+    const updateCreateUserRoleDescription = () => {
+        createUserRoleDescription.textContent =
+            roleTemplateDescription(createUserRole.value);
+    };
+
+    updateCreateUserRoleDescription();
+    createUserRole.addEventListener(
+        "change",
+        updateCreateUserRoleDescription
     );
-    createUserRole.addEventListener("change", () => {
-        applyRolePermissionPreset(
-            createUserRole.value,
-            createUserPermissions
-        );
-    });
 
     createUserForm.addEventListener(
         "submit",

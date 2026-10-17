@@ -1047,8 +1047,13 @@ Installed software remains available to Viewer accounts as a read-only informati
 
 User management requires the `users.manage` permission.
 
-Users with that permission can create accounts from a role template, customize
-permissions at creation, and later edit the permission set.
+Users with that permission can create accounts without permissions and then
+assign individual grants or apply a role template in the permission editor.
+Role templates have descriptions explaining their default grants.
+
+Authorized user managers can save an internal note per account. Notes are
+limited to 2,000 characters, are not included in audit-log details, and are
+not visible to the account owner.
 
 User creation includes:
 
@@ -1077,7 +1082,8 @@ Role-template information remains in the user database record. Individual
 grants are stored in the `user_permissions` table with a foreign key to the
 user account. Migration `003-user-permissions` creates that table and seeds
 existing accounts from their current role template, preserving their access
-during the transition.
+during the transition. Migration `004-user-admin-notes` adds the private
+`users.admin_note` field; existing accounts receive an empty note.
 
 ---
 

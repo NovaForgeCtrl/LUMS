@@ -41,7 +41,8 @@ def create_rbac_database(db_path):
             password_hash TEXT NOT NULL,
             created_at TEXT NOT NULL,
             enabled INTEGER NOT NULL DEFAULT 1,
-            role TEXT NOT NULL DEFAULT 'administrator'
+            role TEXT NOT NULL DEFAULT 'administrator',
+            admin_note TEXT NOT NULL DEFAULT ''
         )
         """
     )
@@ -1013,7 +1014,8 @@ def create_user_test_database(db_path):
             password_hash TEXT NOT NULL,
             created_at TEXT NOT NULL,
             enabled INTEGER NOT NULL DEFAULT 1,
-            role TEXT NOT NULL DEFAULT 'administrator'
+            role TEXT NOT NULL DEFAULT 'administrator',
+            admin_note TEXT NOT NULL DEFAULT ''
         )
         """
     )
@@ -1321,6 +1323,242 @@ def test_create_user_stores_custom_permissions(
     ]
     connection.close()
     assert stored_permissions == permissions
+
+
+def test_user_admin_note_migration_adds_empty_note():
+    from server.security_migration import migrate_user_admin_notes
+
+    connection = sqlite3.connect(":memory:")
+    connection.execute(
+        """
+        CREATE TABLE users (
+            id INTEGER PRIMARY KEY,
+            username TEXT NOT NULL
+        )
+        """
+    )
+    connection.execute(
+        "INSERT INTO users (id, username) VALUES (1, 'existing-user')"
+    )
+
+    migrate_user_admin_notes(connection)
+
+    assert connection.execute(
+        "SELECT admin_note FROM users WHERE id = 1"
+    ).fetchone()[0] == ""
+    connection.close()
+
+
+def test_user_admin_note_migration_is_idempotent():
+    from server.security_migration import migrate_user_admin_notes
+
+    connection = sqlite3.connect(":memory:")
+    connection.execute(
+        "CREATE TABLE users (id INTEGER PRIMARY KEY)"
+    )
+
+    migrate_user_admin_notes(connection)
+    migrate_user_admin_notes(connection)
+
+    note_columns = [
+        row[1]
+        for row in connection.execute("PRAGMA table_info(users)")
+    ]
+    assert note_columns.count("admin_note") == 1
+    connection.close()
+
+
+def test_create_user_starts_without_permissions(
+    monkeypatch,
+    tmp_path,
+):
+    from server import app as app_module
+
+    db_path = str(tmp_path / "create-user-unassigned-permissions.db")
+    create_user_test_database(db_path)
+    app = configure_real_app_session_user(
+        monkeypatch,
+        app_module,
+        db_path,
+        1,
+        "administrator",
+    )
+
+    with app.test_client() as client:
+        login_as(client, 1, "administrator")
+        with client.session_transaction() as session:
+            session["csrf_token"] = "pytest-csrf-token"
+
+        response = client.post(
+            "/api/users",
+            headers={"X-CSRF-Token": "pytest-csrf-token"},
+            json={
+                "username": "needs-manual-permissions",
+                "password": "pytest-password-123",
+                "role": ROLE_VIEWER,
+                "permissions": [],
+            },
+        )
+
+    assert response.status_code == 201
+    assert response.get_json()["user"]["permissions"] == []
+
+    connection = sqlite3.connect(db_path)
+    stored_permissions = connection.execute(
+        "SELECT permission FROM user_permissions WHERE user_id = 2"
+    ).fetchall()
+    connection.close()
+    assert stored_permissions == []
+
+
+def test_admin_note_can_be_saved_without_auditing_note_content(
+    monkeypatch,
+    tmp_path,
+):
+    from server import app as app_module
+
+    db_path = str(tmp_path / "admin-note.db")
+    create_user_test_database(db_path)
+    connection = sqlite3.connect(db_path)
+    connection.execute(
+        """
+        INSERT INTO users (
+            username, password_hash, created_at, enabled, role
+        )
+        VALUES (?, ?, ?, ?, ?)
+        """,
+        (
+            "noted-user",
+            "pytest-password-hash",
+            "2026-01-01T00:00:00+00:00",
+            1,
+            ROLE_VIEWER,
+        ),
+    )
+    connection.commit()
+    connection.close()
+
+    app = configure_real_app_session_user(
+        monkeypatch,
+        app_module,
+        db_path,
+        1,
+        "administrator",
+    )
+    note = "Internal follow-up: <script>not executable</script>"
+
+    with app.test_client() as client:
+        login_as(client, 1, "administrator")
+        with client.session_transaction() as session:
+            session["csrf_token"] = "pytest-csrf-token"
+
+        response = client.put(
+            "/api/users/2/note",
+            headers={"X-CSRF-Token": "pytest-csrf-token"},
+            json={"note": note},
+        )
+        users_response = client.get("/api/users")
+
+    assert response.status_code == 200
+    assert response.get_json()["note"] == note
+    assert users_response.status_code == 200
+    assert users_response.get_json()[1]["admin_note"] == note
+
+    connection = sqlite3.connect(db_path)
+    saved_note = connection.execute(
+        "SELECT admin_note FROM users WHERE id = 2"
+    ).fetchone()[0]
+    audit_details = connection.execute(
+        "SELECT details FROM audit_log WHERE action = 'user.admin_note.update'"
+    ).fetchone()[0]
+    connection.close()
+
+    assert saved_note == note
+    assert note not in audit_details
+
+
+def test_admin_note_rejects_oversized_value(
+    monkeypatch,
+    tmp_path,
+):
+    from server import app as app_module
+
+    db_path = str(tmp_path / "oversized-admin-note.db")
+    create_user_test_database(db_path)
+    connection = sqlite3.connect(db_path)
+    connection.execute(
+        """
+        INSERT INTO users (
+            username, password_hash, created_at, enabled, role
+        )
+        VALUES (?, ?, ?, ?, ?)
+        """,
+        (
+            "noted-user",
+            "pytest-password-hash",
+            "2026-01-01T00:00:00+00:00",
+            1,
+            ROLE_VIEWER,
+        ),
+    )
+    connection.commit()
+    connection.close()
+    app = configure_real_app_session_user(
+        monkeypatch,
+        app_module,
+        db_path,
+        1,
+        "administrator",
+    )
+
+    with app.test_client() as client:
+        login_as(client, 1, "administrator")
+        with client.session_transaction() as session:
+            session["csrf_token"] = "pytest-csrf-token"
+
+        response = client.put(
+            "/api/users/2/note",
+            headers={"X-CSRF-Token": "pytest-csrf-token"},
+            json={"note": "x" * 2001},
+        )
+
+    assert response.status_code == 400
+    assert response.get_json() == {
+        "error": "invalid_admin_note",
+    }
+
+
+def test_admin_note_endpoint_requires_user_management_permission(
+    monkeypatch,
+    tmp_path,
+):
+    from server import app as app_module
+
+    db_path = str(tmp_path / "admin-note-permission.db")
+    create_rbac_database(db_path)
+    app = configure_real_app_session_user(
+        monkeypatch,
+        app_module,
+        db_path,
+        2,
+        "operator",
+    )
+
+    with app.test_client() as client:
+        login_as(client, 2, "operator")
+        with client.session_transaction() as session:
+            session["csrf_token"] = "pytest-csrf-token"
+
+        response = client.put(
+            "/api/users/1/note",
+            headers={"X-CSRF-Token": "pytest-csrf-token"},
+            json={"note": "not authorized"},
+        )
+
+    assert response.status_code == 403
+    assert response.get_json() == {
+        "error": "authorization_required",
+    }
 
 
 @pytest.mark.parametrize(
@@ -2009,6 +2247,11 @@ def test_users_page_visible_for_administrator(
     assert b'id="users-list-status"' in response.data
     assert b'id="users-list-container"' in response.data
     assert b'id="users-list-body"' in response.data
+    assert b'class="role-template-list"' in response.data
+    assert b'id="create-user-permissions"' not in response.data
+    assert "Clients und installierte Software ansehen.".encode("utf-8") in response.data
+    assert "Update-Jobs verwalten.".encode("utf-8") in response.data
+    assert "Benutzerkonten.".encode("utf-8") in response.data
 
 
 def test_users_page_denied_for_operator(

@@ -20,6 +20,7 @@ DEFAULT_DB_PATH = "/var/lib/lums/lums.db"
 MIGRATION_VERSION = "001-security-foundation"
 RBAC_MIGRATION_VERSION = "002-rbac"
 PERMISSIONS_MIGRATION_VERSION = "003-user-permissions"
+USER_NOTES_MIGRATION_VERSION = "004-user-admin-notes"
 
 
 def utc_now():
@@ -132,6 +133,15 @@ def migrate_user_permissions(connection):
                 for permission in permissions
             ],
         )
+
+
+def migrate_user_admin_notes(connection):
+    add_column_if_missing(
+        connection,
+        "users",
+        "admin_note",
+        "TEXT NOT NULL DEFAULT ''",
+    )
 
 
 def migrate_clients(connection):
@@ -392,6 +402,25 @@ def run_migration(db_path, admin_username, skip_admin):
             print()
             print(
                 f"[OK] Migration {PERMISSIONS_MIGRATION_VERSION} completed"
+            )
+
+        if migration_already_applied(
+            connection,
+            USER_NOTES_MIGRATION_VERSION
+        ):
+            print(
+                f"[INFO] Migration {USER_NOTES_MIGRATION_VERSION} "
+                "is already recorded"
+            )
+        else:
+            migrate_user_admin_notes(connection)
+            record_migration(
+                connection,
+                USER_NOTES_MIGRATION_VERSION
+            )
+            connection.commit()
+            print(
+                f"[OK] Migration {USER_NOTES_MIGRATION_VERSION} completed"
             )
 
         print_schema(connection)

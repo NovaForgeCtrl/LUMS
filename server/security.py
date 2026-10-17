@@ -64,6 +64,20 @@ ROLE_DEFAULT_PERMISSIONS = {
     ROLE_ADMINISTRATOR: frozenset(PERMISSIONS),
 }
 
+ROLE_DESCRIPTIONS = {
+    ROLE_VIEWER: (
+        "Clients und installierte Software ansehen."
+    ),
+    ROLE_OPERATOR: (
+        "Viewer-Rechte sowie Updates ansehen, Pakete suchen "
+        "und Update-Jobs verwalten."
+    ),
+    ROLE_ADMINISTRATOR: (
+        "Alle Bereiche verwalten, einschließlich Clients, "
+        "Update-Jobs und Benutzerkonten."
+    ),
+}
+
 PERMISSION_DEPENDENCIES = {
     "software.view": {"clients.view"},
     "updates.view": {"clients.view"},

@@ -974,7 +974,10 @@ The server independently enforces these restrictions.
 LUMS provides user management to accounts with the `users.manage` permission.
 
 Users with this permission can create accounts using a role template and
-customize individual permissions.
+then assign permissions individually or explicitly apply that template. New
+accounts start without permissions; the permission editor opens after creation.
+User managers can also save private administrative notes that are not visible
+to the account owner.
 
 User passwords are stored using Argon2 password hashing rather than plaintext or reversible encryption.
 

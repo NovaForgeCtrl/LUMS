@@ -406,8 +406,7 @@ When creating a user, the Administrator specifies:
 
 * username
 * password
-* a role template
-* individual permissions
+* a role label, with a role template available for later permission assignment
 
 Available role templates are:
 
@@ -417,8 +416,10 @@ Available role templates are:
 
 The server validates the supplied values before creating the account.
 
-The role template preselects permissions that can then be changed with
-individual checkboxes. The available permissions are:
+New accounts start without permissions. After creation, administrators can
+assign individual checkboxes or apply one of the role templates. Applying a
+template preselects its default permissions, which can then be customized.
+Available permissions are:
 
 | Permission        | Access granted                                      |
 | ----------------- | --------------------------------------------------- |
@@ -428,7 +429,7 @@ individual checkboxes. The available permissions are:
 | `packages.search` | Search package repositories                         |
 | `jobs.manage`     | Create package operations and update jobs           |
 | `clients.manage`  | Register/remove clients and rotate client tokens    |
-| `users.manage`    | Create users and manage their roles and permissions  |
+| `users.manage`    | Create users and manage roles, permissions, and internal notes |
 
 Client-related permissions require `clients.view`; `jobs.manage` also requires
 `updates.view`. LUMS prevents removing the final active account with
