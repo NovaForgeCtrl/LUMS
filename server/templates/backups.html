@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+    <meta
+        name="csrf-token"
+        content="{{ csrf_token }}"
+    >
+    <title>Datenbank-Backups – LUMS</title>
+
+    <link
+        rel="stylesheet"
+        href="{{ url_for('static', filename='style.css') }}"
+    >
+</head>
+
+<body>
+
+<header class="topbar">
+    <div>
+        <h1>LUMS</h1>
+        <span>Datenbank-Backups</span>
+    </div>
+
+    <div class="topbar-actions">
+        <a href="/" class="logout-button">Dashboard</a>
+        <form action="/logout" method="POST" class="logout-form">
+            <input
+                type="hidden"
+                name="csrf_token"
+                value="{{ csrf_token }}"
+            >
+            <button type="submit" class="logout-button">
+                Abmelden
+            </button>
+        </form>
+    </div>
+</header>
+
+<main class="container">
+    <section class="panel backup-management">
+        <div class="panel-header">
+            <div>
+                <h2>Datenbank sichern</h2>
+                <p>
+                    Erstellt eine konsistente SQLite-Sicherung der LUMS-Datenbank.
+                </p>
+            </div>
+        </div>
+
+        <div class="backup-content">
+            <div class="backup-location">
+                <div>
+                    <strong>Server-Speicher</strong>
+                    <code id="backup-root">{{ backup_root }}</code>
+                    <code id="backup-current-path"></code>
+                </div>
+                <button
+                    type="button"
+                    id="change-backup-location-button"
+                    class="button"
+                >
+                    Zielordner wählen
+                </button>
+            </div>
+            <p class="panel-description">
+                Wähle einen Unterordner im eingebundenen Speicher.
+                NAS-Pfade müssen vorher auf dem Server eingebunden und in Docker
+                gemountet sein. Backups sind nicht verschlüsselt und werden
+                nicht automatisch gelöscht.
+            </p>
+
+            <form id="backup-create-form" class="backup-create-form">
+                <div class="form-group">
+                    <label for="backup-format">Dateiformat</label>
+                    <select id="backup-format" name="format">
+                        <option value="db">SQLite-Datenbank (.db)</option>
+                        <option value="db.gz">
+                            Komprimierte SQLite-Datenbank (.db.gz)
+                        </option>
+                    </select>
+                </div>
+
+                <button
+                    type="submit"
+                    id="create-backup-button"
+                    class="button"
+                >
+                    Backup jetzt erstellen
+                </button>
+            </form>
+
+            <p
+                id="backup-status"
+                class="backup-status"
+                role="status"
+                aria-live="polite"
+            ></p>
+
+            <p>
+                <a
+                    href="{{ url_for('static', filename='backup-restore.md') }}"
+                    target="_blank"
+                    rel="noopener"
+                >
+                    Anleitung: Backup sicher wiederherstellen (Markdown)
+                </a>
+            </p>
+        </div>
+    </section>
+
+    <section class="panel backup-history">
+        <div class="panel-header">
+            <div>
+                <h2>Vorhandene Backups</h2>
+                <p>Die zehn zuletzt erstellten Sicherungen</p>
+            </div>
+            <button
+                type="button"
+                id="refresh-backups-button"
+                class="button"
+            >
+                Aktualisieren
+            </button>
+        </div>
+
+        <p
+            id="backup-list-status"
+            class="backup-list-status"
+            role="status"
+            aria-live="polite"
+        >Backups werden geladen …</p>
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Datei</th>
+                        <th>Format</th>
+                        <th>Erstellt (UTC)</th>
+                        <th>Größe</th>
+                        <th>Aktion</th>
+                    </tr>
+                </thead>
+                <tbody id="backup-list-body"></tbody>
+            </table>
+        </div>
+    </section>
+</main>
+
+<dialog
+    id="backup-location-dialog"
+    class="backup-location-dialog"
+    aria-labelledby="backup-location-title"
+>
+    <form id="backup-location-form">
+        <h2 id="backup-location-title">Backup-Zielordner wählen</h2>
+        <p>
+            Gib einen relativen Unterordner innerhalb dieses eingebundenen
+            Speicherziels an. Leer lassen, um direkt dort zu speichern:
+        </p>
+        <p><code>{{ backup_root }}</code></p>
+        <label for="backup-relative-path">Unterordner</label>
+        <input
+            type="text"
+            id="backup-relative-path"
+            maxlength="512"
+            autocomplete="off"
+            spellcheck="false"
+            placeholder="z. B. nas/lums-täglich"
+        >
+        <p
+            id="backup-location-error"
+            class="backup-location-error"
+            role="alert"
+            hidden
+        ></p>
+        <div class="modal-actions">
+            <button type="button" id="cancel-backup-location-button">
+                Abbrechen
+            </button>
+            <button type="submit" class="button">
+                Zielordner übernehmen
+            </button>
+        </div>
+    </form>
+</dialog>
+
+<dialog
+    id="delete-backup-dialog"
+    class="backup-location-dialog"
+    aria-labelledby="delete-backup-title"
+>
+    <form id="delete-backup-form">
+        <h2 id="delete-backup-title">Backup endgültig löschen?</h2>
+        <p id="delete-backup-filename"></p>
+        <p>Diese Aktion kann nicht rückgängig gemacht werden.</p>
+        <p
+            id="delete-backup-error"
+            class="backup-location-error"
+            role="alert"
+            hidden
+        ></p>
+        <div class="modal-actions">
+            <button type="button" id="cancel-delete-backup-button">
+                Abbrechen
+            </button>
+            <button
+                type="submit"
+                id="confirm-delete-backup-button"
+                class="backup-delete-button"
+            >
+                Backup löschen
+            </button>
+        </div>
+    </form>
+</dialog>
+
+<script src="{{ url_for('static', filename='backups.js') }}" defer></script>
+<script src="{{ url_for('static', filename='theme.js') }}" defer></script>
+</body>
+</html>

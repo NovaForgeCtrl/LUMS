@@ -430,6 +430,7 @@ Available permissions are:
 | `jobs.manage`     | Create package operations and update jobs           |
 | `clients.manage`  | Register/remove clients and rotate client tokens    |
 | `users.manage`    | Create users and manage roles, permissions, and internal notes |
+| `backups.manage` | Create and inspect database backups                 |
 
 Client-related permissions require `clients.view`; `jobs.manage` also requires
 `updates.view`. LUMS prevents removing the final active account with
@@ -447,6 +448,49 @@ After creation, verify that:
 * the user can authenticate successfully
 
 Do not transmit passwords through documentation, tickets, screenshots, or other insecure channels.
+
+---
+
+## Database Backup Interface
+
+Users with the `backups.manage` permission can create SQLite backups from
+**Datenbank-Backups**. Administrator accounts receive this permission through
+migration `005-backup-permission`; new accounts receive it by applying the
+Administrator template or can be granted it explicitly.
+
+The interface supports native `.db` and compressed `.db.gz` files. It uses
+SQLite's online backup API, validates the completed database, and stores files
+with owner-only permissions. The UI lists the ten newest files. Backups are
+not encrypted, automatically deleted, scheduled, downloaded, or restored by
+LUMS; administrators with `backups.manage` can delete individual backups from
+the list after confirmation. Protect the destination accordingly.
+
+The base target directory is fixed by the server-side `LUMS_BACKUP_DIR`
+setting. The interface allows choosing a relative subdirectory beneath this
+base and creates it when needed; absolute paths, parent traversal, and
+symlinked subdirectories are rejected. Host paths must be mounted into Docker
+by the server administrator. For a Docker deployment, create a separate host
+directory writable by the container's UID/GID `10001`:
+
+```bash
+sudo install -d -o 10001 -g 10001 -m 0700 /srv/lums-backups
+```
+
+Add these options to the LUMS container configuration:
+
+```bash
+-v /srv/lums-backups:/var/backups/lums \
+-e LUMS_BACKUP_DIR=/var/backups/lums \
+```
+
+Use a separate disk or remote storage for resilience against host failure.
+For example, mount a NAS on the Debian host first, then use that mounted path
+as the left side of the Docker bind mount. The backup UI displays the
+container-side base directory; the selected relative path is beneath it.
+The backup destination must be available and writable inside the container;
+otherwise the interface reports that backup storage is unavailable.
+
+For restore steps, see [`server/static/backup-restore.md`](server/static/backup-restore.md).
 
 ---
 
@@ -2301,7 +2345,9 @@ sudo docker run -d \
     -p 127.0.0.1:5050:5000 \
     -v /etc/lums/secrets/lums_secret:/run/secrets/lums_secret:ro \
     -v lums-data:/var/lib/lums \
+    -v /srv/lums-backups:/var/backups/lums \
     -e LUMS_SECRET_KEY_FILE=/run/secrets/lums_secret \
+    -e LUMS_BACKUP_DIR=/var/backups/lums \
     lums:new
 ```
 

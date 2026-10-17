@@ -1083,7 +1083,15 @@ grants are stored in the `user_permissions` table with a foreign key to the
 user account. Migration `003-user-permissions` creates that table and seeds
 existing accounts from their current role template, preserving their access
 during the transition. Migration `004-user-admin-notes` adds the private
-`users.admin_note` field; existing accounts receive an empty note.
+`users.admin_note` field; existing accounts receive an empty note. Migration
+`005-backup-permission` grants `backups.manage` to existing Administrator
+accounts.
+
+Database backup creation requires `backups.manage`; the Administrator
+template includes this permission by default. The server writes SQLite online
+backups only to the server-configured `LUMS_BACKUP_DIR`; it does not accept
+filesystem paths from the browser. Backup files are created with owner-only
+permissions and are integrity-checked before publication.
 
 ---
 

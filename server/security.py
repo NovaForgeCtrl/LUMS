@@ -47,6 +47,7 @@ PERMISSIONS = {
     "jobs.manage": "Paketänderungen und Update-Jobs anlegen",
     "clients.manage": "Clients registrieren, entfernen und Tokens rotieren",
     "users.manage": "Benutzer und Berechtigungen verwalten",
+    "backups.manage": "Datenbank-Backups erstellen und einsehen",
 }
 
 ROLE_DEFAULT_PERMISSIONS = {
@@ -74,7 +75,7 @@ ROLE_DESCRIPTIONS = {
     ),
     ROLE_ADMINISTRATOR: (
         "Alle Bereiche verwalten, einschließlich Clients, "
-        "Update-Jobs und Benutzerkonten."
+        "Update-Jobs, Benutzerkonten und Datenbank-Backups."
     ),
 }
 
