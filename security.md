@@ -719,11 +719,9 @@ This prevents an authenticated client from freely selecting unrelated jobs or in
 
 The security test suite also covers negative and unauthorized cases.
 
-The current full automated test suite contains:
-
-`155 passed`
-
-The test suite was executed successfully after the RBAC and Viewer-access changes.
+Run the complete automated test suite from the repository root with
+`./.venv-test/bin/pytest -q`. The number of tests changes over time; use the
+result of the current run rather than a fixed count in this document.
 
 The relevant security controls were additionally verified through focused test runs during the audit.
 
@@ -814,11 +812,8 @@ The CI audit was reviewed after the security hardening changes.
 
 The final verified test suite completed successfully.
 
-The current full test result is:
-
-`155 passed`
-
-CI therefore provides an automated regression barrier for security-relevant application changes.
+The test count changes as the project evolves. CI provides an automated
+regression barrier for security-relevant application changes.
 
 **Status: PASS**
 
