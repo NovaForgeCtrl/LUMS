@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="de">
+<html lang="{{ language }}" data-locale="{{ language_locale }}">
 <head>
     <meta charset="UTF-8">
     <meta
@@ -10,7 +10,7 @@
         name="csrf-token"
         content="{{ csrf_token }}"
     >
-    <title>Benutzerverwaltung – LUMS</title>
+    <title>{{ tr("User management") }} – LUMS</title>
 
     <link
         rel="stylesheet"
@@ -34,7 +34,7 @@
             href="/"
             class="logout-button"
         >
-            Dashboard
+            {{ tr("Dashboard") }}
         </a>
 
         <form
@@ -52,8 +52,18 @@
                 type="submit"
                 class="logout-button"
             >
-                Abmelden
+                {{ tr("Sign out") }}
             </button>
+        </form>
+        <form action="/language" method="POST" class="language-form">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            <label for="language-select">{{ tr("Language") }}</label>
+            <select id="language-select" name="language">
+                {% for code, name in languages.items() %}
+                <option value="{{ code }}" {% if code == language %}selected{% endif %}>{{ name }}</option>
+                {% endfor %}
+            </select>
+            <button type="submit">{{ tr("Save") }}</button>
         </form>
 
     </div>
@@ -71,10 +81,10 @@
         <div class="panel-header">
 
             <div>
-                <h2>Benutzerverwaltung</h2>
+                <h2>{{ tr("User management") }}</h2>
 
                 <div class="panel-description">
-                    Benutzerkonten und Rollen verwalten
+                    {{ tr("User accounts and roles") }}
                 </div>
             </div>
 
@@ -86,10 +96,10 @@
             <div class="panel-header">
 
                 <div>
-                    <h3>Benutzer anlegen</h3>
+                    <h3>{{ tr("Create user") }}</h3>
 
                     <div class="panel-description">
-                        Neues LUMS-Benutzerkonto erstellen
+                        {{ tr("Create a new LUMS user account") }}
                     </div>
                 </div>
 
@@ -104,7 +114,7 @@
                 <div class="form-group">
 
                     <label for="create-user-username">
-                        Benutzername
+                        {{ tr("Username") }}
                     </label>
 
                     <input
@@ -122,7 +132,7 @@
                 <div class="form-group">
 
                     <label for="create-user-password">
-                        Passwort
+                        {{ tr("Password") }}
                     </label>
 
                     <input
@@ -135,7 +145,7 @@
                     >
 
                     <div class="panel-description">
-                        Mindestens 12 Zeichen
+                        {{ tr("At least 12 characters") }}
                     </div>
 
                 </div>
@@ -144,7 +154,7 @@
                 <div class="form-group">
 
                     <label for="create-user-role">
-                        Rollen-Vorlage für den nächsten Schritt
+                        {{ tr("Role template for the next step") }}
                     </label>
 
                     <select
@@ -154,23 +164,21 @@
                     >
 
                         <option value="viewer">
-                            Viewer
+                            {{ tr("Viewer") }}
                         </option>
 
                         <option value="operator">
-                            Operator
+                            {{ tr("Operator") }}
                         </option>
 
                         <option value="administrator">
-                            Administrator
+                            {{ tr("Administrator") }}
                         </option>
 
                     </select>
 
                     <div class="panel-description">
-                        Der Benutzer wird zuerst ohne Berechtigungen angelegt.
-                        Danach kannst du Rechte einzeln auswählen oder eine
-                        Vorlage übernehmen.
+                        {{ tr("The user is created without permissions first. Then select permissions individually or apply a template.") }}
                     </div>
                     <div
                         id="create-user-role-description"
@@ -180,7 +188,7 @@
                     <ul class="role-template-list">
                         {% for role, description in role_descriptions.items() %}
                         <li>
-                            <strong>{{ role | capitalize }}</strong>
+                            <strong>{{ tr(role | capitalize) }}</strong>
                             <span>{{ description }}</span>
                         </li>
                         {% endfor %}
@@ -202,7 +210,7 @@
                         class="button-primary"
                         id="create-user-button"
                     >
-                        Benutzer anlegen
+                        {{ tr("Create user") }}
                     </button>
 
                 </div>
@@ -217,10 +225,10 @@
             <div class="panel-header">
 
                 <div>
-                    <h3>Benutzer</h3>
+                    <h3>{{ tr("Users") }}</h3>
 
                     <div class="panel-description">
-                        Vorhandene Benutzerkonten, Rollen und individuelle Rechte
+                        {{ tr("Existing user accounts, roles, and individual permissions") }}
                     </div>
                 </div>
 
@@ -231,7 +239,7 @@
                 id="users-list-status"
                 class="panel-description"
             >
-                Benutzer werden geladen …
+                {{ tr("Loading users...") }}
             </div>
 
 
@@ -245,11 +253,11 @@
 
                     <thead>
                         <tr>
-                            <th>Benutzername</th>
-                            <th>Rolle</th>
-                            <th>Berechtigungen</th>
-                            <th>Status</th>
-                            <th>Aktion</th>
+                            <th>                            {{ tr("Username") }}</th>
+                            <th>{{ tr("Role") }}</th>
+                            <th>{{ tr("Permissions") }}</th>
+                            <th>{{ tr("Status") }}</th>
+                            <th>{{ tr("Action") }}</th>
                         </tr>
                     </thead>
 
@@ -272,6 +280,8 @@
         {{ permission_definitions | tojson }};
     window.lumsRoleDescriptions =
         {{ role_descriptions | tojson }};
+    window.lumsT = {{ translations | tojson }};
+    window.lumsLocale = {{ language_locale | tojson }};
 </script>
 
 <script

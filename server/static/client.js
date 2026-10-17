@@ -1,3 +1,12 @@
+function t(message, values = {}) {
+    const translated = window.lumsT?.[message] || message;
+    return Object.entries(values).reduce(
+        (text, [key, value]) =>
+            text.split(`{${key}}`).join(String(value)),
+        translated
+    );
+}
+
 const params = new URLSearchParams(window.location.search);
 const clientId = params.get("id");
 
@@ -47,7 +56,7 @@ function formatDate(value) {
         return value;
     }
 
-    return date.toLocaleString("de-DE");
+    return date.toLocaleString(window.lumsLocale);
 }
 
 
@@ -190,14 +199,14 @@ function renderPackageStatus(packageName) {
 
         return `
             <span class="package-status update">
-                Update verfügbar
+                ${t("Update available")}
             </span>
         `;
     }
 
     return `
         <span class="package-status current">
-            Aktuell
+            ${t("Up to date")}
         </span>
     `;
 }
@@ -262,7 +271,7 @@ function renderPackages() {
         table.innerHTML = `
             <tr>
                 <td colspan="3" class="empty-state">
-                    Keine Pakete gefunden.
+                    ${t("No packages found.")}
                 </td>
             </tr>
         `;
@@ -320,16 +329,18 @@ function renderUpdates() {
             <div class="update-summary">
 
                 <strong>
-                    ${updates.length}
-                    Update${updates.length === 1 ? "" : "s"}
-                    verfügbar
+                    ${t("{count} updates available", {
+                        count: new Intl.NumberFormat(window.lumsLocale).format(
+                            updates.length
+                        ),
+                    })}
                 </strong>
 
             </div>
         `
         : `
             <div class="success-state">
-                ✓ System aktuell
+                ✓ ${t("System is up to date")}
             </div>
         `;
 
@@ -351,7 +362,7 @@ function renderUpdates() {
                     id="select-all-updates"
                     class="secondary-button"
                 >
-                    Alle auswählen
+                    ${t("Select all")}
                 </button>
 
                 <button
@@ -359,7 +370,7 @@ function renderUpdates() {
                     id="clear-all-updates"
                     class="secondary-button"
                 >
-                    Auswahl aufheben
+                    ${t("Clear selection")}
                 </button>
 
                 <button
@@ -367,7 +378,7 @@ function renderUpdates() {
                     id="install-selected-updates"
                     class="primary-button"
                 >
-                    Ausgewählte Updates installieren
+                    ${t("Install selected updates")}
                 </button>
 
             </div>
@@ -387,16 +398,16 @@ function renderUpdates() {
                                 <input
                                     type="checkbox"
                                     id="select-all-checkbox"
-                                    title="Alle Updates auswählen"
+                                    title="${t("Select all updates")}"
                                 >
                             </th>
                             ` : ""}
 
-                            <th>Paket</th>
+                            <th>${t("Package")}</th>
 
-                            <th>Installiert</th>
+                            <th>${t("Installed")}</th>
 
-                            <th>Verfügbar</th>
+                            <th>${t("Available")}</th>
 
                         </tr>
 
@@ -453,7 +464,7 @@ function renderUpdates() {
                 id="update-selection-info"
                 class="package-summary"
             >
-                0 Updates ausgewählt
+                ${t("{count} updates selected", { count: 0 })}
             </div>` : ""}
 
         `
@@ -474,7 +485,7 @@ function renderUpdates() {
         <div class="update-system-actions">
 
             <div class="panel-description">
-                Systemwartung
+                ${t("System maintenance")}
             </div>
 
             <button
@@ -482,7 +493,7 @@ function renderUpdates() {
                 id="update-system-button"
                 class="button"
             >
-                System vollständig aktualisieren
+                ${t("Update the entire system")}
             </button>
 
         </div>
@@ -530,8 +541,9 @@ function updateSelectionInfo() {
 
     if (info) {
 
-        info.textContent =
-            `${selected} Update${selected === 1 ? "" : "s"} ausgewählt`;
+        info.textContent = t("{count} updates selected", {
+            count: new Intl.NumberFormat(window.lumsLocale).format(selected),
+        });
     }
 
 
@@ -666,7 +678,7 @@ async function createUpdateJob() {
     if (checkboxes.length === 0) {
 
         alert(
-            "Bitte mindestens ein Update auswählen."
+            t("Select at least one update.")
         );
 
         return;
@@ -696,7 +708,7 @@ async function createUpdateJob() {
 
         installButton.disabled = true;
         installButton.textContent =
-            "Update-Job wird erstellt...";
+            t("Creating update job...");
     }
 
 
@@ -733,16 +745,18 @@ async function createUpdateJob() {
 
             throw new Error(
                 result.error ||
-                "Update-Job konnte nicht erstellt werden."
+                t("Could not create update job.")
             );
         }
 
 
         alert(
-            `Update-Job #${result.job_id} wurde erstellt.\n\n` +
-            `${result.package_count} Paket` +
-            `${result.package_count === 1 ? "" : "e"} ` +
-            `wurden ausgewählt.`
+            t("Update job #{jobId} created; {count} selected.", {
+                jobId: result.job_id,
+                count: new Intl.NumberFormat(window.lumsLocale).format(
+                    result.package_count
+                ),
+            })
         );
 
 
@@ -754,7 +768,9 @@ async function createUpdateJob() {
         console.error(error);
 
         alert(
-            `Fehler beim Erstellen des Update-Jobs:\n${error.message}`
+            t("Error creating update job:\n{error}", {
+                error: error.message,
+            })
         );
 
 
@@ -764,7 +780,7 @@ async function createUpdateJob() {
 
             installButton.disabled = false;
             installButton.textContent =
-                "Ausgewählte Updates installieren";
+                t("Install selected updates");
         }
     }
 }
@@ -784,7 +800,7 @@ async function createSystemUpdateJob() {
 
         button.disabled = true;
         button.textContent =
-            "System-Update wird erstellt...";
+            t("Creating system update...");
     }
 
 
@@ -821,13 +837,15 @@ async function createSystemUpdateJob() {
 
             throw new Error(
                 result.error ||
-                "System-Update-Job konnte nicht erstellt werden."
+                t("Could not create system update job.")
             );
         }
 
 
         alert(
-            `System-Update-Job #${result.job_id} wurde erstellt.`
+            t("System update job #{jobId} created.", {
+                jobId: result.job_id,
+            })
         );
 
 
@@ -839,8 +857,9 @@ async function createSystemUpdateJob() {
         console.error(error);
 
         alert(
-            `Fehler beim Erstellen des System-Update-Jobs:
-${error.message}`
+            t("Error creating system update job:\n{error}", {
+                error: error.message,
+            })
         );
 
 
@@ -850,7 +869,7 @@ ${error.message}`
 
             button.disabled = false;
             button.textContent =
-                "System vollständig aktualisieren";
+                t("Update the entire system");
         }
     }
 }
@@ -876,7 +895,7 @@ async function loadJobs() {
         if (!response.ok) {
 
             throw new Error(
-                "Update-Jobs konnten nicht geladen werden."
+                t("Could not load update jobs.")
             );
         }
 
@@ -894,7 +913,7 @@ async function loadJobs() {
 
         container.innerHTML = `
             <div class="error-state">
-                Update-Jobs konnten nicht geladen werden.
+                ${t("Could not load update jobs.")}
             </div>
         `;
     }
@@ -914,7 +933,7 @@ function renderJobStatus(status) {
 
         return `
             <span class="package-status update">
-                Wartend
+                ${t("Pending")}
             </span>
         `;
     }
@@ -924,7 +943,7 @@ function renderJobStatus(status) {
 
         return `
             <span class="package-status update">
-                Läuft
+                ${t("Running")}
             </span>
         `;
     }
@@ -934,7 +953,7 @@ function renderJobStatus(status) {
 
         return `
             <span class="package-status current">
-                ✓ Erfolgreich
+                ✓ ${t("Successful")}
             </span>
         `;
     }
@@ -944,7 +963,7 @@ function renderJobStatus(status) {
 
         return `
             <span class="package-status update">
-                ✗ Fehlgeschlagen
+                ✗ ${t("Failed")}
             </span>
         `;
     }
@@ -954,7 +973,7 @@ function renderJobStatus(status) {
 
         return `
             <span class="package-status update">
-                ⚠ Teilweise erfolgreich
+                ⚠ ${t("Partially successful")}
             </span>
         `;
     }
@@ -962,7 +981,7 @@ function renderJobStatus(status) {
 
     return `
         <span class="package-status">
-            ${escapeHtml(status || "Unbekannt")}
+            ${escapeHtml(status || t("Unknown"))}
         </span>
     `;
 }
@@ -981,7 +1000,7 @@ function renderJobs() {
 
         container.innerHTML = `
             <div class="empty-state">
-                Keine Update-Jobs vorhanden.
+                ${t("No update jobs available.")}
             </div>
         `;
 
@@ -998,11 +1017,11 @@ function renderJobs() {
                 <thead>
 
                     <tr>
-                        <th>Job</th>
-                        <th>Status</th>
-                        <th>Pakete</th>
-                        <th>Erstellt</th>
-                        <th>Abgeschlossen</th>
+                        <th>${t("Job")}</th>
+                        <th>${t("Status")}</th>
+                        <th>${t("Packages")}</th>
+                        <th>${t("Created")}</th>
+                        <th>${t("Completed")}</th>
                     </tr>
 
                 </thead>
@@ -1071,7 +1090,7 @@ async function loadHistory() {
         if (!response.ok) {
 
             throw new Error(
-                "Update-Verlauf konnte nicht geladen werden."
+                t("Could not load update history.")
             );
         }
 
@@ -1089,7 +1108,7 @@ async function loadHistory() {
 
         container.innerHTML = `
             <div class="error-state">
-                Update-Verlauf konnte nicht geladen werden.
+                ${t("Could not load update history.")}
             </div>
         `;
     }
@@ -1109,7 +1128,7 @@ function renderHistory() {
 
         container.innerHTML = `
             <div class="empty-state">
-                Noch kein Update-Verlauf vorhanden.
+                ${t("No update history yet.")}
             </div>
         `;
 
@@ -1126,13 +1145,13 @@ function renderHistory() {
                 <thead>
 
                     <tr>
-                        <th>Status</th>
-                        <th>Pakete</th>
-                        <th>Erfolgreich</th>
-                        <th>Fehlgeschlagen</th>
-                        <th>Neustart</th>
-                        <th>Start</th>
-                        <th>Ende</th>
+                        <th>${t("Status")}</th>
+                        <th>${t("Packages")}</th>
+                        <th>${t("Successful")}</th>
+                        <th>${t("Failed")}</th>
+                        <th>${t("Reboot required")}</th>
+                        <th>${t("Start")}</th>
+                        <th>${t("End")}</th>
                     </tr>
 
                 </thead>
@@ -1168,8 +1187,8 @@ function renderHistory() {
                             <td>
                                 ${
                                     entry.reboot_required
-                                        ? "⚠ Ja"
-                                        : "Nein"
+                                        ? `⚠ ${t("Yes")}`
+                                        : t("No")
                                 }
                             </td>
 
@@ -1209,7 +1228,7 @@ async function loadClient() {
         if (!response.ok) {
 
             throw new Error(
-                "Client konnte nicht geladen werden."
+                t("Could not load client.")
             );
         }
 
@@ -1268,7 +1287,11 @@ async function loadClient() {
 
 
         status.textContent =
-            client.status || "UNKNOWN";
+            ({
+                online: t("Online"),
+                offline: t("Offline"),
+            })[String(client.status || "").toLowerCase()] ||
+            t("Unknown");
 
 
         status.className =
@@ -1283,7 +1306,7 @@ async function loadClient() {
         console.error(error);
 
         document.getElementById("hostname").textContent =
-            "Fehler";
+            t("Error");
     }
 }
 
@@ -1304,7 +1327,7 @@ async function loadUpdates() {
         if (!response.ok) {
 
             throw new Error(
-                "Updates konnten nicht geladen werden."
+                t("Could not load updates.")
             );
         }
 
@@ -1325,7 +1348,7 @@ async function loadUpdates() {
             "updates-container"
         ).innerHTML = `
             <div class="error-state">
-                Updates konnten nicht geladen werden.
+                ${t("Could not load updates.")}
             </div>
         `;
     }
@@ -1348,7 +1371,7 @@ async function loadPackages() {
         if (!response.ok) {
 
             throw new Error(
-                "Pakete konnten nicht geladen werden."
+                t("Could not load packages.")
             );
         }
 
@@ -1369,7 +1392,7 @@ async function loadPackages() {
             table.innerHTML = `
                 <tr>
                     <td colspan="3" class="empty-state">
-                        Pakete konnten nicht geladen werden.
+                        ${t("Could not load packages.")}
                     </td>
                 </tr>
             `;
@@ -1436,11 +1459,12 @@ async function rotateClientToken() {
         document.getElementById("hostname").textContent.trim();
 
     const confirmed = window.confirm(
-        `Token für Client "${hostname}" wirklich rotieren?\n\n` +
-        "Der bisherige Token wird sofort ungültig.\n\n" +
-        "Der LUMS-Agent muss anschließend mit dem neuen Token " +
-        "konfiguriert werden.\n\n" +
-        "Fortfahren?"
+        `${t('Are you sure you want to rotate the token for client "{hostname}"?', {
+            hostname,
+        })}\n\n` +
+        `${t("The current token will be invalidated immediately.")}\n\n` +
+        `${t("Reconfigure the LUMS agent with the new token.")}\n\n` +
+        t("Continue?")
     );
 
     if (!confirmed) {
@@ -1455,7 +1479,7 @@ async function rotateClientToken() {
 
 
     button.disabled = true;
-    button.textContent = "Wird rotiert...";
+    button.textContent = t("Rotating token...");
 
 
     try {
@@ -1469,7 +1493,7 @@ async function rotateClientToken() {
         if (!csrfToken) {
 
             throw new Error(
-                "CSRF-Token konnte nicht gefunden werden."
+                t("CSRF token could not be found.")
             );
         }
 
@@ -1495,7 +1519,7 @@ async function rotateClientToken() {
 
             throw new Error(
                 data.error ||
-                "Client-Token konnte nicht rotiert werden."
+                t("Could not rotate client token.")
             );
         }
 
@@ -1507,7 +1531,7 @@ async function rotateClientToken() {
         if (!token) {
 
             throw new Error(
-                "Server hat keinen neuen Token zurückgegeben."
+                t("The server did not return a new token.")
             );
         }
 
@@ -1536,7 +1560,7 @@ async function rotateClientToken() {
         });
 
 
-        button.textContent = "🔐 Token rotiert";
+        button.textContent = `🔐 ${t("Token rotated")}`;
 
 
     } catch (error) {
@@ -1545,12 +1569,12 @@ async function rotateClientToken() {
 
 
         alert(
-            "Client-Token konnte nicht rotiert werden.\n\n" +
+            `${t("Could not rotate client token.")}\n\n` +
             error.message
         );
 
 
-        button.textContent = "🔐 Token rotieren";
+        button.textContent = `🔐 ${t("Rotate token")}`;
 
 
     } finally {
@@ -1603,7 +1627,7 @@ if (copyRotatedClientTokenButton) {
             if (!token) {
 
                 alert(
-                    "Kein Client-Token zum Kopieren vorhanden."
+                    t("No client token is available to copy.")
                 );
 
                 return;
@@ -1618,14 +1642,14 @@ if (copyRotatedClientTokenButton) {
 
 
                 copyRotatedClientTokenButton.textContent =
-                    "✓ Token kopiert";
+                    `✓ ${t("Token copied")}`;
 
 
                 window.setTimeout(
                     () => {
 
                         copyRotatedClientTokenButton.textContent =
-                            "📋 Token kopieren";
+                            `📋 ${t("Copy token")}`;
 
                     },
                     2000
@@ -1638,7 +1662,7 @@ if (copyRotatedClientTokenButton) {
 
 
                 alert(
-                    "Token konnte nicht in die Zwischenablage kopiert werden."
+                    t("Could not copy token to the clipboard.")
                 );
             }
         }
@@ -1655,8 +1679,10 @@ async function deleteClient() {
         document.getElementById("hostname").textContent.trim();
 
     const confirmed = window.confirm(
-        `Client "${hostname}" wirklich entfernen?\n\n` +
-        "Der Client kann anschließend erneut angelegt werden."
+        `${t('Are you sure you want to remove client "{hostname}"?', {
+            hostname,
+        })}\n\n` +
+        t("The client can be registered again.")
     );
 
     if (!confirmed) {
@@ -1667,7 +1693,7 @@ async function deleteClient() {
         document.getElementById("delete-client-button");
 
     button.disabled = true;
-    button.textContent = "Wird entfernt...";
+    button.textContent = t("Removing...");
 
     try {
 
@@ -1675,7 +1701,7 @@ async function deleteClient() {
             document.querySelector('meta[name="csrf-token"]')?.content;
 
         if (!csrfToken) {
-            throw new Error("CSRF-Token konnte nicht gefunden werden.");
+            throw new Error(t("CSRF token could not be found."));
         }
 
         const response =
@@ -1691,7 +1717,7 @@ async function deleteClient() {
 
         if (!response.ok) {
             throw new Error(
-                data.error || "Client konnte nicht entfernt werden."
+                data.error || t("Could not remove client.")
             );
         }
 
@@ -1702,12 +1728,12 @@ async function deleteClient() {
         console.error(error);
 
         alert(
-            "Client konnte nicht entfernt werden.\n\n" +
+            `${t("Could not remove client.")}\n\n` +
             error.message
         );
 
         button.disabled = false;
-        button.textContent = "🗑️ Client entfernen";
+        button.textContent = `🗑️ ${t("Remove client")}`;
     }
 }
 
@@ -1730,7 +1756,7 @@ if (deleteClientButton) {
 if (!clientId) {
 
     document.getElementById("hostname").textContent =
-        "Keine Client-ID angegeben.";
+        t("No client ID provided.");
 
 } else {
 
@@ -1842,21 +1868,21 @@ function getPackageManagementState(packageName) {
 
             return {
                 type: "update",
-                label: "Update verfügbar"
+                label: t("Update available")
             };
         }
 
 
         return {
             type: "installed",
-            label: "Installiert"
+            label: t("Installed")
         };
     }
 
 
     return {
         type: "available",
-        label: "Nicht installiert"
+        label: t("Not installed")
     };
 }
 
@@ -1900,7 +1926,9 @@ async function createPackageManagementJob(
 
         const confirmed =
             window.confirm(
-                `Paket "${packageName}" wirklich entfernen?`
+                t('Are you sure you want to remove package "{packageName}"?', {
+                    packageName,
+                })
             );
 
 
@@ -1911,7 +1939,7 @@ async function createPackageManagementJob(
 
 
     const originalText =
-        button?.textContent || "Aktion";
+        button?.textContent || t("Action");
 
 
     if (button) {
@@ -1921,17 +1949,17 @@ async function createPackageManagementJob(
         if (action === "INSTALL_PACKAGE") {
 
             button.textContent =
-                "Installieren...";
+                t("Installing...");
 
         } else if (action === "REMOVE_PACKAGE") {
 
             button.textContent =
-                "Entfernen...";
+                t("Removing...");
 
         } else if (action === "UPDATE_PACKAGE") {
 
             button.textContent =
-                "Aktualisieren...";
+                t("Updating...");
         }
     }
 
@@ -1947,7 +1975,7 @@ async function createPackageManagementJob(
         if (!csrfToken) {
 
             throw new Error(
-                "CSRF-Token konnte nicht gefunden werden."
+                t("CSRF token could not be found.")
             );
         }
 
@@ -1990,14 +2018,16 @@ async function createPackageManagementJob(
 
             throw new Error(
                 data?.error ||
-                "Paket-Job konnte nicht erstellt werden."
+                t("Could not create package job.")
             );
         }
 
 
         setPackageManagementStatus(
-            `Job #${data.job_id} wurde für ` +
-            `"${packageName}" erstellt.`
+            t('Job #{jobId} created for "{packageName}".', {
+                jobId: data.job_id,
+                packageName,
+            })
         );
 
 
@@ -2016,7 +2046,7 @@ async function createPackageManagementJob(
 
 
         setPackageManagementStatus(
-            `Fehler: ${error.message}`
+            t("Error: {error}", { error: error.message })
         );
 
 
@@ -2079,7 +2109,7 @@ function renderPackageManagementActions(
         "package-management-actions";
 
     if (!userHasPermission("jobs.manage")) {
-        container.textContent = "Nur anzeigen";
+        container.textContent = t("View only");
         return container;
     }
 
@@ -2090,7 +2120,7 @@ function renderPackageManagementActions(
             createPackageManagementActionButton(
                 "INSTALL_PACKAGE",
                 packageName,
-                "Installieren",
+                t("Install"),
                 "button button-primary"
             )
         );
@@ -2105,7 +2135,7 @@ function renderPackageManagementActions(
             createPackageManagementActionButton(
                 "UPDATE_PACKAGE",
                 packageName,
-                "Aktualisieren",
+                t("Update"),
                 "button button-primary"
             )
         );
@@ -2119,7 +2149,7 @@ function renderPackageManagementActions(
         createPackageManagementActionButton(
             "REMOVE_PACKAGE",
             packageName,
-            "Entfernen",
+            t("Remove"),
             "button button-danger"
         )
     );
@@ -2153,7 +2183,7 @@ function renderPackageManagementResults(results) {
                     colspan="5"
                     class="empty-state"
                 >
-                    Keine passenden Pakete gefunden.
+                    ${t("No matching packages found.")}
                 </td>
             </tr>
         `;
@@ -2284,7 +2314,7 @@ async function getPackageManagementSearchStatus(
 
         throw new Error(
             data?.error ||
-            "Status der Paketsuche konnte nicht abgefragt werden."
+            t("Could not retrieve package search status.")
         );
     }
 
@@ -2330,8 +2360,11 @@ async function waitForPackageManagementSearch(
 
 
             setPackageManagementStatus(
-                `${results.length} Paket` +
-                `${results.length === 1 ? "" : "e"} gefunden.`
+                t("{count} packages found.", {
+                    count: new Intl.NumberFormat(window.lumsLocale).format(
+                        results.length
+                    ),
+                })
             );
 
 
@@ -2343,7 +2376,7 @@ async function waitForPackageManagementSearch(
 
             throw new Error(
                 data.error_message ||
-                "Die Paketsuche ist fehlgeschlagen."
+                t("Package search failed.")
             );
         }
 
@@ -2354,15 +2387,17 @@ async function waitForPackageManagementSearch(
         ) {
 
             throw new Error(
-                `Unbekannter Suchstatus: ${data.status}`
+                t("Unknown search status: {status}", {
+                    status: data.status,
+                })
             );
         }
 
 
         setPackageManagementStatus(
             data.status === "pending"
-                ? "Suche wartet auf den Client..."
-                : "Client führt die Paketsuche aus..."
+                ? t("Search is waiting for the client...")
+                : t("The client is searching for packages...")
         );
 
 
@@ -2376,7 +2411,7 @@ async function waitForPackageManagementSearch(
 
 
     throw new Error(
-        "Zeitüberschreitung bei der Paketsuche."
+        t("Package search timed out.")
     );
 }
 
@@ -2401,7 +2436,7 @@ async function startPackageManagementSearch() {
     if (!query) {
 
         setPackageManagementStatus(
-            "Bitte einen Paketnamen oder Suchbegriff eingeben."
+            t("Enter a package name or search term.")
         );
 
         packageManagementSearchInput.focus();
@@ -2414,11 +2449,11 @@ async function startPackageManagementSearch() {
         true;
 
     packageManagementSearchButton.textContent =
-        "Suche...";
+        t("Searching...");
 
 
     setPackageManagementStatus(
-        "Paketsuche wird gestartet..."
+        t("Starting package search...")
     );
 
 
@@ -2433,7 +2468,7 @@ async function startPackageManagementSearch() {
         if (!csrfToken) {
 
             throw new Error(
-                "CSRF-Token konnte nicht gefunden werden."
+                t("CSRF token could not be found.")
             );
         }
 
@@ -2475,7 +2510,7 @@ async function startPackageManagementSearch() {
 
             throw new Error(
                 data?.error ||
-                "Paketsuche konnte nicht gestartet werden."
+                t("Could not start package search.")
             );
         }
 
@@ -2483,13 +2518,13 @@ async function startPackageManagementSearch() {
         if (!data?.search_id) {
 
             throw new Error(
-                "Server hat keine Such-ID zurückgegeben."
+                t("The server did not return a search ID.")
             );
         }
 
 
         setPackageManagementStatus(
-            "Paketsuche wurde gestartet..."
+            t("Package search started...")
         );
 
 
@@ -2507,7 +2542,7 @@ async function startPackageManagementSearch() {
 
 
         setPackageManagementStatus(
-            `Fehler: ${error.message}`
+            t("Error: {error}", { error: error.message })
         );
 
 
@@ -2517,7 +2552,7 @@ async function startPackageManagementSearch() {
             false;
 
         packageManagementSearchButton.textContent =
-            "Suchen";
+            t("Search");
     }
 }
 

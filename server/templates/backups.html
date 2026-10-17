@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="de">
+<html lang="{{ language }}" data-locale="{{ language_locale }}">
 <head>
     <meta charset="UTF-8">
     <meta
@@ -10,7 +10,7 @@
         name="csrf-token"
         content="{{ csrf_token }}"
     >
-    <title>Datenbank-Backups – LUMS</title>
+    <title>{{ tr("Database backups") }} – LUMS</title>
 
     <link
         rel="stylesheet"
@@ -23,11 +23,11 @@
 <header class="topbar">
     <div>
         <h1>LUMS</h1>
-        <span>Datenbank-Backups</span>
+        <span>{{ tr("Database backups") }}</span>
     </div>
 
     <div class="topbar-actions">
-        <a href="/" class="logout-button">Dashboard</a>
+        <a href="/" class="logout-button">{{ tr("Dashboard") }}</a>
         <form action="/logout" method="POST" class="logout-form">
             <input
                 type="hidden"
@@ -35,8 +35,18 @@
                 value="{{ csrf_token }}"
             >
             <button type="submit" class="logout-button">
-                Abmelden
+                {{ tr("Sign out") }}
             </button>
+        </form>
+        <form action="/language" method="POST" class="language-form">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            <label for="language-select">{{ tr("Language") }}</label>
+            <select id="language-select" name="language">
+                {% for code, name in languages.items() %}
+                <option value="{{ code }}" {% if code == language %}selected{% endif %}>{{ name }}</option>
+                {% endfor %}
+            </select>
+            <button type="submit">{{ tr("Save") }}</button>
         </form>
     </div>
 </header>
@@ -45,9 +55,9 @@
     <section class="panel backup-management">
         <div class="panel-header">
             <div>
-                <h2>Datenbank sichern</h2>
+                <h2>{{ tr("Database backup") }}</h2>
                 <p>
-                    Erstellt eine konsistente SQLite-Sicherung der LUMS-Datenbank.
+                    {{ tr("Creates a consistent SQLite backup of the LUMS database.") }}
                 </p>
             </div>
         </div>
@@ -55,7 +65,7 @@
         <div class="backup-content">
             <div class="backup-location">
                 <div>
-                    <strong>Server-Speicher</strong>
+                    <strong>{{ tr("Server storage") }}</strong>
                     <code id="backup-root">{{ backup_root }}</code>
                     <code id="backup-current-path"></code>
                 </div>
@@ -64,23 +74,20 @@
                     id="change-backup-location-button"
                     class="button"
                 >
-                    Zielordner wählen
+                    {{ tr("Choose destination folder") }}
                 </button>
             </div>
             <p class="panel-description">
-                Wähle einen Unterordner im eingebundenen Speicher.
-                NAS-Pfade müssen vorher auf dem Server eingebunden und in Docker
-                gemountet sein. Backups sind nicht verschlüsselt und werden
-                nicht automatisch gelöscht.
+                {{ tr("Choose a subfolder within the mounted storage. NAS paths must first be mounted on the server and in Docker. Backups are not encrypted and are not deleted automatically.") }}
             </p>
 
             <form id="backup-create-form" class="backup-create-form">
                 <div class="form-group">
-                    <label for="backup-format">Dateiformat</label>
+                    <label for="backup-format">{{ tr("File format") }}</label>
                     <select id="backup-format" name="format">
-                        <option value="db">SQLite-Datenbank (.db)</option>
+                        <option value="db">{{ tr("SQLite database (.db)") }}</option>
                         <option value="db.gz">
-                            Komprimierte SQLite-Datenbank (.db.gz)
+                            {{ tr("Compressed SQLite database (.db.gz)") }}
                         </option>
                     </select>
                 </div>
@@ -90,7 +97,7 @@
                     id="create-backup-button"
                     class="button"
                 >
-                    Backup jetzt erstellen
+                    {{ tr("Create backup now") }}
                 </button>
             </form>
 
@@ -107,7 +114,7 @@
                     target="_blank"
                     rel="noopener"
                 >
-                    Anleitung: Backup sicher wiederherstellen (Markdown)
+                    {{ tr("Guide: safely restore a backup (Markdown)") }}
                 </a>
             </p>
         </div>
@@ -116,15 +123,15 @@
     <section class="panel backup-history">
         <div class="panel-header">
             <div>
-                <h2>Vorhandene Backups</h2>
-                <p>Die zehn zuletzt erstellten Sicherungen</p>
+                <h2>{{ tr("Existing backups") }}</h2>
+                <p>{{ tr("The ten most recently created backups") }}</p>
             </div>
             <button
                 type="button"
                 id="refresh-backups-button"
                 class="button"
             >
-                Aktualisieren
+                {{ tr("Refresh") }}
             </button>
         </div>
 
@@ -133,16 +140,16 @@
             class="backup-list-status"
             role="status"
             aria-live="polite"
-        >Backups werden geladen …</p>
+        >{{ tr("Loading backups...") }}</p>
         <div class="table-container">
             <table>
                 <thead>
                     <tr>
-                        <th>Datei</th>
-                        <th>Format</th>
-                        <th>Erstellt (UTC)</th>
-                        <th>Größe</th>
-                        <th>Aktion</th>
+                        <th>                        {{ tr("File") }}</th>
+                        <th>                        {{ tr("Format") }}</th>
+                        <th>                        {{ tr("Created (UTC)") }}</th>
+                        <th>                        {{ tr("Size") }}</th>
+                        <th>                        {{ tr("Action") }}</th>
                     </tr>
                 </thead>
                 <tbody id="backup-list-body"></tbody>
@@ -157,20 +164,19 @@
     aria-labelledby="backup-location-title"
 >
     <form id="backup-location-form">
-        <h2 id="backup-location-title">Backup-Zielordner wählen</h2>
+        <h2 id="backup-location-title">{{ tr("Choose backup destination folder") }}</h2>
         <p>
-            Gib einen relativen Unterordner innerhalb dieses eingebundenen
-            Speicherziels an. Leer lassen, um direkt dort zu speichern:
+            {{ tr("Enter a relative subfolder within this mounted storage. Leave it empty to save directly here:") }}
         </p>
         <p><code>{{ backup_root }}</code></p>
-        <label for="backup-relative-path">Unterordner</label>
+        <label for="backup-relative-path">{{ tr("Subfolder") }}</label>
         <input
             type="text"
             id="backup-relative-path"
             maxlength="512"
             autocomplete="off"
             spellcheck="false"
-            placeholder="z. B. nas/lums-täglich"
+            placeholder="{{ tr('e.g. nas/lums-daily') }}"
         >
         <p
             id="backup-location-error"
@@ -180,10 +186,10 @@
         ></p>
         <div class="modal-actions">
             <button type="button" id="cancel-backup-location-button">
-                Abbrechen
+                {{ tr("Cancel") }}
             </button>
             <button type="submit" class="button">
-                Zielordner übernehmen
+                {{ tr("Use destination folder") }}
             </button>
         </div>
     </form>
@@ -195,9 +201,9 @@
     aria-labelledby="delete-backup-title"
 >
     <form id="delete-backup-form">
-        <h2 id="delete-backup-title">Backup endgültig löschen?</h2>
+        <h2 id="delete-backup-title">{{ tr("Permanently delete this backup?") }}</h2>
         <p id="delete-backup-filename"></p>
-        <p>Diese Aktion kann nicht rückgängig gemacht werden.</p>
+        <p>{{ tr("This action cannot be undone.") }}</p>
         <p
             id="delete-backup-error"
             class="backup-location-error"
@@ -206,19 +212,23 @@
         ></p>
         <div class="modal-actions">
             <button type="button" id="cancel-delete-backup-button">
-                Abbrechen
+                {{ tr("Cancel") }}
             </button>
             <button
                 type="submit"
                 id="confirm-delete-backup-button"
                 class="backup-delete-button"
             >
-                Backup löschen
+                {{ tr("Delete backup") }}
             </button>
         </div>
     </form>
 </dialog>
 
+<script>
+    window.lumsT = {{ translations | tojson }};
+    window.lumsLocale = {{ language_locale | tojson }};
+</script>
 <script src="{{ url_for('static', filename='backups.js') }}" defer></script>
 <script src="{{ url_for('static', filename='theme.js') }}" defer></script>
 </body>

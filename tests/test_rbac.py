@@ -2437,7 +2437,7 @@ def test_client_page_shows_management_sections_for_operator_and_administrator(
 
     assert response.status_code == 200
     assert b">Updates<" in response.data
-    assert b">Update-Jobs<" in response.data
+    assert ">Update-Aufträge<".encode("utf-8") in response.data
     assert b">Update-Verlauf<" in response.data
     assert b">Paketverwaltung<" in response.data
     assert b'id="package-management"' in response.data
@@ -2479,12 +2479,12 @@ def test_client_page_shows_only_installed_software_for_viewer(
     assert b'id="packages-table"' in response.data
 
     assert b"<h2>Updates</h2>" not in response.data
-    assert b"<h2>Update-Jobs</h2>" not in response.data
+    assert "<h2>Update-Aufträge</h2>".encode("utf-8") not in response.data
     assert b"<h2>Update-Verlauf</h2>" not in response.data
     assert b"<h2>Paketverwaltung</h2>" not in response.data
     assert b'id="package-management"' not in response.data
     assert "System vollständig aktualisieren".encode("utf-8") not in response.data
-    assert b"Systemwartung" not in response.data
+    assert b'"jobs.manage"' not in response.data
     assert b"window.lumsUserRole" in response.data
 
 
