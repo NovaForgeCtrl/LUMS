@@ -2249,8 +2249,14 @@ def test_users_page_visible_for_administrator(
     assert b'id="users-list-body"' in response.data
     assert b'class="role-template-list"' in response.data
     assert b'id="create-user-permissions"' not in response.data
-    assert "Clients und installierte Software ansehen.".encode("utf-8") in response.data
-    assert "Update-Jobs verwalten.".encode("utf-8") in response.data
+    assert (
+        "Clients und installierte Software ansehen.".encode("utf-8")
+        in response.data
+    )
+    assert (
+        "Update-Jobs verwalten.".encode("utf-8")
+        in response.data
+    )
     assert "Benutzerkonten.".encode("utf-8") in response.data
 
 
