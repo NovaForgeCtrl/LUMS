@@ -981,8 +981,16 @@ async function loadUsers() {
             const roleCell =
                 document.createElement("td");
 
-            roleCell.textContent =
-                user.role;
+            const roleBadge =
+                document.createElement("span");
+            roleBadge.className =
+                `user-role-badge user-role-badge--${user.role}`;
+            roleBadge.textContent = {
+                administrator: "Administrator",
+                operator: "Operator",
+                viewer: "Viewer",
+            }[user.role] || user.role;
+            roleCell.appendChild(roleBadge);
 
             const defaultPermissions =
                 window.lumsRoleDefaultPermissions?.[user.role] || [];
@@ -993,11 +1001,20 @@ async function loadUsers() {
                 JSON.stringify([...defaultPermissions].sort());
 
             if (isCustomized) {
-                roleCell.textContent += " (angepasst)";
+                const customizedBadge =
+                    document.createElement("span");
+                customizedBadge.className =
+                    "user-role-customized";
+                customizedBadge.textContent = "Angepasst";
+                roleCell.appendChild(customizedBadge);
             }
 
             const permissionsCell =
                 document.createElement("td");
+            const permissionList =
+                document.createElement("div");
+            permissionList.className =
+                "permission-chip-list";
 
             const permissionLabels = new Map(
                 (window.lumsPermissionDefinitions || [])
@@ -1006,21 +1023,40 @@ async function loadUsers() {
                         permission.label,
                     ])
             );
-            permissionsCell.textContent =
-                actualPermissions.length
-                    ? actualPermissions
-                        .map(permission => permissionLabels.get(permission))
-                        .filter(Boolean)
-                        .join(", ")
-                    : "Keine";
+            const knownPermissions = actualPermissions
+                .map(permission => permissionLabels.get(permission))
+                .filter(Boolean);
+
+            if (knownPermissions.length) {
+                for (const label of knownPermissions) {
+                    const chip =
+                        document.createElement("span");
+                    chip.className = "permission-chip";
+                    chip.textContent = label;
+                    permissionList.appendChild(chip);
+                }
+            } else {
+                const emptyPermissions =
+                    document.createElement("span");
+                emptyPermissions.className =
+                    "permission-empty";
+                emptyPermissions.textContent = "Keine";
+                permissionList.appendChild(emptyPermissions);
+            }
+            permissionsCell.appendChild(permissionList);
 
             const statusCell =
                 document.createElement("td");
 
-            statusCell.textContent =
-                user.enabled
-                    ? "Aktiv"
-                    : "Deaktiviert";
+            const statusBadge =
+                document.createElement("span");
+            statusBadge.className = user.enabled
+                ? "user-status-badge user-status-badge--active"
+                : "user-status-badge user-status-badge--disabled";
+            statusBadge.textContent = user.enabled
+                ? "Aktiv"
+                : "Deaktiviert";
+            statusCell.appendChild(statusBadge);
 
             const actionCell =
                 document.createElement("td");

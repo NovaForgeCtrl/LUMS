@@ -6136,3 +6136,158 @@ html[data-theme="standard"] .user-management-page .user-list-table tbody td,
 html:not([data-theme]) .user-management-page .user-list-table tbody td {
     color: #111827;
 }
+
+.user-management-page .permission-picker {
+    background: rgb(127 127 127 / 3%);
+}
+
+.user-management-page .permission-option {
+    min-height: 46px;
+    align-items: center;
+    padding: 0.7rem 0.8rem;
+    border: 1px solid var(--users-border);
+    border-radius: 8px;
+    cursor: pointer;
+    transition:
+        background-color 150ms ease,
+        border-color 150ms ease,
+        box-shadow 150ms ease;
+}
+
+.user-management-page .permission-option:hover {
+    border-color: var(--users-accent);
+}
+
+.user-management-page .permission-option:focus-within {
+    outline: 2px solid var(--users-accent);
+    outline-offset: 2px;
+}
+
+.user-management-page .permission-option:has(input:checked) {
+    background: color-mix(
+        in srgb,
+        var(--users-accent) 10%,
+        var(--users-surface)
+    );
+    border-color: var(--users-accent);
+}
+
+.user-management-page .permission-option input {
+    width: 1.1rem;
+    min-width: 1.1rem;
+    height: 1.1rem;
+    min-height: 1.1rem;
+    margin: 0;
+}
+
+.user-management-page .permission-editor select {
+    min-width: min(100%, 16rem);
+}
+
+.user-management-page .permission-editor-error:not([hidden]) {
+    padding: 0.75rem 0.9rem;
+    color: #991b1b;
+    background: #fef2f2;
+    border: 1px solid #fecaca;
+    border-radius: 8px;
+}
+
+.user-management-page .user-list-table th:nth-child(3),
+.user-management-page .user-list-table td:nth-child(3) {
+    min-width: 18rem;
+}
+
+.user-management-page .user-list-table td:last-child {
+    white-space: nowrap;
+}
+
+.user-management-page .user-list-table td:last-child button + button {
+    margin-left: 0.35rem;
+}
+
+.user-role-badge,
+.user-status-badge,
+.user-role-customized,
+.permission-chip {
+    display: inline-flex;
+    align-items: center;
+    width: fit-content;
+    border: 1px solid var(--users-border);
+    border-radius: 999px;
+    font-size: 0.78rem;
+    font-weight: 650;
+    line-height: 1.3;
+}
+
+.user-role-badge,
+.user-status-badge,
+.user-role-customized {
+    padding: 0.3rem 0.6rem;
+    white-space: nowrap;
+}
+
+.user-role-badge {
+    background: rgb(127 127 127 / 8%);
+}
+
+.user-role-customized {
+    margin-left: 0.4rem;
+    color: var(--users-accent);
+    background: color-mix(
+        in srgb,
+        var(--users-accent) 10%,
+        var(--users-surface)
+    );
+}
+
+.permission-chip-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+}
+
+.permission-chip {
+    padding: 0.3rem 0.55rem;
+    background: rgb(127 127 127 / 7%);
+}
+
+.permission-empty {
+    color: inherit;
+    opacity: 0.72;
+}
+
+.user-status-badge--active {
+    color: #166534;
+    background: #f0fdf4;
+    border-color: #bbf7d0;
+}
+
+.user-status-badge--disabled {
+    color: #4b5563;
+    background: #f3f4f6;
+    border-color: #d1d5db;
+}
+
+html[data-theme="LUMSStadium"] .user-status-badge--active,
+html[data-theme="nerd"] .user-status-badge--active,
+html[data-theme="geek"] .user-status-badge--active {
+    color: #bbf7d0;
+    background: rgb(34 197 94 / 12%);
+    border-color: rgb(74 222 128 / 35%);
+}
+
+html[data-theme="LUMSStadium"] .user-status-badge--disabled,
+html[data-theme="nerd"] .user-status-badge--disabled,
+html[data-theme="geek"] .user-status-badge--disabled {
+    color: #d1d5db;
+    background: rgb(156 163 175 / 12%);
+    border-color: rgb(156 163 175 / 30%);
+}
+
+html[data-theme="LUMSStadium"] .permission-editor-error:not([hidden]),
+html[data-theme="nerd"] .permission-editor-error:not([hidden]),
+html[data-theme="geek"] .permission-editor-error:not([hidden]) {
+    color: #fecaca;
+    background: rgb(220 38 38 / 14%);
+    border-color: rgb(248 113 113 / 45%);
+}
