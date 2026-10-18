@@ -60,6 +60,6 @@ persönliche Daten entfernt wurden.
 
 * [Projektübersicht](Projektüberblick.md)
 * [Installation und Upgrade](Installation%20und%20Upgrade.md)
-* [Administration und Backups](../../../administration.md)
+* [Administration und Backups](Administration%und%Backups.md)
 * [Fehlersuche](../../../troubleshooting.md)
 * [Sicherheitsmodell](../../../security.md)
