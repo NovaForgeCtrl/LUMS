@@ -57,7 +57,8 @@ persönliche Daten entfernt wurden.
 
 ## Ausführliche Anleitungen (Englisch)
 
-* [Projektübersicht (Deutsch)](locales/de/Projektüberblick.md)
+
+* [Projektübersicht](Projektüberblick.md)
 * [Installation und Upgrade](../../../install.md)
 * [Administration und Backups](../../../administration.md)
 * [Fehlersuche](../../../troubleshooting.md)
