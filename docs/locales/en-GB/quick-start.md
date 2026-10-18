@@ -55,6 +55,6 @@ tokens, keys, and personal information before sharing logs.
 
 * [Project overview](Project%20overview_GB.md)
 * [Installation and upgrades](Installation%20and%20upgrades_GB.md)
-* [Administration and backups](../../../administration.md)
+* [Administration and backups](Administration%20and%20backups_GB.md)
 * [Troubleshooting](../../../troubleshooting.md)
 * [Security model](../../../security.md)
