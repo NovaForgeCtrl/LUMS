@@ -56,7 +56,7 @@ nøkler og personopplysninger før du deler logger.
 
 ## Detaljert dokumentasjon
 
-* [Prosjektoversikt](../../../README.md)
+* [Prosjektoversikt](Prosjektoversikt.md)
 * [Installasjon og oppgraderinger](../../../install.md)
 * [Administrasjon og sikkerhetskopier](../../../administration.md)
 * [Feilsøking](../../../troubleshooting.md)
