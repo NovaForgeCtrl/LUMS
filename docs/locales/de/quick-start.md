@@ -62,4 +62,4 @@ persönliche Daten entfernt wurden.
 * [Installation und Upgrade](Installation%20und%20Upgrade.md)
 * [Administration und Backups](Administration%20und%20Backups.md)
 * [Fehlersuche](Fehlersuche.md)
-* [Sicherheitsmodell](../../../security.md)
+* [Sicherheitsmodell](Sicherheitsmodell.md)
