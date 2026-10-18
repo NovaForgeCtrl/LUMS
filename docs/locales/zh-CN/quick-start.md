@@ -48,6 +48,6 @@ sudo nginx -t
 
 * [项目概览](项目概览.md)
 * [安装与升级](安装与升级.md)
-* [管理与备份](../../../administration.md)
+* [管理与备份](管理与备份.md)
 * [故障排查](../../../troubleshooting.md)
 * [安全模型](../../../security.md)
