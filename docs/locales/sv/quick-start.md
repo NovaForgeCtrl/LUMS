@@ -54,7 +54,7 @@ lösenord, token, nycklar och personuppgifter innan du delar loggar.
 
 ## Detaljerad dokumentation
 
-* [Projektöversikt](../../../README.md)
+* [Projektöversikt](Projektöversikt.md)
 * [Installation och uppgraderingar](../../../install.md)
 * [Administration och säkerhetskopior](../../../administration.md)
 * [Felsökning](../../../troubleshooting.md)
