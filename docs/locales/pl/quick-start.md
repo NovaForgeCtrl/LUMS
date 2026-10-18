@@ -58,7 +58,7 @@ osobowe.
 ## Szczegółowa dokumentacja
 
 * [Opis projektu](Opis%20projektu.md)
-* [Instalacja i aktualizacje](../../../install.md)
+* [Instalacja i aktualizacje](Instalacja%20i%20aktualizacje.md)
 * [Administracja i kopie zapasowe](../../../administration.md)
 * [Rozwiązywanie problemów](../../../troubleshooting.md)
 * [Model bezpieczeństwa](../../../security.md)
