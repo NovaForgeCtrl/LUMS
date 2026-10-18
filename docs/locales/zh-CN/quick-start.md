@@ -46,7 +46,7 @@ sudo nginx -t
 
 ## 详细文档（英文）
 
-* [项目概览](../../../README.md)
+* [项目概览](项目概览.md)
 * [安装与升级](../../../install.md)
 * [管理与备份](../../../administration.md)
 * [故障排查](../../../troubleshooting.md)
