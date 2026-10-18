@@ -58,7 +58,7 @@ jakamista.
 ## Yksityiskohtaiset ohjeet
 
 * [Projektin yleiskuvaus](Projektin%20yleiskuvaus.md)
-* [Asennus ja päivitykset](../../../install.md)
+* [Asennus ja päivitykset](Asennus%20ja%20päivitykset.md)
 * [Ylläpito ja varmuuskopiot](../../../administration.md)
 * [Vianmääritys](../../../troubleshooting.md)
 * [Tietoturvamalli](../../../security.md)
