@@ -55,7 +55,7 @@ lösenord, token, nycklar och personuppgifter innan du delar loggar.
 ## Detaljerad dokumentation
 
 * [Projektöversikt](Projektöversikt.md)
-* [Installation och uppgraderingar](../../../install.md)
+* [Installation och uppgraderingar](Installation%20och%20uppgraderingar.md)
 * [Administration och säkerhetskopior](../../../administration.md)
 * [Felsökning](../../../troubleshooting.md)
 * [Säkerhetsmodell](../../../security.md)
