@@ -59,6 +59,6 @@ jakamista.
 
 * [Projektin yleiskuvaus](Projektin%20yleiskuvaus.md)
 * [Asennus ja päivitykset](Asennus%20ja%20päivitykset.md)
-* [Ylläpito ja varmuuskopiot](../../../administration.md)
+* [Ylläpito ja varmuuskopiot](Ylläpito%20ja%20varmuuskopiot.md)
 * [Vianmääritys](../../../troubleshooting.md)
 * [Tietoturvamalli](../../../security.md)
