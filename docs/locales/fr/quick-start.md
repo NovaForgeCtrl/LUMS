@@ -62,4 +62,4 @@ supprimez les mots de passe, jetons, clés et données personnelles.
 * [Installation et mises à niveau](Installation%20et%20mises%20à%20niveau.md)
 * [Administration et sauvegardes](Administration%20et%20sauvegardes.md)
 * [Dépannage](Dépannage.md)
-* [Modèle de sécurité](../../../security.md)
+* [Modèle de sécurité](Modèle%20de%20sécurité.md)
