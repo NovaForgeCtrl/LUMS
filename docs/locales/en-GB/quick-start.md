@@ -57,4 +57,4 @@ tokens, keys, and personal information before sharing logs.
 * [Installation and upgrades](Installation%20and%20upgrades_GB.md)
 * [Administration and backups](Administration%20and%20backups_GB.md)
 * [Troubleshooting](Troubleshooting_GB.md)
-* [Security model](../../../security.md)
+* [Security model](Security%20model_GB.md)
