@@ -55,7 +55,7 @@ den Container nicht privilegiert und deaktiviere keine Sicherheitsoptionen als
 ersten Versuch. Teile Protokolle nur, wenn Passwörter, Tokens, Schlüssel und
 persönliche Daten entfernt wurden.
 
-## Ausführliche Anleitungen (Englisch)
+## Ausführliche Anleitungen (Deutsch)
 
 
 * [Projektübersicht](Projektüberblick.md)
