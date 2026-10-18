@@ -59,5 +59,5 @@ nøkler og personopplysninger før du deler logger.
 * [Prosjektoversikt](Prosjektoversikt.md)
 * [Installasjon og oppgraderinger](Installasjon%20og%20oppgraderinger.md)
 * [Administrasjon og sikkerhetskopier](Administrasjon%20og%20sikkerhetskopier.md)
-* [Feilsøking](../../../troubleshooting.md)
+* [Feilsøking](Feilsøking.md)
 * [Sikkerhetsmodell](../../../security.md)
