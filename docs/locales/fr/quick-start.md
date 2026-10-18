@@ -58,7 +58,7 @@ supprimez les mots de passe, jetons, clés et données personnelles.
 
 ## Documentation détaillée
 
-* [Présentation du projet](Praesentation%20des%20Projekts.md)
+* [Présentation du projet](docs/locales/fr/Présentation%20du%20projet.md)
 * [Installation et mises à niveau](../../../install.md)
 * [Administration et sauvegardes](../../../administration.md)
 * [Dépannage](../../../troubleshooting.md)
