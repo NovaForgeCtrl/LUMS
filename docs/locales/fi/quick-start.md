@@ -57,7 +57,7 @@ jakamista.
 
 ## Yksityiskohtaiset ohjeet
 
-* [Projektin yleiskuvaus](../../../README.md)
+* [Projektin yleiskuvaus](Projektin%20yleiskuvaus.md)
 * [Asennus ja päivitykset](../../../install.md)
 * [Ylläpito ja varmuuskopiot](../../../administration.md)
 * [Vianmääritys](../../../troubleshooting.md)
