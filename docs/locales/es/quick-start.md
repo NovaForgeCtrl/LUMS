@@ -60,6 +60,6 @@ claves y datos personales.
 
 * [Descripción del proyecto](Descripción%20del%20proyecto.md)
 * [Instalación y actualizaciones](Instalación%20y%20actualizaciones.md)
-* [Administración y copias de seguridad](../../../administration.md)
+* [Administración y copias de seguridad](Administración%20y%20copias%20de%20seguridad.md)
 * [Solución de problemas](../../../troubleshooting.md)
 * [Modelo de seguridad](../../../security.md)
