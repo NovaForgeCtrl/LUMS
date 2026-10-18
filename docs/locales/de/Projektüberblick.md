@@ -1,4 +1,4 @@
-[LUMS_README_DE.md](https://github.com/user-attachments/files/33621508/LUMS_README_DE.md)
+
 # LUMS
 
 **Linux-Updateverwaltung ohne unnötigen Lärm.**
