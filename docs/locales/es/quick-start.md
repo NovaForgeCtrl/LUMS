@@ -58,7 +58,7 @@ claves y datos personales.
 
 ## Documentación detallada
 
-* [Descripción del proyecto](../../../README.md)
+* [Descripción del proyecto](Descripción%20del%20proyecto.md)
 * [Instalación y actualizaciones](../../../install.md)
 * [Administración y copias de seguridad](../../../administration.md)
 * [Solución de problemas](../../../troubleshooting.md)
