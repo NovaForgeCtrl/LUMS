@@ -53,7 +53,7 @@ tokens, keys, and personal information before sharing logs.
 
 ## Detailed documentation
 
-* [Project overview](../../../README.md)
+* [Project overview](Project%20overview_GB.md)
 * [Installation and upgrades](../../../install.md)
 * [Administration and backups](../../../administration.md)
 * [Troubleshooting](../../../troubleshooting.md)
