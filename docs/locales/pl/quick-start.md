@@ -60,5 +60,5 @@ osobowe.
 * [Opis projektu](Opis%20projektu.md)
 * [Instalacja i aktualizacje](Instalacja%20i%20aktualizacje.md)
 * [Administracja i kopie zapasowe](Administracja%20i%20kopie%20zapasowe.md)
-* [Rozwiązywanie problemów](../../../troubleshooting.md)
+* [Rozwiązywanie problemów](Rozwiązywanie%20problemów.md)
 * [Model bezpieczeństwa](../../../security.md)
