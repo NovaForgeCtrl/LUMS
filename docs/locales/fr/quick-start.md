@@ -60,6 +60,6 @@ supprimez les mots de passe, jetons, clés et données personnelles.
 
 * [Présentation du projet](Présentation%20du%20projet.md)
 * [Installation et mises à niveau](Installation%20et%20mises%20à%20niveau.md)
-* [Administration et sauvegardes](../../../administration.md)
+* [Administration et sauvegardes](Administration%20et%20sauvegardes.md)
 * [Dépannage](../../../troubleshooting.md)
 * [Modèle de sécurité](../../../security.md)
