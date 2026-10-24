@@ -376,11 +376,12 @@
 
 </main>
 
-<script>
-    window.lumsUserPermissions = {{ user_permissions | tojson }};
-    window.lumsT = {{ translations | tojson }};
-    window.lumsLocale = {{ language_locale | tojson }};
-</script>
+<script type="application/json" id="lums-config">{{ {
+    "lumsUserPermissions": user_permissions,
+    "lumsT": translations,
+    "lumsLocale": language_locale
+} | tojson }}</script>
+<script src="{{ url_for('static', filename='config.js') }}"></script>
 <script src="/static/app.js"></script>
 <script src="{{ url_for('static', filename='network.js') }}"></script>
 

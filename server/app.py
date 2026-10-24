@@ -320,6 +320,31 @@ def count_active_user_managers(connection):
     ).fetchone()[0]
 
 
+def count_active_permission_managers(connection):
+    return connection.execute("""
+        SELECT COUNT(DISTINCT users.id)
+        FROM users
+        WHERE users.enabled = 1
+          AND EXISTS (
+              SELECT 1
+              FROM user_permissions
+              WHERE user_permissions.user_id = users.id
+                AND user_permissions.permission = 'permissions.manage'
+          )
+          AND EXISTS (
+              SELECT 1
+              FROM user_permissions
+              WHERE user_permissions.user_id = users.id
+                AND user_permissions.permission = 'users.manage'
+          )
+          AND EXISTS (
+              SELECT 1
+              FROM user_permissions
+              WHERE user_permissions.user_id = users.id
+                AND user_permissions.permission = 'clients.view'
+          )
+    """).fetchone()[0]
+
 def permission_ui_context():
     language = normalize_language(
         session.get("language")
@@ -1033,14 +1058,21 @@ def list_users():
         rows = connection.execute(
             """
             SELECT
-                id,
-                username,
-                role,
-                enabled,
-                created_at,
-                admin_note
+                users.id,
+                users.username,
+                users.role,
+                users.enabled,
+                users.created_at,
+                users.admin_note,
+                users.first_name,
+                users.last_name,
+                users.department,
+                users.function_id,
+                user_functions.name AS function_name
             FROM users
-            ORDER BY username COLLATE NOCASE ASC
+            LEFT JOIN user_functions
+                ON user_functions.id = users.function_id
+            ORDER BY users.username COLLATE NOCASE ASC
             """
         ).fetchall()
 
@@ -1057,10 +1089,223 @@ def list_users():
                 "enabled": bool(row["enabled"]),
                 "created_at": row["created_at"],
                 "admin_note": row["admin_note"],
+                "first_name": row["first_name"],
+                "last_name": row["last_name"],
+                "department": row["department"],
+                "function_id": row["function_id"],
+                "function_name": row["function_name"],
             }
             for row in rows
         ])
 
+    finally:
+        connection.close()
+
+
+
+@app.route("/api/user-functions", methods=["GET"])
+@login_required
+@role_required(ROLE_ADMINISTRATOR, permission="users.manage")
+def list_user_functions():
+    connection = get_connection()
+    try:
+        rows = connection.execute("""
+            SELECT
+                functions.id,
+                functions.name,
+                functions.created_at,
+                functions.created_by,
+                COUNT(users.id) AS user_count
+            FROM user_functions AS functions
+            LEFT JOIN users ON users.function_id = functions.id
+            GROUP BY functions.id
+            ORDER BY functions.name COLLATE NOCASE
+        """).fetchall()
+        return jsonify([
+            {
+                "id": row["id"],
+                "name": row["name"],
+                "created_at": row["created_at"],
+                "created_by": row["created_by"],
+                "user_count": row["user_count"],
+            }
+            for row in rows
+        ])
+    finally:
+        connection.close()
+
+
+@app.route("/api/user-functions", methods=["POST"])
+@login_required
+@role_required(ROLE_ADMINISTRATOR, permission="users.manage")
+@csrf_required
+def create_user_function():
+    data = request.get_json(silent=True)
+    if not isinstance(data, dict):
+        return jsonify({"error": "invalid_request"}), 400
+
+    name = data.get("name")
+    if not isinstance(name, str):
+        return jsonify({"error": "invalid_function_name"}), 400
+
+    name = name.strip()
+    if not name or len(name) > 100:
+        return jsonify({"error": "invalid_function_name"}), 400
+
+    connection = get_connection()
+    try:
+        cursor = connection.execute("""
+            INSERT INTO user_functions (name, created_at, created_by)
+            VALUES (?, ?, ?)
+        """, (
+            name,
+            datetime.now(timezone.utc).isoformat(),
+            current_user_id(),
+        ))
+        function_id = cursor.lastrowid
+
+        audit_log(
+            connection,
+            actor_type="user",
+            actor_id=current_user_id(),
+            action="user_function.create",
+            target=f"user_function:{function_id}",
+            result="success",
+            details=f"name={name}",
+        )
+        connection.commit()
+        return jsonify({
+            "status": "created",
+            "function": {"id": function_id, "name": name},
+        }), 201
+    except sqlite3.IntegrityError:
+        connection.rollback()
+        return jsonify({"error": "function_already_exists"}), 409
+    except Exception:
+        connection.rollback()
+        raise
+    finally:
+        connection.close()
+
+
+@app.route("/api/user-functions/<int:function_id>", methods=["DELETE"])
+@login_required
+@role_required(ROLE_ADMINISTRATOR, permission="users.manage")
+@csrf_required
+def delete_user_function(function_id):
+    connection = get_connection()
+    try:
+        target = connection.execute(
+            "SELECT id, name FROM user_functions WHERE id = ?",
+            (function_id,),
+        ).fetchone()
+        if target is None:
+            return jsonify({"error": "function_not_found"}), 404
+
+        connection.execute(
+            "DELETE FROM user_functions WHERE id = ?",
+            (function_id,),
+        )
+        audit_log(
+            connection,
+            actor_type="user",
+            actor_id=current_user_id(),
+            action="user_function.delete",
+            target=f"user_function:{function_id}",
+            result="success",
+            details=f"name={target['name']}",
+        )
+        connection.commit()
+        return jsonify({"status": "deleted", "id": function_id})
+    except Exception:
+        connection.rollback()
+        raise
+    finally:
+        connection.close()
+
+
+@app.route("/api/users/<int:user_id>/profile", methods=["PUT"])
+@login_required
+@role_required(ROLE_ADMINISTRATOR, permission="users.manage")
+@csrf_required
+def update_user_profile(user_id):
+    data = request.get_json(silent=True)
+    if not isinstance(data, dict):
+        return jsonify({"error": "invalid_request"}), 400
+
+    fields = ("first_name", "last_name", "department")
+    values = {}
+    limits = {"first_name": 100, "last_name": 100, "department": 120}
+
+    for field in fields:
+        value = data.get(field, "")
+        if not isinstance(value, str):
+            return jsonify({"error": "invalid_user_profile"}), 400
+        value = value.strip()
+        if len(value) > limits[field]:
+            return jsonify({"error": "invalid_user_profile"}), 400
+        values[field] = value
+
+    function_id = data.get("function_id")
+    if function_id in ("", None):
+        function_id = None
+    elif isinstance(function_id, bool) or not isinstance(function_id, int) or function_id < 1:
+        return jsonify({"error": "invalid_user_function"}), 400
+
+    connection = get_connection()
+    try:
+        target = connection.execute(
+            "SELECT id, username FROM users WHERE id = ?",
+            (user_id,),
+        ).fetchone()
+        if target is None:
+            return jsonify({"error": "user_not_found"}), 404
+
+        if function_id is not None:
+            function = connection.execute(
+                "SELECT id FROM user_functions WHERE id = ?",
+                (function_id,),
+            ).fetchone()
+            if function is None:
+                return jsonify({"error": "user_function_not_found"}), 400
+
+        connection.execute("""
+            UPDATE users
+            SET first_name = ?,
+                last_name = ?,
+                department = ?,
+                function_id = ?
+            WHERE id = ?
+        """, (
+            values["first_name"],
+            values["last_name"],
+            values["department"],
+            function_id,
+            user_id,
+        ))
+
+        audit_log(
+            connection,
+            actor_type="user",
+            actor_id=current_user_id(),
+            action="user.profile.update",
+            target=f"user:{user_id}",
+            result="success",
+            details=(
+                f"username={target['username']}, "
+                f"function_id={function_id}"
+            ),
+        )
+        connection.commit()
+        return jsonify({
+            "status": "updated",
+            "user_id": user_id,
+            **values,
+            "function_id": function_id,
+        })
+    except Exception:
+        connection.rollback()
+        raise
     finally:
         connection.close()
 
@@ -1110,6 +1355,13 @@ def create_user():
         return jsonify({
             "error": "invalid_user_permissions"
         }), 400
+
+    # Creating an account with no permissions is allowed for users.manage.
+    # Assigning any permissions requires the separate delegation permission.
+    if permissions and "permissions.manage" not in current_user_permissions():
+        return jsonify({
+            "error": "permission_delegation_required"
+        }), 403
 
     connection = get_connection()
 
@@ -1208,6 +1460,11 @@ def create_user():
 @role_required(ROLE_ADMINISTRATOR, permission="users.manage")
 @csrf_required
 def update_user_permissions(user_id):
+    if "permissions.manage" not in current_user_permissions():
+        return jsonify({
+            "error": "permission_delegation_required"
+        }), 403
+
     data = request.get_json(silent=True)
 
     if not isinstance(data, dict):
@@ -1225,6 +1482,7 @@ def update_user_permissions(user_id):
     connection = get_connection()
 
     try:
+        connection.execute("BEGIN IMMEDIATE")
         target = connection.execute(
             "SELECT id, username, role, enabled FROM users WHERE id = ?",
             (user_id,),
@@ -1247,6 +1505,24 @@ def update_user_permissions(user_id):
         ):
             return jsonify({
                 "error": "last_enabled_administrator"
+            }), 409
+
+        had_permission_management = (
+            "permissions.manage" in get_user_permissions(
+                connection,
+                user_id,
+                target["role"],
+            )
+        )
+
+        if (
+            target["enabled"]
+            and had_permission_management
+            and "permissions.manage" not in permissions
+            and count_active_permission_managers(connection) <= 1
+        ):
+            return jsonify({
+                "error": "last_enabled_permission_manager"
             }), 409
 
         connection.execute(
@@ -1369,6 +1645,7 @@ def delete_user(user_id):
     connection = get_connection()
 
     try:
+        connection.execute("BEGIN IMMEDIATE")
         target = connection.execute(
             """
             SELECT id, username, role, enabled
@@ -1394,6 +1671,19 @@ def delete_user(user_id):
         ):
             return jsonify({
                 "error": "last_enabled_administrator"
+            }), 409
+
+        if (
+            target["enabled"]
+            and {
+                "permissions.manage",
+                "users.manage",
+                "clients.view",
+            }.issubset(target_permissions)
+            and count_active_permission_managers(connection) <= 1
+        ):
+            return jsonify({
+                "error": "last_enabled_permission_manager"
             }), 409
 
         connection.execute(
