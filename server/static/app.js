@@ -791,6 +791,316 @@ function roleTemplateDescription(role) {
 }
 
 
+
+async function loadUserFunctionsInto(select, selectedId = null) {
+    select.replaceChildren();
+
+    const placeholder = document.createElement("option");
+    placeholder.value = "";
+    placeholder.textContent = t("No function assigned");
+    select.appendChild(placeholder);
+
+    const response = await fetch("/api/user-functions");
+    const data = await response.json();
+
+    if (!response.ok || !Array.isArray(data)) {
+        throw new Error(data.error || t("Could not load functions."));
+    }
+
+    for (const item of data) {
+        const option = document.createElement("option");
+        option.value = String(item.id);
+        option.textContent = item.name;
+        option.selected = selectedId != null &&
+            String(item.id) === String(selectedId);
+        select.appendChild(option);
+    }
+}
+
+function appendUserProfileEditor(editor, user) {
+    const section = document.createElement("section");
+    section.className = "user-profile-editor";
+
+    const heading = document.createElement("h4");
+    heading.textContent = t("User profile");
+    section.appendChild(heading);
+
+    const description = document.createElement("p");
+    description.className = "panel-description";
+    description.textContent = t(
+        "Optional profile information for this account."
+    );
+    section.appendChild(description);
+
+    const fields = document.createElement("div");
+    fields.className = "user-profile-fields";
+
+    const makeField = (labelText, id, value, maxLength) => {
+        const wrapper = document.createElement("div");
+        wrapper.className = "user-profile-field";
+
+        const label = document.createElement("label");
+        label.htmlFor = id;
+        label.textContent = labelText;
+
+        const input = document.createElement("input");
+        input.id = id;
+        input.type = "text";
+        input.maxLength = maxLength;
+        input.value = value || "";
+        input.autocomplete = "off";
+
+        wrapper.append(label, input);
+        fields.appendChild(wrapper);
+        return input;
+    };
+
+    const firstName = makeField(
+        t("First name"), `profile-first-name-${user.id}`,
+        user.first_name, 100
+    );
+    const lastName = makeField(
+        t("Last name"), `profile-last-name-${user.id}`,
+        user.last_name, 100
+    );
+    const department = makeField(
+        t("Department"), `profile-department-${user.id}`,
+        user.department, 120
+    );
+
+    const functionWrapper = document.createElement("div");
+    functionWrapper.className = "user-profile-field";
+
+    const functionLabel = document.createElement("label");
+    functionLabel.htmlFor = `profile-function-${user.id}`;
+    functionLabel.textContent = t("Function");
+
+    const functionSelect = document.createElement("select");
+    functionSelect.id = `profile-function-${user.id}`;
+    functionSelect.setAttribute("aria-label", t("Function"));
+    functionWrapper.append(functionLabel, functionSelect);
+    fields.appendChild(functionWrapper);
+
+    section.appendChild(fields);
+
+    const functionTools = document.createElement("div");
+    functionTools.className = "user-function-tools";
+
+    const newFunctionInput = document.createElement("input");
+    newFunctionInput.type = "text";
+    newFunctionInput.maxLength = 100;
+    newFunctionInput.placeholder = t("New function name");
+    newFunctionInput.setAttribute("aria-label", t("New function name"));
+
+    const addFunctionButton = document.createElement("button");
+    addFunctionButton.type = "button";
+    addFunctionButton.className = "button";
+    addFunctionButton.textContent = t("Add function");
+
+    const deleteFunctionButton = document.createElement("button");
+    deleteFunctionButton.type = "button";
+    deleteFunctionButton.className = "button-danger";
+    deleteFunctionButton.textContent = t("Delete selected function");
+
+    functionTools.append(
+        newFunctionInput, addFunctionButton, deleteFunctionButton
+    );
+    section.appendChild(functionTools);
+
+    const error = document.createElement("p");
+    error.className = "user-profile-error";
+    error.setAttribute("role", "alert");
+    error.hidden = true;
+    section.appendChild(error);
+
+    const status = document.createElement("p");
+    status.className = "user-profile-status";
+    status.setAttribute("aria-live", "polite");
+    section.appendChild(status);
+
+    const actions = document.createElement("div");
+    actions.className = "user-profile-actions";
+
+    const saveButton = document.createElement("button");
+    saveButton.type = "button";
+    saveButton.className = "button-primary";
+    saveButton.textContent = t("Save profile");
+
+    actions.appendChild(saveButton);
+    section.appendChild(actions);
+    editor.appendChild(section);
+
+    const showError = message => {
+        error.textContent = message;
+        error.hidden = false;
+    };
+
+    const csrfToken = () =>
+        document.querySelector('meta[name="csrf-token"]')?.content;
+
+    const reloadFunctions = async selectedId => {
+        await loadUserFunctionsInto(functionSelect, selectedId);
+    };
+
+    reloadFunctions(user.function_id).catch(err => showError(err.message));
+
+    addFunctionButton.addEventListener("click", async () => {
+        error.hidden = true;
+        const name = newFunctionInput.value.trim();
+        if (!name) {
+            showError(t("Enter a function name."));
+            return;
+        }
+
+        const token = csrfToken();
+        if (!token) {
+            showError(t("CSRF token could not be found."));
+            return;
+        }
+
+        addFunctionButton.disabled = true;
+        try {
+            const response = await fetch("/api/user-functions", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "X-CSRF-Token": token
+                },
+                body: JSON.stringify({ name })
+            });
+            const result = await response.json();
+
+            if (!response.ok) {
+                const errors = {
+                    function_already_exists: t("That function already exists."),
+                    authorization_required: t("You do not have permission to do that."),
+                    csrf_validation_failed: t("CSRF validation failed.")
+                };
+                throw new Error(errors[result.error] ||
+                    t("Could not create function (HTTP {status}).", {
+                        status: response.status
+                    }));
+            }
+
+            newFunctionInput.value = "";
+            await reloadFunctions(result.function?.id ?? null);
+            status.textContent = t("Function created.");
+        } catch (err) {
+            showError(err.message);
+        } finally {
+            addFunctionButton.disabled = false;
+        }
+    });
+
+    deleteFunctionButton.addEventListener("click", async () => {
+        error.hidden = true;
+        const id = functionSelect.value;
+        if (!id) {
+            showError(t("Select a function first."));
+            return;
+        }
+
+        const selectedName =
+            functionSelect.options[functionSelect.selectedIndex]?.textContent;
+        if (!window.confirm(t(
+            'Delete function "{name}"? Users assigned to it will have no function.',
+            { name: selectedName }
+        ))) {
+            return;
+        }
+
+        const token = csrfToken();
+        if (!token) {
+            showError(t("CSRF token could not be found."));
+            return;
+        }
+
+        deleteFunctionButton.disabled = true;
+        try {
+            const response = await fetch(
+                `/api/user-functions/${encodeURIComponent(id)}`,
+                {
+                    method: "DELETE",
+                    headers: { "X-CSRF-Token": token }
+                }
+            );
+            const result = await response.json();
+
+            if (!response.ok) {
+                throw new Error(result.error ||
+                    t("Could not delete function (HTTP {status}).", {
+                        status: response.status
+                    }));
+            }
+
+            await reloadFunctions(null);
+            status.textContent = t("Function deleted.");
+        } catch (err) {
+            showError(err.message);
+        } finally {
+            deleteFunctionButton.disabled = false;
+        }
+    });
+
+    saveButton.addEventListener("click", async () => {
+        error.hidden = true;
+        const token = csrfToken();
+        if (!token) {
+            showError(t("CSRF token could not be found."));
+            return;
+        }
+
+        saveButton.disabled = true;
+        saveButton.textContent = t("Saving...");
+        try {
+            const response = await fetch(
+                `/api/users/${encodeURIComponent(user.id)}/profile`,
+                {
+                    method: "PUT",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "X-CSRF-Token": token
+                    },
+                    body: JSON.stringify({
+                        first_name: firstName.value.trim(),
+                        last_name: lastName.value.trim(),
+                        department: department.value.trim(),
+                        function_id: functionSelect.value ? Number(functionSelect.value) : null
+                    })
+                }
+            );
+            const result = await response.json();
+
+            if (!response.ok) {
+                const errors = {
+                    user_function_not_found: t("The selected function no longer exists."),
+                    user_not_found: t("User not found."),
+                    authorization_required: t("You do not have permission to do that."),
+                    csrf_validation_failed: t("CSRF validation failed.")
+                };
+                throw new Error(errors[result.error] ||
+                    t("Could not save profile (HTTP {status}).", {
+                        status: response.status
+                    }));
+            }
+
+            await loadUsers(user.id);
+
+            const refreshedStatus = document.querySelector(
+                ".user-profile-status"
+            );
+            if (refreshedStatus) {
+                refreshedStatus.textContent = t("Profile saved.");
+            }
+        } catch (err) {
+            showError(err.message);
+        } finally {
+            saveButton.disabled = false;
+            saveButton.textContent = t("Save profile");
+        }
+    });
+}
+
 function createPermissionEditorRow(user) {
     const row = document.createElement("tr");
     row.className = "permission-editor-row";
@@ -806,6 +1116,8 @@ function createPermissionEditorRow(user) {
         username: user.username,
     });
     editor.appendChild(heading);
+
+    appendUserProfileEditor(editor, user);
 
     const roleLabel = document.createElement("label");
     roleLabel.textContent = `${t("Role template")} `;
@@ -1140,6 +1452,19 @@ async function loadUsers(focusUserId = null) {
 
             usernameCell.textContent =
                 user.username;
+
+            const profileParts = [
+                [user.first_name, user.last_name].filter(Boolean).join(" "),
+                user.department,
+                user.function_name
+            ].filter(Boolean);
+
+            if (profileParts.length) {
+                const summary = document.createElement("div");
+                summary.className = "user-profile-summary";
+                summary.textContent = profileParts.join(" · ");
+                usernameCell.appendChild(summary);
+            }
 
             const roleCell =
                 document.createElement("td");

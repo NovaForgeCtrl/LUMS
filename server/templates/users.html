@@ -273,16 +273,14 @@
 
 </main>
 
-<script>
-    window.lumsRoleDefaultPermissions =
-        {{ role_default_permissions | tojson }};
-    window.lumsPermissionDefinitions =
-        {{ permission_definitions | tojson }};
-    window.lumsRoleDescriptions =
-        {{ role_descriptions | tojson }};
-    window.lumsT = {{ translations | tojson }};
-    window.lumsLocale = {{ language_locale | tojson }};
-</script>
+<script type="application/json" id="lums-config">{{ {
+    "lumsRoleDefaultPermissions": role_default_permissions,
+    "lumsPermissionDefinitions": permission_definitions,
+    "lumsRoleDescriptions": role_descriptions,
+    "lumsT": translations,
+    "lumsLocale": language_locale
+} | tojson }}</script>
+<script src="{{ url_for('static', filename='config.js') }}"></script>
 
 <script
     src="{{ url_for('static', filename='app.js') }}"

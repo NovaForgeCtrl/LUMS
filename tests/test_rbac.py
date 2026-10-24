@@ -113,6 +113,9 @@ def create_rbac_database(db_path):
         ],
     )
 
+    from server.security_migration import migrate_user_profiles
+    migrate_user_profiles(connection)
+
     connection.commit()
     connection.close()
 
@@ -1076,6 +1079,22 @@ def create_user_test_database(db_path):
         ],
     )
 
+    from server.security_migration import migrate_user_profiles
+    migrate_user_profiles(connection)
+
+    connection.commit()
+    connection.close()
+
+
+def grant_test_permission(db_path, user_id, permission):
+    connection = sqlite3.connect(db_path)
+    connection.execute(
+        """
+        INSERT OR IGNORE INTO user_permissions (user_id, permission)
+        VALUES (?, ?)
+        """,
+        (user_id, permission),
+    )
     connection.commit()
     connection.close()
 
@@ -1136,6 +1155,7 @@ def test_real_route_create_user_as_administrator(
     )
 
     create_user_test_database(db_path)
+    grant_test_permission(db_path, 1, "permissions.manage")
 
     app = configure_real_app_session_user(
         monkeypatch,
@@ -1281,6 +1301,7 @@ def test_create_user_stores_custom_permissions(
 
     db_path = str(tmp_path / "create-user-custom-permissions.db")
     create_user_test_database(db_path)
+    grant_test_permission(db_path, 1, "permissions.manage")
     app = configure_real_app_session_user(
         monkeypatch,
         app_module,
@@ -1403,6 +1424,45 @@ def test_backup_permission_migration_grants_existing_administrators():
         """
     ).fetchall() == [(1, "backups.manage")]
     connection.close()
+
+
+def test_admin_without_delegation_cannot_assign_permissions(
+    monkeypatch,
+    tmp_path,
+):
+    from server import app as app_module
+
+    db_path = str(tmp_path / "admin-without-delegation.db")
+    create_user_test_database(db_path)
+
+    app = configure_real_app_session_user(
+        monkeypatch,
+        app_module,
+        db_path,
+        1,
+        "administrator",
+    )
+
+    with app.test_client() as client:
+        login_as(client, 1, "administrator")
+        with client.session_transaction() as session:
+            session["csrf_token"] = "pytest-csrf-token"
+
+        response = client.post(
+            "/api/users",
+            headers={"X-CSRF-Token": "pytest-csrf-token"},
+            json={
+                "username": "must-not-receive-rights",
+                "password": "pytest-password-123",
+                "role": ROLE_VIEWER,
+                "permissions": ["clients.view"],
+            },
+        )
+
+    assert response.status_code == 403
+    assert response.get_json() == {
+        "error": "permission_delegation_required",
+    }
 
 
 def test_create_user_starts_without_permissions(
@@ -1891,6 +1951,7 @@ def test_update_user_permissions_controls_custom_role_access(
 
     db_path = str(tmp_path / "update-user-permissions.db")
     create_user_test_database(db_path)
+    grant_test_permission(db_path, 1, "permissions.manage")
     connection = sqlite3.connect(db_path)
     connection.execute(
         """
@@ -1978,6 +2039,7 @@ def test_update_permissions_preserves_last_user_manager(
 
     db_path = str(tmp_path / "preserve-user-manager.db")
     create_user_test_database(db_path)
+    grant_test_permission(db_path, 1, "permissions.manage")
     app = configure_real_app_session_user(
         monkeypatch,
         app_module,
@@ -2165,6 +2227,7 @@ def test_real_route_create_user_rejects_duplicate_username(
     )
 
     create_user_test_database(db_path)
+    grant_test_permission(db_path, 1, "permissions.manage")
 
     app = configure_real_app_session_user(
         monkeypatch,
@@ -2441,7 +2504,7 @@ def test_client_page_shows_management_sections_for_operator_and_administrator(
     assert b">Update-Verlauf<" in response.data
     assert b">Paketverwaltung<" in response.data
     assert b'id="package-management"' in response.data
-    assert b"window.lumsUserRole" in response.data
+    assert b'"lumsUserRole":' in response.data
 
 
 def test_client_page_shows_only_installed_software_for_viewer(
@@ -2485,7 +2548,7 @@ def test_client_page_shows_only_installed_software_for_viewer(
     assert b'id="package-management"' not in response.data
     assert "System vollständig aktualisieren".encode("utf-8") not in response.data
     assert b'"jobs.manage"' not in response.data
-    assert b"window.lumsUserRole" in response.data
+    assert b'"lumsUserRole":' in response.data
 
 
 def test_users_page_visible_for_administrator(
@@ -2816,3 +2879,98 @@ def test_real_route_delete_user_preserves_enabled_administrator(
     connection.close()
 
     assert remaining_admins == [(1,)]
+
+
+def test_user_profile_function_id_accepts_integer(monkeypatch, tmp_path):
+    from server import app as app_module
+
+    db_path = str(tmp_path / "user-profile-function-id.db")
+    create_rbac_database(db_path)
+
+    connection = sqlite3.connect(db_path)
+    connection.execute("""
+        CREATE TABLE IF NOT EXISTS audit_log (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            timestamp TEXT NOT NULL DEFAULT '',
+            actor_type TEXT NOT NULL DEFAULT '',
+            actor_id TEXT,
+            action TEXT NOT NULL,
+            target TEXT,
+            result TEXT NOT NULL,
+            details TEXT
+        )
+    """)
+    connection.execute(
+        "INSERT INTO user_functions (name) VALUES (?)",
+        ("Infrastructure",),
+    )
+    function_id = connection.execute(
+        "SELECT id FROM user_functions WHERE name = ?",
+        ("Infrastructure",),
+    ).fetchone()[0]
+    connection.commit()
+    connection.close()
+
+    app = configure_real_app_session_user(
+        monkeypatch, app_module, db_path, 1, "administrator"
+    )
+
+    with app.test_client() as client:
+        login_as(client, 1, "administrator")
+        with client.session_transaction() as session:
+            session["csrf_token"] = "pytest-csrf-token"
+
+        response = client.put(
+            "/api/users/2/profile",
+            headers={"X-CSRF-Token": "pytest-csrf-token"},
+            json={
+                "first_name": "Ada",
+                "last_name": "Lovelace",
+                "department": "IT",
+                "function_id": function_id,
+            },
+        )
+
+    assert response.status_code == 200
+    assert response.get_json()["function_id"] == function_id
+
+    connection = sqlite3.connect(db_path)
+    saved = connection.execute(
+        """
+        SELECT first_name, last_name, department, function_id
+        FROM users WHERE id = 2
+        """
+    ).fetchone()
+    connection.close()
+
+    assert saved == ("Ada", "Lovelace", "IT", function_id)
+
+
+def test_user_profile_function_id_rejects_string(monkeypatch, tmp_path):
+    from server import app as app_module
+
+    db_path = str(tmp_path / "user-profile-string-function-id.db")
+    create_rbac_database(db_path)
+
+    app = configure_real_app_session_user(
+        monkeypatch, app_module, db_path, 1, "administrator"
+    )
+
+    with app.test_client() as client:
+        login_as(client, 1, "administrator")
+        with client.session_transaction() as session:
+            session["csrf_token"] = "pytest-csrf-token"
+
+        response = client.put(
+            "/api/users/2/profile",
+            headers={"X-CSRF-Token": "pytest-csrf-token"},
+            json={
+                "first_name": "Ada",
+                "last_name": "Lovelace",
+                "department": "IT",
+                "function_id": "1",
+            },
+        )
+
+    assert response.status_code == 400
+    assert response.get_json() == {"error": "invalid_user_function"}

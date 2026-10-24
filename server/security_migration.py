@@ -23,6 +23,8 @@ PERMISSIONS_MIGRATION_VERSION = "003-user-permissions"
 USER_NOTES_MIGRATION_VERSION = "004-user-admin-notes"
 BACKUP_PERMISSION_MIGRATION_VERSION = "005-backup-permission"
 USER_LANGUAGE_MIGRATION_VERSION = "006-user-language"
+USER_PROFILES_MIGRATION_VERSION = "007-user-profiles"
+PERMISSION_DELEGATION_MIGRATION_VERSION = "008-permission-delegation"
 
 
 def utc_now():
@@ -166,6 +168,147 @@ def migrate_user_language(connection):
     )
 
 
+
+def migrate_user_profiles(connection):
+    connection.execute("""
+        CREATE TABLE IF NOT EXISTS user_functions (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL COLLATE NOCASE UNIQUE,
+            created_at TEXT NOT NULL DEFAULT '',
+            created_by INTEGER,
+            FOREIGN KEY (created_by)
+                REFERENCES users(id) ON DELETE SET NULL
+        )
+    """)
+
+    add_column_if_missing(
+        connection,
+        "users",
+        "first_name",
+        "TEXT NOT NULL DEFAULT ''",
+    )
+    add_column_if_missing(
+        connection,
+        "users",
+        "last_name",
+        "TEXT NOT NULL DEFAULT ''",
+    )
+    add_column_if_missing(
+        connection,
+        "users",
+        "department",
+        "TEXT NOT NULL DEFAULT ''",
+    )
+    add_column_if_missing(
+        connection,
+        "users",
+        "function_id",
+        "INTEGER REFERENCES user_functions(id) ON DELETE SET NULL",
+    )
+
+
+def migrate_permission_delegation(connection):
+    """
+    Ensure every permissions.manage grant belongs to an enabled user
+    who also has users.manage and clients.view.
+
+    Keep all valid delegates. If none remain, grant the permission to
+    the first eligible enabled user. Return False if no such user exists,
+    allowing the migration runner to retry later.
+    """
+    connection.execute("""
+        DELETE FROM user_permissions
+        WHERE permission = 'permissions.manage'
+          AND NOT EXISTS (
+              SELECT 1
+              FROM users
+              WHERE users.id = user_permissions.user_id
+                AND users.enabled = 1
+                AND EXISTS (
+                    SELECT 1
+                    FROM user_permissions AS user_admin
+                    WHERE user_admin.user_id = users.id
+                      AND user_admin.permission = 'users.manage'
+                )
+                AND EXISTS (
+                    SELECT 1
+                    FROM user_permissions AS client_view
+                    WHERE client_view.user_id = users.id
+                      AND client_view.permission = 'clients.view'
+                )
+          )
+    """)
+
+    active_delegate = connection.execute("""
+        SELECT users.id
+        FROM users
+        JOIN user_permissions AS delegated
+            ON delegated.user_id = users.id
+           AND delegated.permission = 'permissions.manage'
+        WHERE users.enabled = 1
+          AND EXISTS (
+              SELECT 1
+              FROM user_permissions AS user_admin
+              WHERE user_admin.user_id = users.id
+                AND user_admin.permission = 'users.manage'
+          )
+          AND EXISTS (
+              SELECT 1
+              FROM user_permissions AS client_view
+              WHERE client_view.user_id = users.id
+                AND client_view.permission = 'clients.view'
+          )
+        ORDER BY users.id
+        LIMIT 1
+    """).fetchone()
+
+    if active_delegate is not None:
+        print(
+            "[INFO] Valid enabled permission manager exists "
+            f"(user_id={active_delegate[0]})"
+        )
+        return True
+
+    eligible = connection.execute("""
+        SELECT users.id
+        FROM users
+        WHERE users.enabled = 1
+          AND EXISTS (
+              SELECT 1
+              FROM user_permissions AS user_admin
+              WHERE user_admin.user_id = users.id
+                AND user_admin.permission = 'users.manage'
+          )
+          AND EXISTS (
+              SELECT 1
+              FROM user_permissions AS client_view
+              WHERE client_view.user_id = users.id
+                AND client_view.permission = 'clients.view'
+          )
+        ORDER BY users.id
+        LIMIT 1
+    """).fetchone()
+
+    if eligible is None:
+        print(
+            "[WARN] Migration 008 cannot grant permissions.manage: "
+            "no enabled user has both users.manage and clients.view. "
+            "The migration will be retried on a later run."
+        )
+        return False
+
+    connection.execute("""
+        INSERT INTO user_permissions (user_id, permission)
+        VALUES (?, 'permissions.manage')
+    """, (eligible[0],))
+
+    print(
+        "[OK] Granted permissions.manage to eligible enabled "
+        f"user_id={eligible[0]}"
+    )
+    return True
+
+
 def migrate_clients(connection):
     add_column_if_missing(
         connection,
@@ -207,6 +350,12 @@ def create_admin(connection, username):
     ).fetchone()
 
     if existing:
+        if not existing[2]:
+            raise RuntimeError(
+                f"Admin user '{username}' exists but is disabled. "
+                "Enable the account or choose another username."
+            )
+
         print(
             f"[OK] Admin user '{username}' already exists "
             f"(id={existing[0]}, enabled={existing[2]})"
@@ -484,6 +633,52 @@ def run_migration(db_path, admin_username, skip_admin):
                 f"[OK] Migration "
                 f"{USER_LANGUAGE_MIGRATION_VERSION} completed"
             )
+
+        if migration_already_applied(
+            connection,
+            USER_PROFILES_MIGRATION_VERSION
+        ):
+            print(
+                f"[INFO] Migration {USER_PROFILES_MIGRATION_VERSION} "
+                "is already recorded"
+            )
+        else:
+            migrate_user_profiles(connection)
+            record_migration(
+                connection,
+                USER_PROFILES_MIGRATION_VERSION
+            )
+            connection.commit()
+            print(
+                f"[OK] Migration {USER_PROFILES_MIGRATION_VERSION} completed"
+            )
+
+        if migration_already_applied(
+            connection,
+            PERMISSION_DELEGATION_MIGRATION_VERSION
+        ):
+            print(
+                f"[INFO] Migration {PERMISSION_DELEGATION_MIGRATION_VERSION} "
+                "is already recorded"
+            )
+        else:
+            if migrate_permission_delegation(connection):
+                record_migration(
+                    connection,
+                    PERMISSION_DELEGATION_MIGRATION_VERSION
+                )
+                connection.commit()
+                print(
+                    f"[OK] Migration "
+                    f"{PERMISSION_DELEGATION_MIGRATION_VERSION} completed"
+                )
+            else:
+                connection.commit()
+                print(
+                    f"[WARN] Migration "
+                    f"{PERMISSION_DELEGATION_MIGRATION_VERSION} "
+                    "remains pending"
+                )
 
         print_schema(connection)
 

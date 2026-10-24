@@ -46,7 +46,8 @@ PERMISSIONS = {
     "packages.search": "Pakete suchen",
     "jobs.manage": "Paketänderungen und Update-Jobs anlegen",
     "clients.manage": "Clients registrieren, entfernen und Tokens rotieren",
-    "users.manage": "Benutzer und Berechtigungen verwalten",
+    "users.manage": "Benutzerkonten verwalten",
+    "permissions.manage": "Berechtigungen zuweisen und ändern",
     "backups.manage": "Datenbank-Backups erstellen und einsehen",
 }
 
@@ -62,7 +63,11 @@ ROLE_DEFAULT_PERMISSIONS = {
         "packages.search",
         "jobs.manage",
     }),
-    ROLE_ADMINISTRATOR: frozenset(PERMISSIONS),
+    ROLE_ADMINISTRATOR: frozenset(
+        permission
+        for permission in PERMISSIONS
+        if permission != "permissions.manage"
+    ),
 }
 
 ROLE_DESCRIPTIONS = {
@@ -85,6 +90,7 @@ PERMISSION_DEPENDENCIES = {
     "packages.search": {"clients.view"},
     "jobs.manage": {"clients.view", "updates.view"},
     "clients.manage": {"clients.view"},
+    "permissions.manage": {"users.manage", "clients.view"},
 }
 
 SAFE_METHODS = {"GET", "HEAD", "OPTIONS"}
