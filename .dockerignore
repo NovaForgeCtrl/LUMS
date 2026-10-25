@@ -43,3 +43,10 @@ metadata/
 # Local test environments and test artifacts
 .venv-test/
 .pytest_cache/
+.backups/
+.env.*
+*.pem
+*.key
+secrets/
+**/secrets/
+.dockerignore.before-isolated-build-*
