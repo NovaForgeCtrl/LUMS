@@ -528,7 +528,49 @@ def save_client_report(client_id, data):
 # CLIENT STATUS
 # ============================================================
 
+def classify_health_client(last_seen, now=None):
+    """Classify a client timestamp without allowing malformed data to break the dashboard."""
+    if not isinstance(last_seen, str) or not last_seen.strip():
+        return "unknown"
+
+    try:
+        last_seen_time = datetime.fromisoformat(last_seen)
+        if last_seen_time.tzinfo is None:
+            last_seen_time = last_seen_time.replace(tzinfo=timezone.utc)
+
+        current_time = now or datetime.now(timezone.utc)
+        if current_time.tzinfo is None:
+            current_time = current_time.replace(tzinfo=timezone.utc)
+
+        difference = (current_time - last_seen_time).total_seconds()
+    except (TypeError, ValueError, OverflowError):
+        return "unknown"
+
+    if difference < 0:
+        return "unknown"
+    if difference <= 120:
+        return "online"
+    if difference <= 600:
+        return "unknown"
+    return "offline"
+
+
 def get_client_status(last_seen):
+    last_seen_time = datetime.fromisoformat(last_seen)
+    now = datetime.now(timezone.utc)
+    difference = (now - last_seen_time).total_seconds()
+
+    if difference <= 120:
+        return "online"
+    if difference <= 600:
+        return "unknown"
+    return "offline"
+
+
+# ============================================================
+# WEB PAGES
+# ============================================================
+
 
     last_seen_time = datetime.fromisoformat(last_seen)
 
@@ -820,6 +862,66 @@ def index():
         "index.html",
         csrf_token=get_csrf_token(),
         user_role=current_user_role(),
+        **permission_ui_context(),
+    )
+
+
+@app.route("/health")
+@login_required
+@role_required(
+    ROLE_ADMINISTRATOR,
+    ROLE_OPERATOR,
+    ROLE_VIEWER,
+    permission="clients.view",
+)
+def health_page():
+    database_status = "unavailable"
+    client_counts = {"total": 0, "online": 0, "unknown": 0, "offline": 0}
+
+    connection = None
+    try:
+        connection = get_connection()
+        connection.execute("SELECT 1").fetchone()
+        rows = connection.execute("SELECT last_seen FROM clients").fetchall()
+
+        for row in rows:
+            status = classify_health_client(row["last_seen"])
+            client_counts["total"] += 1
+            client_counts[status] += 1
+
+        database_status = "ok"
+    except (sqlite3.Error, OSError, RuntimeError):
+        logger.warning("Health dashboard could not query the LUMS database.")
+    finally:
+        if connection is not None:
+            try:
+                connection.close()
+            except sqlite3.Error:
+                logger.warning("Health dashboard could not close its database connection.")
+
+    backup_status = "unavailable"
+    latest_backup = None
+    try:
+        backups = list_database_backups(
+            app.config.get("LUMS_BACKUP_DIR", BACKUP_DIRECTORY),
+            limit=1,
+        )
+        backup_status = "ok"
+        if backups:
+            latest_backup = backups[0]
+        else:
+            backup_status = "empty"
+    except (BackupPathError, BackupStorageError, OSError, RuntimeError):
+        logger.warning("Health dashboard could not inspect backup storage.")
+
+    return render_template(
+        "health.html",
+        csrf_token=get_csrf_token(),
+        user_role=current_user_role(),
+        database_status=database_status,
+        client_counts=client_counts,
+        backup_status=backup_status,
+        latest_backup=latest_backup,
         **permission_ui_context(),
     )
 

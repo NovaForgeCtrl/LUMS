@@ -8,6 +8,12 @@
     </div>
 
     <nav class="lums-sidebar-nav">
+{% if "clients.view" in user_permissions %}
+<a href="/health" class="lums-sidebar-link{% if request.path == '/health' %} is-active{% endif %}" {% if request.path == '/health' %}aria-current="page"{% endif %}>
+    <span class="lums-sidebar-icon" aria-hidden="true">◈</span>
+    <span class="lums-sidebar-label">{{ tr("Health") }}</span>
+</a>
+{% endif %}
         <a href="/" class="lums-sidebar-link{% if request.path == '/' %} is-active{% endif %}" {% if request.path == '/' %}aria-current="page"{% endif %}>
             <span class="lums-sidebar-icon" aria-hidden="true">⌂</span>
             <span class="lums-sidebar-label">{{ tr("Dashboard") }}</span>
