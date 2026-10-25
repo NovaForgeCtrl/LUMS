@@ -836,6 +836,7 @@ async function createSystemUpdateJob() {
         if (!response.ok) {
 
             throw new Error(
+                result.message ||
                 result.error ||
                 t("Could not create system update job.")
             );

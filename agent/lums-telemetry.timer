@@ -1,0 +1,11 @@
+[Unit]
+Description=Run LUMS CPU and RAM Telemetry Agent every 5 seconds
+
+[Timer]
+OnBootSec=60s
+OnUnitActiveSec=5s
+Unit=lums-telemetry.service
+Persistent=true
+
+[Install]
+WantedBy=timers.target

@@ -12,7 +12,8 @@ import logging
 from pathlib import Path
 import sqlite3
 import json
-from datetime import datetime, timezone
+import math
+from datetime import datetime, timedelta, timezone
 from urllib.parse import urlsplit
 
 if __package__:
@@ -528,7 +529,49 @@ def save_client_report(client_id, data):
 # CLIENT STATUS
 # ============================================================
 
+def classify_health_client(last_seen, now=None):
+    """Classify a client timestamp without allowing malformed data to break the dashboard."""
+    if not isinstance(last_seen, str) or not last_seen.strip():
+        return "unknown"
+
+    try:
+        last_seen_time = datetime.fromisoformat(last_seen)
+        if last_seen_time.tzinfo is None:
+            last_seen_time = last_seen_time.replace(tzinfo=timezone.utc)
+
+        current_time = now or datetime.now(timezone.utc)
+        if current_time.tzinfo is None:
+            current_time = current_time.replace(tzinfo=timezone.utc)
+
+        difference = (current_time - last_seen_time).total_seconds()
+    except (TypeError, ValueError, OverflowError):
+        return "unknown"
+
+    if difference < 0:
+        return "unknown"
+    if difference <= 120:
+        return "online"
+    if difference <= 600:
+        return "unknown"
+    return "offline"
+
+
 def get_client_status(last_seen):
+    last_seen_time = datetime.fromisoformat(last_seen)
+    now = datetime.now(timezone.utc)
+    difference = (now - last_seen_time).total_seconds()
+
+    if difference <= 120:
+        return "online"
+    if difference <= 600:
+        return "unknown"
+    return "offline"
+
+
+# ============================================================
+# WEB PAGES
+# ============================================================
+
 
     last_seen_time = datetime.fromisoformat(last_seen)
 
@@ -820,6 +863,66 @@ def index():
         "index.html",
         csrf_token=get_csrf_token(),
         user_role=current_user_role(),
+        **permission_ui_context(),
+    )
+
+
+@app.route("/health")
+@login_required
+@role_required(
+    ROLE_ADMINISTRATOR,
+    ROLE_OPERATOR,
+    ROLE_VIEWER,
+    permission="clients.view",
+)
+def health_page():
+    database_status = "unavailable"
+    client_counts = {"total": 0, "online": 0, "unknown": 0, "offline": 0}
+
+    connection = None
+    try:
+        connection = get_connection()
+        connection.execute("SELECT 1").fetchone()
+        rows = connection.execute("SELECT last_seen FROM clients").fetchall()
+
+        for row in rows:
+            status = classify_health_client(row["last_seen"])
+            client_counts["total"] += 1
+            client_counts[status] += 1
+
+        database_status = "ok"
+    except (sqlite3.Error, OSError, RuntimeError):
+        logger.warning("Health dashboard could not query the LUMS database.")
+    finally:
+        if connection is not None:
+            try:
+                connection.close()
+            except sqlite3.Error:
+                logger.warning("Health dashboard could not close its database connection.")
+
+    backup_status = "unavailable"
+    latest_backup = None
+    try:
+        backups = list_database_backups(
+            app.config.get("LUMS_BACKUP_DIR", BACKUP_DIRECTORY),
+            limit=1,
+        )
+        backup_status = "ok"
+        if backups:
+            latest_backup = backups[0]
+        else:
+            backup_status = "empty"
+    except (BackupPathError, BackupStorageError, OSError, RuntimeError):
+        logger.warning("Health dashboard could not inspect backup storage.")
+
+    return render_template(
+        "health.html",
+        csrf_token=get_csrf_token(),
+        user_role=current_user_role(),
+        database_status=database_status,
+        client_counts=client_counts,
+        backup_status=backup_status,
+        latest_backup=latest_backup,
         **permission_ui_context(),
     )
 
@@ -2002,6 +2105,177 @@ def health():
 
 
 # ============================================================
+# CLIENT TELEMETRY
+# ============================================================
+
+TELEMETRY_RETENTION_DAYS = 7
+TELEMETRY_MAX_HISTORY_HOURS = 168
+TELEMETRY_MAX_RESPONSE_POINTS = 1000
+
+
+@app.route("/api/telemetry", methods=["POST"])
+@client_auth_required
+def ingest_telemetry():
+    client = authenticated_client()
+    data = request.get_json(silent=True)
+
+    required_fields = {
+        "cpu_percent",
+        "memory_percent",
+        "memory_total_bytes",
+        "memory_available_bytes",
+    }
+
+    if not isinstance(data, dict) or set(data) != required_fields:
+        return jsonify({
+            "status": "error",
+            "message": "Invalid telemetry payload",
+        }), 400
+
+    cpu = data["cpu_percent"]
+    memory = data["memory_percent"]
+    memory_total = data["memory_total_bytes"]
+    memory_available = data["memory_available_bytes"]
+
+    def valid_percentage(value):
+        return (
+            isinstance(value, (int, float))
+            and not isinstance(value, bool)
+            and math.isfinite(value)
+            and 0 <= value <= 100
+        )
+
+    if (
+        not valid_percentage(cpu)
+        or not valid_percentage(memory)
+        or isinstance(memory_total, bool)
+        or not isinstance(memory_total, int)
+        or memory_total <= 0
+        or isinstance(memory_available, bool)
+        or not isinstance(memory_available, int)
+        or memory_available < 0
+        or memory_available > memory_total
+    ):
+        return jsonify({
+            "status": "error",
+            "message": "Invalid telemetry values",
+        }), 400
+
+    now = datetime.now(timezone.utc)
+    recorded_at = now.isoformat()
+    cutoff = (
+        now - timedelta(days=TELEMETRY_RETENTION_DAYS)
+    ).isoformat()
+
+    connection = get_connection()
+    try:
+        connection.execute(
+            """
+            INSERT INTO client_telemetry (
+                client_id, recorded_at, cpu_percent, memory_percent,
+                memory_total_bytes, memory_available_bytes
+            ) VALUES (?, ?, ?, ?, ?, ?)
+            """,
+            (
+                client["id"], recorded_at, float(cpu), float(memory),
+                memory_total, memory_available,
+            ),
+        )
+        connection.execute(
+            "DELETE FROM client_telemetry WHERE recorded_at < ?",
+            (cutoff,),
+        )
+        connection.commit()
+    except sqlite3.Error:
+        connection.rollback()
+        logger.exception(
+            "Failed to save telemetry from client %s", client["id"]
+        )
+        return jsonify({
+            "status": "error",
+            "message": "Failed to save telemetry",
+        }), 500
+    finally:
+        connection.close()
+
+    return jsonify({"status": "received"}), 200
+
+
+@app.route(
+    "/api/clients/<int:client_id>/telemetry",
+    methods=["GET"],
+)
+@login_required
+@role_required(
+    ROLE_ADMINISTRATOR,
+    ROLE_OPERATOR,
+    ROLE_VIEWER,
+    permission="clients.view",
+)
+def client_telemetry(client_id):
+    try:
+        hours = int(request.args.get("hours", "24"))
+    except (TypeError, ValueError):
+        return jsonify({"error": "invalid_hours"}), 400
+
+    if not 1 <= hours <= TELEMETRY_MAX_HISTORY_HOURS:
+        return jsonify({"error": "invalid_hours"}), 400
+
+    connection = get_connection()
+    try:
+        client = connection.execute(
+            """
+            SELECT id, hostname
+            FROM clients
+            WHERE id = ? AND enabled = 1
+            """,
+            (client_id,),
+        ).fetchone()
+
+        if client is None:
+            return jsonify({"error": "client_not_found"}), 404
+
+        cutoff = (
+            datetime.now(timezone.utc) - timedelta(hours=hours)
+        ).isoformat()
+
+        rows = connection.execute(
+            """
+            SELECT recorded_at, cpu_percent, memory_percent,
+                   memory_total_bytes, memory_available_bytes
+            FROM client_telemetry
+            WHERE client_id = ? AND recorded_at >= ?
+            ORDER BY recorded_at ASC
+            """,
+            (client_id, cutoff),
+        ).fetchall()
+
+        # Keep the complete history in storage, but bound dashboard responses.
+        # Evenly spaced indices preserve the oldest and newest samples.
+        if len(rows) > TELEMETRY_MAX_RESPONSE_POINTS:
+            last_index = len(rows) - 1
+            denominator = TELEMETRY_MAX_RESPONSE_POINTS - 1
+            rows = [
+                rows[(index * last_index + denominator // 2) // denominator]
+                for index in range(TELEMETRY_MAX_RESPONSE_POINTS)
+            ]
+
+        return jsonify({
+            "client_id": client_id,
+            "hostname": client["hostname"],
+            "hours": hours,
+            "samples": [dict(row) for row in rows],
+        })
+    except sqlite3.Error:
+        logger.exception(
+            "Failed to load telemetry for client %s", client_id
+        )
+        return jsonify({"error": "telemetry_query_failed"}), 500
+    finally:
+        connection.close()
+
+
+# ============================================================
 # CLIENT REPORT
 # ============================================================
 
@@ -2493,6 +2767,22 @@ def create_update_job(client_id):
             "status": "error",
             "message": "Client not found"
         }), 404
+
+    # Prevent empty whole-system update jobs.
+    if action == "UPDATE_SYSTEM":
+        cursor.execute("""
+            SELECT COUNT(*)
+            FROM available_updates
+            WHERE client_id = ?
+        """, (client_id,))
+        available_update_count = cursor.fetchone()[0]
+
+        if available_update_count == 0:
+            connection.close()
+            return jsonify({
+                "status": "error",
+                "message": "No system updates are available. No job was created."
+            }), 409
 
     update_rows = []
 

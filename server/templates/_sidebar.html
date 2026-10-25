@@ -1,6 +1,6 @@
 <aside class="lums-sidebar" id="lums-sidebar" aria-label="{{ tr('Main navigation') }}">
     <div class="lums-sidebar-brand">
-        <span class="lums-sidebar-mark" aria-hidden="true">L</span>
+        <span class="lums-sidebar-mark" aria-hidden="true"><img src="{{ url_for('static', filename='images/LUMS_Logo.jpg') }}" alt="" /></span>
         <div class="lums-sidebar-brand-text">
             <strong>LUMS</strong>
             <small>{{ tr("Linux Update Management Server") }}</small>
@@ -8,6 +8,12 @@
     </div>
 
     <nav class="lums-sidebar-nav">
+{% if "clients.view" in user_permissions %}
+<a href="/health" class="lums-sidebar-link{% if request.path == '/health' %} is-active{% endif %}" {% if request.path == '/health' %}aria-current="page"{% endif %}>
+    <span class="lums-sidebar-icon" aria-hidden="true">◈</span>
+    <span class="lums-sidebar-label">{{ tr("Health") }}</span>
+</a>
+{% endif %}
         <a href="/" class="lums-sidebar-link{% if request.path == '/' %} is-active{% endif %}" {% if request.path == '/' %}aria-current="page"{% endif %}>
             <span class="lums-sidebar-icon" aria-hidden="true">⌂</span>
             <span class="lums-sidebar-label">{{ tr("Dashboard") }}</span>

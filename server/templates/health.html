@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="{{ language }}" data-locale="{{ language_locale }}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>LUMS — {{ tr('Health Dashboard') }}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body class="lums-sidebar-layout">
+    {% include "_sidebar.html" %}
+    <main class="container">
+        <header class="panel-header">
+            <div>
+                <h1>{{ tr("Health Dashboard") }}</h1>
+                <p>{{ tr("Current service, client and backup-storage status.") }}</p>
+            </div>
+        </header>
+
+        <section class="cards" aria-label="{{ tr('Current service, client and backup-storage status.') }}">
+            <article class="card">
+                <div class="card-title">{{ tr("Database") }}</div>
+                <div class="card-value">{{ tr(database_status|capitalize) }}</div>
+            </article>
+            <article class="card">
+                <div class="card-title">{{ tr("Managed clients") }}</div>
+                <div class="card-value">{{ client_counts.total }}</div>
+            </article>
+            <article class="card">
+                <div class="card-title">{{ tr("Online clients") }}</div>
+                <div class="card-value">{{ client_counts.online }}</div>
+            </article>
+        </section>
+
+        <section class="panel">
+            <div class="panel-header">
+                <div>
+                    <h2>{{ tr("Client status") }}</h2>
+                    <p>{{ tr("Based on the last reported timestamp.") }}</p>
+                </div>
+            </div>
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr><th>{{ tr("Status") }}</th><th>{{ tr("Clients") }}</th></tr>
+                    </thead>
+                    <tbody>
+                        <tr><td>{{ tr("Online") }}</td><td>{{ client_counts.online }}</td></tr>
+                        <tr><td>{{ tr("Unknown") }}</td><td>{{ client_counts.unknown }}</td></tr>
+                        <tr><td>{{ tr("Offline") }}</td><td>{{ client_counts.offline }}</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <section class="panel telemetry-panel" id="telemetry-dashboard"
+            data-loading="{{ tr('Loading telemetry…') }}"
+            data-no-clients="{{ tr('No enabled clients found.') }}"
+            data-no-samples="{{ tr('No telemetry samples available yet.') }}"
+            data-load-error="{{ tr('Telemetry could not be loaded. Check access and connection.') }}"
+            data-updated="{{ tr('Last sample:') }}"
+            data-cpu="{{ tr('CPU utilization') }}"
+            data-memory="{{ tr('Memory utilization') }}">
+            <div class="panel-header">
+                <div>
+                    <h2>{{ tr("System telemetry") }}</h2>
+                    <p>{{ tr("CPU and memory history. Data refreshes every five seconds.") }}</p>
+                </div>
+            </div>
+
+            <div class="telemetry-controls">
+                <label for="telemetry-client">{{ tr("Client") }}</label>
+                <select id="telemetry-client"></select>
+
+                <label for="telemetry-range">{{ tr("History") }}</label>
+                <select id="telemetry-range">
+                    <option value="1">{{ tr("Last hour") }}</option>
+                    <option value="24" selected>{{ tr("Last 24 hours") }}</option>
+                    <option value="168">{{ tr("Last 7 days") }}</option>
+                </select>
+            </div>
+
+            <p id="telemetry-status" role="status" aria-live="polite">{{ tr("Loading telemetry…") }}</p>
+            <p id="telemetry-updated" class="telemetry-updated"></p>
+
+            <div class="telemetry-chart-grid">
+                <article class="telemetry-chart-card">
+                    <h3>{{ tr("CPU utilization") }}</h3>
+                    <p class="telemetry-current" id="telemetry-cpu-value">—</p>
+                    <svg id="telemetry-cpu-chart" class="telemetry-chart" viewBox="0 0 640 220"></svg>
+                </article>
+                <article class="telemetry-chart-card">
+                    <h3>{{ tr("Memory utilization") }}</h3>
+                    <p class="telemetry-current" id="telemetry-memory-value">—</p>
+                    <svg id="telemetry-memory-chart" class="telemetry-chart" viewBox="0 0 640 220"></svg>
+                </article>
+            </div>
+        </section>
+
+        <section class="panel" style="margin-top: 24px;">
+            <div class="panel-header">
+                <div>
+                    <h2>{{ tr("Backup storage") }}</h2>
+                    <p>{{ tr("Status:") }} {{ tr(backup_status|capitalize) }}</p>
+                    {% if latest_backup %}
+                    <p>{{ tr("Latest backup:") }} {{ latest_backup.created_at }} · {{ latest_backup.size_bytes }} {{ tr("bytes") }}</p>
+                    {% elif backup_status == "empty" %}
+                    <p>{{ tr("No backup files were found.") }}</p>
+                    {% else %}
+                    <p>{{ tr("Backup storage could not be checked.") }}</p>
+                    {% endif %}
+                </div>
+            </div>
+        </section>
+    </main>
+    <script src="{{ url_for('static', filename='telemetry.js') }}" defer></script>
+</body>
+</html>

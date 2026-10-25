@@ -5889,3 +5889,78 @@ Document
 ```
 
 A LUMS installation should always remain reproducible, auditable and recoverable.
+
+
+---
+
+## Optional CPU and memory telemetry agent
+
+The telemetry agent is separate from the existing reporting Agent and Watcher.
+It sends CPU and memory measurements to the authenticated
+`POST /api/telemetry` endpoint. The dashboard reads the measurements through
+the authenticated client telemetry API.
+
+### Installation files
+
+Review these repository files before installing:
+
+- `agent/telemetry.py`
+- `agent/lums-telemetry.service`
+- `agent/lums-telemetry.timer`
+- `tests/test_telemetry_agent.py`
+
+Install the telemetry script at
+`/usr/local/lib/lums-telemetry/telemetry.py`, owned by root and not writable
+by the service account. Install the service and timer as
+`/etc/systemd/system/lums-telemetry.service` and
+`/etc/systemd/system/lums-telemetry.timer`.
+
+The service uses `DynamicUser=yes` and runs with restricted privileges.
+It is a one-shot service scheduled by a separate timer; it does not replace
+the existing LUMS Agent or Watcher.
+
+### Configuration and TLS
+
+Configure `/etc/default/lums-agent` with the server URL and the individual
+client token:
+
+```sh
+LUMS_BASE=https://lums.example.invalid
+LUMS_TOKEN=REPLACE_WITH_THIS_CLIENTS_TOKEN
+LUMS_CA_FILE=/etc/ssl/certs/lums-ca.crt
+```
+
+Replace the example URL and token with the actual values for the environment.
+Protect the configuration file so only root can read it, for example with
+mode `0600`. Never commit a real token to source control or share it between
+clients.
+
+If a private certificate authority is required, install its certificate at
+a path readable by the service process, such as
+`/etc/ssl/certs/lums-ca.crt`, and set `LUMS_CA_FILE` accordingly. Do not
+disable certificate verification. When `LUMS_CA_FILE` is unset, the agent uses the operating system's
+default CA trust store. If a private CA is required, explicitly set
+`LUMS_CA_FILE` to an existing CA certificate file readable by the service
+process. An explicitly configured but missing or unreadable CA file causes
+the agent to fail rather than silently falling back to another trust store.
+Do not disable certificate verification or weaken directory permissions to
+work around certificate configuration problems.
+
+### Validation before enabling
+
+First run the project tests and verify the unit files:
+
+```sh
+.venv/bin/python -m pytest -q tests/test_telemetry.py tests/test_telemetry_agent.py
+systemd-analyze verify agent/lums-telemetry.service agent/lums-telemetry.timer
+```
+
+On a test client, install the files and configuration, reload systemd, and
+run the service manually before enabling its timer. Confirm successful
+authentication and incoming samples in the dashboard. Only then enable the
+timer on that test client. Do not enable it on production clients before
+the server-side release has been reviewed and approved.
+
+The agent reports every five seconds. The server retains measurements for
+seven days and the dashboard API returns at most 1,000 evenly spaced samples
+per requested history window, preserving the first and latest sample.

@@ -64,6 +64,74 @@ def test_full_security_migration_is_repeatable(tmp_path, monkeypatch):
         assert migration.BACKUP_PERMISSION_MIGRATION_VERSION in versions
         assert migration.USER_LANGUAGE_MIGRATION_VERSION in versions
         assert migration.USER_PROFILES_MIGRATION_VERSION in versions
+        assert migration.TELEMETRY_MIGRATION_VERSION in versions
+        assert (
+            migration.TELEMETRY_RETENTION_INDEX_MIGRATION_VERSION
+            in versions
+        )
+
+        telemetry_columns = {
+            row[1]
+            for row in connection.execute(
+                "PRAGMA table_info(client_telemetry)"
+            )
+        }
+        assert {
+            "id",
+            "client_id",
+            "recorded_at",
+            "cpu_percent",
+            "memory_percent",
+            "memory_total_bytes",
+            "memory_available_bytes",
+        } <= telemetry_columns
+
+        telemetry_indexes = {
+            row[1]
+            for row in connection.execute(
+                "PRAGMA index_list(client_telemetry)"
+            )
+        }
+        assert "idx_client_telemetry_client_time" in telemetry_indexes
+        assert "idx_client_telemetry_recorded_at" in telemetry_indexes
+
+        query_plan = connection.execute(
+            """
+            EXPLAIN QUERY PLAN
+            DELETE FROM client_telemetry
+            WHERE recorded_at < ?
+            """,
+            ("2026-01-01T00:00:00+00:00",),
+        ).fetchall()
+        assert any(
+            "idx_client_telemetry_recorded_at" in str(row)
+            for row in query_plan
+        ), query_plan
+
+        # SQLite must enforce telemetry value bounds.
+        invalid_rows = [
+            (1, "2026-01-01T00:00:00+00:00", 101, 50, 1000, 500),
+            (1, "2026-01-01T00:00:00+00:00", 50, -1, 1000, 500),
+            (1, "2026-01-01T00:00:00+00:00", 50, 50, 1000, 1001),
+        ]
+        for values in invalid_rows:
+            try:
+                connection.execute(
+                    """
+                    INSERT INTO client_telemetry (
+                        client_id, recorded_at, cpu_percent,
+                        memory_percent, memory_total_bytes,
+                        memory_available_bytes
+                    ) VALUES (?, ?, ?, ?, ?, ?)
+                    """,
+                    values,
+                )
+            except sqlite3.IntegrityError:
+                connection.rollback()
+            else:
+                raise AssertionError(
+                    f"Ungültiger Telemetrie-Datensatz wurde akzeptiert: {values}"
+                )
 
         client = connection.execute(
             "SELECT hostname, ip FROM clients WHERE id = 1"
