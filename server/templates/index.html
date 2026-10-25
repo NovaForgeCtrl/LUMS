@@ -22,67 +22,29 @@
 </head>
 
 
-<body>
+<body class="lums-sidebar-layout">
+{% include "_sidebar.html" %}
 
 
-<header class="topbar">
-
-    <div>
-
-        <h1>LUMS</h1>
-
-        <span>
-            {{ tr("Linux Update Management Server") }}
-        </span>
-
+<header class="lums-pagebar">
+    <button
+        type="button"
+        class="lums-sidebar-toggle"
+        id="lums-sidebar-toggle"
+        aria-label="{{ tr('Toggle navigation') }}"
+        aria-controls="lums-sidebar"
+        aria-expanded="true"
+    >
+        <span aria-hidden="true">&#9776;</span>
+    </button>
+    <div class="lums-pagebar-brand">
+        <strong>LUMS</strong>
+        <span>{{ tr("Linux Update Management Server") }}</span>
     </div>
-
-    <div class="theme-day-title" aria-hidden="true"></div>
-
-    <div class="topbar-actions">
-        <div class="server-status">
-
-            <span class="status-dot"></span>
-
-            {{ tr("API Online") }}
-
-        </div>
-
-        {% if "users.manage" in user_permissions %}
-        <a
-            href="/users"
-            class="logout-button"
-        >
-            {{ tr("User management") }}
-        </a>
-        {% endif %}
-        {% if "backups.manage" in user_permissions %}
-        <a
-            href="/backups"
-            class="logout-button"
-        >
-            {{ tr("Database backups") }}
-        </a>
-        {% endif %}
-
-        <form action="/logout" method="POST" class="logout-form">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-            <button type="submit" class="logout-button">
-                {{ tr("Sign out") }}
-            </button>
-        </form>
-        <form action="/language" method="POST" class="language-form">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-            <label for="language-select">{{ tr("Language") }}</label>
-            <select id="language-select" name="language">
-                {% for code, name in languages.items() %}
-                <option value="{{ code }}" {% if code == language %}selected{% endif %}>{{ name }}</option>
-                {% endfor %}
-            </select>
-            <button type="submit">{{ tr("Save") }}</button>
-        </form>
+    <div class="lums-pagebar-status">
+        <span class="status-dot" aria-hidden="true"></span>
+        {{ tr("API Online") }}
     </div>
-
 </header>
 
 
@@ -387,6 +349,7 @@
 
 
     <script src="{{ url_for('static', filename='theme.js') }}"></script>
+<script src="{{ url_for("static", filename="sidebar.js") }}" defer></script>
 </body>
 
 </html>

@@ -849,6 +849,8 @@ def backups_page():
         "backups.html",
         csrf_token=get_csrf_token(),
         backup_root=str(BACKUP_DIRECTORY),
+        user_role=current_user_role(),
+        **permission_ui_context(),
     )
 
 

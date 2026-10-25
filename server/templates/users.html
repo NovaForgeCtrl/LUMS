@@ -18,56 +18,28 @@
     >
 </head>
 
-<body>
+<body class="lums-sidebar-layout">
+{% include "_sidebar.html" %}
 
-<header class="topbar">
-
-    <div class="topbar-brand">
-        <a href="/" class="brand-link">
-            LUMS
-        </a>
+<header class="lums-pagebar">
+    <button
+        type="button"
+        class="lums-sidebar-toggle"
+        id="lums-sidebar-toggle"
+        aria-label="{{ tr('Toggle navigation') }}"
+        aria-controls="lums-sidebar"
+        aria-expanded="true"
+    >
+        <span aria-hidden="true">&#9776;</span>
+    </button>
+    <div class="lums-pagebar-brand">
+        <strong>LUMS</strong>
+        <span>{{ tr("Linux Update Management Server") }}</span>
     </div>
-
-    <div class="topbar-actions">
-
-        <a
-            href="/"
-            class="logout-button"
-        >
-            {{ tr("Dashboard") }}
-        </a>
-
-        <form
-            action="/logout"
-            method="POST"
-            class="logout-form"
-        >
-            <input
-                type="hidden"
-                name="csrf_token"
-                value="{{ csrf_token }}"
-            >
-
-            <button
-                type="submit"
-                class="logout-button"
-            >
-                {{ tr("Sign out") }}
-            </button>
-        </form>
-        <form action="/language" method="POST" class="language-form">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-            <label for="language-select">{{ tr("Language") }}</label>
-            <select id="language-select" name="language">
-                {% for code, name in languages.items() %}
-                <option value="{{ code }}" {% if code == language %}selected{% endif %}>{{ name }}</option>
-                {% endfor %}
-            </select>
-            <button type="submit">{{ tr("Save") }}</button>
-        </form>
-
+    <div class="lums-pagebar-status">
+        <span class="status-dot" aria-hidden="true"></span>
+        {{ tr("API Online") }}
     </div>
-
 </header>
 
 
@@ -87,6 +59,34 @@
                     {{ tr("User accounts and roles") }}
                 </div>
             </div>
+
+            <form
+                action="/language"
+                method="POST"
+                class="user-management-language"
+            >
+                <input
+                    type="hidden"
+                    name="csrf_token"
+                    value="{{ csrf_token }}"
+                >
+                <label for="user-management-language">
+                    {{ tr("Language") }}
+                </label>
+                <select
+                    id="user-management-language"
+                    name="language"
+                    aria-label="{{ tr('Language') }}"
+                >
+                    {% for code, name in languages.items() %}
+                    <option
+                        value="{{ code }}"
+                        {% if code == language %}selected{% endif %}
+                    >{{ name }}</option>
+                    {% endfor %}
+                </select>
+                <button type="submit">{{ tr("Save") }}</button>
+            </form>
 
         </div>
 
@@ -292,5 +292,6 @@
     defer
 ></script>
 
+<script src="{{ url_for("static", filename="sidebar.js") }}" defer></script>
 </body>
 </html>

@@ -6768,3 +6768,444 @@ html[data-theme="geek"] .permission-editor-error:not([hidden]) {
         width: 100%;
     }
 }
+
+
+/* LUMS shared sidebar */
+:root {
+    --lums-sidebar-width: 264px;
+    --lums-sidebar-collapsed-width: 76px;
+    --lums-sidebar-bg: #111827;
+    --lums-sidebar-border: rgba(255,255,255,.09);
+    --lums-sidebar-text: #e5e7eb;
+    --lums-sidebar-muted: #9ca3af;
+    --lums-sidebar-accent: #9989d6;
+}
+body.lums-sidebar-layout {
+    min-height: 100vh;
+}
+.lums-sidebar {
+    position: fixed;
+    inset: 0 auto 0 0;
+    z-index: 10020;
+    display: flex;
+    flex-direction: column;
+    width: var(--lums-sidebar-width);
+    padding: 22px 14px 16px;
+    overflow-x: hidden;
+    overflow-y: auto;
+    color: var(--lums-sidebar-text);
+    background: var(--lums-sidebar-bg);
+    border-right: 1px solid var(--lums-sidebar-border);
+    transition: width .2s ease, transform .2s ease;
+}
+.lums-sidebar-brand {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-height: 58px;
+    padding: 0 8px 20px;
+    border-bottom: 1px solid var(--lums-sidebar-border);
+}
+.lums-sidebar-mark {
+    display: grid;
+    flex: 0 0 40px;
+    width: 40px;
+    height: 40px;
+    place-items: center;
+    border-radius: 12px;
+    color: #fff;
+    background: var(--lums-sidebar-accent);
+    font-size: 21px;
+    font-weight: 800;
+}
+.lums-sidebar-brand-text {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+.lums-sidebar-brand-text strong {
+    font-size: 17px;
+    letter-spacing: .08em;
+}
+.lums-sidebar-brand-text small {
+    color: var(--lums-sidebar-muted);
+    font-size: 11px;
+    line-height: 1.4;
+}
+.lums-sidebar-nav {
+    display: grid;
+    gap: 6px;
+    padding-top: 20px;
+}
+.lums-sidebar-link {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+    min-width: 0;
+    min-height: 44px;
+    padding: 10px 11px;
+    border: 1px solid transparent;
+    border-radius: 9px;
+    color: var(--lums-sidebar-text);
+    background: transparent;
+    font: inherit;
+    line-height: 1.4;
+    text-align: left;
+    text-decoration: none;
+    overflow-wrap: anywhere;
+    cursor: pointer;
+}
+.lums-sidebar-link:hover {
+    background: rgba(255,255,255,.07);
+}
+.lums-sidebar-link.is-active {
+    color: #fff;
+    background: rgba(153,137,214,.19);
+    border-color: rgba(153,137,214,.48);
+}
+.lums-sidebar-icon {
+    display: grid;
+    flex: 0 0 24px;
+    width: 24px;
+    place-items: center;
+    font-size: 20px;
+}
+.lums-sidebar-label {
+    min-width: 0;
+    white-space: normal;
+    overflow-wrap: anywhere;
+}
+.lums-sidebar-footer {
+    display: grid;
+    gap: 18px;
+    margin-top: auto;
+    padding-top: 24px;
+}
+.lums-sidebar-language {
+    display: grid;
+    gap: 8px;
+    padding: 14px 8px;
+    border-top: 1px solid var(--lums-sidebar-border);
+}
+.lums-sidebar-language label {
+    color: var(--lums-sidebar-muted);
+    font-size: 12px;
+}
+.lums-sidebar-language select,
+.lums-sidebar-language button {
+    width: 100%;
+    min-width: 0;
+    min-height: 38px;
+    border: 1px solid rgba(255,255,255,.16);
+    border-radius: 7px;
+    padding: 8px 9px;
+    color: var(--lums-sidebar-text);
+    background: #1f2937;
+    font: inherit;
+}
+.lums-sidebar-language select {
+    white-space: normal;
+}
+.lums-sidebar-language button {
+    cursor: pointer;
+    background: rgba(153,137,214,.2);
+}
+.lums-sidebar-logout {
+    margin: 0;
+}
+.lums-sidebar-logout button {
+    font-size: 14px;
+}
+.lums-pagebar {
+    position: relative;
+    z-index: 2;
+    display: flex;
+    align-items: center;
+    gap: 18px;
+    min-height: 80px;
+    width: calc(100% - var(--lums-sidebar-width));
+    margin-left: var(--lums-sidebar-width);
+    padding: 14px 28px;
+    color: #fff;
+    background: #111827;
+    box-shadow: 0 2px 8px rgba(0,0,0,.15);
+    transition: width .2s ease, margin-left .2s ease;
+}
+.lums-sidebar-toggle {
+    display: grid;
+    flex: 0 0 42px;
+    width: 42px;
+    height: 42px;
+    place-items: center;
+    border: 1px solid rgba(255,255,255,.16);
+    border-radius: 9px;
+    color: #fff;
+    background: rgba(255,255,255,.06);
+    font-size: 23px;
+    cursor: pointer;
+}
+.lums-sidebar-toggle:hover {
+    background: rgba(255,255,255,.12);
+}
+.lums-pagebar-brand {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    min-width: 0;
+}
+.lums-pagebar-brand strong {
+    font-size: 17px;
+    letter-spacing: .08em;
+}
+.lums-pagebar-brand span {
+    color: #cbd5e1;
+    font-size: 12px;
+    line-height: 1.4;
+    overflow-wrap: anywhere;
+}
+.lums-pagebar-status {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-left: auto;
+    white-space: nowrap;
+    color: #e5e7eb;
+    font-size: 13px;
+}
+.lums-sidebar-layout > main.container {
+    width: calc(100% - var(--lums-sidebar-width));
+    max-width: none;
+    margin: 0 0 30px var(--lums-sidebar-width);
+    padding: 0 28px;
+    transition: width .2s ease, margin-left .2s ease;
+}
+.lums-sidebar-collapsed .lums-sidebar {
+    width: var(--lums-sidebar-collapsed-width);
+    padding-inline: 10px;
+}
+.lums-sidebar-collapsed .lums-sidebar-brand {
+    justify-content: center;
+    padding-inline: 0;
+}
+.lums-sidebar-collapsed .lums-sidebar-brand-text,
+.lums-sidebar-collapsed .lums-sidebar-label,
+.lums-sidebar-collapsed .lums-sidebar-language,
+.lums-sidebar-collapsed .lums-sidebar-logout .lums-sidebar-label {
+    display: none;
+}
+.lums-sidebar-collapsed .lums-sidebar-link {
+    justify-content: center;
+    padding-inline: 8px;
+}
+.lums-sidebar-collapsed .lums-pagebar {
+    width: calc(100% - var(--lums-sidebar-collapsed-width));
+    margin-left: var(--lums-sidebar-collapsed-width);
+}
+.lums-sidebar-collapsed.lums-sidebar-layout > main.container {
+    width: calc(100% - var(--lums-sidebar-collapsed-width));
+    margin-left: var(--lums-sidebar-collapsed-width);
+}
+.lums-sidebar-scrim {
+    display: none;
+}
+@media (max-width: 760px) {
+    .lums-sidebar {
+        width: min(84vw, 300px);
+        transform: translateX(-105%);
+        box-shadow: none;
+    }
+    .lums-sidebar-drawer-open .lums-sidebar {
+        transform: translateX(0);
+        box-shadow: 12px 0 36px rgba(0,0,0,.25);
+    }
+    .lums-sidebar-collapsed .lums-sidebar {
+        width: min(84vw, 300px);
+        padding-inline: 14px;
+    }
+    .lums-sidebar-collapsed .lums-sidebar-brand {
+        justify-content: flex-start;
+        padding-inline: 8px;
+    }
+    .lums-sidebar-collapsed .lums-sidebar-brand-text,
+    .lums-sidebar-collapsed .lums-sidebar-label,
+    .lums-sidebar-collapsed .lums-sidebar-language {
+        display: initial;
+    }
+    .lums-sidebar-collapsed .lums-sidebar-brand-text {
+        display: flex;
+    }
+    .lums-sidebar-collapsed .lums-sidebar-nav .lums-sidebar-link,
+    .lums-sidebar-collapsed .lums-sidebar-logout .lums-sidebar-link {
+        justify-content: flex-start;
+    }
+    .lums-sidebar-collapsed .lums-sidebar-language {
+        display: grid;
+    }
+    .lums-sidebar-scrim:not([hidden]) {
+        position: fixed;
+        inset: 0;
+        z-index: 10010;
+        display: block;
+        background: rgba(3,7,18,.55);
+    }
+    .lums-pagebar,
+    .lums-sidebar-collapsed .lums-pagebar {
+        width: 100%;
+        margin-left: 0;
+        gap: 12px;
+        padding: 12px 14px;
+    }
+    .lums-pagebar-brand span {
+        display: none;
+    }
+    .lums-pagebar-status {
+        font-size: 12px;
+        gap: 6px;
+    }
+    .lums-sidebar-layout > main.container,
+    .lums-sidebar-collapsed.lums-sidebar-layout > main.container {
+        width: 100%;
+        margin: 20px 0;
+        padding: 0 14px;
+    }
+}
+
+
+/* LUMS SIDEBAR TOP ALIGNMENT FIX 2026-10-25 */
+@media (min-width: 761px) {
+    body.lums-sidebar-layout {
+        margin: 0;
+        padding: 0;
+    }
+
+    body.lums-sidebar-layout > .lums-pagebar {
+        margin-top: 0;
+    }
+
+    body.lums-sidebar-layout > main.container {
+        margin-top: 0;
+    }
+}
+
+
+/* LUMS GRID LAYOUT REPLACEMENT 2026-10-25 */
+/* Desktop: Sidebar links, Kopfzeile und Inhalt gemeinsam rechts. */
+@media (min-width: 761px) {
+    body.lums-sidebar-layout {
+        display: grid;
+        grid-template-columns:
+            var(--lums-sidebar-width)
+            minmax(0, 1fr);
+        grid-template-rows: 80px minmax(0, 1fr);
+        align-content: start;
+        min-height: 100vh;
+        margin: 0;
+        padding: 0;
+    }
+
+    body.lums-sidebar-layout > .lums-sidebar {
+        position: fixed;
+        inset: 0 auto 0 0;
+        grid-column: 1;
+        grid-row: 1 / span 2;
+    }
+
+    body.lums-sidebar-layout > .lums-pagebar {
+        grid-column: 2;
+        grid-row: 1;
+        width: 100%;
+        min-width: 0;
+        min-height: 80px;
+        margin: 0;
+    }
+
+    body.lums-sidebar-layout > main.container {
+        grid-column: 2;
+        grid-row: 2;
+        width: 100%;
+        min-width: 0;
+        max-width: none;
+        margin: 0 0 30px;
+        padding: 24px 28px 0;
+    }
+
+    body.lums-sidebar-collapsed,
+    body.lums-sidebar-layout.lums-sidebar-collapsed {
+        grid-template-columns:
+            var(--lums-sidebar-collapsed-width)
+            minmax(0, 1fr);
+    }
+
+    body.lums-sidebar-collapsed > .lums-pagebar,
+    body.lums-sidebar-collapsed > main.container {
+        width: 100%;
+        margin-left: 0;
+    }
+}
+
+/* Mobile: bestehendes Drawer-Layout beibehalten. */
+@media (max-width: 760px) {
+    body.lums-sidebar-layout {
+        display: block;
+        min-height: 100vh;
+    }
+
+    body.lums-sidebar-layout > .lums-pagebar {
+        grid-column: auto;
+        grid-row: auto;
+    }
+
+    body.lums-sidebar-layout > main.container {
+        grid-column: auto;
+        grid-row: auto;
+    }
+}
+
+
+/* User management language selector */
+.user-management-language {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-left: auto;
+}
+
+.user-management-language label {
+    font-size: 0.9rem;
+    font-weight: 600;
+}
+
+.user-management-language select,
+.user-management-language button {
+    min-height: 2.4rem;
+    border: 1px solid var(--border-color, #777);
+    border-radius: 0.45rem;
+    padding: 0.4rem 0.65rem;
+    font: inherit;
+}
+
+.user-management-language select {
+    max-width: 12rem;
+}
+
+.user-management-language button {
+    cursor: pointer;
+}
+
+@media (max-width: 640px) {
+    .user-management-page > .panel-header {
+        align-items: flex-start;
+        flex-direction: column;
+        gap: 1rem;
+    }
+
+    .user-management-language {
+        width: 100%;
+        margin-left: 0;
+        justify-content: flex-start;
+    }
+}

@@ -1,0 +1,50 @@
+<aside class="lums-sidebar" id="lums-sidebar" aria-label="{{ tr('Main navigation') }}">
+    <div class="lums-sidebar-brand">
+        <span class="lums-sidebar-mark" aria-hidden="true">L</span>
+        <div class="lums-sidebar-brand-text">
+            <strong>LUMS</strong>
+            <small>{{ tr("Linux Update Management Server") }}</small>
+        </div>
+    </div>
+
+    <nav class="lums-sidebar-nav">
+        <a href="/" class="lums-sidebar-link{% if request.path == '/' %} is-active{% endif %}" {% if request.path == '/' %}aria-current="page"{% endif %}>
+            <span class="lums-sidebar-icon" aria-hidden="true">⌂</span>
+            <span class="lums-sidebar-label">{{ tr("Dashboard") }}</span>
+        </a>
+        {% if "users.manage" in user_permissions %}
+        <a href="/users" class="lums-sidebar-link{% if request.path == '/users' %} is-active{% endif %}" {% if request.path == '/users' %}aria-current="page"{% endif %}>
+            <span class="lums-sidebar-icon" aria-hidden="true">♙</span>
+            <span class="lums-sidebar-label">{{ tr("User management") }}</span>
+        </a>
+        {% endif %}
+        {% if "backups.manage" in user_permissions %}
+        <a href="/backups" class="lums-sidebar-link{% if request.path == '/backups' %} is-active{% endif %}" {% if request.path == '/backups' %}aria-current="page"{% endif %}>
+            <span class="lums-sidebar-icon" aria-hidden="true">▤</span>
+            <span class="lums-sidebar-label">{{ tr("Database backups") }}</span>
+        </a>
+        {% endif %}
+    </nav>
+
+    <div class="lums-sidebar-footer">
+        <form action="/language" method="POST" class="lums-sidebar-language">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            <label for="lums-sidebar-language">{{ tr("Language") }}</label>
+            <select id="lums-sidebar-language" name="language">
+                {% for code, name in languages.items() %}
+                <option value="{{ code }}" {% if code == language %}selected{% endif %}>{{ name }}</option>
+                {% endfor %}
+            </select>
+            <button type="submit">{{ tr("Save") }}</button>
+        </form>
+
+        <form action="/logout" method="POST" class="lums-sidebar-logout">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            <button type="submit" class="lums-sidebar-link">
+                <span class="lums-sidebar-icon" aria-hidden="true">↪</span>
+                <span class="lums-sidebar-label">{{ tr("Sign out") }}</span>
+            </button>
+        </form>
+    </div>
+</aside>
+<div class="lums-sidebar-scrim" id="lums-sidebar-scrim" hidden></div>

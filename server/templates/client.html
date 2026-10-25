@@ -10,26 +10,27 @@
     <link rel="stylesheet" href="/static/style.css">
 </head>
 
-<body>
+<body class="lums-sidebar-layout">
+{% include "_sidebar.html" %}
 
-<header class="topbar">
-    <div>
-        <div class="brand">LUMS</div>
-        <div class="subtitle">{{ tr("Linux Update Management Server") }}</div>
+<header class="lums-pagebar">
+    <button
+        type="button"
+        class="lums-sidebar-toggle"
+        id="lums-sidebar-toggle"
+        aria-label="{{ tr('Toggle navigation') }}"
+        aria-controls="lums-sidebar"
+        aria-expanded="true"
+    >
+        <span aria-hidden="true">&#9776;</span>
+    </button>
+    <div class="lums-pagebar-brand">
+        <strong>LUMS</strong>
+        <span>{{ tr("Linux Update Management Server") }}</span>
     </div>
-
-    <div class="topbar-actions">
-        <a href="/" class="back-link">← {{ tr("Dashboard") }}</a>
-        <form action="/language" method="POST" class="language-form">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-            <label for="language-select">{{ tr("Language") }}</label>
-            <select id="language-select" name="language">
-                {% for code, name in languages.items() %}
-                <option value="{{ code }}" {% if code == language %}selected{% endif %}>{{ name }}</option>
-                {% endfor %}
-            </select>
-            <button type="submit">{{ tr("Save") }}</button>
-        </form>
+    <div class="lums-pagebar-status">
+        <span class="status-dot" aria-hidden="true"></span>
+        {{ tr("API Online") }}
     </div>
 </header>
 
@@ -475,5 +476,6 @@
 <script src="{{ url_for('static', filename='network.js') }}"></script>
 <script src="/static/theme.js"></script>
 
+<script src="{{ url_for("static", filename="sidebar.js") }}" defer></script>
 </body>
 </html>
