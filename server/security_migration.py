@@ -25,6 +25,8 @@ BACKUP_PERMISSION_MIGRATION_VERSION = "005-backup-permission"
 USER_LANGUAGE_MIGRATION_VERSION = "006-user-language"
 USER_PROFILES_MIGRATION_VERSION = "007-user-profiles"
 PERMISSION_DELEGATION_MIGRATION_VERSION = "008-permission-delegation"
+TELEMETRY_MIGRATION_VERSION = "009-telemetry"
+TELEMETRY_RETENTION_INDEX_MIGRATION_VERSION = "010-telemetry-retention-index"
 
 
 def utc_now():
@@ -486,6 +488,44 @@ def print_schema(connection):
             )
 
 
+
+def migrate_telemetry(connection):
+    """Create storage for real client CPU and memory measurements."""
+    connection.execute("""
+        CREATE TABLE IF NOT EXISTS client_telemetry (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            client_id INTEGER NOT NULL,
+            recorded_at TEXT NOT NULL,
+            cpu_percent REAL NOT NULL
+                CHECK (cpu_percent >= 0 AND cpu_percent <= 100),
+            memory_percent REAL NOT NULL
+                CHECK (memory_percent >= 0 AND memory_percent <= 100),
+            memory_total_bytes INTEGER NOT NULL
+                CHECK (memory_total_bytes > 0),
+            memory_available_bytes INTEGER NOT NULL
+                CHECK (
+                    memory_available_bytes >= 0
+                    AND memory_available_bytes <= memory_total_bytes
+                ),
+            FOREIGN KEY (client_id) REFERENCES clients(id)
+                ON DELETE CASCADE
+        )
+    """)
+
+    connection.execute("""
+        CREATE INDEX IF NOT EXISTS idx_client_telemetry_client_time
+        ON client_telemetry(client_id, recorded_at)
+    """)
+
+
+def migrate_telemetry_retention_index(connection):
+    """Index timestamps to make retention cleanup more efficient."""
+    connection.execute("""
+        CREATE INDEX IF NOT EXISTS idx_client_telemetry_recorded_at
+        ON client_telemetry(recorded_at)
+    """)
+
+
 def run_migration(db_path, admin_username, skip_admin):
     if not os.path.exists(db_path):
         raise RuntimeError(
@@ -679,6 +719,46 @@ def run_migration(db_path, admin_username, skip_admin):
                     f"{PERMISSION_DELEGATION_MIGRATION_VERSION} "
                     "remains pending"
                 )
+
+        if migration_already_applied(
+            connection,
+            TELEMETRY_MIGRATION_VERSION
+        ):
+            print(
+                f"[INFO] Migration {TELEMETRY_MIGRATION_VERSION} "
+                "is already recorded"
+            )
+        else:
+            migrate_telemetry(connection)
+            record_migration(
+                connection,
+                TELEMETRY_MIGRATION_VERSION
+            )
+            connection.commit()
+            print(
+                f"[OK] Migration {TELEMETRY_MIGRATION_VERSION} completed"
+            )
+
+        if migration_already_applied(
+            connection,
+            TELEMETRY_RETENTION_INDEX_MIGRATION_VERSION
+        ):
+            print(
+                f"[INFO] Migration "
+                f"{TELEMETRY_RETENTION_INDEX_MIGRATION_VERSION} "
+                "is already recorded"
+            )
+        else:
+            migrate_telemetry_retention_index(connection)
+            record_migration(
+                connection,
+                TELEMETRY_RETENTION_INDEX_MIGRATION_VERSION
+            )
+            connection.commit()
+            print(
+                f"[OK] Migration "
+                f"{TELEMETRY_RETENTION_INDEX_MIGRATION_VERSION} completed"
+            )
 
         print_schema(connection)
 

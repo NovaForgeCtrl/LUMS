@@ -6800,23 +6800,30 @@ body.lums-sidebar-layout {
 }
 .lums-sidebar-brand {
     display: flex;
+    flex-direction: column;
     align-items: center;
+    justify-content: flex-start;
     gap: 12px;
-    min-height: 58px;
-    padding: 0 8px 20px;
+    min-height: 0;
+    padding: 8px 8px 20px;
+    text-align: center;
     border-bottom: 1px solid var(--lums-sidebar-border);
 }
 .lums-sidebar-mark {
     display: grid;
-    flex: 0 0 40px;
-    width: 40px;
-    height: 40px;
+    flex: 0 0 120px;
+    width: 120px;
+    height: 120px;
     place-items: center;
-    border-radius: 12px;
-    color: #fff;
+    overflow: hidden;
+    border-radius: 16px;
     background: var(--lums-sidebar-accent);
-    font-size: 21px;
-    font-weight: 800;
+}
+.lums-sidebar-mark img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
 }
 .lums-sidebar-brand-text {
     min-width: 0;
@@ -7207,5 +7214,119 @@ body.lums-sidebar-layout {
         width: 100%;
         margin-left: 0;
         justify-content: flex-start;
+    }
+}
+
+
+
+/* LUMS telemetry dashboard */
+.telemetry-panel {
+    margin-top: 24px;
+}
+
+.telemetry-controls {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
+    margin: 16px 0;
+}
+
+.telemetry-controls label {
+    font-weight: 600;
+}
+
+.telemetry-controls select {
+    min-width: 150px;
+    max-width: 100%;
+    padding: 9px 12px;
+    border: 1px solid var(--border-color, #777);
+    border-radius: 8px;
+    background: var(--card-bg, transparent);
+    color: inherit;
+}
+
+.telemetry-chart-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 16px;
+}
+
+.telemetry-chart-card {
+    min-width: 0;
+    padding: 14px;
+    border: 1px solid var(--border-color, #777);
+    border-radius: 12px;
+}
+
+.telemetry-chart-card h3 {
+    margin: 0;
+}
+
+.telemetry-current {
+    margin: 8px 0;
+    font-size: 1.6rem;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+}
+
+.telemetry-chart {
+    display: block;
+    width: 100%;
+    height: auto;
+    overflow: visible;
+}
+
+.telemetry-gridline {
+    stroke: currentColor;
+    stroke-opacity: 0.16;
+    stroke-width: 1;
+}
+
+.telemetry-axis-label {
+    fill: currentColor;
+    opacity: 0.7;
+    font-size: 11px;
+}
+
+.telemetry-empty-label {
+    fill: currentColor;
+    opacity: 0.75;
+    font-size: 14px;
+}
+
+.telemetry-line {
+    fill: none;
+    stroke: var(--accent-color, #9989d6);
+    stroke-width: 2.5;
+    stroke-linejoin: round;
+    stroke-linecap: round;
+}
+
+.telemetry-point {
+    fill: var(--accent-color, #9989d6);
+}
+
+.telemetry-updated {
+    font-size: 0.9rem;
+    opacity: 0.8;
+}
+
+.telemetry-error {
+    color: var(--danger-color, #c0392b);
+}
+
+@media (max-width: 760px) {
+    .telemetry-chart-grid {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .telemetry-controls {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .telemetry-controls select {
+        width: 100%;
     }
 }

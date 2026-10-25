@@ -1,0 +1,21 @@
+[Unit]
+Description=LUMS CPU and RAM Telemetry Agent
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+EnvironmentFile=-/etc/default/lums-agent
+ExecStart=/usr/bin/python3 /usr/local/lib/lums-telemetry/telemetry.py
+DynamicUser=yes
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=strict
+ProtectHome=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+LockPersonality=yes
+RestrictSUIDSGID=yes
+UMask=0077
