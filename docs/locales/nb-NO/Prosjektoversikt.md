@@ -8,7 +8,7 @@ LUMS administrerer Linux-oppdateringer sentralt. En server viser klienter, insta
 
 **Bruker du bare en eksisterende LUMS-installasjon?** Åpne adressen du har fått av administratoren din, og logg inn med din egen konto. Hvis en funksjon mangler, kan det hende at kontoen din ikke har tillatelse til å bruke den. Spør administratoren din om hjelp; ikke del kontoer eller bruk en klienttoken som nettpåloggingspassord.
 
-**Installerer eller drifter du LUMS?** Start med [installasjonsveiledningen](Installasjon og oppgraderinger.md), og les deretter [administrasjonsveiledningen](Administrasjon og sikkerhetskopier.md). Hvis noe går galt, bruk [feilsøkingsveiledningen](Feilsøking.md). Oversatte veiledninger finnes også, men de kan dekke mindre enn de engelske tekniske originalene. [Dokumentasjonsoversikten](../../README.md) viser tilgjengelige språkversjoner.
+**Installerer eller drifter du LUMS?** Start med [installasjonsveiledningen](<Installasjon og oppgraderinger.md>), og les deretter [administrasjonsveiledningen](<Administrasjon og sikkerhetskopier.md>). Hvis noe går galt, bruk [feilsøkingsveiledningen](Feilsøking.md). Oversatte veiledninger finnes også, men de kan dekke mindre enn de engelske tekniske originalene. [Dokumentasjonsoversikten](../../README.md) viser tilgjengelige språkversjoner.
 
 En testkjøring eller et vellykket bygget Docker-bilde er **ikke** en produksjonsinstallasjon. En produksjonsdistribusjon trenger også HTTPS, en beskyttet applikasjonshemmelighet, vedvarende data, verifiserte sikkerhetskopier og en herdet container. Ikke kopier produksjonskommandoer før du har kontrollert plassholderne og lagringsbanene mot din egen installasjon.
 

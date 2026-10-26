@@ -192,7 +192,7 @@ Portin 5050 on pysyttävä vain localhostissa.
 # 3. Sovelluksen komponentit
 
 Täydellinen LUMS-asennus koostuu useista komponenteista.
-3.1 LUMS-palvelin
+## 3.1 LUMS-palvelin
 
 Palvelin sisältää:
 
@@ -251,7 +251,7 @@ LUMS
 ```
 
 Flask/Gunicorn-sovellusta ei pitäisi altistaa suoraan LAN-verkkoon.
-3.3 Linux-agentti
+## 3.3 Linux-agentti
 
 LUMS-agentti toimii jokaisella hallinnoidulla Linux-asiakkaalla.
 
@@ -276,7 +276,7 @@ Reboot detection
 ```
 
 Agentti kommunikoi LUMS-palvelimen kanssa HTTPS:n ja asiakaskohtaisen Bearer-tunnisteen avulla.
-3.4 Suorituksen valvoja
+## 3.4 Suorituksen valvoja
 
 Suorituksen valvoja vastaa hallitusta päivitystöiden suorituksesta.
 
@@ -415,7 +415,7 @@ Käyttöliittymän piilottaminen ei siis ole turvaraja.
 
 Palvelinpuolen valtuutus on edelleen pakollinen.
 # 6. Asennusvaatimukset
-6.1 LUMS-palvelin
+## 6.1 LUMS-palvelin
 
 Nykyinen käyttöönotto vaatii Linux-isännän, jossa on:
 
@@ -439,7 +439,7 @@ Backups
 ```
 
 LUMS-sovellus itse toimii Dockerin sisällä.
-6.2 Linux-asiakkaat
+## 6.2 Linux-asiakkaat
 
 Hallinnoidut Linux-asiakkaat vaativat:
 
@@ -5268,3 +5268,121 @@ sudo ss -lntp
 # 171. Lopullinen dokumentaation tarkistus
 
 Ennen kuin julistat asennuksen valmiiksi, varmista, että dokumentaatio vastaa todellista käyttöönottoa.
+
+# 172. Julkaisuvalmius
+
+Onnistunut asennus ei automaattisesti tarkoita, että LUMSista olisi julkaistu virallinen versio.
+
+Projektin nykytilassa seuraavat vaiheet pidetään tarkoituksella erillään:
+
+```text
+Working implementation
+Security audit
+Documentation review
+Release preparation
+Versioning
+Git tag
+GitHub Release
+```
+
+Virallinen LUMS-julkaisu tulee tehdä vasta, kun koko toteutus, tietoturvatarkastus, dokumentaation tarkistus ja lopullinen validointi on suoritettu.
+
+Käsittele arkistoa siihen asti aktiivisesti kehitettävänä projektina.
+
+# 173. Toiminnallinen perustaso
+
+Nykyinen dokumentoitu perustaso:
+
+```text
+LUMS Server
+    Docker
+    Nginx
+    HTTPS
+    SQLite
+    RBAC
+    CSRF
+    Auditointiloki
+    Kovennettu kontti
+
+LUMS Agent
+    Version 1.7.0
+
+LUMS Watcher
+    Version 1.2.1
+
+Tietokanta
+    journal_mode=wal
+    busy_timeout=5000
+    synchronous=2
+    foreign_keys=ON (application connections)
+
+Kontti
+    ei-root-käyttäjä
+    vain luku -juuritiedostojärjestelmä
+    CapDrop=ALL
+    no-new-privileges
+    vain localhostissa kuunteleva sovellusportti
+
+Roles
+    Administrator
+    Operator
+    Viewer
+```
+
+Käytä tätä perustasoa vianmäärityksen ja tulevan ylläpidon vertailutilana.
+
+# 174. Asennus valmis
+
+Asennus on valmis, kun:
+
+```text
+Palvelin
+  │
+  ├── HTTPS toimii
+  ├── Todennus toimii
+  ├── RBAC toimii
+  ├── Tietokanta on kunnossa
+  ├── Kontti on kovennettu
+  └── Pysyvä tallennus on varmennettu
+       │
+       ▼
+Asiakas
+  │
+  ├── Agentti raportoi
+  ├── Watcher suorittaa
+  ├── Paketinhallinta toimii
+  ├── Työt valmistuvat
+  ├── Tulokset validoidaan
+  └── Palautus toimii
+       │
+       ▼
+Ylläpito
+  │
+  ├── Varmuuskopio on olemassa
+  ├── Palautusmenettely tunnetaan
+  ├── Vianmääritysohjeet ovat saatavilla
+  └── Tietoturvan perustasoa ylläpidetään
+```
+
+LUMSin toiminnan perusperiaate on:
+
+```text
+Havainnoi ensin.
+Muuta vasta sitten.
+Varmista kolmanneksi.
+Dokumentoi lopuksi.
+```
+
+Tuotantoympäristön muutoksissa noudata lisäksi tätä järjestystä:
+
+```text
+Varmuuskopioi
+   ↓
+Muuta
+   ↓
+Varmista
+   ↓
+Dokumentoi
+```
+
+LUMS-asennuksen tulee aina olla toistettavissa, auditoitavissa ja palautettavissa.

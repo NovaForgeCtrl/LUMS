@@ -9,7 +9,7 @@ LUMS verwaltet Linux-Updates zentral. Ein Server zeigt Clients, installierte Sof
 
 **Du verwendest bereits eine bestehende LUMS-Installation?** Öffne die von deiner Administration bereitgestellte Adresse und melde dich mit deinem eigenen Konto an. Wenn eine Funktion fehlt, verfügt dein Konto möglicherweise nicht über die erforderliche Berechtigung. Bitte deine Administration um Hilfe. Teile keine Konten und verwende kein Client-Token als Webpasswort.
 
-**Du installierst oder betreibst LUMS?** Beginne mit der [Installationsanleitung](Installation und Upgrade.md) und lies anschließend die [Administrationsanleitung](Administration und Backups.md). Wenn etwas nicht funktioniert, verwende die [Anleitung zur Fehlerbehebung](Fehlersuche.md). Übersetzte Anleitungen sind ebenfalls verfügbar; ihr Umfang kann von den englischen technischen Originalen abweichen. Das [Dokumentationsverzeichnis](../../README.md) enthält alle verfügbaren Sprachfassungen.
+**Du installierst oder betreibst LUMS?** Beginne mit der [Installationsanleitung](<Installation und Upgrade.md>) und lies anschließend die [Administrationsanleitung](<Administration und Backups.md>). Wenn etwas nicht funktioniert, verwende die [Anleitung zur Fehlerbehebung](Fehlersuche.md). Übersetzte Anleitungen sind ebenfalls verfügbar; ihr Umfang kann von den englischen technischen Originalen abweichen. Das [Dokumentationsverzeichnis](../../README.md) enthält alle verfügbaren Sprachfassungen.
 
 Ein Testlauf oder ein erfolgreich erstelltes Docker-Image ist **keine produktive Installation**. Für einen produktiven Einsatz sind außerdem HTTPS, ein geschütztes Anwendungsgeheimnis, persistente Daten, verifizierte Backups und ein gehärteter Container erforderlich. Übernimm keine Produktionsbefehle, bevor du Platzhalter und Speicherpfade mit deiner eigenen Installation abgeglichen hast.
 
@@ -979,7 +979,7 @@ LUMS stellt Benutzern mit der Berechtigung `users.manage` eine Benutzerverwaltun
 
 Berechtigte Benutzer können Konten anhand einer Rollenvorlage erstellen und anschließend einzelne Berechtigungen zuweisen oder die Vorlage ausdrücklich anwenden. Neue Konten starten ohne Berechtigungen; nach der Erstellung wird der Berechtigungseditor geöffnet. Benutzerverwalter können außerdem private administrative Notizen speichern, die für den Kontoinhaber nicht sichtbar sind.
 
-Administratoren mit `backups.manage` können validierte Datenbank-Backups im Format `.db` oder `.db.gz` in einem serverseitig konfigurierten Verzeichnis erstellen und einen sicheren Unterordner innerhalb dieses eingebundenen Speicherorts auswählen. Hinweise zur Docker-Speicherkonfiguration und Wiederherstellung stehen in [`administration.md`](Administration und Backups.md) und in der integrierten Markdown-Anleitung zur Wiederherstellung.
+Administratoren mit `backups.manage` können validierte Datenbank-Backups im Format `.db` oder `.db.gz` in einem serverseitig konfigurierten Verzeichnis erstellen und einen sicheren Unterordner innerhalb dieses eingebundenen Speicherorts auswählen. Hinweise zur Docker-Speicherkonfiguration und Wiederherstellung stehen in [`administration.md`](<Administration und Backups.md>) und in der integrierten Markdown-Anleitung zur Wiederherstellung.
 
 Benutzerpasswörter werden mit Argon2 gehasht und weder im Klartext noch mit umkehrbarer Verschlüsselung gespeichert.
 

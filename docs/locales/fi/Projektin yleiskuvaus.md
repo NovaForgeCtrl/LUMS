@@ -8,7 +8,7 @@ LUMS hallinnoi Linux-päivityksiä keskitetysti. Palvelin näyttää asiakkaat, 
 
 **Käytätkö vain olemassa olevaa LUMS-asennusta?** Avaa ylläpitäjän antama osoite ja kirjaudu sisään omalla tililläsi. Jos jokin ominaisuus puuttuu, tililläsi ei ehkä ole oikeutta käyttää sitä. Kysy apua ylläpitäjältä; älä jaa tilejä äläkä käytä asiakastunnistetta verkkosalasanana.
 
-**Asennatko tai ylläpidätkö LUMSia?** Aloita [asennusoppaasta](Asennus ja päivitykset.md) ja lue sitten [hallintaopas](Ylläpito ja varmuuskopiot.md). Jos jotain menee pieleen, käytä [vianmääritysopasta](Vianmääritys.md). Käännettyjä oppaita on myös saatavilla, mutta niiden kattavuus voi poiketa englanninkielisistä teknisistä alkuperäisversioista. [Dokumentaatiohakemisto](../../README.md) näyttää saatavilla olevat kieliversiot.
+**Asennatko tai ylläpidätkö LUMSia?** Aloita [asennusoppaasta](<Asennus ja päivitykset.md>) ja lue sitten [hallintaopas](<Ylläpito ja varmuuskopiot.md>). Jos jotain menee pieleen, käytä [vianmääritysopasta](Vianmääritys.md). Käännettyjä oppaita on myös saatavilla, mutta niiden kattavuus voi poiketa englanninkielisistä teknisistä alkuperäisversioista. [Dokumentaatiohakemisto](../../README.md) näyttää saatavilla olevat kieliversiot.
 
 Testiajo tai onnistuneesti rakennettu Docker-kuva **ei** ole tuotantoasennus. Tuotantokäyttöönotto vaatii myös HTTPS:n, suojatun sovellussalaisuuden, pysyvät tiedot, varmennetut varmuuskopiot ja kovennetun kontin. Älä kopioi tuotantokomentoja ennen kuin olet tarkistanut niiden paikkamerkit ja tallennuspolut omaa asennustasi vasten.
 

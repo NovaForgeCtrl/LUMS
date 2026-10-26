@@ -1,8 +1,11 @@
 # LUMS Quick Start — English (UK)
 
-This concise guide is for people who are new to LUMS or Linux. It is not a
-complete translation of every technical manual. The detailed project
-documentation is maintained in English. [Language index](../../README.md).
+This concise guide is for people who are new to LUMS or Linux. The
+[documentation index](../../README.md) lists available translated user and
+administrator guides by language. Translation coverage varies by guide; the
+English documents at the repository root remain the technical source of
+truth. Consult the English source if a translated procedure is incomplete or
+differs.
 
 ## What is LUMS?
 
@@ -51,10 +54,18 @@ configuration. Do not delete the database or Docker volume, run the container
 as privileged, or disable security controls as a first step. Remove passwords,
 tokens, keys, and personal information before sharing logs.
 
-## Detailed documentation
+## Related guides (English, UK)
 
 * [Project overview](Project%20overview_GB.md)
 * [Installation and upgrades](Installation%20and%20upgrades_GB.md)
 * [Administration and backups](Administration%20and%20backups_GB.md)
 * [Troubleshooting](Troubleshooting_GB.md)
 * [Security model](Security%20model_GB.md)
+* [Telemetry](Telemetry_GB.md)
+* [Health dashboard](LUMS%20Health%20Dashboard_GB.md)
+* [Infrastructure topology](LUMS%20Infrastructure%20Topology_GB.md)
+* [Database backup and restore](Backup%20and%20restore_GB.md)
+* [Update-tools package](Update%20tools%20package_GB.md)
+
+See the [documentation index](../../README.md) for the complete list of
+translated guides.

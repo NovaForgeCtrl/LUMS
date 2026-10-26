@@ -1,8 +1,10 @@
 # LUMS-Schnelleinstieg – Deutsch
 
-Dies ist eine kurze Einsteigerhilfe, keine vollständige Übersetzung aller
-technischen Handbücher. Die ausführlichen Projektdokumente werden auf Englisch
-gepflegt. [Zur Sprachenübersicht](../../README.md).
+Dies ist eine kurze Einsteigerhilfe. Viele nutzer- und adminrelevante
+Dokumente sind auch in andere Sprachen übersetzt; die vollständige Übersicht
+findest du in der [Dokumentation nach Sprache](../../README.md). Die englischen
+Originale bleiben die maßgebliche Quelle und können umfassender oder aktueller
+sein als die Übersetzungen.
 
 ## Was ist LUMS?
 

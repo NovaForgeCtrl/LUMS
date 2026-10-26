@@ -8,7 +8,7 @@ LUMS centralnie zarządza aktualizacjami Linuksa. Serwer wyświetla klientów, z
 
 **Korzystasz tylko z istniejącej instalacji LUMS?** Otwórz adres podany przez administratora i zaloguj się na własne konto. Jeśli brakuje jakiejś funkcji, Twoje konto może nie mieć uprawnień do jej używania. Poproś administratora o pomoc; nie udostępniaj kont i nie używaj tokena klienta jako hasła do witryny.
 
-**Instalujesz LUMS lub nim zarządzasz?** Zacznij od [przewodnika instalacji](Instalacja i aktualizacje.md), następnie przeczytaj [przewodnik administracji](Administracja i kopie zapasowe.md). Jeśli coś pójdzie nie tak, skorzystaj z [przewodnika rozwiązywania problemów](Rozwiązywanie problemów.md). Dostępne są również tłumaczenia, ale ich zakres może różnić się od angielskich oryginałów technicznych. [Indeks dokumentacji](../../README.md) wymienia dostępne wersje językowe.
+**Instalujesz LUMS lub nim zarządzasz?** Zacznij od [przewodnika instalacji](<Instalacja i aktualizacje.md>), następnie przeczytaj [przewodnik administracji](<Administracja i kopie zapasowe.md>). Jeśli coś pójdzie nie tak, skorzystaj z [przewodnika rozwiązywania problemów](<Rozwiązywanie problemów.md>). Dostępne są również tłumaczenia, ale ich zakres może różnić się od angielskich oryginałów technicznych. [Indeks dokumentacji](../../README.md) wymienia dostępne wersje językowe.
 
 Przebieg testów lub pomyślnie zbudowany obraz Docker **nie** jest instalacją produkcyjną. Wdrożenie produkcyjne wymaga również HTTPS, chronionego sekretu aplikacji, trwałych danych, zweryfikowanych kopii zapasowych i utwardzonego kontenera. Nie kopiuj poleceń produkcyjnych, dopóki nie sprawdzisz ich symboli zastępczych i ścieżek przechowywania względem własnej instalacji.
 
@@ -987,7 +987,7 @@ LUMS zapewnia zarządzanie użytkownikami kontom z uprawnieniem `users.manage`.
 
 Użytkownicy z tym uprawnieniem mogą tworzyć konta przy użyciu szablonu roli, a następnie przypisywać uprawnienia indywidualnie lub jawnie zastosować ten szablon. Nowe konta zaczynają bez uprawnień; edytor uprawnień otwiera się po utworzeniu. Menedżerowie użytkowników mogą również zapisywać prywatne notatki administracyjne, które nie są widoczne dla właściciela konta.
 
-Administratorzy z `backups.manage` mogą tworzyć zwalidowane kopie zapasowe bazy danych `.db` lub `.db.gz` w katalogu skonfigurowanym na serwerze i wybierać bezpieczny podfolder w tej zamontowanej lokalizacji. Zobacz [`administration.md`](Administracja i kopie zapasowe.md) oraz wbudowany w aplikację przewodnik przywracania w formacie Markdown dla konfiguracji przechowywania w Dockerze i odzyskiwania.
+Administratorzy z `backups.manage` mogą tworzyć zwalidowane kopie zapasowe bazy danych `.db` lub `.db.gz` w katalogu skonfigurowanym na serwerze i wybierać bezpieczny podfolder w tej zamontowanej lokalizacji. Zobacz [`administration.md`](<Administracja i kopie zapasowe.md>) oraz wbudowany w aplikację przewodnik przywracania w formacie Markdown dla konfiguracji przechowywania w Dockerze i odzyskiwania.
 
 Hasła użytkowników są przechowywane przy użyciu hashowania haseł Argon2, a nie w postaci zwykłego tekstu lub odwracalnego szyfrowania.
 

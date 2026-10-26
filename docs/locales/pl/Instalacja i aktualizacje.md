@@ -44,9 +44,9 @@ python3 -m venv .venv-test
 ./.venv-test/bin/pytest -q
 ```
 
-`apt update` odświeża listy pakietów; nie aktualizuje całego zainstalowanego oprogramowania. Środowisko wirtualne Pythona `.venv-test` utrzymuje zależności testowe oddzielnie od reszty systemu. Pomyślne uruchomienie testów kończy się kodem wyjścia `0`; liczba testów może zmieniać się w miarę rozwoju projektu. Jeśli utworzenie środowiska się nie powiedzie, sprawdź, czy zainstalowano `python3-venv`. Jeśli test się nie powiedzie, zapisz pełny błąd i przeczytaj [przewodnik rozwiązywania problemów](Rozwiązywanie problemów.md); nie usuwaj danych produkcyjnych.
+`apt update` odświeża listy pakietów; nie aktualizuje całego zainstalowanego oprogramowania. Środowisko wirtualne Pythona `.venv-test` utrzymuje zależności testowe oddzielnie od reszty systemu. Pomyślne uruchomienie testów kończy się kodem wyjścia `0`; liczba testów może zmieniać się w miarę rozwoju projektu. Jeśli utworzenie środowiska się nie powiedzie, sprawdź, czy zainstalowano `python3-venv`. Jeśli test się nie powiedzie, zapisz pełny błąd i przeczytaj [przewodnik rozwiązywania problemów](<Rozwiązywanie problemów.md>); nie usuwaj danych produkcyjnych.
 
-W przypadku rzeczywistej instalacji kontynuuj z numerowanymi sekcjami i najpierw przeczytaj instrukcje dotyczące bezpieczeństwa i kopii zapasowych. Jeśli LUMS już działa, użyj procedury aktualizacji w [`administration.md`](Administracja i kopie zapasowe.md), a nie procedury pierwszej instalacji.
+W przypadku rzeczywistej instalacji kontynuuj z numerowanymi sekcjami i najpierw przeczytaj instrukcje dotyczące bezpieczeństwa i kopii zapasowych. Jeśli LUMS już działa, użyj procedury aktualizacji w [`administration.md`](<Administracja i kopie zapasowe.md>), a nie procedury pierwszej instalacji.
 
 ---
 

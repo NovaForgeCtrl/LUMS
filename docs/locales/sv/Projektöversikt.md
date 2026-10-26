@@ -15,8 +15,8 @@ kanske ditt konto inte har behörighet att använda den. Fråga din administrat�
 hjälp; dela inte konton och använd inte en klienttoken som webbplatslösenord.
 
 **Installerar eller driftar du LUMS?** Börja med
-[installationsguiden](Installation och uppgraderingar.md), läs sedan
-[administrationsguiden](Administration och säkerhetskopior.md). Om något går fel, använd
+[installationsguiden](<Installation och uppgraderingar.md>), läs sedan
+[administrationsguiden](<Administration och säkerhetskopior.md>). Om något går fel, använd
 [felsökningsguiden](Felsökning.md). Översatta guider finns också, men deras
 omfattning kan skilja sig från de engelska tekniska originalen. I
 [dokumentationsindexet](../../README.md) listas tillgängliga språkversioner.
@@ -1017,7 +1017,7 @@ för kontoinnehavaren.
 
 Administratörer med `backups.manage` kan skapa validerade `.db`- eller `.db.gz`-
 databassäkerhetskopior i en serverkonfigurerad katalog och välja en säker undermapp
-inom den monterade platsen. Se [`administration.md`](Administration och säkerhetskopior.md) och
+inom den monterade platsen. Se [`administration.md`](<Administration och säkerhetskopior.md>) och
 den inbyggda Markdown-återställningsguiden för Docker-lagringsinställning och återställning.
 
 Användarlösenord lagras med Argon2-lösenordshashning snarare än klartext eller reversibel kryptering.

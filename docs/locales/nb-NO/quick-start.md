@@ -1,9 +1,12 @@
 # Kom i gang med LUMS — norsk bokmål
 
 Denne korte veiledningen er for deg som er ny til LUMS eller Linux. Den er
-ikke en fullstendig oversettelse av alle tekniske håndbøker; prosjektets
-detaljerte dokumentasjon vedlikeholdes på engelsk.
-[Språkoversikt](../../README.md).
+ikke en fullstendig oversettelse av alle tekniske håndbøker. Se
+[dokumentasjonsindeksen](../../README.md) for en fullstendig oversikt over
+tilgjengelige oversettelser for brukere og administratorer. De engelske
+kildedokumentene er fortsatt den autoritative kilden; bruk dem hvis en
+oversettelse er ufullstendig eller avviker fra kilden, særlig før du gjør
+endringer i et produksjonssystem.
 
 ## Hva er LUMS?
 
