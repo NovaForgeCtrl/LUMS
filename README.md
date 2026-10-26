@@ -284,6 +284,16 @@ Token rotation allows an administrator to invalidate a previously issued client 
 
 ---
 
+### Health dashboard
+
+The authenticated health dashboard at `/health` summarizes the database status,
+client reporting status, backup-storage visibility, and CPU/memory telemetry
+when telemetry is configured. It is a quick operational view, not a substitute
+for checking container, reverse-proxy, host, and backup logs or for performing
+a restore test. See [health-dashboard.md](health-dashboard.md).
+
+---
+
 ### Auditability
 
 Administrative and security-relevant actions are recorded through the LUMS audit-log system.
@@ -1989,6 +1999,10 @@ Security architecture, security controls, audit findings, hardening, and release
 
 Optional CPU and memory telemetry, agent configuration, data retention, security, and troubleshooting.
 
+### `health-dashboard.md`
+
+What the authenticated health dashboard reports, how client status is classified, telemetry limits, backup-storage interpretation, and operational checks.
+
 ### `troubleshooting.md`
 
 Diagnostic procedures for server, client, jobs, package management, authentication, database, container, and network problems.
@@ -2415,3 +2429,4 @@ LUMS is built around one central principle:
 That principle applies to the software architecture, update execution, security model, recovery mechanisms, and documentation.
 
 **Linux Update Management without the noise.**
+
