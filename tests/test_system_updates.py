@@ -71,6 +71,8 @@ class FakeResponse:
 def reset_release_cache():
     system_updates._release_cache = None
     system_updates._release_cache_time = 0
+    system_updates._failure_cache_message = None
+    system_updates._failure_cache_time = 0
 
 
 def test_latest_release_requires_assets_created_after_tests(monkeypatch):
@@ -91,6 +93,120 @@ def test_latest_release_requires_assets_created_after_tests(monkeypatch):
     assert release["tag"] == "v1.2.3"
     assert release["commit"] == commit
     assert release["source_name"] == "lums-source-v1.2.3.tar.gz"
+
+
+def test_latest_release_caches_network_failure(monkeypatch):
+    reset_release_cache()
+    calls = 0
+
+    def fail_request(*_args, **_kwargs):
+        nonlocal calls
+        calls += 1
+        raise system_updates.URLError("offline")
+
+    monkeypatch.setattr(system_updates, "urlopen", fail_request)
+
+    with pytest.raises(
+        system_updates.ReleaseLookupError, match="Netzwerkfehler"
+    ):
+        system_updates.latest_release()
+
+    with pytest.raises(
+        system_updates.ReleaseLookupError, match="Netzwerkfehler"
+    ):
+        system_updates.latest_release()
+
+    assert calls == 1
+
+
+def test_latest_release_retries_after_failure_cache_expires(monkeypatch):
+    reset_release_cache()
+    monkeypatch.setattr(system_updates, "_FAILURE_CACHE_SECONDS", 0)
+    calls = 0
+
+    def fail_request(*_args, **_kwargs):
+        nonlocal calls
+        calls += 1
+        raise system_updates.URLError("offline")
+
+    monkeypatch.setattr(system_updates, "urlopen", fail_request)
+
+    for _ in range(2):
+        with pytest.raises(
+            system_updates.ReleaseLookupError, match="Netzwerkfehler"
+        ):
+            system_updates.latest_release()
+
+    assert calls == 2
+
+
+def test_reset_release_cache_clears_failure_state():
+    system_updates._failure_cache_message = "alter Fehler"
+    system_updates._failure_cache_time = 123
+
+    reset_release_cache()
+
+    assert system_updates._release_cache is None
+    assert system_updates._release_cache_time == 0
+    assert system_updates._failure_cache_message is None
+    assert system_updates._failure_cache_time == 0
+
+
+def test_latest_release_reports_oversized_response(monkeypatch):
+    reset_release_cache()
+    response = FakeResponse({})
+    response.body = b"x" * (system_updates._MAX_RESPONSE_BYTES + 1)
+    monkeypatch.setattr(
+        system_updates, "urlopen", lambda *_args, **_kwargs: response
+    )
+
+    with pytest.raises(
+        system_updates.ReleaseLookupError, match="unerwartet große Antwort"
+    ):
+        system_updates.latest_release()
+
+
+def test_latest_release_reports_invalid_json(monkeypatch):
+    reset_release_cache()
+    response = FakeResponse({})
+    response.body = b"not valid json"
+    monkeypatch.setattr(
+        system_updates, "urlopen", lambda *_args, **_kwargs: response
+    )
+
+    with pytest.raises(
+        system_updates.ReleaseLookupError, match="gültige JSON-Antwort"
+    ):
+        system_updates.latest_release()
+
+
+def test_latest_release_rejects_invalid_commit_hash(monkeypatch):
+    reset_release_cache()
+    responses = iter([
+        FakeResponse(release_payload()),
+        FakeResponse({"sha": "not-a-valid-commit"}),
+    ])
+    monkeypatch.setattr(
+        system_updates,
+        "urlopen",
+        lambda *_args, **_kwargs: next(responses),
+    )
+
+    with pytest.raises(
+        system_updates.ReleaseLookupError, match="Commit ist ungültig"
+    ):
+        system_updates.latest_release()
+
+
+def test_release_with_unhashable_asset_name_is_rejected():
+    payload = release_payload()
+    payload["assets"][0]["name"] = []
+
+    with pytest.raises(
+        system_updates.ReleaseLookupError,
+        match="nicht vollständig getestet und verpackt",
+    ):
+        system_updates._parse_release(payload)
 
 
 def test_release_without_tested_source_assets_is_not_available():
