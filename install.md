@@ -5966,3 +5966,4 @@ the server-side release has been reviewed and approved.
 The agent reports every five seconds. The server retains measurements for
 seven days and the dashboard API returns at most 1,000 evenly spaced samples
 per requested history window, preserving the first and latest sample.
+
