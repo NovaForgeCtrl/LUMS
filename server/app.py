@@ -2158,7 +2158,7 @@ TELEMETRY_MAX_RATE_GAP_SECONDS = 300
 TELEMETRY_STALE_SECONDS = 120
 TELEMETRY_WIDGET_WIDTHS = (4, 6, 8, 12)
 TELEMETRY_WIDGET_IDS = (
-    "summary", "clients", "history", "system", "events", "backup",
+    "summary", "clients", "history", "events", "backup",
 )
 TELEMETRY_INTEGRATIONS = ("wazuh", "suricata")
 
@@ -2169,7 +2169,6 @@ def default_telemetry_dashboard_settings():
             {"id": "summary", "width": 12, "visible": True},
             {"id": "clients", "width": 4, "visible": True},
             {"id": "history", "width": 8, "visible": True},
-            {"id": "system", "width": 12, "visible": True},
             {"id": "events", "width": 12, "visible": True},
             {"id": "backup", "width": 6, "visible": True},
         ],
@@ -2217,6 +2216,25 @@ def validate_telemetry_dashboard_settings(settings):
         and set(integrations) == set(TELEMETRY_INTEGRATIONS)
         and all(isinstance(value, bool) for value in integrations.values())
     )
+
+
+def migrate_telemetry_dashboard_settings(settings):
+    if (
+        not isinstance(settings, dict)
+        or not isinstance(settings.get("layout"), list)
+        or not any(
+            isinstance(widget, dict) and widget.get("id") == "system"
+            for widget in settings["layout"]
+        )
+    ):
+        return settings
+
+    migrated = dict(settings)
+    migrated["layout"] = [
+        widget for widget in settings["layout"]
+        if not (isinstance(widget, dict) and widget.get("id") == "system")
+    ]
+    return migrated
 
 
 def parse_telemetry_time(value):
@@ -2859,6 +2877,26 @@ def telemetry_dashboard_settings():
             if row is None:
                 return jsonify(default_telemetry_dashboard_settings())
             settings = json.loads(row["settings_json"])
+            migrated = migrate_telemetry_dashboard_settings(settings)
+            if migrated != settings and validate_telemetry_dashboard_settings(
+                migrated
+            ):
+                settings = migrated
+                connection.execute(
+                    """
+                    UPDATE user_dashboard_settings
+                    SET settings_json = ?, updated_at = ?
+                    WHERE user_id = ?
+                    """,
+                    (
+                        json.dumps(
+                            settings, separators=(",", ":"), allow_nan=False
+                        ),
+                        datetime.now(timezone.utc).isoformat(),
+                        user_id,
+                    ),
+                )
+                connection.commit()
             if not validate_telemetry_dashboard_settings(settings):
                 logger.error(
                     "Invalid telemetry dashboard settings for user %s",
@@ -3051,6 +3089,7 @@ def client_telemetry_events(client_id):
             json.loads(settings_row["settings_json"])
             if settings_row else default_telemetry_dashboard_settings()
         )
+        settings = migrate_telemetry_dashboard_settings(settings)
         if not validate_telemetry_dashboard_settings(settings):
             return jsonify({"error": "dashboard_settings_invalid"}), 500
         rows = telemetry_history_rows(

@@ -7946,6 +7946,10 @@ html[data-theme="admin"] .theme-symbol::before {
     gap: 10px 14px;
     margin-bottom: 18px;
 }
+.monitoring-only #system-monitor {
+    grid-column: 1 / -1;
+    margin-top: 0;
+}
 .monitoring-client-picker label {
     font-weight: 650;
 }

@@ -48,7 +48,7 @@
             "timeLabel", "eventLabel", "loginLabel", "logoutLabel",
             "bootStartedLabel", "lastEntryLabel", "noLoginEvents",
             "noBootHistory"
-        ].map(key => [key, systemRoot.dataset[key]])
+        ].map(key => [key, systemRoot ? systemRoot.dataset[key] : ""])
     );
     const filterOptions = Object.fromEntries(
         Array.from(fleetFilter.options).map(option => [option.value, option.textContent])
@@ -113,7 +113,6 @@
             { id: "summary", width: 12, visible: true },
             { id: "clients", width: 4, visible: true },
             { id: "history", width: 8, visible: true },
-            { id: "system", width: 12, visible: true },
             { id: "events", width: 12, visible: true },
             { id: "backup", width: 6, visible: true }
         ],
@@ -770,7 +769,6 @@
                     { id: "summary", width: 12, visible: true },
                     { id: "clients", width: 4, visible: true },
                     { id: "history", width: 8, visible: true },
-                    { id: "system", width: 12, visible: true },
                     { id: "events", width: 12, visible: true },
                     { id: "backup", width: 6, visible: true }
                 ],
@@ -1122,6 +1120,7 @@
     }
 
     function renderSystemMonitor() {
+        if (!systemRoot) return;
         const entry = fleet.find(
             item => String(item.client_id) === clientSelect.value
         );

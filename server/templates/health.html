@@ -260,8 +260,7 @@
             <select id="monitor-client" aria-describedby="system-monitor-client-help"></select>
             <p id="system-monitor-client-help">{{ tr("Details follow the selected client and refresh every five seconds.") }}</p>
         </section>
-        {% endif %}
-        <section class="panel system-monitor-panel dashboard-widget" id="system-monitor" data-widget-id="system" data-widget-label="{{ tr('Live system monitoring') }}"
+        <section class="panel system-monitor-panel" id="system-monitor"
             data-no-data="{{ tr('No detailed system data is available for this client.') }}"
             data-no-samples="{{ tr('No telemetry samples have been received from this client yet.') }}"
             data-no-samples-help="{{ tr('The standard client agent may be online, but the separate telemetry service is not reporting.') }}"
@@ -330,9 +329,7 @@
             <div class="panel-header">
                 <div>
                     <h2 class="theme-accent-heading">{{ tr("Live system monitoring") }}<span class="theme-symbol" aria-hidden="true"></span></h2>
-                    {% if not monitoring_only %}
                     <p>{{ tr("Details follow the client selected above and refresh every five seconds.") }}</p>
-                    {% endif %}
                 </div>
             </div>
             <p id="system-monitor-status" role="status" aria-live="polite">{{ tr("Waiting for system telemetry.") }}</p>
@@ -438,6 +435,7 @@ sudo journalctl -u lums-telemetry.service -n 30 --no-pager</code></pre>
                 </div>
             </section>
         </section>
+        {% endif %}
         <section class="panel dashboard-widget" data-widget-id="events" data-widget-label="{{ tr('Alert and outage history') }}">
             <div class="panel-header">
                 <div>
