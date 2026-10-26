@@ -12,7 +12,7 @@
         <header class="panel-header">
             <div>
                 <h1>{{ tr("Health Dashboard") }}</h1>
-                <p>{{ tr("Current service, client and backup-storage status.") }}</p>
+                <p>{{ tr("Live system, network and service monitoring for the LUMS host and managed clients.") }}</p>
             </div>
         </header>
 
@@ -152,6 +152,112 @@
                     </p>
                 </article>
             </div>
+        </section>
+        <section class="panel system-monitor-panel" id="system-monitor"
+            data-no-data="{{ tr('No detailed system data is available for this client.') }}"
+            data-stale="{{ tr('System data is stale. Check whether the telemetry agent is running.') }}"
+            data-loading="{{ tr('Waiting for system telemetry.') }}"
+            data-cpu="{{ tr('CPU utilization') }}"
+            data-memory="{{ tr('Memory utilization') }}"
+            data-load="{{ tr('Load average') }}"
+            data-disk="{{ tr('Disk usage') }}"
+            data-free="{{ tr('Free') }}"
+            data-uptime="{{ tr('Uptime') }}"
+            data-os="{{ tr('Operating system') }}"
+            data-kernel="{{ tr('Kernel') }}"
+            data-temperatures="{{ tr('Temperatures') }}"
+            data-fans="{{ tr('Fan speeds') }}"
+            data-no-sensors="{{ tr('No sensors detected.') }}"
+            data-network="{{ tr('Network interfaces') }}"
+            data-interface="{{ tr('Interface') }}"
+            data-link="{{ tr('Link status') }}"
+            data-receive="{{ tr('Receive') }}"
+            data-send="{{ tr('Send') }}"
+            data-errors-dropped="{{ tr('Errors / dropped') }}"
+            data-connectivity="{{ tr('Connectivity') }}"
+            data-dns="{{ tr('DNS') }}"
+            data-gateway="{{ tr('Gateway') }}"
+            data-internet="{{ tr('Internet') }}"
+            data-reachable="{{ tr('Reachable') }}"
+            data-unreachable="{{ tr('Unreachable') }}"
+            data-unknown="{{ tr('Unknown') }}"
+            data-services="{{ tr('Services') }}"
+            data-containers="{{ tr('Containers') }}"
+            data-runtime="{{ tr('Runtime') }}"
+            data-name="{{ tr('Name') }}"
+            data-state="{{ tr('State') }}"
+            data-not-available="{{ tr('Not available on this system.') }}"
+            data-no-items="{{ tr('No items reported.') }}"
+            data-up="{{ tr('Up') }}"
+            data-down="{{ tr('Down') }}"
+            data-active="{{ tr('Active') }}"
+            data-inactive="{{ tr('Inactive') }}"
+            data-failed="{{ tr('Failed') }}">
+            <div class="panel-header">
+                <div>
+                    <h2 class="theme-accent-heading">{{ tr("Live system monitoring") }}<span class="theme-symbol" aria-hidden="true"></span></h2>
+                    <p>{{ tr("Details follow the client selected above and refresh every five seconds.") }}</p>
+                </div>
+            </div>
+            <p id="system-monitor-status" role="status" aria-live="polite">{{ tr("Waiting for system telemetry.") }}</p>
+
+            <section class="monitor-section" aria-labelledby="system-summary-heading">
+                <h3 id="system-summary-heading">{{ tr("System overview") }}</h3>
+                <dl class="system-metric-grid">
+                    <div><dt>{{ tr("CPU utilization") }}</dt><dd id="system-cpu">…</dd></div>
+                    <div><dt>{{ tr("Memory utilization") }}</dt><dd id="system-memory">…</dd></div>
+                    <div><dt>{{ tr("Load average") }}</dt><dd id="system-load">…</dd></div>
+                    <div><dt>{{ tr("Disk usage") }}</dt><dd id="system-disk">…</dd></div>
+                    <div><dt>{{ tr("Uptime") }}</dt><dd id="system-uptime">…</dd></div>
+                    <div><dt>{{ tr("Operating system") }}</dt><dd id="system-os">…</dd></div>
+                    <div><dt>{{ tr("Kernel") }}</dt><dd id="system-kernel">…</dd></div>
+                    <div><dt>{{ tr("Temperatures") }}</dt><dd id="system-temperatures">…</dd></div>
+                    <div><dt>{{ tr("Fan speeds") }}</dt><dd id="system-fans">…</dd></div>
+                </dl>
+            </section>
+
+            <section class="monitor-section" aria-labelledby="network-monitor-heading">
+                <h3 id="network-monitor-heading">{{ tr("Network dashboard") }}</h3>
+                <dl class="connectivity-grid">
+                    <div><dt>{{ tr("DNS") }}</dt><dd id="system-dns">…</dd></div>
+                    <div><dt>{{ tr("Gateway") }}</dt><dd id="system-gateway">…</dd></div>
+                    <div><dt>{{ tr("Internet") }}</dt><dd id="system-internet">…</dd></div>
+                </dl>
+                <div class="table-container">
+                    <table class="monitor-table">
+                        <thead>
+                            <tr>
+                                <th>{{ tr("Interface") }}</th>
+                                <th>{{ tr("Link status") }}</th>
+                                <th>{{ tr("Receive") }}</th>
+                                <th>{{ tr("Send") }}</th>
+                                <th>{{ tr("Errors / dropped") }}</th>
+                            </tr>
+                        </thead>
+                        <tbody id="system-interface-body"></tbody>
+                    </table>
+                </div>
+            </section>
+
+            <section class="monitor-section" aria-labelledby="services-monitor-heading">
+                <h3 id="services-monitor-heading">{{ tr("Services and containers") }}</h3>
+                <div class="services-monitor-grid">
+                    <div class="table-container">
+                        <h4>{{ tr("Services") }}</h4>
+                        <table class="monitor-table">
+                            <thead><tr><th>{{ tr("Name") }}</th><th>{{ tr("State") }}</th></tr></thead>
+                            <tbody id="system-service-body"></tbody>
+                        </table>
+                    </div>
+                    <div class="table-container">
+                        <h4>{{ tr("Containers") }}</h4>
+                        <table class="monitor-table">
+                            <thead><tr><th>{{ tr("Runtime") }}</th><th>{{ tr("Name") }}</th><th>{{ tr("State") }}</th></tr></thead>
+                            <tbody id="system-container-body"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
         </section>
         <section class="panel" style="margin-top: 24px;">
             <div class="panel-header">

@@ -7477,3 +7477,197 @@ body.lums-sidebar-layout {
         width: 100%;
     }
 }
+
+.system-monitor-panel {
+    margin-top: 24px;
+    --accent-color: #5262a4;
+    --border-color: rgba(127, 127, 127, 0.32);
+    --danger-color: #b42318;
+    --success-color: #176b32;
+}
+
+html[data-theme="LUMSStadium"] .system-monitor-panel {
+    --accent-color: #d6a928;
+    --border-color: #27452f;
+    --danger-color: #ff8585;
+    --success-color: #72d48a;
+}
+
+html[data-theme="golf"] .system-monitor-panel {
+    --accent-color: #31583b;
+    --border-color: #c4c8b8;
+    --danger-color: #a52a2a;
+    --success-color: #31583b;
+}
+
+html[data-theme="nerd"] .system-monitor-panel {
+    --accent-color: #3fd63f;
+    --border-color: #174817;
+    --danger-color: #ff7777;
+    --success-color: #7cff7c;
+}
+
+html[data-theme="geek"] .system-monitor-panel {
+    --accent-color: #8ca8ff;
+    --border-color: #27304a;
+    --danger-color: #ff8a9e;
+    --success-color: #83dfb4;
+}
+
+html[data-theme="admin"] .system-monitor-panel {
+    --accent-color: #334155;
+    --border-color: #e2e8f0;
+    --danger-color: #b42318;
+    --success-color: #176b32;
+}
+
+.theme-accent-heading {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.theme-symbol {
+    display: inline-grid;
+    width: 24px;
+    height: 24px;
+    flex: 0 0 24px;
+    place-items: center;
+    color: var(--accent-color, #6b78c9);
+    font-size: 20px;
+    line-height: 1;
+}
+
+html[data-theme="standard"] .theme-symbol::before {
+    content: "◈";
+}
+
+html[data-theme="LUMSStadium"] .theme-symbol::before {
+    content: "⚽";
+}
+
+html[data-theme="golf"] .theme-symbol {
+    width: 19px;
+    height: 19px;
+    flex-basis: 19px;
+    border: 1px solid #9ba391;
+    border-radius: 50%;
+    background-color: #fffef5;
+    background-image:
+        radial-gradient(circle, #c8cdbf 1px, transparent 1.2px),
+        radial-gradient(circle, #c8cdbf 1px, transparent 1.2px);
+    background-position: 4px 4px, 10px 10px;
+    background-size: 8px 8px;
+    box-shadow: 0 1px 2px rgba(38, 51, 38, 0.2);
+}
+
+html[data-theme="nerd"] .theme-symbol::before {
+    content: ">_";
+    font-family: "Courier New", monospace;
+    font-size: 15px;
+}
+
+html[data-theme="geek"] .theme-symbol::before {
+    content: "✦";
+}
+
+html[data-theme="admin"] .theme-symbol::before {
+    content: "▦";
+}
+
+.monitor-section {
+    margin-top: 24px;
+    padding-top: 18px;
+    border-top: 1px solid var(--border-color, rgba(127, 127, 127, 0.35));
+}
+
+.monitor-section > h3,
+.services-monitor-grid h4 {
+    margin: 0 0 12px;
+}
+
+.system-metric-grid,
+.connectivity-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0 22px;
+    margin: 0;
+}
+
+.system-metric-grid > div,
+.connectivity-grid > div {
+    min-width: 0;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--border-color, rgba(127, 127, 127, 0.25));
+}
+
+.system-metric-grid dt,
+.connectivity-grid dt {
+    margin-bottom: 4px;
+    color: inherit;
+    font-size: 0.88rem;
+    opacity: 0.75;
+}
+
+.system-metric-grid dd,
+.connectivity-grid dd {
+    margin: 0;
+    font-weight: 650;
+    font-variant-numeric: tabular-nums;
+    overflow-wrap: anywhere;
+}
+
+.monitor-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.monitor-table th,
+.monitor-table td {
+    padding: 9px 10px;
+    border-bottom: 1px solid var(--border-color, rgba(127, 127, 127, 0.25));
+    text-align: left;
+    vertical-align: top;
+}
+
+.monitor-table td {
+    font-variant-numeric: tabular-nums;
+}
+
+.monitor-table .monitor-state-failed,
+.monitor-table .monitor-state-down {
+    color: var(--danger-color, #b42318);
+    font-weight: 650;
+}
+
+.monitor-table .monitor-state-active,
+.monitor-table .monitor-state-up {
+    color: var(--success-color, #218739);
+    font-weight: 650;
+}
+
+.services-monitor-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 24px;
+}
+
+.services-monitor-grid .table-container {
+    min-width: 0;
+}
+
+#system-monitor-status:empty {
+    display: none;
+}
+
+@media (max-width: 760px) {
+    .system-metric-grid,
+    .connectivity-grid,
+    .services-monitor-grid {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .monitor-table {
+        min-width: 560px;
+    }
+}

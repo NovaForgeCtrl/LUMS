@@ -28,6 +28,7 @@ PERMISSION_DELEGATION_MIGRATION_VERSION = "008-permission-delegation"
 TELEMETRY_MIGRATION_VERSION = "009-telemetry"
 TELEMETRY_RETENTION_INDEX_MIGRATION_VERSION = "010-telemetry-retention-index"
 TELEMETRY_NETWORK_MIGRATION_VERSION = "011-telemetry-network"
+TELEMETRY_SYSTEM_STATE_MIGRATION_VERSION = "012-telemetry-system-state"
 
 
 def utc_now():
@@ -538,6 +539,19 @@ def migrate_telemetry_network(connection):
         )
 
 
+def migrate_telemetry_system_state(connection):
+    """Store the latest detailed host snapshot without duplicating it in history."""
+    connection.execute("""
+        CREATE TABLE IF NOT EXISTS client_system_status (
+            client_id INTEGER PRIMARY KEY,
+            recorded_at TEXT NOT NULL,
+            payload_json TEXT NOT NULL,
+            FOREIGN KEY (client_id) REFERENCES clients(id)
+                ON DELETE CASCADE
+        )
+    """)
+
+
 def run_migration(db_path, admin_username, skip_admin):
     if not os.path.exists(db_path):
         raise RuntimeError(
@@ -790,6 +804,27 @@ def run_migration(db_path, admin_username, skip_admin):
             print(
                 f"[OK] Migration "
                 f"{TELEMETRY_NETWORK_MIGRATION_VERSION} completed"
+            )
+
+        if migration_already_applied(
+            connection,
+            TELEMETRY_SYSTEM_STATE_MIGRATION_VERSION
+        ):
+            print(
+                f"[INFO] Migration "
+                f"{TELEMETRY_SYSTEM_STATE_MIGRATION_VERSION} "
+                "is already recorded"
+            )
+        else:
+            migrate_telemetry_system_state(connection)
+            record_migration(
+                connection,
+                TELEMETRY_SYSTEM_STATE_MIGRATION_VERSION
+            )
+            connection.commit()
+            print(
+                f"[OK] Migration "
+                f"{TELEMETRY_SYSTEM_STATE_MIGRATION_VERSION} completed"
             )
 
         print_schema(connection)

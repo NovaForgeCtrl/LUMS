@@ -18,6 +18,19 @@
     const fleetBody = document.getElementById("fleet-body");
     const fleetFilter = document.getElementById("fleet-filter");
     const fleetSearch = document.getElementById("fleet-search");
+    const systemRoot = document.getElementById("system-monitor");
+    const systemStatus = document.getElementById("system-monitor-status");
+    const systemLabels = Object.fromEntries(
+        [
+            "noData", "stale", "cpu", "memory", "load", "disk", "free",
+            "uptime", "os", "kernel", "temperatures", "fans", "noSensors",
+            "network", "interface", "link", "receive", "send",
+            "errorsDropped", "connectivity", "dns", "gateway", "internet",
+            "reachable", "unreachable", "runtime", "name", "state",
+            "notAvailable", "noItems", "up", "down", "active", "inactive",
+            "failed", "unknown"
+        ].map(key => [key, systemRoot.dataset[key]])
+    );
     const filterOptions = Object.fromEntries(
         Array.from(fleetFilter.options).map(option => [option.value, option.textContent])
     );
@@ -397,6 +410,202 @@
         return cell;
     }
 
+    function formatBytes(bytes) {
+        if (!Number.isFinite(bytes) || bytes < 0) return "—";
+        const units = ["B", "KB", "MB", "GB", "TB"];
+        let value = bytes;
+        let unit = 0;
+        while (value >= 1000 && unit < units.length - 1) {
+            value /= 1000;
+            unit += 1;
+        }
+        return `${value.toFixed(unit === 0 || value >= 100 ? 0 : 1)} ${units[unit]}`;
+    }
+
+    function formatUptime(seconds) {
+        if (!Number.isFinite(seconds) || seconds < 0) return "—";
+        const days = Math.floor(seconds / 86400);
+        const hours = Math.floor((seconds % 86400) / 3600);
+        const minutes = Math.floor((seconds % 3600) / 60);
+        return days ? `${days} d ${hours} h` : `${hours} h ${minutes} min`;
+    }
+
+    function reachabilityText(value) {
+        if (value === true) return systemLabels.reachable;
+        if (value === false) return systemLabels.unreachable;
+        return systemLabels.unknown;
+    }
+
+    function setSystemValue(id, value) {
+        const node = document.getElementById(id);
+        if (node) node.textContent = value || "—";
+    }
+
+    function renderTableMessage(body, message, columnCount) {
+        body.replaceChildren();
+        const row = document.createElement("tr");
+        const cell = appendCell(row, message);
+        cell.colSpan = columnCount;
+        body.appendChild(row);
+    }
+
+    function renderSystemTables(entry) {
+        const interfaceBody = document.getElementById("system-interface-body");
+        const serviceBody = document.getElementById("system-service-body");
+        const containerBody = document.getElementById("system-container-body");
+        const system = entry && entry.system;
+        if (!system) {
+            renderTableMessage(interfaceBody, "—", 5);
+            renderTableMessage(serviceBody, "—", 2);
+            renderTableMessage(containerBody, "—", 3);
+            return;
+        }
+
+        interfaceBody.replaceChildren();
+        if (!system.interfaces.length) {
+            renderTableMessage(interfaceBody, systemLabels.noItems, 5);
+        } else {
+            for (const item of system.interfaces) {
+                const row = document.createElement("tr");
+                appendCell(row, item.name);
+                const state = item.state === "up"
+                    ? systemLabels.up
+                    : item.state === "down" || item.state === "lowerlayerdown"
+                        ? systemLabels.down
+                        : item.state === "dormant"
+                            ? systemLabels.inactive
+                            : systemLabels.unknown;
+                appendCell(
+                    row,
+                    state,
+                    `monitor-state-${item.state === "up" ? "up" : "down"}`
+                );
+                const rx = numberOrNull(item.rx_bytes_per_second);
+                const tx = numberOrNull(item.tx_bytes_per_second);
+                appendCell(
+                    row,
+                    rx === null ? "—" : `${((rx * 8) / 1_000_000).toFixed(2)} Mbit/s`
+                );
+                appendCell(
+                    row,
+                    tx === null ? "—" : `${((tx * 8) / 1_000_000).toFixed(2)} Mbit/s`
+                );
+                appendCell(
+                    row,
+                    `RX ${item.rx_errors} / ${item.rx_dropped} · TX ${item.tx_errors} / ${item.tx_dropped}`
+                );
+                interfaceBody.appendChild(row);
+            }
+        }
+
+        serviceBody.replaceChildren();
+        if (!system.services.available) {
+            renderTableMessage(serviceBody, systemLabels.notAvailable, 2);
+        } else if (!system.services.items.length) {
+            renderTableMessage(serviceBody, systemLabels.noItems, 2);
+        } else {
+            for (const item of system.services.items) {
+                const row = document.createElement("tr");
+                appendCell(row, item.name);
+                const stateLabel = item.state === "active"
+                    ? systemLabels.active
+                    : item.state === "failed"
+                        ? systemLabels.failed
+                        : systemLabels.inactive;
+                appendCell(row, stateLabel, `monitor-state-${item.state}`);
+                serviceBody.appendChild(row);
+            }
+        }
+
+        containerBody.replaceChildren();
+        if (!system.containers.available) {
+            renderTableMessage(containerBody, systemLabels.notAvailable, 3);
+        } else if (!system.containers.items.length) {
+            renderTableMessage(containerBody, systemLabels.noItems, 3);
+        } else {
+            for (const item of system.containers.items) {
+                const row = document.createElement("tr");
+                appendCell(row, item.runtime);
+                appendCell(row, item.name);
+                const stateClass = item.state === "running" ? "active" : "failed";
+                appendCell(row, item.state, `monitor-state-${stateClass}`);
+                containerBody.appendChild(row);
+            }
+        }
+    }
+
+    function renderSystemMonitor() {
+        const entry = fleet.find(
+            item => String(item.client_id) === clientSelect.value
+        );
+        const system = entry && entry.system;
+        if (!system) {
+            systemStatus.textContent = entry
+                ? systemLabels.noData
+                : labels.noClients;
+            for (const id of [
+                "system-cpu", "system-memory", "system-load", "system-disk",
+                "system-uptime", "system-os", "system-kernel",
+                "system-temperatures", "system-fans", "system-dns",
+                "system-gateway", "system-internet",
+            ]) {
+                setSystemValue(id, "—");
+            }
+            renderSystemTables(entry);
+            return;
+        }
+
+        systemStatus.textContent =
+            entry.system_age_seconds === null ||
+            entry.system_age_seconds > 120
+                ? systemLabels.stale
+                : "";
+
+        const latest = entry.latest;
+        setSystemValue("system-cpu", latest
+            ? formatPercent(numberOrNull(latest.cpu_percent))
+            : "—");
+        setSystemValue("system-memory", latest
+            ? `${formatPercent(numberOrNull(latest.memory_percent))} · ${formatBytes(
+                latest.memory_total_bytes - latest.memory_available_bytes
+            )} / ${formatBytes(latest.memory_total_bytes)}`
+            : "—");
+        setSystemValue("system-load", Array.isArray(system.load_average)
+            ? system.load_average.map(value => Number(value).toFixed(2)).join(" · ")
+            : "—");
+        setSystemValue("system-disk", system.disk
+            ? `${formatBytes(system.disk.used_bytes)} / ${formatBytes(system.disk.total_bytes)} · ${systemLabels.free} ${formatBytes(system.disk.free_bytes)}`
+            : "—");
+        setSystemValue("system-uptime", formatUptime(system.uptime_seconds));
+        setSystemValue("system-os", system.os);
+        setSystemValue("system-kernel", system.kernel);
+        setSystemValue("system-temperatures", system.temperatures.length
+            ? system.temperatures
+                .map(item => `${item.name} ${Number(item.celsius).toFixed(1)} °C`)
+                .join(" · ")
+            : systemLabels.noSensors);
+        setSystemValue("system-fans", system.fans.length
+            ? system.fans.map(item => `${item.name} ${item.rpm} rpm`).join(" · ")
+            : systemLabels.noSensors);
+
+        const dnsServers = system.dns_servers.length
+            ? system.dns_servers.join(", ")
+            : systemLabels.unknown;
+        setSystemValue(
+            "system-dns",
+            `${dnsServers} · ${reachabilityText(system.dns_reachable)}`
+        );
+        setSystemValue(
+            "system-gateway",
+            `${system.gateway || systemLabels.unknown} · ${reachabilityText(system.gateway_reachable)}`
+        );
+        setSystemValue(
+            "system-internet",
+            reachabilityText(system.internet_reachable)
+        );
+        renderSystemTables(entry);
+    }
+
     function renderFleet() {
         const term = fleetSearch.value.trim().toLowerCase();
         const rows = fleet
@@ -502,6 +711,7 @@
         fleet = Array.isArray(result.clients) ? result.clients : [];
         syncClientOptions();
         renderFleet();
+        renderSystemMonitor();
     }
 
     async function refreshDetails() {
@@ -530,6 +740,7 @@
             await refreshDetails();
         } catch {
             setStatus(labels.loadError, true);
+            systemStatus.textContent = labels.loadError;
         }
     }
 
@@ -539,6 +750,7 @@
 
     clientSelect.addEventListener("change", () => {
         renderFleet();
+        renderSystemMonitor();
         safeRefreshDetails();
     });
     rangeSelect.addEventListener("change", safeRefreshDetails);
