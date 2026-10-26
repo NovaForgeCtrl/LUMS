@@ -2,8 +2,9 @@
 
 ## Overview
 
-The optional LUMS telemetry agent collects CPU utilization, memory utilization and network
-byte counters from a managed Linux client and sends measurements to the LUMS server.
+The optional LUMS telemetry agent collects CPU utilization, memory utilization,
+network counters, and a bounded host snapshot from a managed Linux system and
+sends measurements to the LUMS server.
 
 The server stores telemetry samples and exposes an authenticated history API
 used by the client telemetry dashboard.
@@ -15,7 +16,7 @@ It does not replace either component or perform package updates.
 
 | Component | Responsibility |
 | --- | --- |
-| `agent/telemetry.py` | Collects CPU, memory and network metrics and sends samples |
+| `agent/telemetry.py` | Collects CPU, memory, host, network, sensor, service and container metrics |
 | `agent/lums-telemetry.service` | Runs the telemetry agent as a restricted systemd service |
 | `agent/lums-telemetry.timer` | Schedules recurring telemetry collection |
 | `server/app.py` | Authenticates submissions, validates metrics and stores samples |
@@ -44,11 +45,36 @@ second from consecutive samples when the data is requested. No rate is shown
 for the first sample, after a counter reset (for example a reboot), or when
 the gap between two samples exceeds five minutes.
 
+Agent version 1.2.0 and later also reports a bounded system snapshot:
+
+- load average, uptime, operating system, kernel, and root filesystem usage;
+- link state, byte counters, errors and drops for each network interface;
+- configured DNS servers and best-effort gateway, DNS, and internet reachability;
+- thermal and fan readings when exposed by the kernel;
+- systemd service states and Docker/Podman container names and states when the
+  local tools and permissions allow read-only inspection.
+
+The server derives per-interface throughput from consecutive samples. Service,
+container, temperature and fan details are stored as the most recent snapshot
+only, not duplicated into every historical sample. Optional metrics that are
+not exposed or permitted by the operating system are shown as unavailable.
+The agent does not start, stop, or modify services or containers, and it does
+not request elevated privileges. Access to the Docker socket is not granted by
+the agent service; container details remain unavailable unless the runtime
+already permits the service account to inspect them.
+
+Gateway reachability uses a one-packet ping when available, DNS reachability
+uses a short `getent` lookup, and internet reachability is a short TCP
+connection attempt to `1.1.1.1:443`. These checks are indicators only and may
+reflect firewall policy rather than an outage.
+
 The server assigns the sample timestamp and rejects invalid payloads.
 
 After updating the server, run the database migration once
-(`python3 server/security_migration.py`) so the network columns exist.
-Update the agent on each client to start reporting traffic.
+(`python3 server/security_migration.py`) so the network columns and latest
+system-state table exist. Update the agent on each client to start reporting
+the new metrics. To monitor the LUMS server itself, register it as a client
+and install/configure the telemetry agent on that host as well.
 
 ## Security and privacy
 
@@ -63,8 +89,10 @@ The agent does not include the client token in the JSON payload or log it.
 The systemd service uses a restricted execution environment and does not
 require root privileges to collect the documented metrics.
 
-Telemetry contains resource utilization measurements, not package updates
-or arbitrary command output.
+Telemetry contains system resource and operational metadata, not package
+updates or arbitrary command output. Interface addresses, DNS servers, service
+names, and container names can be sensitive infrastructure details; access to
+the dashboard and API remains protected by the `clients.view` permission.
 
 ## Data retention
 
@@ -76,7 +104,10 @@ Access requires the appropriate client-view permission. Large result sets
 may be downsampled to a maximum of 1,000 samples.
 
 The `/health` dashboard offers 1-hour, 24-hour, and 7-day history ranges and
-refreshes its displayed data every five seconds. It shows a fleet overview
+refreshes its displayed data every five seconds. It shows CPU, memory and
+aggregate network history, plus live disk, load, uptime, kernel, operating
+system, interface, connectivity, sensor, service and container details for the
+selected client. It also shows a fleet overview
 (filterable by status, stale telemetry or high load, searchable and sortable)
 and per-client details. CPU and memory can be shown as a line chart, an area
 chart or a donut gauge of the current value; the chosen view is remembered in

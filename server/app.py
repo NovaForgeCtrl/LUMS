@@ -13,6 +13,7 @@ from pathlib import Path
 import sqlite3
 import json
 import math
+import ipaddress
 from datetime import datetime, timedelta, timezone
 from urllib.parse import urlsplit
 
@@ -2171,6 +2172,204 @@ def add_network_rates(rows):
     return samples
 
 
+def validate_system_snapshot(system):
+    def is_counter(value):
+        return (
+            isinstance(value, int)
+            and not isinstance(value, bool)
+            and 0 <= value <= TELEMETRY_MAX_COUNTER_VALUE
+        )
+
+    def is_text(value, maximum):
+        return isinstance(value, str) and bool(value.strip()) and len(value) <= maximum
+
+    def is_optional_bool(value):
+        return value is None or isinstance(value, bool)
+
+    required = {
+        "load_average", "uptime_seconds", "os", "kernel", "disk",
+        "interfaces", "dns_servers", "gateway", "gateway_reachable",
+        "dns_reachable", "internet_reachable", "temperatures", "fans",
+        "services", "containers",
+    }
+    if not isinstance(system, dict) or set(system) != required:
+        return False
+
+    loads = system["load_average"]
+    if loads is not None and (
+        not isinstance(loads, list)
+        or len(loads) != 3
+        or any(
+            not isinstance(value, (int, float))
+            or isinstance(value, bool)
+            or value < 0
+            or value > 1_000_000
+            or not math.isfinite(value)
+            for value in loads
+        )
+    ):
+        return False
+
+    uptime = system["uptime_seconds"]
+    if uptime is not None and not is_counter(uptime):
+        return False
+    if not is_text(system["os"], 128) or not is_text(system["kernel"], 128):
+        return False
+
+    disk = system["disk"]
+    if disk is not None and (
+        not isinstance(disk, dict)
+        or set(disk) != {"total_bytes", "used_bytes", "free_bytes"}
+        or not all(is_counter(disk[key]) for key in disk)
+        or disk["total_bytes"] <= 0
+        or disk["used_bytes"] > disk["total_bytes"]
+        or disk["free_bytes"] > disk["total_bytes"]
+    ):
+        return False
+
+    interfaces = system["interfaces"]
+    if not isinstance(interfaces, list) or len(interfaces) > 32:
+        return False
+    interface_names = set()
+    for interface in interfaces:
+        if (
+            not isinstance(interface, dict)
+            or set(interface) != {
+                "name", "state", "rx_bytes", "tx_bytes", "rx_errors",
+                "tx_errors", "rx_dropped", "tx_dropped",
+            }
+            or not is_text(interface["name"], 32)
+            or interface["name"] in interface_names
+            or interface["state"] not in (
+                "up", "down", "unknown", "dormant", "lowerlayerdown"
+            )
+            or not all(
+                is_counter(interface[key])
+                for key in (
+                    "rx_bytes", "tx_bytes", "rx_errors", "tx_errors",
+                    "rx_dropped", "tx_dropped",
+                )
+            )
+        ):
+            return False
+        interface_names.add(interface["name"])
+
+    dns_servers = system["dns_servers"]
+    if not isinstance(dns_servers, list) or len(dns_servers) > 8:
+        return False
+    try:
+        if any(
+            not isinstance(server, str)
+            or str(ipaddress.ip_address(server)) != server
+            for server in dns_servers
+        ):
+            return False
+        if system["gateway"] is not None:
+            if not isinstance(system["gateway"], str):
+                return False
+            ipaddress.IPv4Address(system["gateway"])
+    except (ipaddress.AddressValueError, TypeError):
+        return False
+
+    if not all(
+        is_optional_bool(system[key])
+        for key in (
+            "gateway_reachable", "dns_reachable", "internet_reachable"
+        )
+    ):
+        return False
+
+    temperatures = system["temperatures"]
+    if not isinstance(temperatures, list) or len(temperatures) > 16:
+        return False
+    for sensor in temperatures:
+        value = sensor.get("celsius") if isinstance(sensor, dict) else None
+        if (
+            not isinstance(sensor, dict)
+            or set(sensor) != {"name", "celsius"}
+            or not is_text(sensor["name"], 64)
+            or not isinstance(value, (int, float))
+            or isinstance(value, bool)
+            or not -50 <= value <= 250
+            or not math.isfinite(value)
+        ):
+            return False
+
+    fans = system["fans"]
+    if not isinstance(fans, list) or len(fans) > 16:
+        return False
+    for fan in fans:
+        if (
+            not isinstance(fan, dict)
+            or set(fan) != {"name", "rpm"}
+            or not is_text(fan["name"], 64)
+            or not is_counter(fan["rpm"])
+            or fan["rpm"] > 100_000
+        ):
+            return False
+
+    for key, max_items in (("services", 60), ("containers", 60)):
+        collection = system[key]
+        if (
+            not isinstance(collection, dict)
+            or set(collection) != {"available", "items"}
+            or not isinstance(collection["available"], bool)
+            or not isinstance(collection["items"], list)
+            or len(collection["items"]) > max_items
+        ):
+            return False
+        for item in collection["items"]:
+            if key == "services":
+                if (
+                    not isinstance(item, dict)
+                    or set(item) != {"name", "state"}
+                    or not is_text(item["name"], 128)
+                    or item["state"] not in ("active", "failed", "inactive")
+                ):
+                    return False
+            elif (
+                not isinstance(item, dict)
+                or set(item) != {"runtime", "name", "state"}
+                or item["runtime"] not in ("docker", "podman")
+                or not is_text(item["name"], 128)
+                or not is_text(item["state"], 64)
+            ):
+                return False
+
+    try:
+        return len(json.dumps(system, allow_nan=False).encode("utf-8")) <= 32768
+    except (TypeError, ValueError):
+        return False
+
+
+def add_system_interface_rates(system, previous, seconds):
+    result = dict(system)
+    previous_interfaces = {
+        interface["name"]: interface
+        for interface in (previous or {}).get("interfaces", [])
+    }
+    interfaces = []
+    for interface in system["interfaces"]:
+        current = dict(interface)
+        old = previous_interfaces.get(current["name"])
+        rx_rate = None
+        tx_rate = None
+        if old and 0 < seconds <= TELEMETRY_MAX_RATE_GAP_SECONDS:
+            if current["rx_bytes"] >= old["rx_bytes"]:
+                rx_rate = round(
+                    (current["rx_bytes"] - old["rx_bytes"]) / seconds, 2
+                )
+            if current["tx_bytes"] >= old["tx_bytes"]:
+                tx_rate = round(
+                    (current["tx_bytes"] - old["tx_bytes"]) / seconds, 2
+                )
+        current["rx_bytes_per_second"] = rx_rate
+        current["tx_bytes_per_second"] = tx_rate
+        interfaces.append(current)
+    result["interfaces"] = interfaces
+    return result
+
+
 @app.route("/api/telemetry", methods=["POST"])
 @client_auth_required
 def ingest_telemetry():
@@ -2184,11 +2383,12 @@ def ingest_telemetry():
         "memory_available_bytes",
     }
     network_fields = {"network_rx_bytes", "network_tx_bytes"}
+    optional_fields = network_fields | {"system"}
 
     if (
         not isinstance(data, dict)
         or not required_fields <= set(data)
-        or not set(data) <= required_fields | network_fields
+        or not set(data) <= required_fields | optional_fields
         or len(set(data) & network_fields) == 1
     ):
         return jsonify({
@@ -2232,6 +2432,7 @@ def ingest_telemetry():
             "network_rx_bytes" in data
             and not (valid_counter(network_rx) and valid_counter(network_tx))
         )
+        or ("system" in data and not validate_system_snapshot(data["system"]))
     ):
         return jsonify({
             "status": "error",
@@ -2246,6 +2447,47 @@ def ingest_telemetry():
 
     connection = get_connection()
     try:
+        if "system" in data:
+            previous_row = connection.execute(
+                """
+                SELECT recorded_at, payload_json
+                FROM client_system_status
+                WHERE client_id = ?
+                """,
+                (client["id"],),
+            ).fetchone()
+            previous = None
+            elapsed = 0
+            if previous_row is not None:
+                previous = json.loads(previous_row["payload_json"])
+                previous_time = parse_telemetry_time(
+                    previous_row["recorded_at"]
+                )
+                current_time = parse_telemetry_time(recorded_at)
+                if previous_time is not None and current_time is not None:
+                    elapsed = (
+                        current_time - previous_time
+                    ).total_seconds()
+
+            system = add_system_interface_rates(
+                data["system"], previous, elapsed
+            )
+            connection.execute(
+                """
+                INSERT INTO client_system_status (
+                    client_id, recorded_at, payload_json
+                ) VALUES (?, ?, ?)
+                ON CONFLICT(client_id) DO UPDATE SET
+                    recorded_at = excluded.recorded_at,
+                    payload_json = excluded.payload_json
+                """,
+                (
+                    client["id"],
+                    recorded_at,
+                    json.dumps(system, allow_nan=False),
+                ),
+            )
+
         connection.execute(
             """
             INSERT INTO client_telemetry (
@@ -2264,7 +2506,7 @@ def ingest_telemetry():
             (cutoff,),
         )
         connection.commit()
-    except sqlite3.Error:
+    except (sqlite3.Error, json.JSONDecodeError):
         connection.rollback()
         logger.exception(
             "Failed to save telemetry from client %s", client["id"]
@@ -2399,6 +2641,26 @@ def telemetry_overview():
                 if recorded is not None:
                     age = max(0, int((now - recorded).total_seconds()))
 
+            system_row = connection.execute(
+                """
+                SELECT recorded_at, payload_json
+                FROM client_system_status
+                WHERE client_id = ?
+                """,
+                (client["id"],),
+            ).fetchone()
+            system_age = None
+            system = None
+            if system_row is not None:
+                system_recorded = parse_telemetry_time(
+                    system_row["recorded_at"]
+                )
+                if system_recorded is not None:
+                    system_age = max(
+                        0, int((now - system_recorded).total_seconds())
+                    )
+                system = json.loads(system_row["payload_json"])
+
             result.append({
                 "client_id": client["id"],
                 "hostname": client["hostname"],
@@ -2408,11 +2670,13 @@ def telemetry_overview():
                 "telemetry_stale": (
                     age is None or age > TELEMETRY_STALE_SECONDS
                 ),
+                "system_age_seconds": system_age,
+                "system": system,
                 "latest": latest,
             })
 
         return jsonify({"clients": result})
-    except sqlite3.Error:
+    except (sqlite3.Error, json.JSONDecodeError):
         logger.exception("Failed to load telemetry overview")
         return jsonify({"error": "telemetry_query_failed"}), 500
     finally:

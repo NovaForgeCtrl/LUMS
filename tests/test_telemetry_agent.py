@@ -189,6 +189,50 @@ class TelemetryAgentTests(unittest.TestCase):
                 {"network_rx_bytes": 150, "network_tx_bytes": 50},
             )
 
+    def test_interface_details_include_link_state_errors_and_drops(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            data = root / "dev"
+            sys_class_net = root / "class" / "net" / "eth0"
+            sys_class_net.mkdir(parents=True)
+            (sys_class_net / "operstate").write_text("up", encoding="ascii")
+            data.write_text(
+                "Inter-| Receive\n face |bytes\n"
+                "  eth0: 100 1 2 3 0 0 0 0 40 1 4 5 0 0 0 0\n",
+                encoding="ascii",
+            )
+
+            self.assertEqual(
+                agent.read_interface_details(str(data), str(root / "class" / "net")),
+                [{
+                    "name": "eth0",
+                    "state": "up",
+                    "rx_bytes": 100,
+                    "tx_bytes": 40,
+                    "rx_errors": 2,
+                    "tx_errors": 4,
+                    "rx_dropped": 3,
+                    "tx_dropped": 5,
+                }],
+            )
+
+    def test_default_gateway_and_dns_servers_are_parsed(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            route = root / "route"
+            route.write_text(
+                "Iface Destination Gateway Flags RefCnt Use Metric\n"
+                "eth0 00000000 0101A8C0 0003 0 0 100\n",
+                encoding="ascii",
+            )
+            resolv = root / "resolv.conf"
+            resolv.write_text(
+                "nameserver 192.0.2.53\nnameserver invalid\n",
+                encoding="ascii",
+            )
+            self.assertEqual(agent.read_default_gateway(str(route)), "192.168.1.1")
+            self.assertEqual(agent.read_dns_servers(str(resolv)), ["192.0.2.53"])
+
     def test_build_sample_includes_valid_network_counters(self):
         memory = {
             "memory_percent": 50.0,
@@ -204,6 +248,21 @@ class TelemetryAgentTests(unittest.TestCase):
             agent.build_sample(
                 10.0, memory,
                 {"network_rx_bytes": -1, "network_tx_bytes": 2},
+            )
+
+    def test_build_sample_accepts_bounded_system_snapshot(self):
+        memory = {
+            "memory_percent": 50.0,
+            "memory_total_bytes": 1000,
+            "memory_available_bytes": 500,
+        }
+        self.assertEqual(
+            agent.build_sample(10.0, memory, system={"os": "Linux"})["system"],
+            {"os": "Linux"},
+        )
+        with self.assertRaisesRegex(ValueError, "too large"):
+            agent.build_sample(
+                10.0, memory, system={"os": "x" * agent.MAX_SYSTEM_PAYLOAD_BYTES}
             )
 
 

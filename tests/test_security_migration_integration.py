@@ -69,6 +69,7 @@ def test_full_security_migration_is_repeatable(tmp_path, monkeypatch):
             migration.TELEMETRY_RETENTION_INDEX_MIGRATION_VERSION
             in versions
         )
+        assert migration.TELEMETRY_SYSTEM_STATE_MIGRATION_VERSION in versions
 
         telemetry_columns = {
             row[1]
@@ -94,6 +95,13 @@ def test_full_security_migration_is_repeatable(tmp_path, monkeypatch):
         }
         assert "idx_client_telemetry_client_time" in telemetry_indexes
         assert "idx_client_telemetry_recorded_at" in telemetry_indexes
+        system_columns = {
+            row[1]
+            for row in connection.execute(
+                "PRAGMA table_info(client_system_status)"
+            )
+        }
+        assert {"client_id", "recorded_at", "payload_json"} <= system_columns
 
         query_plan = connection.execute(
             """

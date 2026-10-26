@@ -1,4 +1,5 @@
 import sqlite3
+import json
 from datetime import datetime, timedelta, timezone
 
 import pytest
@@ -81,6 +82,14 @@ def telemetry_env(tmp_path, monkeypatch):
 
         CREATE INDEX idx_client_telemetry_client_time
         ON client_telemetry(client_id, recorded_at);
+
+        CREATE TABLE client_system_status (
+            client_id INTEGER PRIMARY KEY,
+            recorded_at TEXT NOT NULL,
+            payload_json TEXT NOT NULL,
+            FOREIGN KEY (client_id) REFERENCES clients(id)
+                ON DELETE CASCADE
+        );
         """
     )
 
@@ -179,6 +188,55 @@ def telemetry_payload(**overrides):
     }
     payload.update(overrides)
     return payload
+
+
+def system_snapshot(**overrides):
+    snapshot = {
+        "load_average": [0.5, 0.4, 0.3],
+        "uptime_seconds": 12345,
+        "os": "Ubuntu 24.04",
+        "kernel": "6.8.0",
+        "disk": {
+            "total_bytes": 10000,
+            "used_bytes": 4000,
+            "free_bytes": 6000,
+        },
+        "interfaces": [
+            {
+                "name": "eth0",
+                "state": "up",
+                "rx_bytes": 1000,
+                "tx_bytes": 500,
+                "rx_errors": 0,
+                "tx_errors": 0,
+                "rx_dropped": 0,
+                "tx_dropped": 0,
+            }
+        ],
+        "dns_servers": ["192.0.2.53"],
+        "gateway": "192.0.2.1",
+        "gateway_reachable": True,
+        "dns_reachable": True,
+        "internet_reachable": False,
+        "temperatures": [{"name": "CPU", "celsius": 42.5}],
+        "fans": [{"name": "fan1", "rpm": 1200}],
+        "services": {
+            "available": True,
+            "items": [{"name": "ssh.service", "state": "active"}],
+        },
+        "containers": {
+            "available": True,
+            "items": [
+                {
+                    "runtime": "docker",
+                    "name": "lums",
+                    "state": "running",
+                }
+            ],
+        },
+    }
+    snapshot.update(overrides)
+    return snapshot
 
 
 def test_telemetry_requires_client_token(telemetry_env):
@@ -582,6 +640,97 @@ def test_overview_returns_latest_values_per_enabled_client(telemetry_env):
     assert entries["pytest-client"]["telemetry_stale"] is False
     assert entries["other-client"]["latest"] is None
     assert entries["other-client"]["telemetry_stale"] is True
+
+
+def test_system_snapshot_is_validated_stored_and_exposed_with_rates(
+    telemetry_env,
+):
+    client = telemetry_env["app"].test_client()
+    login_as(client)
+
+    first = post_sample(
+        telemetry_env["app"].test_client(),
+        system=system_snapshot(),
+    )
+    assert first.status_code == 200
+
+    connection = telemetry_env["connection"]()
+    connection.execute(
+        """
+        UPDATE client_system_status
+        SET recorded_at = ?
+        WHERE client_id = 1
+        """,
+        (
+            (datetime.now(timezone.utc) - timedelta(seconds=5)).isoformat(),
+        ),
+    )
+    row = connection.execute(
+        "SELECT payload_json FROM client_system_status WHERE client_id = 1"
+    ).fetchone()
+    prior = json.loads(row["payload_json"])
+    prior["interfaces"][0]["rx_bytes"] = 1000
+    prior["interfaces"][0]["tx_bytes"] = 500
+    connection.execute(
+        "UPDATE client_system_status SET payload_json = ? WHERE client_id = 1",
+        (json.dumps(prior),),
+    )
+    connection.commit()
+    connection.close()
+
+    second_snapshot = system_snapshot()
+    second_snapshot["interfaces"][0]["rx_bytes"] = 6000
+    second_snapshot["interfaces"][0]["tx_bytes"] = 2500
+    second = post_sample(
+        telemetry_env["app"].test_client(),
+        system=second_snapshot,
+    )
+    assert second.status_code == 200
+
+    response = client.get("/api/telemetry/overview")
+    assert response.status_code == 200
+    entry = next(
+        item for item in response.get_json()["clients"]
+        if item["hostname"] == "pytest-client"
+    )
+    interface = entry["system"]["interfaces"][0]
+    assert interface["name"] == "eth0"
+    assert interface["rx_bytes_per_second"] > 0
+    assert interface["tx_bytes_per_second"] > 0
+    assert entry["system"]["services"]["items"][0]["state"] == "active"
+    assert entry["system"]["containers"]["items"][0]["name"] == "lums"
+    assert entry["system_age_seconds"] is not None
+
+
+@pytest.mark.parametrize(
+    "system",
+    [
+        {"unexpected": "field"},
+        system_snapshot(uptime_seconds=-1),
+        system_snapshot(disk={"total_bytes": 10, "used_bytes": 12, "free_bytes": 1}),
+        system_snapshot(interfaces=[{
+            "name": "eth0", "state": "up", "rx_bytes": 1, "tx_bytes": 2,
+            "rx_errors": 0, "tx_errors": 0, "rx_dropped": 0,
+            "tx_dropped": 0, "extra": True,
+        }]),
+        system_snapshot(gateway="not-an-address"),
+        system_snapshot(temperatures=[{"name": "CPU", "celsius": 999}]),
+        system_snapshot(services={"available": True, "items": [{"name": "x", "state": "running"}]}),
+    ],
+)
+def test_telemetry_rejects_invalid_system_snapshots(telemetry_env, system):
+    response = post_sample(telemetry_env["app"].test_client(), system=system)
+    assert response.status_code == 400
+    connection = telemetry_env["connection"]()
+    try:
+        assert connection.execute(
+            "SELECT COUNT(*) FROM client_telemetry"
+        ).fetchone()[0] == 0
+        assert connection.execute(
+            "SELECT COUNT(*) FROM client_system_status"
+        ).fetchone()[0] == 0
+    finally:
+        connection.close()
 
 
 def test_overview_requires_clients_view_permission(telemetry_env):

@@ -1,5 +1,5 @@
 [Unit]
-Description=LUMS CPU and RAM Telemetry Agent
+Description=LUMS Host Monitoring Telemetry Agent
 After=network-online.target
 Wants=network-online.target
 

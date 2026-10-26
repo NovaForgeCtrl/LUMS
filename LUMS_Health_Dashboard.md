@@ -3,19 +3,28 @@
 ## Purpose and scope
 
 The authenticated dashboard at `/health` gives an operator a quick view of
-selected LUMS state:
+selected LUMS state and, when an updated telemetry agent is installed, live
+host monitoring:
 
 - database status as determined by the application;
 - total, online, unknown, and offline client counts;
-- recent CPU and memory telemetry for an enabled client, when telemetry is
-  installed and samples exist;
+- recent CPU, memory and network telemetry for an enabled client, when
+  telemetry is installed and samples exist;
+- load, uptime, disk, operating system, kernel, network interface counters and
+  link state, connectivity probes, available temperature/fan sensors, service
+  states and readable container states from the selected telemetry client;
 - whether the configured backup directory can be inspected and the latest
   backup file that the application recognizes.
 
 This page is an operational overview, not a full monitoring or alerting system.
-It does not prove that the host, Docker daemon, reverse proxy, network, or every
-managed client is healthy. A listed backup is not proof that the backup is
-restorable; periodically perform a controlled restore test.
+The LUMS host appears in the client selector only if it is registered as a
+client and runs the telemetry agent. Optional host readings depend on local
+kernel interfaces, utilities and permissions. In particular, container
+details are unavailable unless the telemetry service account can inspect the
+runtime without additional privileges. The dashboard does not prove that the
+host, Docker daemon, reverse proxy, network, or every managed client is healthy.
+A listed backup is not proof that the backup is restorable; periodically
+perform a controlled restore test.
 
 ## Access control
 
@@ -50,10 +59,12 @@ Watcher. The telemetry service submits a sample approximately every five
 seconds when its systemd timer is enabled and the client can reach the server.
 
 The dashboard provides 1-hour, 24-hour, and 7-day history ranges and refreshes
-the displayed data every five seconds. History queries are limited to 1–168
-hours and may be downsampled to at most 1,000 points. Samples older than seven
-days are removed during processing of new telemetry submissions; if all
-submissions stop, do not assume that retention cleanup runs independently.
+the displayed data every five seconds. Live system details are the latest
+reported snapshot; per-interface bandwidth is calculated from consecutive
+snapshots. History queries are limited to 1–168 hours and may be downsampled to
+at most 1,000 points. Samples older than seven days are removed during
+processing of new telemetry submissions; if all submissions stop, do not
+assume that retention cleanup runs independently.
 
 Telemetry requires client authentication. Remote agent connections require
 HTTPS; plain HTTP is accepted only for loopback addresses. Configure a CA file
@@ -93,4 +104,3 @@ shortcut.
 See [troubleshooting.md](troubleshooting.md) for diagnostic commands and
 [administration.md](administration.md) for routine maintenance and backup
 procedures.
-
