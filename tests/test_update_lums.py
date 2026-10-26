@@ -176,3 +176,57 @@ def test_replace_container_cannot_be_enabled_by_flag(
         )
 
     assert commands == []
+
+
+
+def test_mount_matches_volume_by_name():
+    mounts = [
+        {
+            "Destination": "/var/lib/lums",
+            "Type": "volume",
+            "Name": "lums-data",
+            "Source": "/var/lib/docker/volumes/lums-data/_data",
+            "RW": True,
+        }
+    ]
+
+    assert update_lums.mount_matches(
+        mounts,
+        destination="/var/lib/lums",
+        mount_type="volume",
+        name="lums-data",
+        rw=True,
+    )
+    assert not update_lums.mount_matches(
+        mounts,
+        destination="/var/lib/lums",
+        mount_type="volume",
+        name="wrong-volume",
+        rw=True,
+    )
+
+
+def test_mount_matches_bind_mount_by_source():
+    mounts = [
+        {
+            "Destination": "/run/secrets/lums_secret",
+            "Type": "bind",
+            "Source": "/etc/lums/secrets/lums_secret",
+            "RW": False,
+        }
+    ]
+
+    assert update_lums.mount_matches(
+        mounts,
+        destination="/run/secrets/lums_secret",
+        mount_type="bind",
+        source="/etc/lums/secrets/lums_secret",
+        rw=False,
+    )
+    assert not update_lums.mount_matches(
+        mounts,
+        destination="/run/secrets/lums_secret",
+        mount_type="bind",
+        source="/wrong/path",
+        rw=False,
+    )

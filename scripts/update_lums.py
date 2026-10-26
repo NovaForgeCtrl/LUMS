@@ -308,6 +308,7 @@ def mount_matches(
     destination: str,
     mount_type: str | None = None,
     source: str | None = None,
+    name: str | None = None,
     rw: bool | None = None,
 ) -> bool:
     for mount in mounts:
@@ -316,6 +317,8 @@ def mount_matches(
         if mount_type is not None and mount.get("Type") != mount_type:
             continue
         if source is not None and mount.get("Source") != source:
+            continue
+        if name is not None and mount.get("Name") != name:
             continue
         if rw is not None and mount.get("RW") is not rw:
             continue
@@ -356,7 +359,7 @@ def validate_deployment(data: dict[str, Any]) -> list[str]:
         mounts,
         destination=DATABASE_DESTINATION,
         mount_type="volume",
-        source=DATA_VOLUME,
+        name=DATA_VOLUME,
         rw=True,
     ):
         problems.append("Expected writable lums-data volume is missing.")
