@@ -4954,6 +4954,11 @@ Validate
 
 Do not upgrade the production installation solely because a new Git revision exists.
 
+After the `Tests` workflow passes on `main`, a downloadable updater-tools
+archive is available from that workflow run's **Artifacts**. Published GitHub
+Releases also receive a versioned archive after the release revision passes
+the test suite. See [the package guide](docs/update-tools-package.md).
+
 Review the changes first:
 
 ```bash

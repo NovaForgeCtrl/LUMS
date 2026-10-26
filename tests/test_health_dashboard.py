@@ -135,9 +135,11 @@ def test_health_dashboard_allows_authenticated_user_with_permission(
     assert b'aria-current="page"' in response.data
     assert b'Systemstatus' in response.data or b'Health' in response.data
     assert b"2026-10-26T10:30:00+00:00" in response.data
+    assert b'id="system-monitor"' not in response.data
     assert monitoring_response.status_code == 200
     assert b'id="monitor-client"' in monitoring_response.data
     assert b'id="system-monitor-diagnostics"' in monitoring_response.data
+    assert b'id="system-monitor"' in monitoring_response.data
     assert b'scripts/install-telemetry-agent.sh' in monitoring_response.data
     assert b'sidebar.js' in monitoring_response.data
 

@@ -525,6 +525,50 @@ def test_telemetry_dashboard_settings_are_saved_per_user(telemetry_env):
     ).get_json()["thresholds"]["cpu"] == 90
 
 
+def test_dashboard_settings_remove_the_separate_system_monitor_widget(
+    telemetry_env,
+):
+    client = telemetry_env["app"].test_client()
+    login_as(client)
+    settings = client.get("/api/telemetry/dashboard-settings").get_json()
+    ids = [widget["id"] for widget in settings["layout"]]
+
+    assert ids == ["summary", "clients", "history", "events", "backup"]
+    assert "system" not in ids
+
+
+def test_dashboard_settings_migrate_saved_system_monitor_widget(telemetry_env):
+    client = telemetry_env["app"].test_client()
+    login_as(client)
+    settings = client.get("/api/telemetry/dashboard-settings").get_json()
+    settings["layout"].insert(
+        3, {"id": "system", "width": 12, "visible": True}
+    )
+    connection = telemetry_env["connection"]()
+    connection.execute(
+        """
+        INSERT INTO user_dashboard_settings (
+            user_id, settings_json, updated_at
+        ) VALUES (1, ?, ?)
+        """,
+        (json.dumps(settings), datetime.now(timezone.utc).isoformat()),
+    )
+    connection.commit()
+    connection.close()
+
+    response = client.get("/api/telemetry/dashboard-settings")
+    migrated = response.get_json()
+    connection = telemetry_env["connection"]()
+    stored = connection.execute(
+        "SELECT settings_json FROM user_dashboard_settings WHERE user_id = 1"
+    ).fetchone()
+    connection.close()
+
+    assert response.status_code == 200
+    assert "system" not in [widget["id"] for widget in migrated["layout"]]
+    assert "system" not in stored["settings_json"]
+
+
 def test_telemetry_dashboard_settings_reject_invalid_threshold(telemetry_env):
     client = telemetry_env["app"].test_client()
     login_as(client)

@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="{{ language }}" data-locale="{{ language_locale }}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="{{ csrf_token }}">
+    <title>{{ tr("Update system") }} – LUMS</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+
+<body class="lums-sidebar-layout">
+{% include "_sidebar.html" %}
+
+<header class="lums-pagebar">
+    <button
+        type="button"
+        class="lums-sidebar-toggle"
+        id="lums-sidebar-toggle"
+        aria-label="{{ tr('Toggle navigation') }}"
+        aria-controls="lums-sidebar"
+        aria-expanded="true"
+    >
+        <span aria-hidden="true">&#9776;</span>
+    </button>
+    <div class="lums-pagebar-brand">
+        <strong>LUMS</strong>
+        <span>{{ tr("Update system") }}</span>
+    </div>
+    <div class="lums-pagebar-status">
+        <span class="status-dot" aria-hidden="true"></span>
+        {{ tr("API Online") }}
+    </div>
+</header>
+
+<main class="container update-system-page">
+    <section class="panel update-release-panel">
+        <div class="panel-header">
+            <div>
+                <h2>{{ tr("Update system") }}</h2>
+                <p>{{ tr("Check tested LUMS releases and apply an update with backup and rollback.") }}</p>
+            </div>
+            <button type="button" class="button" id="refresh-system-update">
+                {{ tr("Refresh") }}
+            </button>
+        </div>
+
+        <p id="system-update-status" class="update-status" role="status" aria-live="polite">
+            {{ tr("Checking GitHub and the host update service...") }}
+        </p>
+
+        <dl class="update-release-facts">
+            <div>
+                <dt>{{ tr("Installed version") }}</dt>
+                <dd id="update-current-version">—</dd>
+            </div>
+            <div>
+                <dt>{{ tr("Available release") }}</dt>
+                <dd id="update-target-version">—</dd>
+            </div>
+            <div>
+                <dt>{{ tr("Verified commit") }}</dt>
+                <dd id="update-target-commit">—</dd>
+            </div>
+            <div>
+                <dt>{{ tr("Host service") }}</dt>
+                <dd id="update-agent-status">—</dd>
+            </div>
+            <div>
+                <dt>{{ tr("Release compatibility") }}</dt>
+                <dd id="update-compatibility">—</dd>
+            </div>
+        </dl>
+
+        <div class="update-release-notes">
+            <h3>{{ tr("Release changes") }}</h3>
+            <p id="update-release-notes">{{ tr("No release information loaded.") }}</p>
+            <a id="update-release-link" href="#" target="_blank" rel="noopener" hidden>
+                {{ tr("Open release on GitHub") }}
+            </a>
+        </div>
+
+        <div class="update-actions">
+            <button type="button" id="start-system-update" class="button" disabled>
+                {{ tr("Install this release") }}
+            </button>
+            <span>{{ tr("Installation starts only after an administrator confirms it here.") }}</span>
+        </div>
+    </section>
+
+    <section class="panel update-progress-panel">
+        <div class="panel-header">
+            <div>
+                <h2>{{ tr("Update progress") }}</h2>
+                <p>{{ tr("A failed check never counts as a successful update. The host service records rollback results.") }}</p>
+            </div>
+        </div>
+        <ol class="update-step-list" id="update-step-list">
+            <li data-step="preflight">{{ tr("Check prerequisites") }}</li>
+            <li data-step="backup">{{ tr("Create verified backup") }}</li>
+            <li data-step="prepare">{{ tr("Prepare and test release") }}</li>
+            <li data-step="switch">{{ tr("Switch application") }}</li>
+            <li data-step="verify">{{ tr("Verify application and database") }}</li>
+            <li data-step="result">{{ tr("Record result or rollback") }}</li>
+        </ol>
+    </section>
+
+    <section class="panel update-history-panel">
+        <div class="panel-header">
+            <div>
+                <h2>{{ tr("Update history") }}</h2>
+                <p>{{ tr("Recent update attempts, their result, and rollback status.") }}</p>
+            </div>
+        </div>
+        <p id="update-history-status" class="update-status" role="status" aria-live="polite"></p>
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th>{{ tr("Started") }}</th>
+                        <th>{{ tr("Started by") }}</th>
+                        <th>{{ tr("Release") }}</th>
+                        <th>{{ tr("Step") }}</th>
+                        <th>{{ tr("Result") }}</th>
+                        <th>{{ tr("Details") }}</th>
+                    </tr>
+                </thead>
+                <tbody id="update-history-body"></tbody>
+            </table>
+        </div>
+    </section>
+</main>
+
+<script type="application/json" id="lums-config">{{ {
+    "lumsT": translations,
+    "lumsLocale": language_locale
+} | tojson }}</script>
+<script src="{{ url_for('static', filename='config.js') }}"></script>
+<script src="{{ url_for('static', filename='system-updates.js') }}" defer></script>
+<script src="{{ url_for('static', filename='theme.js') }}" defer></script>
+<script src="{{ url_for('static', filename='sidebar.js') }}" defer></script>
+</body>
+</html>

@@ -98,6 +98,7 @@ if __package__:
         delete_database_backup,
         list_database_backups,
     )
+    from .system_updates import ReleaseLookupError, latest_release
 else:
     from security import (
         configure_session,
@@ -144,6 +145,7 @@ else:
         delete_database_backup,
         list_database_backups,
     )
+    from system_updates import ReleaseLookupError, latest_release
 
 
 app = Flask(__name__)
@@ -978,6 +980,172 @@ def users_page():
         user_role=current_user_role(),
         **permission_ui_context(),
     )
+
+
+@app.route("/updates")
+@login_required
+@role_required(ROLE_ADMINISTRATOR)
+@role_required(permission="system.update")
+def system_updates_page():
+    return render_template(
+        "updates.html",
+        csrf_token=get_csrf_token(),
+        user_role=current_user_role(),
+        **permission_ui_context(),
+    )
+
+
+@app.route("/api/system-updates", methods=["GET"])
+@login_required
+@role_required(ROLE_ADMINISTRATOR)
+@role_required(permission="system.update")
+def system_updates_status():
+    release = None
+    release_error = None
+    try:
+        release = latest_release()
+    except ReleaseLookupError as error:
+        release_error = str(error)
+
+    connection = get_connection()
+    try:
+        agent = connection.execute(
+            """
+            SELECT last_seen, current_version, deployment, status_message
+            FROM system_update_agent
+            WHERE id = 1
+            """
+        ).fetchone()
+        jobs = connection.execute(
+            """
+            SELECT id, requested_at, requested_by, target_tag, target_commit,
+                   status, step,
+                   progress_json, details_json, error, rollback_status,
+                   updated_at, finished_at
+            FROM system_update_jobs
+            ORDER BY id DESC
+            LIMIT 20
+            """
+        ).fetchall()
+    finally:
+        connection.close()
+
+    agent_data = dict(agent) if agent else None
+    if agent_data:
+        try:
+            heartbeat = datetime.fromisoformat(agent_data["last_seen"])
+            if heartbeat.tzinfo is None:
+                heartbeat = heartbeat.replace(tzinfo=timezone.utc)
+            agent_data["online"] = (
+                datetime.now(timezone.utc) - heartbeat
+            ).total_seconds() <= 60
+        except (TypeError, ValueError):
+            agent_data["online"] = False
+    else:
+        agent_data = {"online": False}
+
+    history = []
+    for row in jobs:
+        item = dict(row)
+        item["progress"] = json.loads(item.pop("progress_json") or "[]")
+        item["details"] = json.loads(item.pop("details_json") or "{}")
+        history.append(item)
+
+    return jsonify({
+        "release": release,
+        "release_error": release_error,
+        "agent": agent_data,
+        "history": history,
+    })
+
+
+@app.route("/api/system-updates", methods=["POST"])
+@login_required
+@role_required(ROLE_ADMINISTRATOR)
+@role_required(permission="system.update")
+@csrf_required
+def request_system_update():
+    try:
+        release = latest_release()
+    except ReleaseLookupError as error:
+        return jsonify({"error": str(error)}), 503
+
+    connection = get_connection()
+    try:
+        agent = connection.execute(
+            """
+            SELECT last_seen FROM system_update_agent WHERE id = 1
+            """
+        ).fetchone()
+        if agent is None:
+            return jsonify({
+                "error": "Der Host-Update-Dienst ist nicht installiert oder nicht erreichbar."
+            }), 503
+
+        try:
+            heartbeat = datetime.fromisoformat(agent["last_seen"])
+            if heartbeat.tzinfo is None:
+                heartbeat = heartbeat.replace(tzinfo=timezone.utc)
+        except (TypeError, ValueError):
+            heartbeat = None
+        if (
+            heartbeat is None
+            or (datetime.now(timezone.utc) - heartbeat).total_seconds() > 60
+        ):
+            return jsonify({
+                "error": "Der Host-Update-Dienst ist nicht erreichbar. Es wurde kein Update gestartet."
+            }), 503
+
+        active = connection.execute(
+            """
+            SELECT id FROM system_update_jobs
+            WHERE status IN (
+                'queued', 'running', 'rolling_back'
+            )
+            LIMIT 1
+            """
+        ).fetchone()
+        if active is not None:
+            return jsonify({
+                "error": "Ein Update läuft bereits.",
+                "job_id": active["id"],
+            }), 409
+
+        now = datetime.now(timezone.utc).isoformat()
+        cursor = connection.execute(
+            """
+            INSERT INTO system_update_jobs (
+                requested_at, requested_by, target_tag, target_commit,
+                status, step, updated_at
+            )
+            VALUES (?, ?, ?, ?, 'queued', 'queued', ?)
+            """,
+            (
+                now,
+                current_username(),
+                release["tag"],
+                release["commit"],
+                now,
+            ),
+        )
+        job_id = cursor.lastrowid
+        audit_log(
+            connection,
+            actor_type="user",
+            actor_id=current_user_id(),
+            action="system_update.request",
+            target=release["tag"],
+            result="success",
+            details=json.dumps({
+                "job_id": job_id,
+                "commit": release["commit"],
+            }),
+        )
+        connection.commit()
+    finally:
+        connection.close()
+
+    return jsonify({"job_id": job_id, "target_tag": release["tag"]}), 202
 
 
 @app.route("/backups")
@@ -2158,7 +2326,7 @@ TELEMETRY_MAX_RATE_GAP_SECONDS = 300
 TELEMETRY_STALE_SECONDS = 120
 TELEMETRY_WIDGET_WIDTHS = (4, 6, 8, 12)
 TELEMETRY_WIDGET_IDS = (
-    "summary", "clients", "history", "system", "events", "backup",
+    "summary", "clients", "history", "events", "backup",
 )
 TELEMETRY_INTEGRATIONS = ("wazuh", "suricata")
 
@@ -2169,7 +2337,6 @@ def default_telemetry_dashboard_settings():
             {"id": "summary", "width": 12, "visible": True},
             {"id": "clients", "width": 4, "visible": True},
             {"id": "history", "width": 8, "visible": True},
-            {"id": "system", "width": 12, "visible": True},
             {"id": "events", "width": 12, "visible": True},
             {"id": "backup", "width": 6, "visible": True},
         ],
@@ -2217,6 +2384,25 @@ def validate_telemetry_dashboard_settings(settings):
         and set(integrations) == set(TELEMETRY_INTEGRATIONS)
         and all(isinstance(value, bool) for value in integrations.values())
     )
+
+
+def migrate_telemetry_dashboard_settings(settings):
+    if (
+        not isinstance(settings, dict)
+        or not isinstance(settings.get("layout"), list)
+        or not any(
+            isinstance(widget, dict) and widget.get("id") == "system"
+            for widget in settings["layout"]
+        )
+    ):
+        return settings
+
+    migrated = dict(settings)
+    migrated["layout"] = [
+        widget for widget in settings["layout"]
+        if not (isinstance(widget, dict) and widget.get("id") == "system")
+    ]
+    return migrated
 
 
 def parse_telemetry_time(value):
@@ -2859,6 +3045,26 @@ def telemetry_dashboard_settings():
             if row is None:
                 return jsonify(default_telemetry_dashboard_settings())
             settings = json.loads(row["settings_json"])
+            migrated = migrate_telemetry_dashboard_settings(settings)
+            if migrated != settings and validate_telemetry_dashboard_settings(
+                migrated
+            ):
+                settings = migrated
+                connection.execute(
+                    """
+                    UPDATE user_dashboard_settings
+                    SET settings_json = ?, updated_at = ?
+                    WHERE user_id = ?
+                    """,
+                    (
+                        json.dumps(
+                            settings, separators=(",", ":"), allow_nan=False
+                        ),
+                        datetime.now(timezone.utc).isoformat(),
+                        user_id,
+                    ),
+                )
+                connection.commit()
             if not validate_telemetry_dashboard_settings(settings):
                 logger.error(
                     "Invalid telemetry dashboard settings for user %s",
@@ -3051,6 +3257,7 @@ def client_telemetry_events(client_id):
             json.loads(settings_row["settings_json"])
             if settings_row else default_telemetry_dashboard_settings()
         )
+        settings = migrate_telemetry_dashboard_settings(settings)
         if not validate_telemetry_dashboard_settings(settings):
             return jsonify({"error": "dashboard_settings_invalid"}), 500
         rows = telemetry_history_rows(

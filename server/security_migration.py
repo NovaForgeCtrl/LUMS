@@ -31,6 +31,7 @@ TELEMETRY_NETWORK_MIGRATION_VERSION = "011-telemetry-network"
 TELEMETRY_SYSTEM_STATE_MIGRATION_VERSION = "012-telemetry-system-state"
 TELEMETRY_DASHBOARD_MIGRATION_VERSION = "013-telemetry-dashboard"
 TELEMETRY_EVENT_HISTORY_MIGRATION_VERSION = "014-telemetry-event-history"
+SYSTEM_UPDATE_PERMISSION_MIGRATION_VERSION = "015-system-update-permission"
 
 
 def utc_now():
@@ -85,6 +86,43 @@ def create_security_tables(connection):
         CREATE TABLE IF NOT EXISTS schema_migrations (
             version TEXT PRIMARY KEY,
             applied_at TEXT NOT NULL
+        )
+    """)
+
+    connection.execute("""
+        CREATE TABLE IF NOT EXISTS system_update_jobs (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            requested_at TEXT NOT NULL,
+            requested_by TEXT NOT NULL,
+            target_tag TEXT NOT NULL,
+            target_commit TEXT NOT NULL,
+            status TEXT NOT NULL,
+            step TEXT NOT NULL,
+            progress_json TEXT NOT NULL DEFAULT '[]',
+            details_json TEXT NOT NULL DEFAULT '{}',
+            error TEXT,
+            rollback_status TEXT,
+            updated_at TEXT NOT NULL,
+            finished_at TEXT
+        )
+    """)
+    add_column_if_missing(
+        connection,
+        "system_update_jobs",
+        "target_commit",
+        "TEXT NOT NULL DEFAULT ''",
+    )
+    connection.execute("""
+        CREATE INDEX IF NOT EXISTS idx_system_update_jobs_requested
+        ON system_update_jobs(requested_at DESC)
+    """)
+    connection.execute("""
+        CREATE TABLE IF NOT EXISTS system_update_agent (
+            id INTEGER PRIMARY KEY CHECK (id = 1),
+            last_seen TEXT NOT NULL,
+            current_version TEXT,
+            deployment TEXT,
+            status_message TEXT
         )
     """)
 
@@ -159,6 +197,17 @@ def migrate_backup_permission(connection):
         """
         INSERT OR IGNORE INTO user_permissions (user_id, permission)
         SELECT users.id, 'backups.manage'
+        FROM users
+        WHERE users.role = 'administrator'
+        """
+    )
+
+
+def migrate_system_update_permission(connection):
+    connection.execute(
+        """
+        INSERT OR IGNORE INTO user_permissions (user_id, permission)
+        SELECT users.id, 'system.update'
         FROM users
         WHERE users.role = 'administrator'
         """
@@ -905,6 +954,27 @@ def run_migration(db_path, admin_username, skip_admin):
             print(
                 f"[OK] Migration "
                 f"{TELEMETRY_EVENT_HISTORY_MIGRATION_VERSION} completed"
+            )
+
+        if migration_already_applied(
+            connection,
+            SYSTEM_UPDATE_PERMISSION_MIGRATION_VERSION
+        ):
+            print(
+                f"[INFO] Migration "
+                f"{SYSTEM_UPDATE_PERMISSION_MIGRATION_VERSION} "
+                "is already recorded"
+            )
+        else:
+            migrate_system_update_permission(connection)
+            record_migration(
+                connection,
+                SYSTEM_UPDATE_PERMISSION_MIGRATION_VERSION
+            )
+            connection.commit()
+            print(
+                f"[OK] Migration "
+                f"{SYSTEM_UPDATE_PERMISSION_MIGRATION_VERSION} completed"
             )
 
         print_schema(connection)

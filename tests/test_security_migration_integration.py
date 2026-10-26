@@ -72,6 +72,7 @@ def test_full_security_migration_is_repeatable(tmp_path, monkeypatch):
         assert migration.TELEMETRY_SYSTEM_STATE_MIGRATION_VERSION in versions
         assert migration.TELEMETRY_DASHBOARD_MIGRATION_VERSION in versions
         assert migration.TELEMETRY_EVENT_HISTORY_MIGRATION_VERSION in versions
+        assert migration.SYSTEM_UPDATE_PERMISSION_MIGRATION_VERSION in versions
 
         telemetry_columns = {
             row[1]
@@ -191,6 +192,7 @@ def test_full_security_migration_is_repeatable(tmp_path, monkeypatch):
     finally:
         connection.close()
 
+
     # Running the migration again must not duplicate migration records
     # or fail because the columns and tables already exist.
     migration.run_migration(
@@ -215,6 +217,33 @@ def test_full_security_migration_is_repeatable(tmp_path, monkeypatch):
         ).fetchone()[0] == 1
     finally:
         connection.close()
+
+
+def test_system_update_permission_migration_grants_only_administrators():
+    connection = sqlite3.connect(":memory:")
+    connection.executescript("""
+        CREATE TABLE users (
+            id INTEGER PRIMARY KEY,
+            role TEXT NOT NULL
+        );
+        CREATE TABLE user_permissions (
+            user_id INTEGER NOT NULL,
+            permission TEXT NOT NULL,
+            PRIMARY KEY (user_id, permission)
+        );
+        INSERT INTO users (id, role) VALUES
+            (1, 'administrator'),
+            (2, 'operator'),
+            (3, 'viewer');
+    """)
+
+    migration.migrate_system_update_permission(connection)
+    migration.migrate_system_update_permission(connection)
+
+    assert connection.execute(
+        "SELECT user_id FROM user_permissions WHERE permission = 'system.update'"
+    ).fetchall() == [(1,)]
+    connection.close()
 
 
 def test_full_migration_delegates_permission_to_one_active_admin(tmp_path):
