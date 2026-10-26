@@ -5746,9 +5746,10 @@ administration.md
 docs/README.md
 ```
 
-The root-level technical guides are the English source of truth. The localized
-guides in `docs/locales/` are concise beginner guides, not word-for-word copies
-of every technical section.
+The root-level technical guides are maintained in English and are the source of
+truth. Localized manuals and quick starts are listed in
+[`docs/README.md`](docs/README.md); translation coverage can vary, so use the
+English source when a localized procedure is incomplete or differs.
 
 The documentation must not contain:
 
@@ -5966,4 +5967,3 @@ the server-side release has been reviewed and approved.
 The agent reports every five seconds. The server retains measurements for
 seven days and the dashboard API returns at most 1,000 evenly spaced samples
 per requested history window, preserving the first and latest sample.
-

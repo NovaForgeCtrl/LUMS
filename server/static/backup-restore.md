@@ -14,6 +14,16 @@ Du brauchst:
 * den Namen des Datenbank-Volumes, üblicherweise `lums-data`
 * das LUMS-Image, das für den einmaligen Restore-Container verwendet wird
 
+Verwende dieselbe Image-Version wie die laufende Installation. Den konfigurierten
+Image-Namen kannst du so abfragen:
+
+```bash
+sudo docker inspect lums --format '{{.Config.Image}}'
+```
+
+Ersetze `lums:SET-TO-ACTIVE-IMAGE-TAG` unten durch genau diesen Image-Namen.
+Verwende kein altes Image-Tag, nur weil es noch auf dem Host vorhanden ist.
+
 Der NAS-/Dateisystem-Mount muss verfügbar sein. Prüfe ihn vor dem Restore:
 
 ```bash
@@ -34,7 +44,7 @@ im Pfad, beispielsweise `wochenende/lums-backup-....db.gz`.
 BACKUP_ROOT=/mnt/lums-nas-backups
 BACKUP_FILE=lums-backup-DATEINAME.db.gz
 LUMS_VOLUME=lums-data
-LUMS_IMAGE=lums:pre-rbac-upgrade
+LUMS_IMAGE=lums:SET-TO-ACTIVE-IMAGE-TAG
 ```
 
 Stoppe LUMS und sichere die aktuelle Datenbank als zusätzliche Rückfallebene:

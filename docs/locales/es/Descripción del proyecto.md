@@ -8,7 +8,7 @@ LUMS gestiona centralmente las actualizaciones de Linux. Un servidor muestra cli
 
 **¿Solo utiliza una instalación existente de LUMS?** Abra la dirección proporcionada por su administrador e inicie sesión con su propia cuenta. Si falta una función, es posible que su cuenta no tenga permiso para usarla. Pida ayuda a su administrador; no comparta cuentas ni use un token de cliente como contraseña web.
 
-**¿Instala u opera LUMS?** Comience con la [guía de instalación](install.md), luego lea la [guía de administración](administration.md). Si algo sale mal, use la [guía de solución de problemas](troubleshooting.md). Estas guías técnicas detalladas se mantienen en inglés; hay guías de inicio concisas traducidas disponibles en [`docs/locales/`](docs/README.md).
+**¿Instala u opera LUMS?** Comience con la [guía de instalación](Instalación y actualizaciones.md), luego lea la [guía de administración](Administración y copias de seguridad.md). Si algo sale mal, use la [guía de solución de problemas](Solución de problemas.md). También hay guías traducidas; su cobertura puede diferir de los originales técnicos en inglés. El [índice de documentación](../../README.md) muestra las versiones disponibles.
 
 Una ejecución de prueba o una imagen Docker construida con éxito **no** es una instalación de producción. Un despliegue de producción también necesita HTTPS, un secreto de aplicación protegido, datos persistentes, copias de seguridad verificadas y un contenedor endurecido. No copie comandos de producción hasta haber verificado sus marcadores de posición y rutas de almacenamiento contra su propia instalación.
 
@@ -987,7 +987,7 @@ LUMS proporciona gestión de usuarios a las cuentas con el permiso `users.manage
 
 Los usuarios con este permiso pueden crear cuentas usando una plantilla de rol y luego asignar permisos individualmente o aplicar explícitamente esa plantilla. Las cuentas nuevas comienzan sin permisos; el editor de permisos se abre después de la creación. Los gestores de usuarios también pueden guardar notas administrativas privadas que no son visibles para el propietario de la cuenta.
 
-Los administradores con `backups.manage` pueden crear copias de seguridad de base de datos `.db` o `.db.gz` validadas en un directorio configurado en el servidor y elegir una subcarpeta segura dentro de esa ubicación montada. Consulte [`administration.md`](administration.md) y la guía de restauración en Markdown integrada en la aplicación para la configuración de almacenamiento de Docker y la recuperación.
+Los administradores con `backups.manage` pueden crear copias de seguridad de base de datos `.db` o `.db.gz` validadas en un directorio configurado en el servidor y elegir una subcarpeta segura dentro de esa ubicación montada. Consulte [`administration.md`](Administración y copias de seguridad.md) y la guía de restauración en Markdown integrada en la aplicación para la configuración de almacenamiento de Docker y la recuperación.
 
 Las contraseñas de usuario se almacenan usando hash de contraseña Argon2 en lugar de texto plano o cifrado reversible.
 

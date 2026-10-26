@@ -44,9 +44,9 @@ python3 -m venv .venv-test
 ./.venv-test/bin/pytest -q
 ```
 
-`apt update` actualise les listes de paquets ; cela ne met pas à niveau tous les logiciels installés. L'environnement virtuel Python `.venv-test` maintient les dépendances de test séparées du reste du système. Une exécution de test réussie se termine avec le code `0` ; le nombre de tests peut changer au fur et à mesure que le projet évolue. Si la création de l'environnement échoue, vérifiez que `python3-venv` est installé. Si un test échoue, enregistrez l'erreur complète et lisez le [guide de dépannage](troubleshooting.md) ; ne supprimez pas les données de production.
+`apt update` actualise les listes de paquets ; cela ne met pas à niveau tous les logiciels installés. L'environnement virtuel Python `.venv-test` maintient les dépendances de test séparées du reste du système. Une exécution de test réussie se termine avec le code `0` ; le nombre de tests peut changer au fur et à mesure que le projet évolue. Si la création de l'environnement échoue, vérifiez que `python3-venv` est installé. Si un test échoue, enregistrez l'erreur complète et lisez le [guide de dépannage](Dépannage.md) ; ne supprimez pas les données de production.
 
-Pour une installation réelle, continuez avec les sections numérotées et lisez d'abord les instructions de sécurité et de sauvegarde. Si LUMS est déjà en cours d'exécution, utilisez la procédure de mise à niveau dans [`administration.md`](administration.md), et non la procédure de première installation.
+Pour une installation réelle, continuez avec les sections numérotées et lisez d'abord les instructions de sécurité et de sauvegarde. Si LUMS est déjà en cours d'exécution, utilisez la procédure de mise à niveau dans [`administration.md`](Administration et sauvegardes.md), et non la procédure de première installation.
 
 ---
 
@@ -5722,7 +5722,7 @@ administration.md
 docs/README.md
 ```
 
-Les guides techniques au niveau racine sont la source de vérité en anglais. Les guides localisés dans `docs/locales/` sont des guides de démarrage concis, pas des copies mot pour mot de chaque section technique.
+Les guides anglais à la racine constituent la référence technique. Les traductions de `docs/locales/` peuvent ne pas encore inclure tous les détails techniques.
 
 La documentation ne doit pas contenir :
 

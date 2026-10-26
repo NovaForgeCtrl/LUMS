@@ -99,25 +99,26 @@ Administratör / Operatör
       SQLite
         │
         ▼
-    Webbgränssnitt
+```
+* Webbgränssnitt
 
 LUMS-servern kör inte pakethanteringskommandon direkt på hanterade klienter.
 
 Paketoperationer utförs av LUMS-agenten som är installerad på det hanterade systemet.
-2. Administrativa ansvarsområden
+## 2. Administrativa ansvarsområden
 
 LUMS-administration kan delas in i flera områden.
 Användaradministration
 
 Administratörer hanterar:
 
-    LUMS-användare
+* LUMS-användare
 
-    användarroller
+* användarroller
 
-    kontostatus
+* kontostatus
 
-    administrativ åtkomst
+* administrativ åtkomst
 
 Användarhantering kräver behörigheten users.manage.
 
@@ -128,17 +129,17 @@ Klientadministration
 
 Administratörer hanterar:
 
-    registrerade klienter
+* registrerade klienter
 
-    klientstatus
+* klientstatus
 
-    klientautentisering
+* klientautentisering
 
-    klienttoken
+* klienttoken
 
-    tokenrotation
+* tokenrotation
 
-    aktivering och inaktivering av klienter
+* aktivering och inaktivering av klienter
 
 Klientadministration kräver behörigheten clients.manage eftersom klientautentisering
 avgör vilka system som tillåts rapportera till LUMS.
@@ -146,17 +147,17 @@ Uppdateringsadministration
 
 Administratörs- och operatörsmallarna ger behörigheter att:
 
-    visa tillgängliga uppdateringar
+* visa tillgängliga uppdateringar
 
-    skapa uppdateringsjobb
+* skapa uppdateringsjobb
 
-    köra paketoperationer
+* köra paketoperationer
 
-    granska uppdateringshistorik
+* granska uppdateringshistorik
 
-    hantera enskilda paket
+* hantera enskilda paket
 
-    utföra systemuppdateringar
+* utföra systemuppdateringar
 
 Läsarmallen är skrivskyddad och kan inte utföra uppdateringsoperationer.
 Paketadministration
@@ -165,9 +166,9 @@ LUMS stöder pakethanteringsoperationer via klientens inbyggda pakethanterare.
 
 Nuvarande pakethanteringsbackends som stöds inkluderar:
 
-    APT/dpkg för Debian-baserade system
+* APT/dpkg för Debian-baserade system
 
-    pacman för Arch Linux
+* pacman för Arch Linux
 
 LUMS ersätter inte operativsystemets pakethanterare.
 
@@ -176,28 +177,29 @@ Driftadministration
 
 Administratörer och operatörer kan behöva övervaka:
 
-    pågående uppdateringsjobb
+* pågående uppdateringsjobb
 
-    misslyckade jobb
+* misslyckade jobb
 
-    slutförda jobb
+* slutförda jobb
 
-    klientrapportering
+* klientrapportering
 
-    omstartskrav
+* omstartskrav
 
-    pakethanteringsfel
+* pakethanteringsfel
 
-    revisionsaktivitet
+* revisionsaktivitet
 
 De detaljerade felsökningsprocedurerna för dessa tillstånd dokumenteras i troubleshooting.md.
 3. Administrativa roller
 
 LUMS tillhandahåller för närvarande tre roller.
-Roll	Syfte
-Administratör	Fullständig administrativ kontroll
-Operatör	Daglig operativ hantering
-Läsare	Skrivskyddad klient- och programvarusyn
+| Roll | Syfte |
+| --- | --- |
+| Administratör | Fullständig administrativ kontroll |
+| Operatör | Daglig operativ hantering |
+| Läsare | Skrivskyddad klient- och programvarusyn |
 
 Varje roll är en behörighetsmall. Kontots individuellt sparade
 behörigheter tillämpas på serversidan.
@@ -211,29 +213,29 @@ Administratörsmallen tillhandahåller som standard hela uppsättningen av LUMS 
 
 Administratörer kan:
 
-    visa hanterade klienter
+* visa hanterade klienter
 
-    visa installerad programvara
+* visa installerad programvara
 
-    visa tillgängliga uppdateringar
+* visa tillgängliga uppdateringar
 
-    skapa och köra uppdateringsjobb
+* skapa och köra uppdateringsjobb
 
-    granska uppdateringshistorik
+* granska uppdateringshistorik
 
-    utföra pakethanteringsoperationer
+* utföra pakethanteringsoperationer
 
-    utföra systemunderhåll
+* utföra systemunderhåll
 
-    skapa klienter
+* skapa klienter
 
-    inaktivera klienter
+* inaktivera klienter
 
-    rotera klienttoken
+* rotera klienttoken
 
-    skapa och hantera LUMS-användare
+* skapa och hantera LUMS-användare
 
-    tilldela rollmallar och individuella behörigheter
+* tilldela rollmallar och individuella behörigheter
 
 Fullständiga behörigheter enligt administratörsmallen bör endast beviljas användare som
 behöver dem.
@@ -245,29 +247,29 @@ Operatörsmallen är avsedd för daglig uppdaterings- och systemadministration.
 
 Operatörer kan:
 
-    visa hanterade klienter
+* visa hanterade klienter
 
-    visa installerad programvara
+* visa installerad programvara
 
-    visa tillgängliga uppdateringar
+* visa tillgängliga uppdateringar
 
-    skapa och köra uppdateringsjobb
+* skapa och köra uppdateringsjobb
 
-    granska uppdateringshistorik
+* granska uppdateringshistorik
 
-    utföra pakethanteringsoperationer
+* utföra pakethanteringsoperationer
 
-    utföra systemunderhåll
+* utföra systemunderhåll
 
 Operatörsmallen ger inte:
 
-    skapa eller hantera LUMS-användare
+* skapa eller hantera LUMS-användare
 
-    tilldela användarroller
+* tilldela användarroller
 
-    skapa eller inaktivera klienter
+* skapa eller inaktivera klienter
 
-    rotera klienttoken
+* rotera klienttoken
 
 Denna standardseparering möjliggör rutinmässiga uppdateringsoperationer utan att bevilja
 konto- och klienthanteringsprivilegier. Individuella beviljanden kan ändras av
@@ -278,29 +280,29 @@ Läsarmallen tillhandahåller skrivskyddad insyn.
 
 Läsare kan:
 
-    visa hanterade klienter
+* visa hanterade klienter
 
-    visa installerad programvara
+* visa installerad programvara
 
 Läsarmallen ger inte följande administrativa funktioner:
 
-    hantering av tillgängliga uppdateringar
+* hantering av tillgängliga uppdateringar
 
-    skapande av uppdateringsjobb
+* skapande av uppdateringsjobb
 
-    körning av uppdateringsjobb
+* körning av uppdateringsjobb
 
-    uppdateringshistorik
+* uppdateringshistorik
 
-    pakethantering
+* pakethantering
 
-    systemunderhåll
+* systemunderhåll
 
-    användarhantering
+* användarhantering
 
-    klienthantering
+* klienthantering
 
-    tokenrotation
+* tokenrotation
 
 Motsvarande muterande API-operationer skyddas också på serversidan.
 
@@ -312,45 +314,45 @@ Administratör
 
 Används när användaren måste hantera:
 
-    användare
+* användare
 
-    roller
+* roller
 
-    klienter
+* klienter
 
-    klientautentisering
+* klientautentisering
 
-    token
+* token
 
-    uppdateringar
+* uppdateringar
 
-    paket
+* paket
 
-    systemoperationer
+* systemoperationer
 
 Operatör
 
 Används när användaren behöver utföra rutinmässigt operativt arbete såsom:
 
-    kontrollera uppdateringar
+* kontrollera uppdateringar
 
-    installera paket
+* installera paket
 
-    ta bort paket
+* ta bort paket
 
-    uppdatera paket
+* uppdatera paket
 
-    köra uppdateringsjobb
+* köra uppdateringsjobb
 
-    granska jobbhistorik
+* granska jobbhistorik
 
 Läsare
 
 Används när användaren endast behöver insyn i:
 
-    klienter
+* klienter
 
-    installerad programvara
+* installerad programvara
 
 8. Administrativ säkerhetsprincip
 
@@ -360,23 +362,23 @@ Administrativ åtkomst bör begränsas till den funktionalitet som krävs för a
 
 I synnerhet:
 
-    använd inte administratörskonton för rutinmässig visning
+* använd inte administratörskonton för rutinmässig visning
 
-    dela inte konton mellan administratörer
+* dela inte konton mellan administratörer
 
-    dela inte klienttoken
+* dela inte klienttoken
 
-    placera inte autentiseringsuppgifter i dokumentation
+* placera inte autentiseringsuppgifter i dokumentation
 
-    exponera inte klienttoken i skärmdumpar eller loggar
+* exponera inte klienttoken i skärmdumpar eller loggar
 
-    kringgå inte LUMS webbgränssnitt genom att ändra databasen direkt om inte en dokumenterad återställningsprocedur uttryckligen kräver det
+* kringgå inte LUMS webbgränssnitt genom att ändra databasen direkt om inte en dokumenterad återställningsprocedur uttryckligen kräver det
 
 När en administrativ operation misslyckas, undersök orsaken innan du ändrar beständigt tillstånd.
 
 Använd principen:
 
-    Observera först. Ändra sedan. Verifiera sist.
+* Observera först. Ändra sedan. Verifiera sist.
 
 9. Administrativt arbetsflöde
 
@@ -384,26 +386,26 @@ Ett normalt administrativt arbetsflöde bör följa denna sekvens:
 text
 
 1. Autentisera
-      │
-      ▼
+* │
+* ▼
 2. Verifiera roll
-      │
-      ▼
+* │
+* ▼
 3. Välj klient / operation
-      │
-      ▼
+* │
+* ▼
 4. Granska aktuellt tillstånd
-      │
-      ▼
+* │
+* ▼
 5. Utför nödvändig operation
-      │
-      ▼
+* │
+* ▼
 6. Övervaka jobb
-      │
-      ▼
+* │
+* ▼
 7. Verifiera resultat
-      │
-      ▼
+* │
+* ▼
 8. Granska historik / revisionsinformation
 
 Administrativa åtgärder bör alltid verifieras efter utförandet.
@@ -414,11 +416,12 @@ Det slutliga tillståndet som rapporteras av den hanterade klienten är det rele
 10. Uppdelning av dokumentation
 
 LUMS dokumentationsuppsättning är avsiktligt uppdelad i separata drifthandböcker.
-Dokument	Syfte
-install.md	Installation och initial driftsättning
-administration.md	Daglig administration
-security.md	Säkerhetsarkitektur och revisionsresultat
-troubleshooting.md	Diagnos och återställning
+| Dokument | Syfte |
+| --- | --- |
+| install.md | Installation och initial driftsättning |
+| administration.md | Daglig administration |
+| security.md | Säkerhetsarkitektur och revisionsresultat |
+| troubleshooting.md | Diagnos och återställning |
 
 Den här handboken bör därför undvika att duplicera detaljerade installations- och felsökningsprocedurer.
 
@@ -439,18 +442,18 @@ Dessa autentiseringsmekanismer får inte förväxlas.
 text
 
 LUMS-användare
-    │
-    │ användarnamn + lösenord
-    ▼
+* │
+* │ användarnamn + lösenord
+* ▼
 Webbgränssnitt
-    │
-    ▼
+* │
+* ▼
 LUMS-applikation
 
 Hanterad klient
-    │
-    │ klienttoken
-    ▼
+* │
+* │ klienttoken
+* ▼
 LUMS API
 
 12. Skapa användare
@@ -459,19 +462,19 @@ Användare med users.manage kan skapa nya LUMS-användare.
 
 När en användare skapas anger administratören:
 
-    användarnamn
+* användarnamn
 
-    lösenord
+* lösenord
 
-    en rolletikett, med en rollmall tillgänglig för senare behörighetstilldelning
+* en rolletikett, med en rollmall tillgänglig för senare behörighetstilldelning
 
 Tillgängliga rollmallar är:
 
-    administrator
+## administrator
 
-    operator
+## operator
 
-    viewer
+## viewer
 
 Servern validerar de angivna värdena innan kontot skapas.
 
@@ -479,15 +482,16 @@ Nya konton startar utan behörigheter. Efter skapandet kan administratörer
 tilldela individuella kryssrutor eller tillämpa en av rollmallarna. Att tillämpa en
 mall förväljer dess standardbehörigheter, som sedan kan anpassas.
 Tillgängliga behörigheter är:
-Behörighet	Åtkomst som beviljas
-clients.view	Visa klientlistan och systeminformation
-software.view	Visa installerad programvara
-updates.view	Visa uppdateringar, jobb och uppdateringshistorik
-packages.search	Sök i paketförråd
-jobs.manage	Skapa paketoperationer och uppdateringsjobb
-clients.manage	Registrera/ta bort klienter och rotera klienttoken
-users.manage	Skapa användare och hantera roller, behörigheter och interna anteckningar
-backups.manage	Skapa och inspektera databassäkerhetskopior
+| Behörighet | Åtkomst som beviljas |
+| --- | --- |
+| clients.view | Visa klientlistan och systeminformation |
+| software.view | Visa installerad programvara |
+| updates.view | Visa uppdateringar, jobb och uppdateringshistorik |
+| packages.search | Sök i paketförråd |
+| jobs.manage | Skapa paketoperationer och uppdateringsjobb |
+| clients.manage | Registrera/ta bort klienter och rotera klienttoken |
+| users.manage | Skapa användare och hantera roller, behörigheter och interna anteckningar |
+| backups.manage | Skapa och inspektera databassäkerhetskopior |
 
 Klientrelaterade behörigheter kräver clients.view; jobs.manage kräver också
 updates.view. LUMS förhindrar att det sista aktiva kontot med
@@ -499,13 +503,13 @@ LUMS använder Argon2-baserad lösenordshashning för applikationsuppgifter.
 
 Efter skapandet, verifiera att:
 
-    användarnamnet visas i användarlistan
+* användarnamnet visas i användarlistan
 
-    rollmallen och de individuella behörigheterna är korrekta
+* rollmallen och de individuella behörigheterna är korrekta
 
-    kontot är aktiverat
+* kontot är aktiverat
 
-    användaren kan autentisera sig framgångsrikt
+* användaren kan autentisera sig framgångsrikt
 
 Skicka inte lösenord via dokumentation, ärenden, skärmdumpar eller andra osäkra kanaler.
 Databassäkerhetskopieringsgränssnitt
@@ -527,15 +531,17 @@ bas och skapar den vid behov; absoluta sökvägar, överordnad traversering och
 symboliska länkade underkataloger avvisas. Värdens sökvägar måste monteras in i Docker
 av serveradministratören. För en Docker-driftsättning, skapa en separat värdkatalog
 skrivbar av containerns UID/GID 10001:
-bash
 
+```bash
 sudo install -d -o 10001 -g 10001 -m 0700 /var/backups/lums
+```
 
 Lägg till dessa alternativ i LUMS containerkonfiguration:
-bash
 
+```bash
 -v /var/backups/lums:/var/backups/lums \
 -e LUMS_BACKUP_DIR=/var/backups/lums \
+```
 
 Använd en separat disk eller fjärrlagring för motståndskraft mot värd fel.
 Till exempel, montera en NAS på Debian-värden först och använd sedan den monterade sökvägen
@@ -545,61 +551,62 @@ Säkerhetskopieringsdestinationen måste vara tillgänglig och skrivbar inuti co
 annars rapporterar gränssnittet att säkerhetskopieringslagring är otillgänglig.
 
 För återställningssteg, se server/static/backup-restore.md.
-13. Användarroller
+## 13. Användarroller
 
 Välj en rollmall enligt minsta nödvändiga behörighet, granska sedan
 de individuella behörigheterna för varje konto.
-Rollmall	Användarhantering	Klienthantering	Uppdateringar	Pakethantering	Skrivskyddad åtkomst
-Administratör	Ja	Ja	Ja	Ja	Ja
-Operatör	Nej	Nej	Ja	Ja	Ja
-Läsare	Nej	Nej	Nej	Nej	Ja
+| Rollmall | Användarhantering | Klienthantering | Uppdateringar | Pakethantering | Skrivskyddad åtkomst |
+| --- | --- | --- | --- | --- | --- |
+| Administratör | Ja | Ja | Ja | Ja | Ja |
+| Operatör | Nej | Nej | Ja | Ja | Ja |
+| Läsare | Nej | Nej | Nej | Nej | Ja |
 
 Dessa är standardvärden, inte fasta gränser. Administratörer kan anpassa varje
 användares behörighetsuppsättning. Rolltillämpning sker på servern genom
 de resulterande per-användarbehörigheterna.
 
 Webbgränssnittet återspeglar den tilldelade rollen, men servern förblir den auktoritativa säkerhetsgränsen.
-14. Inaktivera användarkonton
+## 14. Inaktivera användarkonton
 
 När ett konto inte längre ska tillåtas komma åt LUMS, inaktivera kontot istället för att dela eller återanvända autentiseringsuppgifterna.
 
 Exempel inkluderar:
 
-    en administratör som lämnar projektet
+* en administratör som lämnar projektet
 
-    en operatör som inte längre behöver åtkomst
+* en operatör som inte längre behöver åtkomst
 
-    tillfälligt borttagande av administrativ åtkomst
+* tillfälligt borttagande av administrativ åtkomst
 
-    säkerhetsåtgärd vid ett komprometterat konto
+* säkerhetsåtgärd vid ett komprometterat konto
 
 Efter inaktivering av ett konto, verifiera att autentisering avvisas.
 
 Befintliga autentiserade sessioner bör också beaktas vid kontosäkerhetsutredningar.
 
 Ändra inte users-tabellen manuellt om inte en dokumenterad återställningsprocedur uttryckligen kräver databasnivåingripande.
-15. Lösenordsadministration
+## 15. Lösenordsadministration
 
 Lösenord är applikationsuppgifter och måste behandlas som känslig information.
 
 Administratörer bör säkerställa att:
 
-    lösenord inte delas
+* lösenord inte delas
 
-    lösenord inte lagras i Git
+* lösenord inte lagras i Git
 
-    lösenord inte placeras i dokumentation
+* lösenord inte placeras i dokumentation
 
-    lösenord inte ingår i skärmdumpar
+* lösenord inte ingår i skärmdumpar
 
-    lösenord inte skrivs in i skalkhistoriken i onödan
+* lösenord inte skrivs in i skalkhistoriken i onödan
 
-    användare får sina autentiseringsuppgifter via en lämplig säker kanal
+* användare får sina autentiseringsuppgifter via en lämplig säker kanal
 
 LUMS lagrar lösenordshashar istället för klartextlösenord.
 
 Om ett lösenord misstänks vara komprometterat, ersätt det genom lämplig kontohanteringsprocedur istället för att försöka återställa det ursprungliga lösenordet.
-16. Sessioner
+## 16. Sessioner
 
 LUMS använder autentiserade applikationssessioner för webbåtkomst.
 
@@ -609,27 +616,28 @@ Administratörer bör behandla en oväntad autentiserad session som en säkerhet
 
 Relevanta situationer inkluderar:
 
-    inaktiverat konto som fortfarande verkar aktivt
+* inaktiverat konto som fortfarande verkar aktivt
 
-    oväntad administrativ åtkomst
+* oväntad administrativ åtkomst
 
-    misstänkt kompromettering av autentiseringsuppgifter
+* misstänkt kompromettering av autentiseringsuppgifter
 
-    oväntad webbläsarsession
+* oväntad webbläsarsession
 
-    säkerhetsutredning
+* säkerhetsutredning
 
 För detaljerad felsökning av sessioner och autentisering, se troubleshooting.md.
-17. Inloggningshastighetsbegränsning
+## 17. Inloggningshastighetsbegränsning
 
 LUMS tillämpar hastighetsbegränsning för upprepade misslyckade inloggningsförsök.
 
 Den aktuella utvecklingen är:
-Misslyckade försök	Låsning
-5	30 sekunder
-6	60 sekunder
-7	120 sekunder
-8+	300 sekunder
+| Misslyckade försök | Låsning |
+| --- | --- |
+| 5 | 30 sekunder |
+| 6 | 60 sekunder |
+| 7 | 120 sekunder |
+| 8+ | 300 sekunder |
 
 Hastighetsbegränsningstillståndet lagras i SQLite.
 
@@ -639,35 +647,35 @@ Upprepade autentiseringsmisslyckanden bör undersökas istället för att kringg
 
 Möjliga orsaker inkluderar:
 
-    felaktiga autentiseringsuppgifter
+* felaktiga autentiseringsuppgifter
 
-    föråldrade sparade autentiseringsuppgifter
+* föråldrade sparade autentiseringsuppgifter
 
-    en automatiserad klient som använder felaktiga autentiseringsuppgifter
+* en automatiserad klient som använder felaktiga autentiseringsuppgifter
 
-    upprepade manuella inloggningsförsök
+* upprepade manuella inloggningsförsök
 
-    en möjlig attack mot autentiseringsuppgifter
+* en möjlig attack mot autentiseringsuppgifter
 
-18. Klienthantering
+## 18. Klienthantering
 
 Hanterade klienter är Linux-system som kör LUMS-agenten.
 
 En klient förser LUMS med information såsom:
 
-    klientidentitet
+* klientidentitet
 
-    installerad programvara
+* installerad programvara
 
-    tillgängliga uppdateringar
+* tillgängliga uppdateringar
 
-    pakethanteringsresultat
+* pakethanteringsresultat
 
-    uppdateringsjobbresultat
+* uppdateringsjobbresultat
 
-    omstartstillstånd
+* omstartstillstånd
 
-    driftstatus
+* driftstatus
 
 LUMS-servern lagrar klienttillståndet och exponerar det via webbgränssnittet.
 
@@ -682,17 +690,17 @@ Behandla klienttoken med samma omsorg som lösenord.
 
 Gör aldrig:
 
-    checka in token i Git
+* checka in token i Git
 
-    placera token i offentlig dokumentation
+* placera token i offentlig dokumentation
 
-    inkludera token i skärmdumpar
+* inkludera token i skärmdumpar
 
-    klistra in token i ärendespårare
+* klistra in token i ärendespårare
 
-    exponera token i diagnostisk utdata
+* exponera token i diagnostisk utdata
 
-    dela en klients token med en annan klient
+* dela en klients token med en annan klient
 
 En token bör endast installeras på den klient för vilken den utfärdades.
 20. Klientregistrering
@@ -703,19 +711,19 @@ Registreringsprocessen etablerar serverns klientidentitet och autentiseringsuppg
 
 Efter registreringen:
 
-    installera LUMS-agenten
+* installera LUMS-agenten
 
-    konfigurera klienttoken
+* konfigurera klienttoken
 
-    konfigurera LUMS-serverns slutpunkt
+* konfigurera LUMS-serverns slutpunkt
 
-    etablera TLS-förtroende
+* etablera TLS-förtroende
 
-    utför en första agentkörning
+* utför en första agentkörning
 
-    verifiera att klienten rapporterar framgångsrikt
+* verifiera att klienten rapporterar framgångsrikt
 
-    bekräfta att klienten visas i LUMS-gränssnittet
+* bekräfta att klienten visas i LUMS-gränssnittet
 
 En klient bör inte anses vara i drift bara för att agenttjänsten startar framgångsrikt.
 
@@ -726,31 +734,31 @@ Klientvyn bör användas för att skilja mellan olika drifttillstånd.
 
 Exempel inkluderar:
 
-    klient registrerad men rapporterar inte
+* klient registrerad men rapporterar inte
 
-    klient rapporterar normalt
+* klient rapporterar normalt
 
-    klient rapporterar inaktuell information
+* klient rapporterar inaktuell information
 
-    klient inaktiverad
+* klient inaktiverad
 
-    klientautentiseringsfel
+* klientautentiseringsfel
 
-    klientsidans pakethanteringsfel
+* klientsidans pakethanteringsfel
 
 När en klient slutar rapportera, avgör först om problemet är:
 
-    nätverksanslutning
+* nätverksanslutning
 
-    TLS-förtroende
+* TLS-förtroende
 
-    klientautentisering
+* klientautentisering
 
-    agentkörning
+* agentkörning
 
-    servertillgänglighet
+* servertillgänglighet
 
-    server-sidans bearbetning
+* server-sidans bearbetning
 
 Undvik att ändra klientens autentiseringsuppgifter innan du fastställt vilket lager som faktiskt misslyckas.
 22. Klienttokenrotation
@@ -759,31 +767,31 @@ Klienttoken kan roteras vid behov.
 
 Typiska skäl inkluderar:
 
-    misstänkt tokenexponering
+* misstänkt tokenexponering
 
-    policy för rotation av autentiseringsuppgifter
+* policy för rotation av autentiseringsuppgifter
 
-    administrativt underhåll
+* administrativt underhåll
 
-    ersättning av en klientkonfiguration
+* ersättning av en klientkonfiguration
 
-    säkerhetsincidenthantering
+* säkerhetsincidenthantering
 
 Tokenrotation ändrar den autentiseringsuppgift som accepteras för klienten.
 
 Efter rotation:
 
-    hämta den nya klienttoken
+* hämta den nya klienttoken
 
-    uppdatera klientkonfigurationen
+* uppdatera klientkonfigurationen
 
-    kör agenten
+* kör agenten
 
-    verifiera framgångsrik autentisering
+* verifiera framgångsrik autentisering
 
-    verifiera den resulterande klientrapporten
+* verifiera den resulterande klientrapporten
 
-    bekräfta att normal rapportering återupptas
+* bekräfta att normal rapportering återupptas
 
 Ta inte bort den gamla klientkonfigurationen förrän den nya autentiseringsvägen har verifierats.
 23. Inaktivera en klient
@@ -792,23 +800,23 @@ En klient kan inaktiveras när den inte längre ska delta i LUMS-operationer.
 
 Exempel inkluderar:
 
-    avveckling av system
+* avveckling av system
 
-    tillfälligt underhåll
+* tillfälligt underhåll
 
-    klientbyte
+* klientbyte
 
-    misstänkt kompromettering av autentiseringsuppgifter
+* misstänkt kompromettering av autentiseringsuppgifter
 
 Innan du inaktiverar en klient, kontrollera om aktiva uppdateringsjobb är associerade med den.
 
 Efter inaktivering:
 
-    verifiera att klienten inte längre behandlas som i drift
+* verifiera att klienten inte längre behandlas som i drift
 
-    granska relevant uppdateringsjobbhistorik
+* granska relevant uppdateringsjobbhistorik
 
-    bevara revisionsinformation som krävs för utredning
+* bevara revisionsinformation som krävs för utredning
 
 Ta inte bort beständiga klientdata bara för att en klient tillfälligt är offline.
 24. Checklista för klientadministration
@@ -830,7 +838,7 @@ text
 [ ] Resultat returneras korrekt
 
 En klient är endast i drift när hela rapporterings- och autentiseringskedjan fungerar.
-25. Administrativ princip
+## 25. Administrativ princip
 
 Användaradministration och klientadministration bör förbli separerade.
 
@@ -840,12 +848,12 @@ En klienttoken bestämmer vilket hanterat system som får kommunicera med LUMS.
 text
 
 Applikationsanvändare
-      │
-      └── Roll / Behörigheter
+* │
+* └── Roll / Behörigheter
 
 Hanterad klient
-      │
-      └── Klienttoken / Identitet
+* │
+* └── Klienttoken / Identitet
 
 Använd inte en mekanism som ersättning för den andra.
 26. Programvaruinventering
@@ -872,7 +880,7 @@ Filtret för installerad programvara är en lokal gränssnittsfunktion.
 Det är separat från pakethanteringssökningen.
 
 Denna distinktion är viktig:
-text
+```text
 
 Installerad programvara
     │
@@ -880,7 +888,8 @@ Installerad programvara
 
 Pakethantering
     │
-    └── Sök i klientens paketförråd
+```
+* └── Sök i klientens paketförråd
 
 Ett installerat paket kanske därför inte visas i pakethanteringssökningen om det inte längre är tillgängligt i ett konfigurerat förråd.
 28. Tillgängliga uppdateringar
@@ -893,34 +902,34 @@ Den rapporterade informationen kan användas för att identifiera paket som krä
 
 Innan du skapar ett uppdateringsjobb, granska:
 
-    klientidentitet
+* klientidentitet
 
-    paketnamn
+* paketnamn
 
-    för närvarande installerad version
+* för närvarande installerad version
 
-    tillgänglig version
+* tillgänglig version
 
-    paketstatus
+* paketstatus
 
-    om klienten för närvarande är nåbar
+* om klienten för närvarande är nåbar
 
 Anta inte att varje tillgänglig uppdatering omedelbart bör installeras.
 
 Driftskrav, underhållsfönster, applikationsberoenden och klienttillstånd bör beaktas innan körning.
-29. Pakethantering
+## 29. Pakethantering
 
 LUMS tillhandahåller centraliserade pakethanteringsoperationer för Linux-klienter som stöds.
 
 Nuvarande pakethanteringsåtgärder inkluderar:
 
-    INSTALL_PACKAGE
+* INSTALL_PACKAGE
 
-    REMOVE_PACKAGE
+* REMOVE_PACKAGE
 
-    UPDATE_PACKAGE
+* UPDATE_PACKAGE
 
-    UPDATE_SYSTEM
+* UPDATE_SYSTEM
 
 Operationen begärs via LUMS men utförs lokalt av LUMS-agenten.
 
@@ -928,6 +937,7 @@ Agenten delegerar den faktiska paketoperationen till den inbyggda pakethanterare
 text
 
 LUMS webbgränssnitt
+```text
       │
       ▼
 LUMS API
@@ -941,9 +951,10 @@ LUMS-agent
       ├── APT / dpkg
       │
       └── pacman
+```
 
 LUMS förblir därför oberoende av operativsystemets paketdatabas och pakethanteringsimplementation.
-30. Paketsökning
+## 30. Paketsökning
 
 Gränssnittet Pakethantering tillhandahåller en paketsökning som är separat från filtret för installerad programvara.
 
@@ -955,59 +966,59 @@ På Arch Linux använder agenten pacman.
 
 Sökresultat kan innehålla:
 
-    paketnamn
+* paketnamn
 
-    paketversion
+* paketversion
 
-    paketbeskrivning
+* paketbeskrivning
 
-    förrådsinformation där tillgänglig
+* förrådsinformation där tillgänglig
 
 Paketsökning installerar ingenting.
 
 En sökning är därför en skrivskyddad operation.
-31. Installera ett paket
+## 31. Installera ett paket
 
 Administratörer och operatörer kan skapa paketinstallationsjobb.
 
 Det normala arbetsflödet är:
 
-    välj den hanterade klienten
+* välj den hanterade klienten
 
-    öppna Pakethantering
+* öppna Pakethantering
 
-    sök efter det önskade paketet
+* sök efter det önskade paketet
 
-    granska resultatet
+* granska resultatet
 
-    välj installationsåtgärden
+* välj installationsåtgärden
 
-    skapa jobbet
+* skapa jobbet
 
-    övervaka körningen
+* övervaka körningen
 
-    verifiera resultatet
+* verifiera resultatet
 
-    uppdatera eller kontrollera den installerade programvaran igen
+* uppdatera eller kontrollera den installerade programvaran igen
 
 Paketet installeras av agenten med den inbyggda pakethanteraren.
 
 Att jobbet skapas framgångsrikt betyder inte att installationen redan har slutförts.
 
 Det slutliga jobbresultatet måste kontrolleras.
-32. Ta bort ett paket
+## 32. Ta bort ett paket
 
 Borttagning av paket följer samma kontrollerade jobbarbetsflöde.
 
 Innan du tar bort ett paket, verifiera:
 
-    rätt klient
+* rätt klient
 
-    rätt paket
+* rätt paket
 
-    avsedd operation
+* avsedd operation
 
-    om annan programvara är beroende av paketet
+* om annan programvara är beroende av paketet
 
 Efter körning, verifiera det resulterande jobbstatusen och klientens rapporterade programvarutillstånd.
 
@@ -1019,7 +1030,7 @@ Den inbyggda pakethanteraren ansvarar fortfarande för att lösa operationen.
 Ett specifikt paket kan uppdateras när en uppdatering är tillgänglig.
 
 Arbetsflödet är:
-text
+```text
 
 Tillgänglig uppdatering
       │
@@ -1033,6 +1044,7 @@ Skapa UPDATE_PACKAGE-jobb
 Agentkörning
       │
       ▼
+```
 Resultatvalidering
 
 LUMS validerar paketinformationen innan det motsvarande uppdateringsjobbet skapas.
@@ -1040,7 +1052,7 @@ LUMS validerar paketinformationen innan det motsvarande uppdateringsjobbet skapa
 Om paketet inte längre listas som uppdateringsbart, bör jobbbegäran inte behandlas som en giltig uppdateringsoperation.
 
 Detta förhindrar att inaktuell uppdateringsinformation körs blint.
-34. Uppdatera systemet
+## 34. Uppdatera systemet
 
 UPDATE_SYSTEM utför en bredare systemuppdatering med klientens inbyggda pakethanteringsmekanism.
 
@@ -1048,29 +1060,29 @@ Denna operation påverkar mer än ett paket och bör därför behandlas som en u
 
 Innan du startar en systemuppdatering, verifiera:
 
-    klienttillgänglighet
+* klienttillgänglighet
 
-    underhållsfönster
+* underhållsfönster
 
-    för närvarande körande jobb
+* för närvarande körande jobb
 
-    pakethanterarens tillstånd
+* pakethanterarens tillstånd
 
-    tillgängligt diskutrymme där det är relevant
+* tillgängligt diskutrymme där det är relevant
 
-    om en omstart kan krävas
+* om en omstart kan krävas
 
 Efter uppdateringen, verifiera:
 
-    jobbresultat
+* jobbresultat
 
-    klientrapport
+* klientrapport
 
-    installerad programvara
+* installerad programvara
 
-    tillgängliga uppdateringar
+* tillgängliga uppdateringar
 
-    omstartstillstånd
+* omstartstillstånd
 
 35. Uppdateringsjobb
 
@@ -1079,7 +1091,7 @@ Alla muterande paket- och uppdateringsoperationer representeras som LUMS-uppdate
 Detta ger en gemensam körnings- och spårningsmodell.
 
 Typisk jobblivscykel:
-text
+```text
 
 PENDING
    │
@@ -1090,39 +1102,41 @@ RUNNING
    │
    ▼
 SUCCESS
+```
 
 Ett jobb kan också kräva ytterligare hantering när klienten blir otillgänglig eller körningen avbryts.
 
 Jobbhistoriken bör användas som den auktoritativa operativa posten snarare än att enbart förlita sig på den aktuella klientvyn.
-36. Skapa jobb
+## 36. Skapa jobb
 
 Innan du skapar ett uppdateringsjobb, verifiera den avsedda operationen noggrant.
 
 Kontrollera:
 
-    klient
+* klient
 
-    åtgärd
+* åtgärd
 
-    paket
+* paket
 
-    målversion där tillämpligt
+* målversion där tillämpligt
 
-    aktuellt pakettillstånd
+* aktuellt pakettillstånd
 
-    underhållskrav
+* underhållskrav
 
 Åtgärder som stöds inkluderar:
-Åtgärd	Syfte
-INSTALL_PACKAGE	Installera ett paket
-REMOVE_PACKAGE	Ta bort ett paket
-UPDATE_PACKAGE	Uppdatera ett specifikt paket
-UPDATE_SYSTEM	Utför en systemomfattande uppdatering
+| Åtgärd | Syfte |
+| --- | --- |
+| INSTALL_PACKAGE | Installera ett paket |
+| REMOVE_PACKAGE | Ta bort ett paket |
+| UPDATE_PACKAGE | Uppdatera ett specifikt paket |
+| UPDATE_SYSTEM | Utför en systemomfattande uppdatering |
 
 Skapande av uppdateringsjobb är begränsat till Administratör- och Operatör-roller.
 
 Läsare kan inte skapa uppdateringsjobb.
-37. Jobbkörning
+## 37. Jobbkörning
 
 Efter skapandet bearbetas jobbet av LUMS-agenten.
 
@@ -1138,7 +1152,7 @@ Denna distinktion är viktig:
 text
 
 API-begäran accepterad
-        ≠
+  * ≠
 Paketoperation framgångsrik
 
 Det slutliga körningsresultatet måste därför alltid kontrolleras.
@@ -1148,17 +1162,17 @@ Ett slutfört jobb bör innehålla ett explicit resultat.
 
 Relevanta utfall inkluderar:
 
-    framgångsrik körning
+* framgångsrik körning
 
-    misslyckad körning
+* misslyckad körning
 
-    pakethanteringsfel
+* pakethanteringsfel
 
-    avbruten körning
+* avbruten körning
 
-    återställningsrelaterat tillstånd
+* återställningsrelaterat tillstånd
 
-    omstartsrelaterat tillstånd där tillämpligt
+* omstartsrelaterat tillstånd där tillämpligt
 
 Administratörer och operatörer bör inspektera resultatet när ett jobb misslyckas istället för att omedelbart upprepa samma operation.
 
@@ -1169,56 +1183,56 @@ Uppdateringshistoriken tillhandahåller en operativ post över tidigare uppdater
 
 Använd den för att besvara frågor som:
 
-    Har detta paket redan uppdaterats?
+* Har detta paket redan uppdaterats?
 
-    Vilken klient utförde operationen?
+* Vilken klient utförde operationen?
 
-    När skapades jobbet?
+* När skapades jobbet?
 
-    När började körningen?
+* När började körningen?
 
-    När avslutades körningen?
+* När avslutades körningen?
 
-    Lyckades operationen?
+* Lyckades operationen?
 
-    Rapporterade pakethanteraren ett fel?
+* Rapporterade pakethanteraren ett fel?
 
 Historisk jobbinformation är särskilt viktig vid utredning av upprepade fel eller avbrutna underhållsoperationer.
 40. Misslyckade jobb
 
 När ett jobb misslyckas:
 
-    registrera klienten och jobb-ID
+* registrera klienten och jobb-ID
 
-    inspektera jobbresultatet
+* inspektera jobbresultatet
 
-    avgör om felet uppstod på servern eller klienten
+* avgör om felet uppstod på servern eller klienten
 
-    inspektera relevanta agentloggar
+* inspektera relevanta agentloggar
 
-    inspektera den inbyggda pakethanterarens tillstånd
+* inspektera den inbyggda pakethanterarens tillstånd
 
-    åtgärda det underliggande problemet
+* åtgärda det underliggande problemet
 
-    försök igen först efter att orsaken är förstådd
+* försök igen först efter att orsaken är förstådd
 
 Vanliga orsaker inkluderar:
 
-    otillgängliga förråd
+* otillgängliga förråd
 
-    pakethanterarens lås
+* pakethanterarens lås
 
-    nätverksproblem
+* nätverksproblem
 
-    ogiltiga paketbegäranden
+* ogiltiga paketbegäranden
 
-    beroendekonflikter
+* beroendekonflikter
 
-    otillräckligt diskutrymme
+* otillräckligt diskutrymme
 
-    avbrutna paketoperationer
+* avbrutna paketoperationer
 
-    klientautentiserings- eller kommunikationsproblem
+* klientautentiserings- eller kommunikationsproblem
 
 Detaljerade diagnostiska procedurer dokumenteras i troubleshooting.md.
 41. Pakethanterarens lås
@@ -1227,13 +1241,13 @@ APT och pacman kan förhindra samtidiga paketoperationer.
 
 Om en pakethanteringsoperation misslyckas eftersom pakethanteraren redan används:
 
-    identifiera den aktiva pakethanteringsprocessen
+* identifiera den aktiva pakethanteringsprocessen
 
-    avgör vilken operation som körs
+* avgör vilken operation som körs
 
-    vänta på att den legitima operationen slutförs när det är lämpligt
+* vänta på att den legitima operationen slutförs när det är lämpligt
 
-    försök igen med LUMS-operationen efteråt
+* försök igen med LUMS-operationen efteråt
 
 Ta inte bort pakethanterarens låsfiler blint medan pakethanteraren körs.
 
@@ -1250,28 +1264,28 @@ Om inaktivitetsinformation inte är tillgänglig måste agenten rapportera det t
 
 Administratörer bör skilja mellan:
 
-    klienten är inaktiv
+* klienten är inaktiv
 
-    klienten är aktiv
+* klienten är aktiv
 
-    inaktivitetsdetektering otillgänglig
+* inaktivitetsdetektering otillgänglig
 
-    klienten onåbar
+* klienten onåbar
 
 Dessa tillstånd har olika operativ betydelse.
 43. Övervakning av uppdateringskörning
 
 Under underhåll, övervaka:
 
-    jobbstatus
+* jobbstatus
 
-    klientanslutning
+* klientanslutning
 
-    agentaktivitet
+* agentaktivitet
 
-    pakethanteringsresultat
+* pakethanteringsresultat
 
-    omstartskrav
+* omstartskrav
 
 Anta inte att ett jobb som förblir i RUNNING på obestämd tid betyder att pakethanteraren fortfarande arbetar.
 
@@ -1284,15 +1298,15 @@ LUMS spårar omstartsrelaterat tillstånd som rapporteras av den hanterade klien
 
 Efter en systemuppdatering:
 
-    inspektera det rapporterade omstartstillståndet
+* inspektera det rapporterade omstartstillståndet
 
-    avgör om en omstart krävs
+* avgör om en omstart krävs
 
-    utför omstarten under ett lämpligt underhållsfönster
+* utför omstarten under ett lämpligt underhållsfönster
 
-    låt agenten rapportera igen
+* låt agenten rapportera igen
 
-    verifiera att klienten återgår till normal drift
+* verifiera att klienten återgår till normal drift
 
 Ett omstartskrav bör inte automatiskt tolkas som ett uppdateringsfel.
 45. Checklista för operativ uppdatering
@@ -1323,7 +1337,7 @@ Det hanterade operativsystemet ansvarar fortfarande för den faktiska pakethante
 
 Därför:
 
-    LUMS begär och spårar operationen. Den inbyggda pakethanteraren utför den.
+* LUMS begär och spårar operationen. Den inbyggda pakethanteraren utför den.
 
 Denna separation gör det möjligt för LUMS att hantera olika Linux-system samtidigt som pakethanteringens semantik för varje operativsystem bevaras.
 47. Jobbåterställning
@@ -1334,15 +1348,15 @@ Uppdateringskörning använder kontrollpunktsinformation för att spåra framste
 
 Detta är särskilt viktigt när:
 
-    agenten avbryts
+* agenten avbryts
 
-    klienten startar om
+* klienten startar om
 
-    servern startas om
+* servern startas om
 
-    nätverkskommunikationen tillfälligt är otillgänglig
+* nätverkskommunikationen tillfälligt är otillgänglig
 
-    en paketoperation slutförs innan resultatet rapporteras
+* en paketoperation slutförs innan resultatet rapporteras
 
 Återställningsmekanismen använder det registrerade jobbtillståndet för att avgöra vilket arbete som fortfarande behöver utföras.
 48. Kontrollpunkter på paketnivå
@@ -1375,17 +1389,17 @@ När ett uppdateringsjobb avbryts, skapa inte omedelbart ett ersättningsjobb.
 
 Avgör först:
 
-    vilket jobb som avbröts
+* vilket jobb som avbröts
 
-    vilken paketoperation som var aktiv
+* vilken paketoperation som var aktiv
 
-    vilka paketoperationer som redan lyckades
+* vilka paketoperationer som redan lyckades
 
-    om pakethanteraren slutförde operationen
+* om pakethanteraren slutförde operationen
 
-    om agenten återställde jobbet automatiskt
+* om agenten återställde jobbet automatiskt
 
-    om klienten kräver en omstart
+* om klienten kräver en omstart
 
 Den befintliga jobbhistoriken och agentloggarna bör inspekteras innan manuellt ingripande.
 50. Agentåterställning
@@ -1407,17 +1421,17 @@ Servern och klienten har separata körningstillstånd.
 
 Efter en serveromstart:
 
-    verifiera att LUMS-containern körs
+* verifiera att LUMS-containern körs
 
-    verifiera databastillgänglighet
+* verifiera databastillgänglighet
 
-    verifiera att klienten kan kommunicera med LUMS
+* verifiera att klienten kan kommunicera med LUMS
 
-    inspektera berörda uppdateringsjobb
+* inspektera berörda uppdateringsjobb
 
-    kontrollera agentrapporter
+* kontrollera agentrapporter
 
-    verifiera det slutliga pakettillståndet
+* verifiera det slutliga pakettillståndet
 
 Klientsidans körningsresultat förblir den viktiga källan till sanning för paketoperationen.
 52. Klientomstart under ett jobb
@@ -1434,17 +1448,17 @@ Systemet startade om innan operationen slutfördes eller innan resultatet kunde 
 
 Efter att klienten återvänder:
 
-    låt agenten starta normalt
+* låt agenten starta normalt
 
-    verifiera kommunikation med LUMS
+* verifiera kommunikation med LUMS
 
-    inspektera det berörda jobbet
+* inspektera det berörda jobbet
 
-    verifiera pakettillståndet
+* verifiera pakettillståndet
 
-    kontrollera omstartstillståndet
+* kontrollera omstartstillståndet
 
-    låt återställningen fortsätta när det är tillämpligt
+* låt återställningen fortsätta när det är tillämpligt
 
 53. Omstartsdetektering
 
@@ -1456,35 +1470,35 @@ Dessa är separata tillstånd:
 text
 
 Klienten nåbar
-        │
-        ├── omstart krävs inte
-        │
-        └── omstart krävs
+  * │
+  * ├── omstart krävs inte
+  * │
+  * └── omstart krävs
 
 Klienten onåbar
-        │
-        └── aktuellt tillstånd kan inte bekräftas
+  * │
+  * └── aktuellt tillstånd kan inte bekräftas
 
 Administratörer bör därför undvika att behandla en onåbar klient som bevis på att en omstart krävs.
 54. Verifiering efter omstart
 
 Efter en nödvändig omstart:
 
-    vänta tills operativsystemet blir tillgängligt
+* vänta tills operativsystemet blir tillgängligt
 
-    verifiera agenttjänsten eller timern
+* verifiera agenttjänsten eller timern
 
-    verifiera klientautentisering
+* verifiera klientautentisering
 
-    verifiera klientrapporten
+* verifiera klientrapporten
 
-    inspektera det berörda uppdateringsjobbet
+* inspektera det berörda uppdateringsjobbet
 
-    verifiera installerade paketversioner
+* verifiera installerade paketversioner
 
-    verifiera tillgängliga uppdateringar
+* verifiera tillgängliga uppdateringar
 
-    kontrollera om ytterligare en omstart krävs
+* kontrollera om ytterligare en omstart krävs
 
 En omstart bör endast anses operativt slutförd efter att klienten har rapporterat framgångsrikt igen.
 55. Övervakning av uppdateringsjobb
@@ -1492,16 +1506,17 @@ En omstart bör endast anses operativt slutförd efter att klienten har rapporte
 Administratörer och operatörer bör övervaka jobb under planerat underhåll.
 
 Viktiga tillstånd inkluderar:
-Tillstånd	Betydelse
-PENDING	Jobbet finns men körningen har inte startat
-RUNNING	Jobbkörning pågår
-SUCCESS	Körningen slutfördes framgångsrikt
-FAILED	Körningen slutfördes med ett fel
+| Tillstånd | Betydelse |
+| --- | --- |
+| PENDING | Jobbet finns men körningen har inte startat |
+| RUNNING | Jobbkörning pågår |
+| SUCCESS | Körningen slutfördes framgångsrikt |
+| FAILED | Körningen slutfördes med ett fel |
 
 Ett jobbtillstånd bör alltid tolkas tillsammans med dess resultatinformation.
 
 Till exempel bör ett FAILED-jobb undersökas med hjälp av dess registrerade resultat istället för att bara försöka igen.
-56. Execution Watcher
+## 56. Execution Watcher
 
 LUMS-agenten inkluderar en dedikerad execution watcher.
 
@@ -1518,29 +1533,32 @@ Agentversionen är:
 Agent 1.7.0
 
 Dessa versioner bör verifieras efter klientuppgraderingar.
-57. Watcher-övervakning
+## 57. Watcher-övervakning
 
 Administratörer kan inspektera watchern via systemd på den hanterade klienten.
 
 Användbara kontroller inkluderar:
-bash
 
+```bash
 systemctl status lums-agent-watcher.service --no-pager
+```
 
 och:
-bash
 
+```bash
 journalctl -u lums-agent-watcher.service --no-pager -n 100
+```
 
 Timern kan inspekteras med:
-bash
 
+```bash
 systemctl status lums-agent-watcher.timer --no-pager
+```
 
 Det exakta aktiva/inaktiva tillståndet för en oneshot-tjänst bör tolkas tillsammans med dess timer och journal.
 
 Ett inactive (dead)-tillstånd är inte automatiskt ett fel för en oneshot-tjänst.
-58. Rapporterings- och körningstimers
+## 58. Rapporterings- och körningstimers
 
 LUMS separerar regelbunden klientrapportering från körningsövervakning.
 
@@ -1549,80 +1567,83 @@ Rapporteringstimern ansvarar för schemalagd agentkörning.
 Watcher-timern ansvarar för schemalagd watcher-körning.
 
 Inspektera båda vid diagnos av klientsidans schemaläggningsproblem:
-bash
 
+```bash
 systemctl list-timers --all | grep lums-agent
+```
 
 Förväntade enheter inkluderar:
-text
 
+```text
 lums-agent.timer
 lums-agent-watcher.timer
+```
 
 Om en timer inte körs, inspektera:
-bash
 
+```bash
 systemctl status lums-agent.timer --no-pager
 systemctl status lums-agent-watcher.timer --no-pager
+```
 
 Inspektera sedan motsvarande journalposter.
-59. Revisionsloggning
+## 59. Revisionsloggning
 
 LUMS registrerar viktiga administrativa och säkerhetsrelevanta applikationsåtgärder i revisionsloggen.
 
 Revisionsinformation kan hjälpa till att fastställa:
 
-    vilken operation som inträffade
+* vilken operation som inträffade
 
-    vilken användare som initierade den
+* vilken användare som initierade den
 
-    vilken klient som påverkades
+* vilken klient som påverkades
 
-    när operationen inträffade
+* när operationen inträffade
 
-    om operationen accepterades
+* om operationen accepterades
 
-    vilken administrativ åtgärd som utfördes
+* vilken administrativ åtgärd som utfördes
 
 Revisionsinformation bör behandlas som operativt bevis.
 
 Den bör inte vårdslöst raderas eller ändras.
-60. Administrativa revisionsevenemang
+## 60. Administrativa revisionsevenemang
 
 Relevant administrativ aktivitet inkluderar operationer såsom:
 
-    användarskapande
+* användarskapande
 
-    rolltilldelning
+* rolltilldelning
 
-    klienthantering
+* klienthantering
 
-    tokenrotation
+* tokenrotation
 
-    skapande av uppdateringsjobb
+* skapande av uppdateringsjobb
 
-    pakethanteringsoperationer
+* pakethanteringsoperationer
 
-    autentiseringsrelaterade säkerhetshändelser
+* autentiseringsrelaterade säkerhetshändelser
 
 De exakta händelsedata beror på operationen.
 
 Administratörer bör använda revisionsinformation tillsammans med jobbhistorik vid utredning av oväntad aktivitet.
-61. Hantering av revisionsloggar
+## 61. Hantering av revisionsloggar
 
 Revisionsloggar bör hanteras försiktigt.
 
 Gör inte:
 
-    ändra historiska revisionsposter för att dölja en operation
+* ändra historiska revisionsposter för att dölja en operation
 
-    exponera känsliga autentiseringsuppgifter i exporterade loggar
+* exponera känsliga autentiseringsuppgifter i exporterade loggar
 
-    publicera loggar som innehåller klienttoken
+* publicera loggar som innehåller klienttoken
 
-    publicera lösenord eller autentiseringsmaterial
+* publicera lösenord eller autentiseringsmaterial
 
-    kopiera känslig loggutdata till offentliga ärendespårare
+* kopiera känslig loggutdata till offentliga ärendespårare
 
 Om loggar måste delas för felsökning, redigera bort autentiseringsuppgifter och annan känslig information först.
 62. Applikationsloggar
@@ -1630,46 +1651,52 @@ Om loggar måste delas för felsökning, redigera bort autentiseringsuppgifter o
 Applikationsloggar beskriver den interna driften av LUMS-servern.
 
 Användbara källor inkluderar:
-bash
+```bash
 
 sudo docker logs --tail 100 lums
+```
 
 För live-övervakning:
-bash
 
+```bash
 sudo docker logs -f lums
+```
 
 Vid utredning av ett problem, begränsa tidsfönstret där det är möjligt.
 
 Dumpa inte automatiskt hela produktionsloggen när ett mindre relevant avsnitt är tillräckligt.
-63. Agentloggar
+## 63. Agentloggar
 
 Klientsidans agentaktivitet kan inspekteras via systemd:
-bash
 
+```bash
 journalctl -u lums-agent.service --no-pager -n 100
+```
 
 För watcher-aktivitet:
-bash
 
+```bash
 journalctl -u lums-agent-watcher.service --no-pager -n 100
+```
 
 För ett specifikt tidsfönster kan systemd-journalfiltrering användas.
 
 Exempel:
-bash
 
+```bash
 journalctl -u lums-agent.service \
     --since "30 minutes ago" \
     --no-pager
+```
 
 Loggar bör korreleras med det berörda jobb-ID:t när det är möjligt.
-64. Loggkorrelation
+## 64. Loggkorrelation
 
 Vid utredning av ett uppdateringsproblem, korrelera information över hela systemet:
 text
 
 Webbgränssnitt
+```text id="jv3j7c"
   │
   ├── Jobb-ID
   │
@@ -1683,10 +1710,11 @@ Uppdateringsjobb
 Agent
   │
   ▼
+```
 Inbyggd pakethanterare
 
 Detta förhindrar det vanliga misstaget att anta att ett problem som observerats i ett lager härstammade från samma lager.
-65. Checklista för administrativ övervakning
+## 65. Checklista för administrativ övervakning
 
 Under normal drift, verifiera regelbundet:
 text
@@ -1704,12 +1732,13 @@ text
 [ ] Loggar innehåller inga oförklarade återkommande fel
 
 Frekvensen för dessa kontroller bör matcha den operativa betydelsen av LUMS-driftsättningen.
-66. Återställningsprincip
+## 66. Återställningsprincip
 
 När ett uppdateringsproblem uppstår är det säkraste administrativa tillvägagångssättet:
 text
 
 Observera
+```text
    │
    ▼
 Identifiera berört jobb/klient
@@ -1730,76 +1759,81 @@ Tillåt återställning eller nytt försök
 Verifiera slutligt tillstånd
    │
    ▼
+```
 Dokumentera betydande incidenter
 
 Undvik destruktiva återställningsåtgärder om inte det faktiska feltillståndet är förstått.
 
 I synnerhet, radera inte manuellt jobb, databasposter, pakethanterarens lås eller beständiga klientdata bara för att återställa ett rent gränssnitt.
 
-    Bevara bevis först. Reparera tillstånd sedan. Verifiera resultatet sist.
+* Bevara bevis först. Reparera tillstånd sedan. Verifiera resultatet sist.
 
-67. Databasadministration
+## 67. Databasadministration
 
 LUMS använder SQLite som sin applikationsdatabas.
 
 Produktionsdatabasen lagras inuti den beständiga Docker-volymen:
-text
 
+```text
 /var/lib/lums/lums.db
+```
 
 Databasen är beständig över containerersättning så länge Docker-volymen bevaras.
 
 Databasen innehåller applikationstillstånd såsom:
 
-    användare
+* användare
 
-    hanterade klienter
+* hanterade klienter
 
-    uppdateringsjobb
+* uppdateringsjobb
 
-    paketinformation
+* paketinformation
 
-    revisionsinformation
+* revisionsinformation
 
-    autentiseringsrelaterat tillstånd
+* autentiseringsrelaterat tillstånd
 
-    migreringstillstånd
+* migreringstillstånd
 
 Administratörer bör behandla databasen som kritiska applikationsdata.
-68. SQLite-körningskonfiguration
+## 68. SQLite-körningskonfiguration
 
 Den aktuella produktionsbaslinjen för SQLite är:
-Inställning	Värde
-journal_mode	wal
-busy_timeout	5000
-synchronous	2
-foreign_keys	aktiveras av applikationen
+| Inställning | Värde |
+| --- | --- |
+| journal_mode | wal |
+| busy_timeout | 5000 |
+| synchronous | 2 |
+| foreign_keys | aktiveras av applikationen |
 
 Applikationen aktiverar uttryckligen SQLite-främmande nyckel-tillämpning för databasanslutningar.
 
 Administratörer bör inte ändra dessa inställningar vårdslöst.
 
 Ändringar av databasens körningskonfiguration bör testas innan de införs i produktion.
-69. Databasintegritet
+## 69. Databasintegritet
 
 Databasintegritet bör kontrolleras när det finns indikationer på databaskorruption eller oväntat applikationsbeteende.
 
 En typisk SQLite-integritetskontroll är:
-bash
 
+```bash id="f0g8sl"
 sudo docker exec lums \
     sqlite3 /var/lib/lums/lums.db \
     "PRAGMA integrity_check;"
+```
 
 En frisk databas bör returnera:
-text
 
+```text
 ok
+```
 
 Om integritetskontrollen rapporterar fel, fortsätt inte att ändra applikationstillståndet blint.
 
 Bevara den berörda databasen och undersök orsaken.
-70. Databasmigreringar
+## 70. Databasmigreringar
 
 LUMS använder applikationsmigreringar för att införa databasändringar.
 
@@ -1809,139 +1843,150 @@ Administratörer bör inte manuellt ändra migreringstillståndet bara för att 
 
 Efter en applikationsuppdatering, verifiera:
 
-    att containern startar framgångsrikt
+* att containern startar framgångsrikt
 
-    att migreringar slutförs
+* att migreringar slutförs
 
-    att applikationen är nåbar
+* att applikationen är nåbar
 
-    att befintliga användare förblir tillgängliga
+* att befintliga användare förblir tillgängliga
 
-    att befintliga klienter förblir tillgängliga
+* att befintliga klienter förblir tillgängliga
 
-    att befintlig jobbhistorik förblir tillgänglig
+* att befintlig jobbhistorik förblir tillgänglig
 
-71. Beständig Docker-volym
+## 71. Beständig Docker-volym
 
 Docker-volymen som innehåller LUMS applikationsdata är en kritisk beständig resurs.
 
 Produktionsvolymen är:
-text
+```text
 
 lums-data
+```
 
 Inspektera den med:
-bash
 
+```bash id="f3z2kd"
 sudo docker volume inspect lums-data
+```
 
 Volymen måste förbli ansluten när LUMS-containern ersätts.
 
 Att ta bort containern tar inte bort volymen automatiskt.
 
 Att ta bort volymen tar dock permanent bort de beständiga applikationsdata om inte en separat säkerhetskopia finns.
-72. Containeradministration
+## 72. Containeradministration
 
 LUMS-applikationen körs inuti en härdad Docker-container.
 
 Produktionssäkerhetsbaslinjen inkluderar:
 
-    icke-root-applikationsanvändare
+* icke-root-applikationsanvändare
 
-    skrivskyddat rotfilsystem
+* skrivskyddat rotfilsystem
 
-    borttagna Linux-kapabiliteter
+* borttagna Linux-kapabiliteter
 
-    no-new-privileges
+* no-new-privileges
 
-    begränsade temporära filsystem
+* begränsade temporära filsystem
 
-    skrivskyddad hemlighetsmontering
+* skrivskyddad hemlighetsmontering
 
-    dedikerad beständig datavolym
+* dedikerad beständig datavolym
 
-    applikationsport endast på localhost
+* applikationsport endast på localhost
 
 Containern bör inte startas med svagare säkerhetsinställningar bara för att felsökning blir bekvämare.
-73. Containerstatus
+## 73. Containerstatus
 
 Kontrollera det aktuella containertillståndet med:
-bash
 
+```bash id="4n6p2v"
 sudo docker ps --filter name=lums
+```
 
 Inspektera den fullständiga körningskonfigurationen med:
-bash
 
+```bash id="k1q4z8"
 sudo docker inspect lums
+```
 
 Viktiga egenskaper inkluderar:
 
-    körtillstånd
+* körtillstånd
 
-    omstartspolicy
+* omstartspolicy
 
-    användare
+* användare
 
-    skrivskyddat rotfilsystem
+* skrivskyddat rotfilsystem
 
-    kapabiliteter
+* kapabiliteter
 
-    säkerhetsalternativ
+* säkerhetsalternativ
 
-    portbindningar
+* portbindningar
 
-    volymmonteringar
+* volymmonteringar
 
 74. Verifiering av containersäkerhet
 
 Den härdade körningen bör fortsätta att tillhandahålla de förväntade egenskaperna.
 
 Till exempel:
-bash
 
+```bash id="0u7x3n"
 sudo docker inspect lums \
     --format '{{.Config.User}} {{.HostConfig.ReadonlyRootfs}} {{.HostConfig.Privileged}}'
+```
 
 Den förväntade baslinjen är likvärdig med:
-text
 
+```text
 lums true false
+```
 
 Kapabiliteter bör förbli borttagna:
-bash
 
+```bash id="k5n8ae"
 sudo docker inspect lums \
     --format '{{json .HostConfig.CapDrop}}'
+```
 
 Förväntat:
-text
 
+```text
 ["ALL"]
+```
 
 Säkerhetsalternativ bör inkludera:
-text
 
+```text
 no-new-privileges:true
+```
 
-75. Applikationsport
+## 75. Applikationsport
 
 LUMS-applikationen lyssnar på värden genom loopback-gränssnittet.
 
 Den förväntade mappningen är:
-text
 
+```text
 127.0.0.1:5050 → container:5000
+```
 
 Verifiera det med:
-bash
 
+```bash id="b6v2w0"
 sudo docker port lums
+```
 
 Applikationsporten bör inte exponeras direkt mot LAN.
 
 Extern åtkomst tillhandahålls via Nginx över HTTPS.
-76. Nginx och HTTPS
+## 76. Nginx och HTTPS
 
 Nginx tillhandahåller den externa HTTPS-ingångspunkten för LUMS.
 
@@ -1949,6 +1994,7 @@ Den normala begärandevägen är:
 text
 
 Klientwebbläsare
+```text
       │
       ▼
 HTTPS :443
@@ -1960,27 +2006,31 @@ Nginx
 127.0.0.1:5050
       │
       ▼
+```
 LUMS-container
 
 Docker-applikationsporten bör förbli bunden till localhost.
 
 Administratörer bör därför undvika att exponera port 5050 direkt genom brandväggen eller Docker-konfigurationen.
-77. HTTPS-verifiering
+## 77. HTTPS-verifiering
 
 Efter Nginx-ändringar, validera alltid konfigurationen innan du laddar om:
-bash
 
+```bash id="7f1h9m"
 sudo nginx -t
+```
 
 Om konfigurationen är giltig:
-bash
 
+```bash id="4g5s2w"
 sudo systemctl reload nginx
+```
 
 Verifiera sedan HTTPS:
-bash
 
+```bash id="2w8v6c"
 curl -I https://LUMS-SERVER/
+```
 
 Ersätt LUMS-SERVER med det värdnamn som serverens TLS-certifikat täcker. Använd inte -k för rutinmässig verifiering; det hoppar över certifikatvalidering.
 
@@ -1989,113 +2039,117 @@ Ett framgångsrikt HTTPS-svar bekräftar att Nginx kan nå LUMS-applikationen.
 Certifikatvalidering bör också testas med det värdnamn eller den adress som administratörer normalt använder.
 
 Inaktivera inte certifikatvalidering permanent med -k.
-78. HTTP-omdirigering
+## 78. HTTP-omdirigering
 
 HTTP-slutpunkten bör omdirigera klienter till HTTPS.
 
 Verifiera:
-bash
 
+```bash id="w5q0rx"
 curl -I http://127.0.0.1/
+```
 
 Det förväntade beteendet är en HTTP-omdirigering till HTTPS-slutpunkten.
 
 Administrativ åtkomst bör använda HTTPS.
-79. Underhåll av TLS-certifikat
+## 79. Underhåll av TLS-certifikat
 
 TLS-certifikat och privata nycklar är externa i förhållande till Docker-avbilden.
 
 Typiska platser är:
-text
 
+```text
 /etc/lums/tls/lums.crt
 /etc/lums/tls/lums.key
+```
 
 Privata nycklar måste förbli skyddade.
 
 Innan du ersätter ett certifikat:
 
-    verifiera det nya certifikatet
+* verifiera det nya certifikatet
 
-    verifiera den matchande privata nyckeln
+* verifiera den matchande privata nyckeln
 
-    verifiera filbehörigheter
+* verifiera filbehörigheter
 
-    validera Nginx-konfigurationen
+* validera Nginx-konfigurationen
 
-    ladda om Nginx
+* ladda om Nginx
 
-    verifiera HTTPS
+* verifiera HTTPS
 
-    verifiera applikationsinloggning
+* verifiera applikationsinloggning
 
 Placera aldrig privata TLS-nycklar i Git-förrådet eller Docker-avbilden.
-80. Hemlighetshantering
+## 80. Hemlighetshantering
 
 Applikationshemligheten lagras utanför containeravbilden.
 
 Produktionshemligheten monteras skrivskyddat in i containern:
-text
+```text
 
 /etc/lums/secrets/lums_secret
         │
         ▼
 /run/secrets/lums_secret
+```
 
 Applikationen tar emot hemligheten genom:
-text
 
+```text
 LUMS_SECRET_KEY_FILE
+```
 
 Administratörer får aldrig:
 
-    checka in hemligheten
+* checka in hemligheten
 
-    skriva ut hemligheten
+* skriva ut hemligheten
 
-    inkludera hemligheten i dokumentation
+* inkludera hemligheten i dokumentation
 
-    exponera den i skärmdumpar
+* exponera den i skärmdumpar
 
-    placera den i ett avbildslager
+* placera den i ett avbildslager
 
 Om hemligheten misstänks vara exponerad, behandla den som komprometterad och följ lämplig procedur för hemlighetsrotation.
-81. Säkerhetskopieringsstrategi
+## 81. Säkerhetskopieringsstrategi
 
 LUMS-data bör säkerhetskopieras före betydande administrativa ändringar.
 
 Som minimum, överväg att skydda:
 
-    SQLite-applikationsdata
+* SQLite-applikationsdata
 
-    applikationskonfiguration
+* applikationskonfiguration
 
-    TLS-material
+* TLS-material
 
-    applikationshemligheter
+* applikationshemligheter
 
-    klientkonfigurationsinformation
+* klientkonfigurationsinformation
 
-    relevant driftdokumentation
+* relevant driftdokumentation
 
 Säkerhetskopior bör lagras separat från produktionscontainern och dess beständiga Docker-volym.
 
 En säkerhetskopia som endast finns på samma värd eller Docker-volym ger inte tillräckligt skydd mot förlust av den värden eller volymen.
-82. Databassäkerhetskopiering
+## 82. Databassäkerhetskopiering
 
 SQLite-databasen bör säkerhetskopieras med en SQLite-medveten metod snarare än att bara kopiera en aktivt modifierad databasfil utan hänsyn till dess tillstånd.
 
 Innan du utför en säkerhetskopiering:
 
-    identifiera produktionsdatabasen
+* identifiera produktionsdatabasen
 
-    säkerställ att säkerhetskopieringsdestinationen är tillgänglig
+* säkerställ att säkerhetskopieringsdestinationen är tillgänglig
 
-    skapa säkerhetskopian med en lämplig SQLite-säker metod
+* skapa säkerhetskopian med en lämplig SQLite-säker metod
 
-    verifiera att säkerhetskopian finns
+* verifiera att säkerhetskopian finns
 
-    registrera när den skapades
+* registrera när den skapades
 
 Anta inte att en framgångsrik filkopiering automatiskt betyder att en giltig återställbar databassäkerhetskopia finns.
 83. Verifiering av säkerhetskopior
@@ -2104,55 +2158,57 @@ En säkerhetskopia anses inte tillförlitlig förrän den har testats.
 
 Verifiera regelbundet att en säkerhetskopia kan:
 
-    läsas
+* läsas
 
-    öppnas som SQLite-data
+* öppnas som SQLite-data
 
-    kontrolleras för integritet
+* kontrolleras för integritet
 
-    återställas till en isolerad testmiljö
+* återställas till en isolerad testmiljö
 
 Till exempel kan en extraherad testkopia kontrolleras med:
-bash
 
+```bash id="p3v7cx"
 sqlite3 /path/to/test-copy.db \
     "PRAGMA integrity_check;"
+```
 
 Förväntat resultat:
-text
 
+```text
 ok
+```
 
 En produktionssäkerhetskopia bör aldrig testas genom att skriva över den aktiva produktionsdatabasen.
-84. Återställningsprincip
+## 84. Återställningsprincip
 
 Återställning är en kontrollerad administrativ operation.
 
 Innan återställning:
 
-    identifiera rätt säkerhetskopia
+* identifiera rätt säkerhetskopia
 
-    verifiera dess integritet
+* verifiera dess integritet
 
-    fastställ nödvändig återställningspunkt
+* fastställ nödvändig återställningspunkt
 
-    stoppa eller isolera applikationsaktivitet vid behov
+* stoppa eller isolera applikationsaktivitet vid behov
 
-    bevara det aktuella produktionstillståndet
+* bevara det aktuella produktionstillståndet
 
-    återställ säkerhetskopian
+* återställ säkerhetskopian
 
-    verifiera databasintegritet
+* verifiera databasintegritet
 
-    starta applikationen
+* starta applikationen
 
-    verifiera migreringar
+* verifiera migreringar
 
-    verifiera användare och klienter
+* verifiera användare och klienter
 
-    verifiera jobbhistorik
+* verifiera jobbhistorik
 
-    verifiera normal klientrapportering
+* verifiera normal klientrapportering
 
 Skriv inte över den enda kopian av produktionsdatabasen under återställning.
 85. Verifiering efter återställning
@@ -2178,12 +2234,12 @@ En återställning är endast slutförd efter att applikationen och dess hantera
 
 Den viktigaste administrativa regeln för beständiga LUMS-data är:
 
-    Utför aldrig en destruktiv databas- eller volymoperation utan en verifierad återställningsväg.
+* Utför aldrig en destruktiv databas- eller volymoperation utan en verifierad återställningsväg.
 
 I synnerhet, ta inte bort lums-data bara för att containern byggs om eller ersätts.
 
 Containerersättning och radering av beständiga data är separata operationer.
-87. Checklista för administrativ server
+## 87. Checklista för administrativ server
 
 Innan du gör en betydande server-side ändring:
 text
@@ -2200,7 +2256,7 @@ text
 [ ] Återställningsväg känd
 
 Endast efter att dessa villkor har beaktats bör en betydande produktionsändring fortskrida.
-88. Princip för serveradministration
+## 88. Princip för serveradministration
 
 LUMS separerar applikationstillstånd från den engångs container.
 text
@@ -2218,50 +2274,50 @@ Extern
 
 Denna separation gör det möjligt att ersätta applikationscontainern utan att avsiktligt förstöra beständiga applikationsdata.
 
-    Ersätt applikationen vid behov. Bevara data om inte dataradering uttryckligen är avsedd.
+* Ersätt applikationen vid behov. Bevara data om inte dataradering uttryckligen är avsedd.
 
-89. Rutinmässigt underhåll
+## 89. Rutinmässigt underhåll
 
 Rutinmässigt underhåll håller LUMS-installationen tillförlitlig och minskar risken för oväntade driftsproblem.
 
 Typiska underhållsaktiviteter inkluderar:
 
-    granska misslyckade uppdateringsjobb
+* granska misslyckade uppdateringsjobb
 
-    kontrollera klientrapportering
+* kontrollera klientrapportering
 
-    granska applikationsloggar
+* granska applikationsloggar
 
-    granska revisionsaktivitet
+* granska revisionsaktivitet
 
-    verifiera säkerhetskopior
+* verifiera säkerhetskopior
 
-    kontrollera tillgängligt diskutrymme
+* kontrollera tillgängligt diskutrymme
 
-    granska Docker-containertillstånd
+* granska Docker-containertillstånd
 
-    kontrollera TLS-certifikatets giltighet
+* kontrollera TLS-certifikatets giltighet
 
-    granska säkerhetsuppdateringar
+* granska säkerhetsuppdateringar
 
-    verifiera aktuell LUMS-version och avbild
+* verifiera aktuell LUMS-version och avbild
 
 Underhåll bör utföras under ett lämpligt underhållsfönster när ändringar kan påverka produktionsklienter.
-90. Underhåll före ändringar
+## 90. Underhåll före ändringar
 
 Innan du utför underhåll som kan påverka LUMS-servern:
 
-    granska aktiva uppdateringsjobb
+* granska aktiva uppdateringsjobb
 
-    verifiera att klienter inte genomgår oväntat underhåll
+* verifiera att klienter inte genomgår oväntat underhåll
 
-    skapa eller verifiera en aktuell säkerhetskopia
+* skapa eller verifiera en aktuell säkerhetskopia
 
-    registrera aktuellt container- och avbildstillstånd
+* registrera aktuellt container- och avbildstillstånd
 
-    dokumentera den planerade ändringen
+* dokumentera den planerade ändringen
 
-    säkerställ att en återställningsväg finns
+* säkerställ att en återställningsväg finns
 
 Börja inte underhållet med att omedelbart stoppa eller radera produktionskomponenter.
 
@@ -2271,50 +2327,54 @@ Fastställ först det aktuella tillståndet.
 LUMS-applikationsavbilder bör byggas om från det granskade källträdet.
 
 Innan du bygger en ny avbild:
-bash
 
+```bash id="x0m7r4"
 cd /opt/lums-public
+```
 
 Kör den automatiska testsviten:
-bash
 
+```bash id="4gk1dp"
 ./.venv-test/bin/pytest -q
+```
 
 Fortsätt endast när testresultatet är förstått.
 
 Bygg den nya avbilden med en distinkt tillfällig tagg:
-bash
 
+```bash id="m8q3vz"
 sudo docker build -t lums:new .
+```
 
 En tillfällig tagg gör att den för närvarande körande avbilden förblir identifierbar under ersättningsprocessen.
-92. Avbildsverifiering
+## 92. Avbildsverifiering
 
 Efter att ha byggt en ny avbild, verifiera att avbilden finns:
-bash
 
+```bash id="h6s2we"
 sudo docker image inspect lums:new
+```
 
 Granska avbildskonfigurationen innan driftsättning.
 
 Verifiera där det är lämpligt:
 
-    avbildsdigest
+* avbildsdigest
 
-    basavbild
+* basavbild
 
-    applikationsfiler
+* applikationsfiler
 
-    installerade beroenden
+* installerade beroenden
 
-    avbildsstorlek
+* avbildsstorlek
 
-    exponerade portar
+* exponerade portar
 
-    konfigurerad användare
+* konfigurerad användare
 
 Avbilden bör endast driftsättas efter att bygg- och testresultaten har granskats.
-93. Kontrollerad containerersättning
+## 93. Kontrollerad containerersättning
 
 Containerersättning bör utföras medvetet.
 
@@ -2335,7 +2395,7 @@ Innan du kör exemplet, jämför det med den faktiskt körande containern. Värd
 I synnerhet måste Docker-bindmonteringens källsökvägar på vänster sida av : matcha din värd, och den gamla containern kan ha ett annat namn.
 
 Visa avbilden, monteringarna, publicerade portar, omstartspolicyn och härdningsinställningarna utan att skriva ut miljövariabelvärden:
-bash
+```bash
 
 sudo docker inspect lums --format 'Image={{.Config.Image}}
 Mounts={{json .Mounts}}
@@ -2345,6 +2405,7 @@ Readonly={{.HostConfig.ReadonlyRootfs}}
 CapDrop={{json .HostConfig.CapDrop}}
 SecurityOpt={{json .HostConfig.SecurityOpt}}
 Tmpfs={{json .HostConfig.Tmpfs}}'
+```
 
 Spara utdata någonstans privat och använd den för att kontrollera att den nya containern
 behåller samma databasvolym, hemlighetsfil, säkerhetskopieringskatalog, lokal portbindning och säkerhetsalternativ. Klistra inte in hemlighetsinnehåll eller miljövariabelvärden i anteckningar eller meddelanden.
@@ -2354,14 +2415,15 @@ Stoppa den befintliga containern först efter att dessa villkor har beaktats.
 Produktionscontainern bör behålla den härdade körningskonfigurationen.
 
 Exempel:
-bash
 
+```bash id="n8q2kf"
 sudo docker stop lums
 sudo docker rename lums lums-before-upgrade
+```
 
 Starta sedan den nya avbilden med den etablerade härdade konfigurationen:
-bash
 
+```bash id="c7w4md"
 sudo docker run -d \
     --name lums \
     --restart unless-stopped \
@@ -2377,24 +2439,28 @@ sudo docker run -d \
     -e LUMS_SECRET_KEY_FILE=/run/secrets/lums_secret \
     -e LUMS_BACKUP_DIR=/var/backups/lums \
     lums:new
+```
 
 Ta inte bort lums-before-upgrade förrän den nya driftsättningen har validerats.
-94. Validering efter uppgradering
+## 94. Validering efter uppgradering
 
 Omedelbart efter att ha ersatt containern, verifiera:
-bash
 
+```bash id="b4m7tz"
 sudo docker ps --filter name=lums
+```
 
 Inspektera sedan loggarna:
-bash
 
+```bash id="v5n2ra"
 sudo docker logs --tail 100 lums
+```
 
 Verifiera HTTPS:
-bash
 
+```bash id="w9x1kf"
 curl -I https://LUMS-SERVER/
+```
 
 Ersätt LUMS-SERVER med det värdnamn som serverens TLS-certifikat täcker. Använd inte -k för rutinmässig verifiering; det hoppar över certifikatvalidering.
 
@@ -2408,79 +2474,86 @@ Rulla tillbaka om den nya containern inte fungerar
 Behåll den gamla containern tills den nya versionen har godkänts vid validering. Om
 den nya containern är oanvändbar och du har bekräftat att den gamla containern heter
 lums-before-upgrade, stoppa och ta bort endast den nya containern, byt sedan namn på och starta om den gamla:
-bash
 
+```bash
 sudo docker stop lums
 sudo docker rm lums
 sudo docker rename lums-before-upgrade lums
 sudo docker start lums
+```
 
 docker rm lums utan -v tar bort containern, inte lums-data-volymen. Lägg aldrig till -v i detta återställningskommando. Om containernamnet skiljer sig,
 eller du inte är säker på vilken container som är gammal respektive ny, kör inte dessa
 kommandon; inspektera det aktuella tillståndet eller fråga en administratör om hjälp. Efter
 återställning, inspektera loggar och verifiera att webbgränssnittet och data är
 tillgängliga.
-95. Beständiga data efter uppgradering
+## 95. Beständiga data efter uppgradering
 
 Containerersättning får inte ta bort den beständiga Docker-volymen.
 
 Verifiera:
-bash
 
+```bash id="j4p8sx"
 sudo docker inspect lums \
     --format '{{json .Mounts}}'
+```
 
 Bekräfta att:
-text
 
+```text id="m7z3kc"
 /var/lib/lums
+```
 
 backas upp av den förväntade beständiga volymen.
 
 Verifiera sedan:
 
-    användare finns fortfarande
+* användare finns fortfarande
 
-    roller förblir korrekta
+* roller förblir korrekta
 
-    klienter förblir registrerade
+* klienter förblir registrerade
 
-    jobbhistorik finns fortfarande
+* jobbhistorik finns fortfarande
 
-    revisionsinformation finns fortfarande
+* revisionsinformation finns fortfarande
 
-    migreringar slutfördes framgångsrikt
+* migreringar slutfördes framgångsrikt
 
-96. Säkerhetsbaslinje efter uppgradering
+## 96. Säkerhetsbaslinje efter uppgradering
 
 Efter driftsättning av en ny avbild, verifiera den härdade körningen igen.
 
 Kontrollera:
-bash
 
+```bash id="q6c3xv"
 sudo docker inspect lums \
     --format '{{.Config.User}} {{.HostConfig.ReadonlyRootfs}} {{.HostConfig.Privileged}}'
+```
 
 Förväntad baslinje:
-text
 
+```text id="s0r8jm"
 lums true false
+```
 
 Verifiera också:
-text
 
+```text id="g4m2vx"
 CapDrop = ALL
 SecurityOpt = no-new-privileges:true
+```
 
 och att:
-text
 
+```text id="c3p9rw"
 127.0.0.1:5050 → container:5000
+```
 
 förblir applikationsexponeringen.
 
 En framgångsrik applikationsuppgradering får inte tyst försvaga säkerhetsbaslinjen.
-97. Klientkommunikation efter uppgradering
+## 97. Klientkommunikation efter uppgradering
 
 Efter en serveruppgradering, verifiera att hanterade klienter fortfarande kan kommunicera.
 
@@ -2497,7 +2570,7 @@ text
 [ ] Agentresultat accepteras
 
 Om flera klientplattformar är driftsatta, verifiera representativa system från varje plattform som stöds.
-98. Uppdateringskörning efter uppgradering
+## 98. Uppdateringskörning efter uppgradering
 
 Utför inte omedelbart en stor produktionsuppdatering efter att ha ersatt LUMS-servern.
 
@@ -2507,6 +2580,7 @@ Ett lämpligt test bör verifiera hela vägen:
 text
 
 Webbgränssnitt
+```text id="y7k2fd"
   ↓
 API
   ↓
@@ -2520,48 +2594,49 @@ Resultat
   ↓
 Databas
   ↓
+```
 Webbgränssnitt
 
 Endast efter att det kontrollerade testet lyckas bör normala underhållsoperationer återupptas.
-99. Återställning
+## 99. Återställning
 
 Återställning bör vara möjlig när en ny avbild orsakar ett oväntat produktionsproblem.
 
 Bevara:
 
-    tidigare fungerande avbild
+* tidigare fungerande avbild
 
-    beständiga data
+* beständiga data
 
-    databassäkerhetskopia
+* databassäkerhetskopia
 
-    tidigare konfiguration
+* tidigare konfiguration
 
-    tidigare TLS-material
+* tidigare TLS-material
 
-    relevanta loggar
+* relevanta loggar
 
 Om den nya containern inte är användbar:
 
-    stoppa den nya containern
+* stoppa den nya containern
 
-    bevara den för utredning när det är praktiskt
+* bevara den för utredning när det är praktiskt
 
-    stoppa ytterligare administrativa ändringar
+* stoppa ytterligare administrativa ändringar
 
-    återställ den tidigare kända fungerande avbilden
+* återställ den tidigare kända fungerande avbilden
 
-    återanvänd den befintliga beständiga volymen
+* återanvänd den befintliga beständiga volymen
 
-    starta den härdade körningen
+* starta den härdade körningen
 
-    verifiera applikationen
+* verifiera applikationen
 
-    verifiera klienter
+* verifiera klienter
 
-    verifiera jobbtillstånd
+* verifiera jobbtillstånd
 
-    undersök den misslyckade avbilden separat
+* undersök den misslyckade avbilden separat
 
 Ta inte bort den beständiga volymen som en del av en normal återställning.
 100. Validering efter återställning
@@ -2588,24 +2663,25 @@ Nödadministration bör bevara bevis och beständigt tillstånd när det är mö
 
 Exempel inkluderar:
 
-    upprepade applikationskrascher
+* upprepade applikationskrascher
 
-    databasintegritetsfel
+* databasintegritetsfel
 
-    omfattande klientautentiseringsfel
+* omfattande klientautentiseringsfel
 
-    oväntat paketjobbeteende
+* oväntat paketjobbeteende
 
-    misstänkt exponering av autentiseringsuppgifter
+* misstänkt exponering av autentiseringsuppgifter
 
-    trasiga uppgraderingar
+* trasiga uppgraderingar
 
-    TLS-fel som påverkar alla användare
+* TLS-fel som påverkar alla användare
 
 Den föredragna sekvensen är:
 text
 
 Bevara
+```text id="f8k3wz"
    ↓
 Observera
    ↓
@@ -2615,10 +2691,11 @@ Isolera
    ↓
 Verifiera
    ↓
+```
 Dokumentera
 
 Undvik att radera loggar, databaser, containrar eller klientposter bara för att de verkar vara en del av problemet.
-102. Princip för administrativa ändringar
+## 102. Princip för administrativa ändringar
 
 Varje betydande produktionsändring bör ha tre tydligt definierade tillstånd:
 Före
@@ -2653,32 +2730,34 @@ text
 [ ] Återinstallationskrav dokumenterade
 
 Ta inte bort beständiga data innan du bekräftar att de inte längre behövs.
-104. Ta bort containern
+## 104. Ta bort containern
 
 För att ta bort applikationscontainern efter att driftsättningen har avvecklats:
-bash
 
+```bash id="n2x7kc"
 sudo docker stop lums
 sudo docker rm lums
+```
 
 Docker-volymen tas avsiktligt inte bort av dessa kommandon.
 
 Detta gör att applikationsdata förblir tillgängliga för senare inspektion eller återställning.
-105. Ta bort beständiga data
+## 105. Ta bort beständiga data
 
 Att ta bort LUMS Docker-volymen är en separat destruktiv operation.
 
 Utför endast detta efter att ha bekräftat att databasen och all lagrad applikationstillstånd inte längre behövs.
 
 Exempel:
-bash
 
+```bash id="r8w3mz"
 sudo docker volume rm lums-data
+```
 
 Detta tar permanent bort de beständiga applikationsdata som lagras i den volymen.
 
 Kör inte detta kommando under en normal uppgradering eller återställning.
-106. Ta bort klientkomponenter
+## 106. Ta bort klientkomponenter
 
 När en hanterad klient permanent tas bort från LUMS, avinstallera eller inaktivera dess agentkomponenter enligt klientoperativsystemets procedur.
 
@@ -2735,45 +2814,47 @@ text
 [ ] Inga autentiseringsuppgifter exponeras
 [ ] Loggar innehåller ingen oförklarad känslig information
 
-108. Operativ baslinje
+## 108. Operativ baslinje
 
 En frisk LUMS-installation bör uppfylla följande baslinje:
 text
 
 Applikation
-    ├── HTTPS tillgängligt
-    ├── Autentisering tillgänglig
-    └── RBAC tillämpat
+* ├── HTTPS tillgängligt
+* ├── Autentisering tillgänglig
+* └── RBAC tillämpat
 
+```text id="d4k9sy"
 Server
-    ├── Härdad container
-    ├── Beständig databas
-    └── Giltiga migreringar
+```
+* ├── Härdad container
+* ├── Beständig databas
+* └── Giltiga migreringar
 
 Klienter
-    ├── Autentiserade
-    ├── Rapporterande
-    ├── Programvaruinventering tillgänglig
-    └── Uppdateringsinformation tillgänglig
+* ├── Autentiserade
+* ├── Rapporterande
+* ├── Programvaruinventering tillgänglig
+* └── Uppdateringsinformation tillgänglig
 
 Operationer
-    ├── Uppdateringsjobb körbara
-    ├── Resultat registrerade
-    ├── Återställning stöds
-    └── Omstartstillstånd rapporterat
+* ├── Uppdateringsjobb körbara
+* ├── Resultat registrerade
+* ├── Återställning stöds
+* └── Omstartstillstånd rapporterat
 
 Säkerhet
-    ├── Hemligheter skyddade
-    ├── Token skyddade
-    ├── Revisionsinformation bevarad
-    └── Nätverksexponering begränsad
+* ├── Hemligheter skyddade
+* ├── Token skyddade
+* ├── Revisionsinformation bevarad
+* └── Nätverksexponering begränsad
 
 Återställning
-    ├── Säkerhetskopior tillgängliga
-    ├── Återställningsväg känd
-    └── Återställningsväg känd
+* ├── Säkerhetskopior tillgängliga
+* ├── Återställningsväg känd
+* └── Återställningsväg känd
 
-109. Administration klar
+## 109. Administration klar
 
 LUMS-administration bör alltid prioritera kontrollerade, observerbara och reversibla ändringar.
 
@@ -2794,22 +2875,22 @@ Underhåll
 
 De viktigaste operativa principerna är:
 
-    Använd minsta nödvändiga behörighet.
+* Använd minsta nödvändiga behörighet.
 
-    Bevara beständiga data.
+* Bevara beständiga data.
 
-    Ändra inte tillstånd utan att förstå det aktuella tillståndet.
+* Ändra inte tillstånd utan att förstå det aktuella tillståndet.
 
-    Verifiera resultatet av varje betydande operation.
+* Verifiera resultatet av varje betydande operation.
 
-    Behåll en testad återställningsväg.
+* Behåll en testad återställningsväg.
 
 För installationsprocedurer, se install.md.
 
 För säkerhetsarkitektur och revisionsresultat, se security.md.
 
 För diagnos och återställningsprocedurer, se troubleshooting.md.
-110. Slutlig administrationsprincip
+## 110. Slutlig administrationsprincip
 
 LUMS är avsett att göra Linux-uppdateringshantering förutsägbar och observerbar.
 

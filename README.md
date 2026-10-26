@@ -18,8 +18,9 @@ help; do not share accounts or use a client token as a web password.
 [installation guide](install.md), then read the
 [administration guide](administration.md). If something goes wrong, use the
 [troubleshooting guide](troubleshooting.md). These detailed technical guides
-are maintained in English; concise translated beginner guides are available in
-[`docs/locales/`](docs/README.md).
+are maintained in English; translated guides are listed in
+[`docs/README.md`](docs/README.md). Translation coverage can vary, so use the
+English source when a localized procedure is incomplete or differs.
 
 A test run or a successfully built Docker image is **not** a production
 installation. A production deployment also needs HTTPS, a protected application
@@ -290,7 +291,7 @@ The authenticated health dashboard at `/health` summarizes the database status,
 client reporting status, backup-storage visibility, and CPU/memory telemetry
 when telemetry is configured. It is a quick operational view, not a substitute
 for checking container, reverse-proxy, host, and backup logs or for performing
-a restore test. See [health-dashboard.md](health-dashboard.md).
+a restore test. See [LUMS_Health_Dashboard.md](LUMS_Health_Dashboard.md).
 
 ---
 
@@ -1999,7 +2000,7 @@ Security architecture, security controls, audit findings, hardening, and release
 
 Optional CPU and memory telemetry, agent configuration, data retention, security, and troubleshooting.
 
-### `health-dashboard.md`
+### `LUMS_Health_Dashboard.md`
 
 What the authenticated health dashboard reports, how client status is classified, telemetry limits, backup-storage interpretation, and operational checks.
 
@@ -2429,4 +2430,3 @@ LUMS is built around one central principle:
 That principle applies to the software architecture, update execution, security model, recovery mechanisms, and documentation.
 
 **Linux Update Management without the noise.**
-

@@ -482,7 +482,7 @@ Fügen Sie diese Optionen zur LUMS-Container-Konfiguration hinzu:
 
 Verwenden Sie eine separate Festplatte oder Remote-Speicher für Resilienz gegen Host-Ausfall. Zum Beispiel: Mounten Sie zuerst ein NAS auf dem Debian-Host und verwenden Sie dann diesen gemounteten Pfad als linke Seite des Docker-Bind-Mounts. Die Backup-UI zeigt das container-seitige Basisverzeichnis an; der ausgewählte relative Pfad liegt darunter. Das Backup-Ziel muss innerhalb des Containers verfügbar und beschreibbar sein; andernfalls meldet die Oberfläche, dass der Backup-Speicher nicht verfügbar ist.
 
-Für Wiederherstellungsschritte siehe [`server/static/backup-restore.md`](server/static/backup-restore.md).
+Für Wiederherstellungsschritte siehe [`server/static/backup-restore.md`](../../../server/static/backup-restore.md).
 
 ---
 

@@ -8,7 +8,7 @@ LUMS gère centralement les mises à jour Linux. Un serveur affiche les clients,
 
 **Vous utilisez uniquement une installation LUMS existante ?** Ouvrez l'adresse fournie par votre administrateur et connectez-vous avec votre propre compte. Si une fonctionnalité est manquante, votre compte n'a peut-être pas la permission de l'utiliser. Demandez de l'aide à votre administrateur ; ne partagez pas de comptes et n'utilisez pas un token client comme mot de passe web.
 
-**Vous installez ou exploitez LUMS ?** Commencez par le [guide d'installation](install.md), puis lisez le [guide d'administration](administration.md). Si quelque chose ne va pas, utilisez le [guide de dépannage](troubleshooting.md). Ces guides techniques détaillés sont maintenus en anglais ; des guides de démarrage concis traduits sont disponibles dans [`docs/locales/`](docs/README.md).
+**Vous installez ou exploitez LUMS ?** Commencez par le [guide d'installation](Installation et mises à niveau.md), puis lisez le [guide d'administration](Administration et sauvegardes.md). Si quelque chose ne va pas, utilisez le [guide de dépannage](Dépannage.md). Des guides traduits sont également disponibles, mais leur couverture peut différer des références techniques en anglais. L'[index de la documentation](../../README.md) répertorie les versions linguistiques disponibles.
 
 Un test réussi ou une image Docker construite avec succès n'est **pas** une installation de production. Un déploiement en production nécessite également HTTPS, un secret applicatif protégé, des données persistantes, des sauvegardes vérifiées et un conteneur durci. Ne copiez pas les commandes de production avant d'avoir vérifié leurs espaces réservés et chemins de stockage par rapport à votre propre installation.
 
@@ -987,7 +987,7 @@ LUMS fournit la gestion des utilisateurs aux comptes disposant de la permission 
 
 Les utilisateurs disposant de cette permission peuvent créer des comptes à l'aide d'un modèle de rôle, puis attribuer des permissions individuellement ou appliquer explicitement ce modèle. Les nouveaux comptes commencent sans permissions ; l'éditeur de permissions s'ouvre après la création. Les gestionnaires d'utilisateurs peuvent également enregistrer des notes administratives privées qui ne sont pas visibles pour le propriétaire du compte.
 
-Les administrateurs disposant de `backups.manage` peuvent créer des sauvegardes de base de données `.db` ou `.db.gz` validées dans un répertoire configuré sur le serveur et choisir un sous-dossier sûr dans cet emplacement monté. Voir [`administration.md`](administration.md) et le guide de restauration Markdown intégré à l'application pour la configuration du stockage Docker et la récupération.
+Les administrateurs disposant de `backups.manage` peuvent créer des sauvegardes de base de données `.db` ou `.db.gz` validées dans un répertoire configuré sur le serveur et choisir un sous-dossier sûr dans cet emplacement monté. Voir [`administration.md`](Administration et sauvegardes.md) et le guide de restauration Markdown intégré à l'application pour la configuration du stockage Docker et la récupération.
 
 Les mots de passe utilisateur sont stockés à l'aide du hachage de mot de passe Argon2 plutôt qu'en clair ou avec un chiffrement réversible.
 

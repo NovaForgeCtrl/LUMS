@@ -44,9 +44,9 @@ python3 -m venv .venv-test
 ./.venv-test/bin/pytest -q
 ```
 
-`apt update` aktualisiert Paketlisten; es aktualisiert nicht alle installierten Programme. Die Python-virtualenv `.venv-test` hält Testabhängigkeiten vom Rest des Systems getrennt. Ein erfolgreicher Testlauf endet mit Exit-Code `0`; die Anzahl der Tests kann sich ändern, während das Projekt wächst. Wenn das Erstellen der Umgebung fehlschlägt, prüfen Sie, ob `python3-venv` installiert ist. Wenn ein Test fehlschlägt, speichern Sie den vollständigen Fehler und lesen Sie die [Fehlerbehebungsanleitung](troubleshooting.md); löschen Sie keine Produktionsdaten.
+`apt update` aktualisiert Paketlisten; es aktualisiert nicht alle installierten Programme. Die Python-virtualenv `.venv-test` hält Testabhängigkeiten vom Rest des Systems getrennt. Ein erfolgreicher Testlauf endet mit Exit-Code `0`; die Anzahl der Tests kann sich ändern, während das Projekt wächst. Wenn das Erstellen der Umgebung fehlschlägt, prüfen Sie, ob `python3-venv` installiert ist. Wenn ein Test fehlschlägt, speichern Sie den vollständigen Fehler und lesen Sie die [Fehlerbehebungsanleitung](Fehlersuche.md); löschen Sie keine Produktionsdaten.
 
-Für eine echte Installation fahren Sie mit den nummerierten Abschnitten fort und lesen Sie zuerst die Sicherheits- und Backup-Anweisungen. Wenn LUMS bereits läuft, verwenden Sie das Upgrade-Verfahren in [`administration.md`](administration.md), nicht das Erstinstallationsverfahren.
+Für eine echte Installation fahren Sie mit den nummerierten Abschnitten fort und lesen Sie zuerst die Sicherheits- und Backup-Anweisungen. Wenn LUMS bereits läuft, verwenden Sie das Upgrade-Verfahren in [`administration.md`](Administration und Backups.md), nicht das Erstinstallationsverfahren.
 
 ---
 
@@ -5722,7 +5722,7 @@ administration.md
 docs/README.md
 ```
 
-Die technischen Anleitungen auf Root-Ebene sind die englische Quelle der Wahrheit. Die lokalisierten Anleitungen in `docs/locales/` sind kurze Einsteigeranleitungen, keine wortwörtlichen Kopien jedes technischen Abschnitts.
+Die englischen Anleitungen auf Root-Ebene sind die technische Referenz. Die Übersetzungen in `docs/locales/` können noch nicht alle technischen Details enthalten.
 
 Die Dokumentation darf nicht enthalten:
 
