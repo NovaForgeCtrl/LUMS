@@ -5923,7 +5923,22 @@ Review these repository files before installing:
 - `agent/telemetry.py`
 - `agent/lums-telemetry.service`
 - `agent/lums-telemetry.timer`
+- `scripts/install-telemetry-agent.sh`
 - `tests/test_telemetry_agent.py`
+
+After configuring `/etc/default/lums-agent` as described below, update the
+repository checkout on the Debian client and run this from its root:
+
+```sh
+sudo bash scripts/install-telemetry-agent.sh
+```
+
+The installer verifies that `LUMS_BASE` and `LUMS_TOKEN` are present without
+printing their values. It installs or updates the collector and systemd units,
+enables the five-second timer, and runs one immediate sample to verify the
+connection. If the service fails, it prints recent telemetry-service logs.
+The token remains in the existing client configuration and is not copied to
+another file.
 
 Install the telemetry script at
 `/usr/local/lib/lums-telemetry/telemetry.py`, owned by root and not writable
@@ -5937,6 +5952,11 @@ logs. This enables the dashboard's bounded security and login summaries; raw
 log messages are not sent to the server.
 It is a one-shot service scheduled by a separate timer; it does not replace
 the existing LUMS Agent or Watcher.
+
+An online normal LUMS client does not imply that this separate telemetry timer
+is installed or enabled. The `/monitoring` page explains whether the selected
+client has sent no samples, is sending only basic metrics, or has stale
+detailed data.
 
 ### Configuration and TLS
 

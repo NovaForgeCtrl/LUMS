@@ -47,9 +47,12 @@ def test_health_dashboard_route_requires_authentication():
 
     with app_module.app.test_client() as client:
         response = client.get("/health")
+        monitoring_response = client.get("/monitoring")
 
     assert response.status_code == 302
     assert "/login" in response.headers["Location"]
+    assert monitoring_response.status_code == 302
+    assert "/login" in monitoring_response.headers["Location"]
 
 
 
@@ -120,6 +123,7 @@ def test_health_dashboard_allows_authenticated_user_with_permission(
     with app_module.app.test_client() as client:
         login_as(client, 3, "viewer")
         response = client.get("/health")
+        monitoring_response = client.get("/monitoring")
 
     assert response.status_code == 200
     assert (
@@ -131,6 +135,11 @@ def test_health_dashboard_allows_authenticated_user_with_permission(
     assert b'aria-current="page"' in response.data
     assert b'Systemstatus' in response.data or b'Health' in response.data
     assert b"2026-10-26T10:30:00+00:00" in response.data
+    assert monitoring_response.status_code == 200
+    assert b'id="monitor-client"' in monitoring_response.data
+    assert b'id="system-monitor-diagnostics"' in monitoring_response.data
+    assert b'scripts/install-telemetry-agent.sh' in monitoring_response.data
+    assert b'sidebar.js' in monitoring_response.data
 
 
 def test_health_dashboard_denies_authenticated_user_without_permission(
@@ -163,11 +172,13 @@ def test_health_dashboard_denies_authenticated_user_without_permission(
     with app_module.app.test_client() as client:
         login_as(client, 3, "viewer")
         response = client.get("/health")
+        monitoring_response = client.get("/monitoring")
 
     assert response.status_code == 403
     assert response.get_json() == {
         "error": "authorization_required",
     }
+    assert monitoring_response.status_code == 403
 
 def test_public_api_health_endpoint_remains_lightweight():
     from server import app as app_module

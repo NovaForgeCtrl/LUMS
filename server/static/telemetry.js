@@ -4,7 +4,8 @@
     const root = document.getElementById("telemetry-dashboard");
     if (!root) return;
 
-    const clientSelect = document.getElementById("telemetry-client");
+    const clientSelect = document.getElementById("monitor-client") ||
+        document.getElementById("telemetry-client");
     const rangeSelect = document.getElementById("telemetry-range");
     const viewSelect = document.getElementById("telemetry-view");
     const status = document.getElementById("telemetry-status");
@@ -22,12 +23,18 @@
     const fleetSearch = document.getElementById("fleet-search");
     const systemRoot = document.getElementById("system-monitor");
     const systemStatus = document.getElementById("system-monitor-status");
+    const systemDiagnostics = document.getElementById("system-monitor-diagnostics");
+    const systemDiagnosticMessage = document.getElementById(
+        "system-monitor-diagnostic-message"
+    );
+    const monitoringOnly = document.body.classList.contains("monitoring-only");
     const customizer = document.getElementById("dashboard-customizer");
     const dashboardGrid = document.getElementById("health-dashboard-grid");
     const dashboardStatus = document.getElementById("dashboard-settings-status");
     const systemLabels = Object.fromEntries(
         [
-            "noData", "stale", "cpu", "memory", "load", "disk", "free",
+            "noData", "noSamples", "noSamplesHelp", "snapshotMissing",
+            "snapshotHelp", "stale", "staleHelp", "cpu", "memory", "load", "disk", "free",
             "uptime", "os", "kernel", "temperatures", "fans", "noSensors",
             "network", "interface", "link", "receive", "send",
             "errorsDropped", "connectivity", "dns", "gateway", "internet",
@@ -1120,9 +1127,18 @@
         );
         const system = entry && entry.system;
         if (!system) {
-            systemStatus.textContent = entry
-                ? systemLabels.noData
-                : labels.noClients;
+            let message = labels.noClients;
+            let diagnostic = "";
+            if (entry && !entry.latest) {
+                message = systemLabels.noSamples;
+                diagnostic = systemLabels.noSamplesHelp;
+            } else if (entry) {
+                message = systemLabels.snapshotMissing;
+                diagnostic = systemLabels.snapshotHelp;
+            }
+            systemStatus.textContent = message;
+            systemDiagnostics.hidden = !diagnostic;
+            systemDiagnosticMessage.textContent = diagnostic;
             for (const id of [
                 "system-cpu", "system-memory", "system-load", "system-disk",
                 "system-uptime", "system-os", "system-kernel",
@@ -1137,11 +1153,13 @@
             return;
         }
 
-        systemStatus.textContent =
-            entry.system_age_seconds === null ||
-            entry.system_age_seconds > 120
-                ? systemLabels.stale
-                : "";
+        const stale = entry.system_age_seconds === null ||
+            entry.system_age_seconds > 120;
+        systemStatus.textContent = stale ? systemLabels.stale : "";
+        systemDiagnostics.hidden = !stale;
+        systemDiagnosticMessage.textContent = stale
+            ? systemLabels.staleHelp
+            : "";
 
         const latest = entry.latest;
         setSystemValue("system-cpu", latest
@@ -1327,10 +1345,11 @@
     async function refresh() {
         try {
             await refreshFleet();
-            await refreshDetails();
+            if (!monitoringOnly) await refreshDetails();
         } catch {
             setStatus(labels.loadError, true);
             systemStatus.textContent = labels.loadError;
+            systemDiagnostics.hidden = true;
         }
     }
 
@@ -1341,7 +1360,7 @@
     clientSelect.addEventListener("change", () => {
         renderFleet();
         renderSystemMonitor();
-        safeRefreshDetails();
+        if (!monitoringOnly) safeRefreshDetails();
     });
     rangeSelect.addEventListener("change", safeRefreshDetails);
     viewSelect.addEventListener("change", () => {
@@ -1360,15 +1379,21 @@
         });
     }
 
-    viewSelect.value = readStoredView();
-    initializeDashboardCustomizer();
-    setStatus(labels.loading);
-    loadDashboardSettings().finally(() => {
+    function startRefresh() {
         renderFleet();
         renderSystemMonitor();
         refresh();
         timer = window.setInterval(refresh, 5000);
-    });
+    }
+
+    if (monitoringOnly) {
+        startRefresh();
+    } else {
+        viewSelect.value = readStoredView();
+        initializeDashboardCustomizer();
+        setStatus(labels.loading);
+        loadDashboardSettings().finally(startRefresh);
+    }
 
     window.addEventListener("pagehide", () => {
         if (timer !== null) window.clearInterval(timer);
