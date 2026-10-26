@@ -70,6 +70,8 @@ def test_full_security_migration_is_repeatable(tmp_path, monkeypatch):
             in versions
         )
         assert migration.TELEMETRY_SYSTEM_STATE_MIGRATION_VERSION in versions
+        assert migration.TELEMETRY_DASHBOARD_MIGRATION_VERSION in versions
+        assert migration.TELEMETRY_EVENT_HISTORY_MIGRATION_VERSION in versions
 
         telemetry_columns = {
             row[1]
@@ -85,6 +87,7 @@ def test_full_security_migration_is_repeatable(tmp_path, monkeypatch):
             "memory_percent",
             "memory_total_bytes",
             "memory_available_bytes",
+            "disk_percent",
         } <= telemetry_columns
 
         telemetry_indexes = {
@@ -102,6 +105,31 @@ def test_full_security_migration_is_repeatable(tmp_path, monkeypatch):
             )
         }
         assert {"client_id", "recorded_at", "payload_json"} <= system_columns
+        dashboard_columns = {
+            row[1]
+            for row in connection.execute(
+                "PRAGMA table_info(user_dashboard_settings)"
+            )
+        }
+        assert {
+            "user_id", "settings_json", "updated_at",
+        } <= dashboard_columns
+        event_columns = {
+            row[1]
+            for row in connection.execute(
+                "PRAGMA table_info(client_telemetry_events)"
+            )
+        }
+        assert {
+            "id", "client_id", "recorded_at", "event_type", "metric", "value",
+        } <= event_columns
+        event_indexes = {
+            row[1]
+            for row in connection.execute(
+                "PRAGMA index_list(client_telemetry_events)"
+            )
+        }
+        assert "idx_client_telemetry_events_client_time" in event_indexes
 
         query_plan = connection.execute(
             """
