@@ -1381,6 +1381,19 @@ Migration errors must be investigated before creating users or connecting client
 
 Do not manually modify the production SQLite schema unless the project documentation explicitly requires it.
 
+For later updates of the documented single-container deployment, run this on
+the LUMS server host from its checkout:
+
+```bash
+bash scripts/update-lums.sh
+```
+
+It performs a fast-forward-only Git update, builds the image, verifies the
+container configuration, makes a checked SQLite backup, and replaces the
+container without deleting `lums-data`. See
+[administration.md](administration.md#91-docker-image-maintenance) for its
+requirements, backup path, and rollback behavior.
+
 ---
 
 # 33. Local Application Validation

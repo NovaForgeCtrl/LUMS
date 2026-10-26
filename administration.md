@@ -2297,6 +2297,42 @@ First establish the current state.
 
 LUMS application images should be rebuilt from the reviewed source tree.
 
+For the documented single-container deployment, a guarded updater is available.
+Run it on the **LUMS server host**, from its repository checkout, as your normal
+account (not with `sudo`):
+
+```bash
+bash scripts/update-lums.sh
+```
+
+The script fast-forwards the currently checked-out branch, builds a new image,
+checks that the running `lums` container still uses the documented hardened
+settings and `lums-data` volume, creates and integrity-checks a SQLite online
+backup, then replaces the container. It checks the local `/login` page and
+automatically restores the previous container if startup or that check fails.
+The backup is stored under `/var/backups/lums-updates`; set
+`LUMS_UPDATE_BACKUP_DIR` to use another absolute host path. The previous
+container is kept with a timestamped name for manual rollback. After validating
+the upgrade, remove an old rollback container with `docker rm` and its
+timestamped name. Never add `-v`.
+
+The updater stops without changing the running service if the checkout is
+dirty, the branch has no upstream, or the running container differs from the
+documented deployment. It does not delete Docker volumes. Pull this updater
+into the server checkout once; later updates use the same one command.
+The updater does not run the full test suite; review the resulting container
+logs, HTTPS sign-in, dashboard data, and migration messages before considering
+the update complete.
+
+If rollback is needed, substitute the printed timestamp:
+
+```bash
+sudo docker stop lums
+sudo docker rm lums
+sudo docker rename lums-before-upgrade-<timestamp> lums
+sudo docker start lums
+```
+
 Before building a new image:
 
 ```bash id="x0m7r4"
@@ -2922,4 +2958,3 @@ When something breaks:
 When something works:
 
 **Record the result and keep the known-good baseline.**
-
