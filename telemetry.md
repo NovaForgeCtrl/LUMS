@@ -57,7 +57,11 @@ The authenticated history endpoint accepts a time range from 1 to 168 hours.
 Access requires the appropriate client-view permission. Large result sets
 may be downsampled to a maximum of 1,000 samples.
 
-The browser dashboard refreshes its displayed telemetry periodically.
+The `/health` dashboard offers 1-hour, 24-hour, and 7-day history ranges and
+refreshes its displayed data every five seconds. History requests are limited
+to 1–168 hours and may be downsampled to a maximum of 1,000 samples. The
+systemd timer is configured to run the one-shot agent every five seconds; actual
+sample frequency depends on service completion and network availability.
 
 ## Configuration
 
@@ -74,4 +78,7 @@ Inspect the timer and service on a managed Linux client with `systemctl status l
 - **Service failures:** Inspect the service journal.
 - **Missing history:** Check client-view permissions and the requested time range (1–168 hours).
 
-For general guidance, see [install.md](install.md) and [troubleshooting.md](troubleshooting.md).
+For the dashboard's status thresholds and the limits of its backup-storage
+indicator, see [health-dashboard.md](health-dashboard.md). For general guidance,
+see [install.md](install.md) and [troubleshooting.md](troubleshooting.md).
+
