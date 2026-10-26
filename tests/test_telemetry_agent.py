@@ -174,6 +174,38 @@ class TelemetryAgentTests(unittest.TestCase):
         )
         opener.assert_called_once()
 
+    def test_network_counters_skip_loopback_and_sum_interfaces(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "dev"
+            path.write_text(
+                "Inter-|   Receive\n face |bytes\n"
+                "    lo: 999 1 0 0 0 0 0 0 999 1 0 0 0 0 0 0\n"
+                "  eth0: 100 1 0 0 0 0 0 0 40 1 0 0 0 0 0 0\n"
+                "  wlan0: 50 1 0 0 0 0 0 0 10 1 0 0 0 0 0 0\n",
+                encoding="ascii",
+            )
+            self.assertEqual(
+                agent.read_network_counters(str(path)),
+                {"network_rx_bytes": 150, "network_tx_bytes": 50},
+            )
+
+    def test_build_sample_includes_valid_network_counters(self):
+        memory = {
+            "memory_percent": 50.0,
+            "memory_total_bytes": 1000,
+            "memory_available_bytes": 500,
+        }
+        sample = agent.build_sample(
+            10.0, memory,
+            {"network_rx_bytes": 1, "network_tx_bytes": 2},
+        )
+        self.assertEqual(sample["network_tx_bytes"], 2)
+        with self.assertRaises(ValueError):
+            agent.build_sample(
+                10.0, memory,
+                {"network_rx_bytes": -1, "network_tx_bytes": 2},
+            )
+
 
 if __name__ == "__main__":
     unittest.main()

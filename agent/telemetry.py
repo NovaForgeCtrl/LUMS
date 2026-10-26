@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""LUMS CPU/RAM telemetry agent. Uses only the Python standard library."""
+"""LUMS CPU/RAM/network telemetry agent. Uses only the Python standard library."""
 
 import json
 import math
@@ -12,7 +12,7 @@ import urllib.request
 from pathlib import Path
 from urllib.parse import urlsplit
 
-AGENT_VERSION = "1.0.0"
+AGENT_VERSION = "1.1.0"
 TIMEOUT_SECONDS = 10
 CPU_SAMPLE_INTERVAL = 0.2
 
@@ -74,7 +74,39 @@ def read_memory():
     }
 
 
-def build_sample(cpu_percent, memory):
+def read_network_counters(path="/proc/net/dev"):
+    """Return cumulative received/sent bytes of all non-loopback interfaces."""
+    received = 0
+    sent = 0
+    found = False
+
+    with open(path, "r", encoding="ascii") as handle:
+        for line in handle:
+            name, separator, remainder = line.partition(":")
+            name = name.strip()
+            if not separator or name == "lo":
+                continue
+            fields = remainder.split()
+            if len(fields) < 9:
+                continue
+            received += int(fields[0])
+            sent += int(fields[8])
+            found = True
+
+    if not found:
+        raise RuntimeError("No network interfaces found")
+    return {"network_rx_bytes": received, "network_tx_bytes": sent}
+
+
+def read_optional_network_counters():
+    # Older or restricted systems must still report CPU and memory.
+    try:
+        return read_network_counters()
+    except (OSError, ValueError, RuntimeError):
+        return {}
+
+
+def build_sample(cpu_percent, memory, network=None):
     if isinstance(cpu_percent, bool) or not isinstance(cpu_percent, (int, float)):
         raise ValueError("Invalid CPU percentage")
     if not math.isfinite(cpu_percent) or not 0 <= cpu_percent <= 100:
@@ -83,6 +115,7 @@ def build_sample(cpu_percent, memory):
     sample = {
         "cpu_percent": float(cpu_percent),
         **memory,
+        **(network or {}),
     }
     total = sample.get("memory_total_bytes")
     available = sample.get("memory_available_bytes")
@@ -101,6 +134,19 @@ def build_sample(cpu_percent, memory):
         or not 0 <= percent <= 100
     ):
         raise ValueError("Invalid memory sample")
+
+    if network:
+        counters = (
+            sample.get("network_rx_bytes"),
+            sample.get("network_tx_bytes"),
+        )
+        if any(
+            isinstance(value, bool)
+            or not isinstance(value, int)
+            or value < 0
+            for value in counters
+        ):
+            raise ValueError("Invalid network counters")
 
     return sample
 
@@ -165,7 +211,11 @@ def main():
     ca_file = os.environ.get("LUMS_CA_FILE")
 
     try:
-        sample = build_sample(read_cpu_percent(), read_memory())
+        sample = build_sample(
+            read_cpu_percent(),
+            read_memory(),
+            read_optional_network_counters(),
+        )
         context = make_ssl_context(ca_file)
         send_sample(base_url, token, sample, context)
     except (OSError, ValueError, RuntimeError, ssl.SSLError,

@@ -56,17 +56,59 @@
             data-loading="{{ tr('Loading telemetry…') }}"
             data-no-clients="{{ tr('No enabled clients found.') }}"
             data-no-samples="{{ tr('No telemetry samples available yet.') }}"
+            data-no-network="{{ tr('No network data yet. Update the agent to report traffic.') }}"
             data-load-error="{{ tr('Telemetry could not be loaded. Check access and connection.') }}"
             data-updated="{{ tr('Last sample:') }}"
             data-cpu="{{ tr('CPU utilization') }}"
-            data-memory="{{ tr('Memory utilization') }}">
+            data-memory="{{ tr('Memory utilization') }}"
+            data-network="{{ tr('Network traffic') }}"
+            data-download="{{ tr('Download') }}"
+            data-upload="{{ tr('Upload') }}"
+            data-used="{{ tr('Used') }}"
+            data-free="{{ tr('Free') }}"
+            data-stale="{{ tr('Stale') }}"
+            data-unknown="{{ tr('Unknown') }}"
+            data-current="{{ tr('Current') }}"
+            data-no-match="{{ tr('No clients match the filter.') }}">
             <div class="panel-header">
                 <div>
                     <h2>{{ tr("System telemetry") }}</h2>
-                    <p>{{ tr("CPU and memory history. Data refreshes every five seconds.") }}</p>
+                    <p>{{ tr("CPU, memory and network history. Data refreshes every five seconds.") }}</p>
                 </div>
             </div>
 
+            <h3>{{ tr("Fleet overview") }}</h3>
+            <div class="telemetry-controls">
+                <label for="fleet-filter">{{ tr("Show") }}</label>
+                <select id="fleet-filter">
+                    <option value="all">{{ tr("All clients") }}</option>
+                    <option value="attention">{{ tr("Needs attention") }}</option>
+                    <option value="online">{{ tr("Online") }}</option>
+                    <option value="offline">{{ tr("Offline") }}</option>
+                    <option value="stale">{{ tr("Stale") }}</option>
+                </select>
+
+                <label for="fleet-search">{{ tr("Search") }}</label>
+                <input type="search" id="fleet-search" autocomplete="off">
+            </div>
+            <div class="table-container">
+                <table class="fleet-table">
+                    <thead>
+                        <tr>
+                            <th aria-sort="none"><button type="button" class="fleet-sort" data-sort="hostname">{{ tr("Client") }}</button></th>
+                            <th aria-sort="none"><button type="button" class="fleet-sort" data-sort="status">{{ tr("Status") }}</button></th>
+                            <th aria-sort="none"><button type="button" class="fleet-sort" data-sort="cpu">CPU</button></th>
+                            <th aria-sort="none"><button type="button" class="fleet-sort" data-sort="memory">{{ tr("Memory") }}</button></th>
+                            <th aria-sort="none"><button type="button" class="fleet-sort" data-sort="rx">{{ tr("Download") }}</button></th>
+                            <th aria-sort="none"><button type="button" class="fleet-sort" data-sort="tx">{{ tr("Upload") }}</button></th>
+                            <th aria-sort="none"><button type="button" class="fleet-sort" data-sort="age">{{ tr("Last sample:") }}</button></th>
+                        </tr>
+                    </thead>
+                    <tbody id="fleet-body"></tbody>
+                </table>
+            </div>
+
+            <h3>{{ tr("Client details") }}</h3>
             <div class="telemetry-controls">
                 <label for="telemetry-client">{{ tr("Client") }}</label>
                 <select id="telemetry-client"></select>
@@ -76,6 +118,13 @@
                     <option value="1">{{ tr("Last hour") }}</option>
                     <option value="24" selected>{{ tr("Last 24 hours") }}</option>
                     <option value="168">{{ tr("Last 7 days") }}</option>
+                </select>
+
+                <label for="telemetry-view">{{ tr("View") }}</label>
+                <select id="telemetry-view">
+                    <option value="line">{{ tr("Line chart") }}</option>
+                    <option value="area">{{ tr("Area chart") }}</option>
+                    <option value="donut">{{ tr("Donut (current)") }}</option>
                 </select>
             </div>
 
@@ -93,9 +142,17 @@
                     <p class="telemetry-current" id="telemetry-memory-value">—</p>
                     <svg id="telemetry-memory-chart" class="telemetry-chart" viewBox="0 0 640 220"></svg>
                 </article>
+                <article class="telemetry-chart-card telemetry-chart-wide">
+                    <h3>{{ tr("Network traffic") }}</h3>
+                    <p class="telemetry-current" id="telemetry-network-value">—</p>
+                    <svg id="telemetry-network-chart" class="telemetry-chart" viewBox="0 0 640 220"></svg>
+                    <p class="telemetry-legend">
+                        <span class="telemetry-legend-rx">{{ tr("Download") }}</span>
+                        <span class="telemetry-legend-tx">{{ tr("Upload") }}</span>
+                    </p>
+                </article>
             </div>
         </section>
-
         <section class="panel" style="margin-top: 24px;">
             <div class="panel-header">
                 <div>

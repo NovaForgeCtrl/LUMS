@@ -2111,6 +2111,64 @@ def health():
 TELEMETRY_RETENTION_DAYS = 7
 TELEMETRY_MAX_HISTORY_HOURS = 168
 TELEMETRY_MAX_RESPONSE_POINTS = 1000
+TELEMETRY_MAX_COUNTER_VALUE = 2**63 - 1
+# Counter deltas across longer gaps would hide real traffic peaks.
+TELEMETRY_MAX_RATE_GAP_SECONDS = 300
+TELEMETRY_STALE_SECONDS = 120
+
+
+def parse_telemetry_time(value):
+    try:
+        parsed = datetime.fromisoformat(value)
+    except (TypeError, ValueError):
+        return None
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=timezone.utc)
+    return parsed
+
+
+def add_network_rates(rows):
+    """Turn cumulative byte counters into bytes per second.
+
+    Rows must be ordered by time. A rate is None when counters are missing,
+    were reset (reboot), or the gap between samples is too long.
+    """
+    samples = []
+    previous = None
+    for row in rows:
+        sample = dict(row)
+        rx = sample.pop("network_rx_bytes", None)
+        tx = sample.pop("network_tx_bytes", None)
+        sample["network_rx_bytes_per_second"] = None
+        sample["network_tx_bytes_per_second"] = None
+
+        current_time = parse_telemetry_time(sample["recorded_at"])
+        if (
+            previous is not None
+            and current_time is not None
+            and rx is not None
+            and tx is not None
+        ):
+            prev_time, prev_rx, prev_tx = previous
+            seconds = (current_time - prev_time).total_seconds()
+            if (
+                prev_rx is not None
+                and 0 < seconds <= TELEMETRY_MAX_RATE_GAP_SECONDS
+                and rx >= prev_rx
+                and tx >= prev_tx
+            ):
+                sample["network_rx_bytes_per_second"] = round(
+                    (rx - prev_rx) / seconds, 2
+                )
+                sample["network_tx_bytes_per_second"] = round(
+                    (tx - prev_tx) / seconds, 2
+                )
+
+        previous = (
+            (current_time, rx, tx) if current_time is not None else None
+        )
+        samples.append(sample)
+    return samples
 
 
 @app.route("/api/telemetry", methods=["POST"])
@@ -2125,8 +2183,14 @@ def ingest_telemetry():
         "memory_total_bytes",
         "memory_available_bytes",
     }
+    network_fields = {"network_rx_bytes", "network_tx_bytes"}
 
-    if not isinstance(data, dict) or set(data) != required_fields:
+    if (
+        not isinstance(data, dict)
+        or not required_fields <= set(data)
+        or not set(data) <= required_fields | network_fields
+        or len(set(data) & network_fields) == 1
+    ):
         return jsonify({
             "status": "error",
             "message": "Invalid telemetry payload",
@@ -2136,6 +2200,15 @@ def ingest_telemetry():
     memory = data["memory_percent"]
     memory_total = data["memory_total_bytes"]
     memory_available = data["memory_available_bytes"]
+    network_rx = data.get("network_rx_bytes")
+    network_tx = data.get("network_tx_bytes")
+
+    def valid_counter(value):
+        return (
+            isinstance(value, int)
+            and not isinstance(value, bool)
+            and 0 <= value <= TELEMETRY_MAX_COUNTER_VALUE
+        )
 
     def valid_percentage(value):
         return (
@@ -2155,6 +2228,10 @@ def ingest_telemetry():
         or not isinstance(memory_available, int)
         or memory_available < 0
         or memory_available > memory_total
+        or (
+            "network_rx_bytes" in data
+            and not (valid_counter(network_rx) and valid_counter(network_tx))
+        )
     ):
         return jsonify({
             "status": "error",
@@ -2173,12 +2250,13 @@ def ingest_telemetry():
             """
             INSERT INTO client_telemetry (
                 client_id, recorded_at, cpu_percent, memory_percent,
-                memory_total_bytes, memory_available_bytes
-            ) VALUES (?, ?, ?, ?, ?, ?)
+                memory_total_bytes, memory_available_bytes,
+                network_rx_bytes, network_tx_bytes
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 client["id"], recorded_at, float(cpu), float(memory),
-                memory_total, memory_available,
+                memory_total, memory_available, network_rx, network_tx,
             ),
         )
         connection.execute(
@@ -2242,13 +2320,15 @@ def client_telemetry(client_id):
         rows = connection.execute(
             """
             SELECT recorded_at, cpu_percent, memory_percent,
-                   memory_total_bytes, memory_available_bytes
+                   memory_total_bytes, memory_available_bytes,
+                   network_rx_bytes, network_tx_bytes
             FROM client_telemetry
             WHERE client_id = ? AND recorded_at >= ?
             ORDER BY recorded_at ASC
             """,
             (client_id, cutoff),
         ).fetchall()
+        rows = add_network_rates(rows)
 
         # Keep the complete history in storage, but bound dashboard responses.
         # Evenly spaced indices preserve the oldest and newest samples.
@@ -2264,12 +2344,76 @@ def client_telemetry(client_id):
             "client_id": client_id,
             "hostname": client["hostname"],
             "hours": hours,
-            "samples": [dict(row) for row in rows],
+            "samples": rows,
         })
     except sqlite3.Error:
         logger.exception(
             "Failed to load telemetry for client %s", client_id
         )
+        return jsonify({"error": "telemetry_query_failed"}), 500
+    finally:
+        connection.close()
+
+
+@app.route("/api/telemetry/overview", methods=["GET"])
+@login_required
+@role_required(
+    ROLE_ADMINISTRATOR,
+    ROLE_OPERATOR,
+    ROLE_VIEWER,
+    permission="clients.view",
+)
+def telemetry_overview():
+    connection = get_connection()
+    try:
+        clients = connection.execute(
+            """
+            SELECT id, hostname, last_seen
+            FROM clients
+            WHERE enabled = 1
+            ORDER BY hostname COLLATE NOCASE
+            """
+        ).fetchall()
+
+        now = datetime.now(timezone.utc)
+        result = []
+        for client in clients:
+            latest_rows = connection.execute(
+                """
+                SELECT recorded_at, cpu_percent, memory_percent,
+                       memory_total_bytes, memory_available_bytes,
+                       network_rx_bytes, network_tx_bytes
+                FROM client_telemetry
+                WHERE client_id = ?
+                ORDER BY recorded_at DESC
+                LIMIT 2
+                """,
+                (client["id"],),
+            ).fetchall()
+            samples = add_network_rates(reversed(latest_rows))
+            latest = samples[-1] if samples else None
+
+            age = None
+            if latest is not None:
+                recorded = parse_telemetry_time(latest["recorded_at"])
+                if recorded is not None:
+                    age = max(0, int((now - recorded).total_seconds()))
+
+            result.append({
+                "client_id": client["id"],
+                "hostname": client["hostname"],
+                "status": classify_health_client(client["last_seen"]),
+                "last_seen": client["last_seen"],
+                "telemetry_age_seconds": age,
+                "telemetry_stale": (
+                    age is None or age > TELEMETRY_STALE_SECONDS
+                ),
+                "latest": latest,
+            })
+
+        return jsonify({"clients": result})
+    except sqlite3.Error:
+        logger.exception("Failed to load telemetry overview")
         return jsonify({"error": "telemetry_query_failed"}), 500
     finally:
         connection.close()
