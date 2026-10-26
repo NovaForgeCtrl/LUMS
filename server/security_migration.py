@@ -27,6 +27,7 @@ USER_PROFILES_MIGRATION_VERSION = "007-user-profiles"
 PERMISSION_DELEGATION_MIGRATION_VERSION = "008-permission-delegation"
 TELEMETRY_MIGRATION_VERSION = "009-telemetry"
 TELEMETRY_RETENTION_INDEX_MIGRATION_VERSION = "010-telemetry-retention-index"
+TELEMETRY_NETWORK_MIGRATION_VERSION = "011-telemetry-network"
 
 
 def utc_now():
@@ -526,6 +527,17 @@ def migrate_telemetry_retention_index(connection):
     """)
 
 
+def migrate_telemetry_network(connection):
+    """Store optional cumulative network byte counters reported by agents."""
+    for column in ("network_rx_bytes", "network_tx_bytes"):
+        add_column_if_missing(
+            connection,
+            "client_telemetry",
+            column,
+            f"INTEGER CHECK ({column} IS NULL OR {column} >= 0)",
+        )
+
+
 def run_migration(db_path, admin_username, skip_admin):
     if not os.path.exists(db_path):
         raise RuntimeError(
@@ -758,6 +770,26 @@ def run_migration(db_path, admin_username, skip_admin):
             print(
                 f"[OK] Migration "
                 f"{TELEMETRY_RETENTION_INDEX_MIGRATION_VERSION} completed"
+            )
+
+        if migration_already_applied(
+            connection,
+            TELEMETRY_NETWORK_MIGRATION_VERSION
+        ):
+            print(
+                f"[INFO] Migration {TELEMETRY_NETWORK_MIGRATION_VERSION} "
+                "is already recorded"
+            )
+        else:
+            migrate_telemetry_network(connection)
+            record_migration(
+                connection,
+                TELEMETRY_NETWORK_MIGRATION_VERSION
+            )
+            connection.commit()
+            print(
+                f"[OK] Migration "
+                f"{TELEMETRY_NETWORK_MIGRATION_VERSION} completed"
             )
 
         print_schema(connection)

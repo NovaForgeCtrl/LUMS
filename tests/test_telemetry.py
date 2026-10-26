@@ -69,6 +69,12 @@ def telemetry_env(tmp_path, monkeypatch):
                     memory_available_bytes >= 0
                     AND memory_available_bytes <= memory_total_bytes
                 ),
+            network_rx_bytes INTEGER CHECK (
+                network_rx_bytes IS NULL OR network_rx_bytes >= 0
+            ),
+            network_tx_bytes INTEGER CHECK (
+                network_tx_bytes IS NULL OR network_tx_bytes >= 0
+            ),
             FOREIGN KEY (client_id) REFERENCES clients(id)
                 ON DELETE CASCADE
         );
@@ -469,3 +475,124 @@ def test_telemetry_history_downsamples_and_keeps_endpoints(telemetry_env):
         samples[index]["recorded_at"] <= samples[index + 1]["recorded_at"]
         for index in range(len(samples) - 1)
     )
+
+
+def post_sample(client, **overrides):
+    return client.post(
+        "/api/telemetry",
+        headers={"Authorization": "Bearer pytest-client-token"},
+        json=telemetry_payload(**overrides),
+    )
+
+
+def test_telemetry_stores_optional_network_counters(telemetry_env):
+    client = telemetry_env["app"].test_client()
+
+    response = post_sample(
+        client, network_rx_bytes=1_000, network_tx_bytes=500
+    )
+
+    assert response.status_code == 200
+    connection = telemetry_env["connection"]()
+    try:
+        row = connection.execute(
+            "SELECT network_rx_bytes, network_tx_bytes FROM client_telemetry"
+        ).fetchone()
+        assert (row["network_rx_bytes"], row["network_tx_bytes"]) == (
+            1_000, 500
+        )
+    finally:
+        connection.close()
+
+
+@pytest.mark.parametrize(
+    "extra",
+    [
+        {"network_rx_bytes": 10},
+        {"network_tx_bytes": 10},
+        {"network_rx_bytes": -1, "network_tx_bytes": 0},
+        {"network_rx_bytes": 1.5, "network_tx_bytes": 0},
+        {"network_rx_bytes": True, "network_tx_bytes": 0},
+        {"network_rx_bytes": 2**63, "network_tx_bytes": 0},
+    ],
+)
+def test_telemetry_rejects_invalid_network_counters(telemetry_env, extra):
+    response = post_sample(telemetry_env["app"].test_client(), **extra)
+
+    assert response.status_code == 400
+
+
+def insert_counter_rows(telemetry_env, rows):
+    connection = telemetry_env["connection"]()
+    now = datetime.now(timezone.utc)
+    connection.executemany(
+        """
+        INSERT INTO client_telemetry (
+            client_id, recorded_at, cpu_percent, memory_percent,
+            memory_total_bytes, memory_available_bytes,
+            network_rx_bytes, network_tx_bytes
+        ) VALUES (1, ?, 10, 20, 1000, 800, ?, ?)
+        """,
+        [
+            ((now - timedelta(seconds=age)).isoformat(), rx, tx)
+            for age, rx, tx in rows
+        ],
+    )
+    connection.commit()
+    connection.close()
+
+
+def test_history_calculates_network_rates_and_handles_gaps(telemetry_env):
+    client = telemetry_env["app"].test_client()
+    login_as(client)
+    insert_counter_rows(
+        telemetry_env,
+        [
+            (60, 1_000, 100),
+            (50, 3_000, 600),   # 10 s: 200 B/s down, 50 B/s up
+            (40, 100, 50),      # counter reset: no rate
+            (30, None, None),   # old agent: no rate
+            (20, 500, 500),     # previous had no counters: no rate
+            (700, None, None),
+        ],
+    )
+
+    samples = client.get("/api/clients/1/telemetry?hours=1").get_json()[
+        "samples"
+    ]
+    rates = [s["network_rx_bytes_per_second"] for s in samples]
+
+    assert rates == [None, None, 200.0, None, None, None]
+    assert samples[2]["network_tx_bytes_per_second"] == 50.0
+    assert "network_rx_bytes" not in samples[0]
+
+
+def test_overview_returns_latest_values_per_enabled_client(telemetry_env):
+    client = telemetry_env["app"].test_client()
+    login_as(client)
+    insert_counter_rows(
+        telemetry_env, [(20, 1_000, 0), (10, 2_000, 1_000)]
+    )
+
+    response = client.get("/api/telemetry/overview")
+
+    assert response.status_code == 200
+    entries = {e["hostname"]: e for e in response.get_json()["clients"]}
+    assert entries["pytest-client"]["latest"]["network_rx_bytes_per_second"] == 100.0
+    assert entries["pytest-client"]["telemetry_stale"] is False
+    assert entries["other-client"]["latest"] is None
+    assert entries["other-client"]["telemetry_stale"] is True
+
+
+def test_overview_requires_clients_view_permission(telemetry_env):
+    client = telemetry_env["app"].test_client()
+    login_as(client, user_id=3, username="viewer")
+    connection = telemetry_env["connection"]()
+    connection.execute(
+        "DELETE FROM user_permissions "
+        "WHERE user_id = 3 AND permission = 'clients.view'"
+    )
+    connection.commit()
+    connection.close()
+
+    assert client.get("/api/telemetry/overview").status_code == 403

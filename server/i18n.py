@@ -3257,6 +3257,27 @@ _HEALTH_DASHBOARD_TRANSLATIONS = {
         'bytes': 'Bytes',
         'System telemetry': 'Systemtelemetrie',
         'CPU and memory history. Data refreshes every five seconds.': 'CPU- und RAM-Verlauf. Die Daten werden alle fünf Sekunden aktualisiert.',
+        'CPU, memory and network history. Data refreshes every five seconds.': 'CPU-, RAM- und Netzwerkverlauf. Die Daten werden alle fünf Sekunden aktualisiert.',
+        'Fleet overview': 'Flottenübersicht',
+        'Client details': 'Client-Details',
+        'Show': 'Anzeigen',
+        'All clients': 'Alle Clients',
+        'Needs attention': 'Benötigt Aufmerksamkeit',
+        'Stale': 'Veraltet',
+        'Search': 'Suche',
+        'Memory': 'RAM',
+        'Download': 'Download',
+        'Upload': 'Upload',
+        'Used': 'Belegt',
+        'Free': 'Frei',
+        'Current': 'Aktuell',
+        'View': 'Ansicht',
+        'Line chart': 'Liniendiagramm',
+        'Area chart': 'Flächendiagramm',
+        'Donut (current)': 'Donut (aktuell)',
+        'Network traffic': 'Netzwerktraffic',
+        'No network data yet. Update the agent to report traffic.': 'Noch keine Netzwerkdaten. Agent aktualisieren, damit er Traffic meldet.',
+        'No clients match the filter.': 'Keine Clients entsprechen dem Filter.',
         'Client': 'Client',
         'History': 'Zeitraum',
         'Last hour': 'Letzte Stunde',
@@ -3551,6 +3572,17 @@ _HEALTH_DASHBOARD_TRANSLATIONS = {
         'Last sample:': 'Last sample:',
     },
 }
+
+
+def _fill_missing_translations():
+    # Languages without a dedicated translation show the English text.
+    english = _HEALTH_DASHBOARD_TRANSLATIONS['de'].keys()
+    for entries in _HEALTH_DASHBOARD_TRANSLATIONS.values():
+        for key in english:
+            entries.setdefault(key, key)
+
+
+_fill_missing_translations()
 
 
 def translations_for(language):

@@ -1,9 +1,9 @@
-# LUMS CPU and Memory Telemetry
+# LUMS CPU, Memory and Network Telemetry
 
 ## Overview
 
-The optional LUMS telemetry agent collects CPU and memory utilization from a
-managed Linux client and sends measurements to the LUMS server.
+The optional LUMS telemetry agent collects CPU utilization, memory utilization and network
+byte counters from a managed Linux client and sends measurements to the LUMS server.
 
 The server stores telemetry samples and exposes an authenticated history API
 used by the client telemetry dashboard.
@@ -15,22 +15,40 @@ It does not replace either component or perform package updates.
 
 | Component | Responsibility |
 | --- | --- |
-| `agent/telemetry.py` | Collects CPU and memory metrics and sends samples |
+| `agent/telemetry.py` | Collects CPU, memory and network metrics and sends samples |
 | `agent/lums-telemetry.service` | Runs the telemetry agent as a restricted systemd service |
 | `agent/lums-telemetry.timer` | Schedules recurring telemetry collection |
 | `server/app.py` | Authenticates submissions, validates metrics and stores samples |
-| `server/static/telemetry.js` | Displays CPU and memory history |
+| `server/static/telemetry.js` | Displays the fleet overview, history charts and donut gauges |
 
 ## Measurements
 
-Each sample contains exactly four fields:
+Each sample contains these required fields:
 
 - `cpu_percent`: CPU utilization from 0 to 100.
 - `memory_percent`: memory utilization from 0 to 100.
 - `memory_total_bytes`: total detected memory in bytes.
 - `memory_available_bytes`: available memory in bytes.
 
+Agent version 1.1.0 and later also sends two optional cumulative counters:
+
+- `network_rx_bytes`: bytes received since boot, summed over all non-loopback
+  interfaces.
+- `network_tx_bytes`: bytes sent since boot, summed over all non-loopback
+  interfaces.
+
+Both counters must be sent together as non-negative integers. Older agents
+that omit them keep working; the dashboard then shows no network data for
+that client. The server stores the raw counters and calculates bytes per
+second from consecutive samples when the data is requested. No rate is shown
+for the first sample, after a counter reset (for example a reboot), or when
+the gap between two samples exceeds five minutes.
+
 The server assigns the sample timestamp and rejects invalid payloads.
+
+After updating the server, run the database migration once
+(`python3 server/security_migration.py`) so the network columns exist.
+Update the agent on each client to start reporting traffic.
 
 ## Security and privacy
 
@@ -58,7 +76,13 @@ Access requires the appropriate client-view permission. Large result sets
 may be downsampled to a maximum of 1,000 samples.
 
 The `/health` dashboard offers 1-hour, 24-hour, and 7-day history ranges and
-refreshes its displayed data every five seconds. History requests are limited
+refreshes its displayed data every five seconds. It shows a fleet overview
+(filterable by status, stale telemetry or high load, searchable and sortable)
+and per-client details. CPU and memory can be shown as a line chart, an area
+chart or a donut gauge of the current value; the chosen view is remembered in
+the browser. Network traffic is shown as download and upload rates. Telemetry
+older than two minutes is marked as stale. The fleet overview uses the
+`/api/telemetry/overview` endpoint, which requires the client-view permission. History requests are limited
 to 1–168 hours and may be downsampled to a maximum of 1,000 samples. The
 systemd timer is configured to run the one-shot agent every five seconds; actual
 sample frequency depends on service completion and network availability.
