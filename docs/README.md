@@ -24,5 +24,6 @@ English source, follow the English source guide.
 * [Localized quick starts](locales/)
 * [CPU and memory telemetry](../telemetry.md)
 * [Health dashboard](../LUMS_Health_Dashboard.md)
+* [Infrastructure topology](../LUMS_Infrastructure_Topology.md)
 * [Optional theme system](../LUMS_Optional_Theme_System.md)
 * [Database backup restore](../server/static/backup-restore.md)

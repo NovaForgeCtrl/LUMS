@@ -28,9 +28,6 @@
         "system-monitor-diagnostic-message"
     );
     const monitoringOnly = document.body.classList.contains("monitoring-only");
-    const customizer = document.getElementById("dashboard-customizer");
-    const dashboardGrid = document.getElementById("health-dashboard-grid");
-    const dashboardStatus = document.getElementById("dashboard-settings-status");
     const systemLabels = Object.fromEntries(
         [
             "noData", "noSamples", "noSamplesHelp", "snapshotMissing",
@@ -76,23 +73,30 @@
         offline: filterOptions.offline,
         unknown: root.dataset.unknown
     };
+    const dashboardMessages = {
+        eventsEmpty: "No alerts or outages in this period.",
+        cpuHigh: "CPU threshold exceeded",
+        cpuRecovered: "CPU returned below threshold",
+        memoryHigh: "RAM threshold exceeded",
+        memoryRecovered: "RAM returned below threshold",
+        diskHigh: "Disk threshold exceeded",
+        diskRecovered: "Disk returned below the threshold",
+        telemetryLost: "Telemetry interrupted",
+        telemetryRestored: "Telemetry resumed",
+        sshFailure: "Failed SSH login",
+        serviceFailure: "Service failure",
+        serviceRecovered: "Service recovered",
+        notConfigured: "Not monitored on this client",
+        active: "Active",
+        inactive: "Inactive",
+        sshMetric: "SSH",
+        serviceMetric: "Service"
+    };
     const dashboardLabels = Object.fromEntries(
-        [
-            "settingsLoadError", "settingsSaveError", "settingsSaved", "edit",
-            "done", "save", "reset", "hideWidget", "showWidget", "moveUp",
-            "moveDown", "drag", "width", "widgets", "thresholds",
-            "cpuThreshold", "memoryThreshold", "diskThreshold", "integrations",
-            "wazuh", "suricata", "integrationHelp", "widthSmall",
-            "widthMedium", "widthLarge", "widthFull", "historyCsv",
-            "historyJson", "eventsCsv", "eventsJson", "eventsTitle",
-            "eventsEmpty", "time", "client", "event", "metric", "value",
-            "threshold", "cpuHigh", "cpuRecovered", "memoryHigh",
-            "memoryRecovered", "diskHigh", "diskRecovered",
-            "telemetryLost", "telemetryRestored", "notConfigured",
-            "active", "inactive", "sshFailure", "serviceFailure",
-            "serviceRecovered",
-            "sshMetric", "serviceMetric"
-        ].map(key => [key, customizer.dataset[key]])
+        Object.entries(dashboardMessages).map(([key, message]) => [
+            key,
+            window.lumsT && window.lumsT[message] || message
+        ])
     );
 
     const VIEW_KEY = "lums.telemetry.view";
@@ -109,17 +113,9 @@
     let sortKey = "status";
     let sortDirection = 1;
     let dashboardSettings = {
-        layout: [
-            { id: "summary", width: 12, visible: true },
-            { id: "clients", width: 4, visible: true },
-            { id: "history", width: 8, visible: true },
-            { id: "events", width: 12, visible: true },
-            { id: "backup", width: 6, visible: true }
-        ],
         thresholds: { cpu: 90, memory: 90, disk: 90 },
         integrations: { wazuh: false, suricata: false }
     };
-    let dashboardEditing = false;
 
     function readStoredView() {
         try {
@@ -531,251 +527,27 @@
         return Number.isNaN(date.getTime()) ? value : date.toLocaleString();
     }
 
-    function renderWidgetControls() {
-        const toggles = document.getElementById("dashboard-widget-toggles");
-        toggles.replaceChildren();
-        for (const widget of dashboardSettings.layout) {
-            const node = dashboardGrid.querySelector(
-                `[data-widget-id="${widget.id}"]`
-            );
-            if (!node) continue;
-            node.hidden = !widget.visible;
-            node.style.setProperty("--widget-span", String(widget.width));
-            dashboardGrid.appendChild(node);
-
-            let controls = node.querySelector(".dashboard-widget-controls");
-            if (!controls) {
-                controls = document.createElement("div");
-                controls.className = "dashboard-widget-controls";
-                const handle = document.createElement("button");
-                handle.type = "button";
-                handle.className = "dashboard-drag-handle";
-                handle.textContent = dashboardLabels.drag;
-                handle.draggable = true;
-                controls.appendChild(handle);
-
-                const widthLabel = document.createElement("label");
-                widthLabel.textContent = `${dashboardLabels.width}: `;
-                const widthSelect = document.createElement("select");
-                widthSelect.className = "dashboard-width-select";
-                for (const [width, text] of [
-                    [4, dashboardLabels.widthSmall],
-                    [6, dashboardLabels.widthMedium],
-                    [8, dashboardLabels.widthLarge],
-                    [12, dashboardLabels.widthFull]
-                ]) {
-                    const option = document.createElement("option");
-                    option.value = String(width);
-                    option.textContent = text;
-                    widthSelect.appendChild(option);
-                }
-                widthSelect.addEventListener("change", () => {
-                    const current = dashboardSettings.layout.find(
-                        item => item.id === widget.id
-                    );
-                    if (current) current.width = Number(widthSelect.value);
-                    node.style.setProperty("--widget-span", widthSelect.value);
-                });
-                widthLabel.appendChild(widthSelect);
-                controls.appendChild(widthLabel);
-
-                const hideButton = document.createElement("button");
-                hideButton.type = "button";
-                hideButton.textContent = dashboardLabels.hideWidget;
-                hideButton.addEventListener("click", () => {
-                    const current = dashboardSettings.layout.find(
-                        item => item.id === widget.id
-                    );
-                    if (current) current.visible = false;
-                    renderWidgetControls();
-                });
-                controls.appendChild(hideButton);
-                for (const [direction, text] of [
-                    [-1, dashboardLabels.moveUp],
-                    [1, dashboardLabels.moveDown]
-                ]) {
-                    const moveButton = document.createElement("button");
-                    moveButton.type = "button";
-                    moveButton.className = "dashboard-move-button";
-                    moveButton.textContent = direction < 0 ? "↑" : "↓";
-                    moveButton.setAttribute("aria-label", text);
-                    moveButton.addEventListener("click", () =>
-                        moveWidget(widget.id, direction)
-                    );
-                    controls.appendChild(moveButton);
-                }
-                node.prepend(controls);
-                handle.addEventListener("dragstart", event => {
-                    event.dataTransfer.setData("text/plain", widget.id);
-                    event.dataTransfer.effectAllowed = "move";
-                    node.classList.add("is-dragging");
-                });
-                handle.addEventListener("dragend", () =>
-                    node.classList.remove("is-dragging")
-                );
-                node.addEventListener("dragover", event => {
-                    if (dashboardEditing) event.preventDefault();
-                });
-                node.addEventListener("drop", event => {
-                    if (!dashboardEditing) return;
-                    event.preventDefault();
-                    const sourceId = event.dataTransfer.getData("text/plain");
-                    if (sourceId && sourceId !== widget.id) {
-                        reorderWidget(sourceId, widget.id);
-                    }
-                });
-            }
-            controls.hidden = !dashboardEditing;
-            controls.querySelector(".dashboard-width-select").value =
-                String(widget.width);
-
-            const toggleLabel = document.createElement("label");
-            const toggle = document.createElement("input");
-            toggle.type = "checkbox";
-            toggle.checked = widget.visible;
-            toggle.addEventListener("change", () => {
-                const current = dashboardSettings.layout.find(
-                    item => item.id === widget.id
-                );
-                if (current) current.visible = toggle.checked;
-                renderWidgetControls();
-            });
-            toggleLabel.append(toggle, document.createTextNode(
-                ` ${node.dataset.widgetLabel}`
-            ));
-            toggles.appendChild(toggleLabel);
-        }
-        for (const node of dashboardGrid.querySelectorAll(".dashboard-widget")) {
-            node.classList.toggle("is-editing", dashboardEditing);
-        }
-    }
-
-    function moveWidget(id, direction) {
-        const index = dashboardSettings.layout.findIndex(item => item.id === id);
-        const next = index + direction;
-        if (index < 0 || next < 0 || next >= dashboardSettings.layout.length) return;
-        const [widget] = dashboardSettings.layout.splice(index, 1);
-        dashboardSettings.layout.splice(next, 0, widget);
-        renderWidgetControls();
-    }
-
-    function reorderWidget(sourceId, targetId) {
-        const sourceIndex = dashboardSettings.layout.findIndex(
-            item => item.id === sourceId
-        );
-        const targetIndex = dashboardSettings.layout.findIndex(
-            item => item.id === targetId
-        );
-        if (sourceIndex < 0 || targetIndex < 0) return;
-        const [widget] = dashboardSettings.layout.splice(sourceIndex, 1);
-        dashboardSettings.layout.splice(targetIndex, 0, widget);
-        renderWidgetControls();
-    }
-
     function applyDashboardSettings(settings) {
-        dashboardSettings = settings;
-        for (const [key, inputId] of [
-            ["cpu", "threshold-cpu"],
-            ["memory", "threshold-memory"],
-            ["disk", "threshold-disk"]
-        ]) {
-            document.getElementById(inputId).value = settings.thresholds[key];
+        if (!settings || !settings.thresholds || !settings.integrations) {
+            throw new Error("Dashboard settings response is invalid");
         }
-        document.getElementById("integration-wazuh").checked =
-            settings.integrations.wazuh;
-        document.getElementById("integration-suricata").checked =
-            settings.integrations.suricata;
-        renderWidgetControls();
-    }
-
-    function readDashboardControls() {
-        const thresholds = {
-            cpu: Number(document.getElementById("threshold-cpu").value),
-            memory: Number(document.getElementById("threshold-memory").value),
-            disk: Number(document.getElementById("threshold-disk").value)
+        dashboardSettings = {
+            thresholds: settings.thresholds,
+            integrations: settings.integrations
         };
-        if (Object.values(thresholds).some(value =>
-            !Number.isInteger(value) || value < 50 || value > 99
-        )) {
-            dashboardStatus.textContent = dashboardLabels.settingsSaveError;
-            return false;
-        }
-        dashboardSettings.thresholds = thresholds;
-        dashboardSettings.integrations = {
-            wazuh: document.getElementById("integration-wazuh").checked,
-            suricata: document.getElementById("integration-suricata").checked
-        };
-        return true;
-    }
-
-    async function saveDashboardSettings() {
-        if (!readDashboardControls()) return;
-        dashboardStatus.textContent = "";
-        try {
-            const response = await fetch(customizer.dataset.settingsUrl, {
-                method: "PUT",
-                credentials: "same-origin",
-                headers: {
-                    "Content-Type": "application/json",
-                    "X-CSRF-Token": customizer.dataset.csrfToken,
-                    Accept: "application/json"
-                },
-                body: JSON.stringify(dashboardSettings),
-                cache: "no-store"
-            });
-            if (!response.ok) throw new Error("Dashboard settings save failed");
-            dashboardStatus.textContent = dashboardLabels.settingsSaved;
-            renderSystemMonitor();
-            refreshDetails().catch(() => setStatus(labels.loadError, true));
-        } catch {
-            dashboardStatus.textContent = dashboardLabels.settingsSaveError;
-        }
     }
 
     async function loadDashboardSettings() {
         try {
             applyDashboardSettings(
-                await fetchJson(customizer.dataset.settingsUrl)
+                await fetchJson(root.dataset.settingsUrl)
             );
-        } catch {
-            dashboardStatus.textContent = dashboardLabels.settingsLoadError;
-            applyDashboardSettings(dashboardSettings);
+        } catch (error) {
+            console.error(
+                "Dashboard settings could not be loaded; using default thresholds.",
+                error
+            );
         }
-    }
-
-    function setDashboardEditing(editing) {
-        dashboardEditing = editing;
-        document.getElementById("dashboard-edit-button").textContent =
-            editing ? customizer.dataset.done : customizer.dataset.edit;
-        document.getElementById("dashboard-save-button").hidden = !editing;
-        document.getElementById("dashboard-reset-button").hidden = !editing;
-        document.getElementById("dashboard-customizer-options").hidden = !editing;
-        renderWidgetControls();
-    }
-
-    function initializeDashboardCustomizer() {
-        document.getElementById("dashboard-edit-button").addEventListener(
-            "click",
-            () => setDashboardEditing(!dashboardEditing)
-        );
-        document.getElementById("dashboard-save-button").addEventListener(
-            "click",
-            saveDashboardSettings
-        );
-        document.getElementById("dashboard-reset-button").addEventListener(
-            "click",
-            () => applyDashboardSettings({
-                layout: [
-                    { id: "summary", width: 12, visible: true },
-                    { id: "clients", width: 4, visible: true },
-                    { id: "history", width: 8, visible: true },
-                    { id: "events", width: 12, visible: true },
-                    { id: "backup", width: 6, visible: true }
-                ],
-                thresholds: { cpu: 90, memory: 90, disk: 90 },
-                integrations: { wazuh: false, suricata: false }
-            })
-        );
     }
 
     function renderTelemetryEvents(events) {
@@ -1389,7 +1161,6 @@
         startRefresh();
     } else {
         viewSelect.value = readStoredView();
-        initializeDashboardCustomizer();
         setStatus(labels.loading);
         loadDashboardSettings().finally(startRefresh);
     }

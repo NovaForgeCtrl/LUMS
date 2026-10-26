@@ -32,6 +32,7 @@ TELEMETRY_SYSTEM_STATE_MIGRATION_VERSION = "012-telemetry-system-state"
 TELEMETRY_DASHBOARD_MIGRATION_VERSION = "013-telemetry-dashboard"
 TELEMETRY_EVENT_HISTORY_MIGRATION_VERSION = "014-telemetry-event-history"
 SYSTEM_UPDATE_PERMISSION_MIGRATION_VERSION = "015-system-update-permission"
+INFRASTRUCTURE_TOPOLOGY_MIGRATION_VERSION = "016-infrastructure-topology"
 
 
 def utc_now():
@@ -208,6 +209,82 @@ def migrate_system_update_permission(connection):
         """
         INSERT OR IGNORE INTO user_permissions (user_id, permission)
         SELECT users.id, 'system.update'
+        FROM users
+        WHERE users.role = 'administrator'
+        """
+    )
+
+
+def migrate_infrastructure_topology(connection):
+    connection.execute("""
+        CREATE TABLE IF NOT EXISTS infrastructure_nodes (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            node_type TEXT NOT NULL CHECK (
+                node_type IN (
+                    'server', 'vm', 'container', 'network_device',
+                    'service', 'storage'
+                )
+            ),
+            hostname TEXT NOT NULL DEFAULT '',
+            ip_address TEXT NOT NULL DEFAULT '',
+            role TEXT NOT NULL DEFAULT '',
+            location TEXT NOT NULL DEFAULT '',
+            notes TEXT NOT NULL DEFAULT '',
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL,
+            created_by INTEGER,
+            FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL
+        )
+    """)
+    connection.execute("""
+        CREATE TABLE IF NOT EXISTS infrastructure_relations (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            source_node_id INTEGER,
+            source_client_id INTEGER,
+            target_node_id INTEGER,
+            target_client_id INTEGER,
+            relation_type TEXT NOT NULL CHECK (
+                relation_type IN (
+                    'depends_on', 'hosts', 'connects_to', 'runs_on'
+                )
+            ),
+            details TEXT NOT NULL DEFAULT '',
+            created_at TEXT NOT NULL,
+            created_by INTEGER,
+            CHECK (
+                (source_node_id IS NOT NULL) != (source_client_id IS NOT NULL)
+            ),
+            CHECK (
+                (target_node_id IS NOT NULL) != (target_client_id IS NOT NULL)
+            ),
+            FOREIGN KEY (source_node_id)
+                REFERENCES infrastructure_nodes(id) ON DELETE CASCADE,
+            FOREIGN KEY (source_client_id)
+                REFERENCES clients(id) ON DELETE CASCADE,
+            FOREIGN KEY (target_node_id)
+                REFERENCES infrastructure_nodes(id) ON DELETE CASCADE,
+            FOREIGN KEY (target_client_id)
+                REFERENCES clients(id) ON DELETE CASCADE,
+            FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL
+        )
+    """)
+    connection.execute("""
+        CREATE INDEX IF NOT EXISTS idx_infrastructure_relations_source
+        ON infrastructure_relations(
+            source_node_id, source_client_id, relation_type
+        )
+    """)
+    connection.execute("""
+        CREATE INDEX IF NOT EXISTS idx_infrastructure_relations_target
+        ON infrastructure_relations(
+            target_node_id, target_client_id, relation_type
+        )
+    """)
+    connection.execute(
+        """
+        INSERT OR IGNORE INTO user_permissions (user_id, permission)
+        SELECT users.id, 'infrastructure.manage'
         FROM users
         WHERE users.role = 'administrator'
         """
@@ -975,6 +1052,27 @@ def run_migration(db_path, admin_username, skip_admin):
             print(
                 f"[OK] Migration "
                 f"{SYSTEM_UPDATE_PERMISSION_MIGRATION_VERSION} completed"
+            )
+
+        if migration_already_applied(
+            connection,
+            INFRASTRUCTURE_TOPOLOGY_MIGRATION_VERSION
+        ):
+            print(
+                f"[INFO] Migration "
+                f"{INFRASTRUCTURE_TOPOLOGY_MIGRATION_VERSION} "
+                "is already recorded"
+            )
+        else:
+            migrate_infrastructure_topology(connection)
+            record_migration(
+                connection,
+                INFRASTRUCTURE_TOPOLOGY_MIGRATION_VERSION
+            )
+            connection.commit()
+            print(
+                f"[OK] Migration "
+                f"{INFRASTRUCTURE_TOPOLOGY_MIGRATION_VERSION} completed"
             )
 
         print_schema(connection)

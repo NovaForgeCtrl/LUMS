@@ -6772,7 +6772,7 @@ html[data-theme="geek"] .permission-editor-error:not([hidden]) {
 /* LUMS shared sidebar */
 :root {
     --lums-sidebar-width: 264px;
-    --lums-sidebar-collapsed-width: 76px;
+    --lums-sidebar-collapsed-width: 142px;
     --lums-sidebar-bg: #111827;
     --lums-sidebar-border: rgba(255,255,255,.09);
     --lums-sidebar-text: #e5e7eb;
@@ -7708,107 +7708,11 @@ html[data-theme="admin"] .theme-symbol::before {
     align-items: start;
 }
 
-.dashboard-widget {
-    grid-column: span var(--widget-span, 12);
+.health-dashboard-grid > .cards,
+.health-dashboard-grid > .panel {
+    grid-column: 1 / -1;
     min-width: 0;
     margin-top: 0;
-}
-
-.dashboard-customizer {
-    margin-bottom: 20px;
-}
-
-.dashboard-customizer-controls,
-.dashboard-customizer-options,
-.dashboard-widget-controls {
-    display: flex;
-    align-items: center;
-    flex-wrap: wrap;
-    gap: 10px;
-}
-
-.dashboard-customizer-controls button,
-.dashboard-widget-controls button,
-.dashboard-customizer-options input,
-.dashboard-widget-controls select {
-    min-height: 36px;
-}
-
-.dashboard-customizer-options {
-    align-items: stretch;
-    margin-top: 16px;
-}
-
-.dashboard-customizer-options[hidden],
-.dashboard-widget-controls[hidden] {
-    display: none;
-}
-
-.dashboard-customizer-options fieldset {
-    display: flex;
-    flex: 1 1 240px;
-    align-items: center;
-    flex-wrap: wrap;
-    gap: 8px 12px;
-    min-width: 0;
-    margin: 0;
-    padding: 10px 12px;
-    border: 1px solid var(--border-color, rgba(127, 127, 127, 0.35));
-}
-
-.dashboard-customizer-options legend {
-    padding: 0 5px;
-    font-weight: 650;
-}
-
-.dashboard-customizer-options input[type="number"] {
-    width: 68px;
-}
-
-.dashboard-customizer-options p {
-    flex-basis: 100%;
-    margin: 0;
-    font-size: 0.9rem;
-}
-
-#dashboard-settings-status {
-    min-height: 1.5em;
-}
-
-.dashboard-widget.is-editing {
-    outline: 2px dashed var(--accent-color, #5262a4);
-    outline-offset: 4px;
-}
-
-.dashboard-widget.is-dragging {
-    opacity: 0.55;
-}
-
-.dashboard-widget[hidden] {
-    display: none;
-}
-
-.dashboard-widget-controls {
-    justify-content: flex-end;
-    margin-bottom: 10px;
-}
-
-.dashboard-drag-handle {
-    cursor: grab;
-    touch-action: none;
-}
-
-.dashboard-drag-handle:active {
-    cursor: grabbing;
-}
-
-.dashboard-widget-controls button,
-.dashboard-widget-controls select {
-    padding: 5px 8px;
-}
-
-.dashboard-widget-controls .dashboard-move-button {
-    min-width: 38px;
 }
 
 .integration-status-grid {
@@ -7834,22 +7738,11 @@ html[data-theme="admin"] .theme-symbol::before {
         grid-template-columns: repeat(6, minmax(0, 1fr));
     }
 
-    .dashboard-widget {
-        grid-column: span 6;
-    }
 }
 
 @media (max-width: 640px) {
     .health-dashboard-grid {
         grid-template-columns: minmax(0, 1fr);
-    }
-
-    .dashboard-widget {
-        grid-column: 1;
-    }
-
-    .dashboard-customizer-options fieldset {
-        flex-basis: 100%;
     }
 
     .integration-status-grid {
@@ -7932,7 +7825,7 @@ html[data-theme="admin"] .theme-symbol::before {
     font-size: 12px;
 }
 .monitoring-only #telemetry-dashboard,
-.monitoring-only #dashboard-customizer {
+.monitoring-only .health-dashboard-grid > .cards {
     display: none;
 }
 .monitoring-only #health-dashboard-grid > :not(#system-monitor):not(.monitoring-client-picker) {
@@ -8159,5 +8052,320 @@ html[data-theme="admin"] .theme-symbol::before {
 @media (max-width: 480px) {
     .update-release-facts {
         grid-template-columns: minmax(0, 1fr);
+    }
+}
+
+:root {
+    --topology-node-fill: #f8fafc;
+    --topology-node-stroke: #94a3b8;
+    --topology-node-ink: #0f172a;
+    --topology-node-muted: #475569;
+    --topology-edge: #64748b;
+    --topology-central: #b42318;
+}
+
+html[data-theme="LUMSStadium"] {
+    --topology-node-fill: #102116;
+    --topology-node-stroke: #48704f;
+    --topology-node-ink: #e8efe9;
+    --topology-node-muted: #a9c6b0;
+    --topology-edge: #edc34b;
+    --topology-central: #ff8177;
+}
+
+html[data-theme="golf"] {
+    --topology-node-fill: #eef2e6;
+    --topology-node-stroke: #66805b;
+    --topology-node-ink: #263326;
+    --topology-node-muted: #49634a;
+    --topology-edge: #527a51;
+    --topology-central: #a43f35;
+}
+
+html[data-theme="nerd"] {
+    --topology-node-fill: #081b13;
+    --topology-node-stroke: #29a46d;
+    --topology-node-ink: #d6ffe9;
+    --topology-node-muted: #8edab5;
+    --topology-edge: #39df8e;
+    --topology-central: #ff716c;
+}
+
+html[data-theme="geek"] {
+    --topology-node-fill: #10162e;
+    --topology-node-stroke: #5968ae;
+    --topology-node-ink: #e4e9ff;
+    --topology-node-muted: #aab7ed;
+    --topology-edge: #8f9cff;
+    --topology-central: #ff827b;
+}
+
+html[data-theme="admin"] {
+    --topology-node-fill: #17243d;
+    --topology-node-stroke: #5371a4;
+    --topology-node-ink: #edf3ff;
+    --topology-node-muted: #b9c9e6;
+    --topology-edge: #75a8ff;
+    --topology-central: #ff8177;
+}
+
+.infrastructure-page {
+    display: grid;
+    gap: 22px;
+    padding-top: 24px;
+}
+
+.infrastructure-heading h1 {
+    margin: 0 0 6px;
+}
+
+.infrastructure-heading p {
+    max-width: 72ch;
+    margin: 0;
+    color: color-mix(in srgb, currentColor 76%, transparent);
+}
+
+#infrastructure-topology {
+    display: grid;
+    gap: 22px;
+}
+
+.topology-overview,
+.topology-inventory,
+.topology-relationships {
+    min-width: 0;
+    margin: 0;
+}
+
+#topology-status {
+    min-height: 1.5em;
+    margin: 4px 0 14px;
+}
+
+#topology-status.is-error {
+    color: #b42318;
+    font-weight: 650;
+}
+
+.topology-summary {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 10px;
+    margin: 14px 0 20px;
+}
+
+.topology-summary span {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    min-width: 0;
+    padding: 10px 0;
+    border-top: 1px solid color-mix(in srgb, currentColor 24%, transparent);
+    color: color-mix(in srgb, currentColor 78%, transparent);
+}
+
+.topology-summary strong {
+    color: currentColor;
+    font-size: 1.25rem;
+}
+
+.topology-map-scroll {
+    overflow-x: auto;
+    padding: 10px 0;
+}
+
+.topology-map {
+    display: block;
+    width: 100%;
+    min-width: 820px;
+    height: auto;
+    overflow: visible;
+}
+
+.topology-edge {
+    stroke: var(--topology-edge);
+    stroke-width: 2;
+    opacity: 0.78;
+}
+
+#topology-arrow path {
+    fill: var(--topology-edge);
+}
+
+.topology-node rect {
+    fill: var(--topology-node-fill);
+    stroke: var(--topology-node-stroke);
+    stroke-width: 1.5;
+}
+
+.topology-node.is-central rect {
+    stroke: var(--topology-central);
+    stroke-width: 3;
+}
+
+.topology-node-type {
+    fill: var(--topology-node-muted);
+    font-size: 12px;
+}
+
+.topology-node-name {
+    fill: var(--topology-node-ink);
+    font-size: 15px;
+    font-weight: 700;
+}
+
+.topology-node-address {
+    fill: var(--topology-node-muted);
+    font-size: 11px;
+}
+
+.topology-map-empty {
+    fill: currentColor;
+    font-size: 16px;
+}
+
+.topology-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px 22px;
+    margin: 12px 0 0;
+    color: color-mix(in srgb, currentColor 78%, transparent);
+    font-size: 0.9rem;
+}
+
+.topology-legend span {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.topology-legend i {
+    display: inline-block;
+    width: 12px;
+    height: 12px;
+    border: 2px solid var(--topology-node-stroke);
+    border-radius: 3px;
+    background: var(--topology-node-fill);
+}
+
+.topology-legend-client {
+    border-radius: 50% !important;
+}
+
+.topology-legend-link {
+    width: 18px !important;
+    height: 2px !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    background: var(--topology-edge) !important;
+}
+
+.topology-legend-central {
+    border-color: var(--topology-central) !important;
+}
+
+.topology-form {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 14px;
+    margin: 0 0 20px;
+    padding: 16px 0 20px;
+    border-bottom: 1px solid color-mix(in srgb, currentColor 20%, transparent);
+}
+
+.topology-form h3 {
+    grid-column: 1 / -1;
+    margin: 0;
+}
+
+.topology-form label {
+    display: grid;
+    align-content: start;
+    gap: 6px;
+    min-width: 0;
+    font-size: 0.88rem;
+    font-weight: 650;
+}
+
+.topology-form input,
+.topology-form select,
+.topology-form textarea {
+    width: 100%;
+    min-width: 0;
+    min-height: 40px;
+    padding: 8px 10px;
+    border: 1px solid color-mix(in srgb, currentColor 28%, transparent);
+    border-radius: 6px;
+    color: inherit;
+    background: color-mix(in srgb, currentColor 5%, transparent);
+    font: inherit;
+}
+
+.topology-form textarea {
+    resize: vertical;
+}
+
+.topology-form-wide {
+    grid-column: 1 / -1;
+}
+
+.topology-form-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    align-items: end;
+}
+
+.topology-form-actions button,
+.topology-table button {
+    min-height: 38px;
+    padding: 7px 12px;
+}
+
+.topology-relation-form {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.topology-table {
+    min-width: 820px;
+}
+
+.topology-table tr.is-central td:first-child {
+    font-weight: 700;
+}
+
+.topology-table td:last-child {
+    white-space: nowrap;
+}
+
+.topology-table td:last-child button + button {
+    margin-left: 6px;
+}
+
+@media (max-width: 900px) {
+    .topology-summary {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .topology-form,
+    .topology-relation-form {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 560px) {
+    .infrastructure-page {
+        gap: 16px;
+        padding-top: 16px;
+    }
+
+    .topology-summary,
+    .topology-form,
+    .topology-relation-form {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .topology-form-wide {
+        grid-column: 1;
     }
 }
