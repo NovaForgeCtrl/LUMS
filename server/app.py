@@ -10,6 +10,7 @@ from flask import (
 )
 import csv
 import io
+import hmac
 import os
 import logging
 from pathlib import Path
@@ -1397,6 +1398,98 @@ def system_updates_page():
         user_role=current_user_role(),
         **permission_ui_context(),
     )
+
+
+
+@app.route("/api/host-updater/heartbeat", methods=["POST"])
+def host_updater_heartbeat():
+    """Authenticate the dedicated host updater and record its heartbeat."""
+    token_file = os.environ.get(
+        "LUMS_HOST_UPDATER_TOKEN_FILE",
+        "/run/secrets/lums_host_updater_token",
+    )
+
+    try:
+        configured_token = Path(token_file).read_text(
+            encoding="utf-8"
+        ).strip()
+    except OSError:
+        logger.error("Host-updater token file is unavailable")
+        return jsonify({"error": "host_updater_not_configured"}), 503
+
+    if len(configured_token) < 32:
+        logger.error("Host-updater token configuration is invalid")
+        return jsonify({"error": "host_updater_not_configured"}), 503
+
+    authorization = request.headers.get("Authorization", "")
+    scheme, separator, supplied_token = authorization.partition(" ")
+    supplied_token = supplied_token.strip()
+
+    if (
+        not separator
+        or scheme.lower() != "bearer"
+        or not supplied_token
+        or not hmac.compare_digest(
+            hash_client_token(supplied_token),
+            hash_client_token(configured_token),
+        )
+    ):
+        return jsonify({"error": "host_updater_authentication_required"}), 401
+
+    payload = request.get_json(silent=True)
+    if not isinstance(payload, dict):
+        return jsonify({"error": "invalid_json"}), 400
+
+    version = payload.get("version")
+    deployment = payload.get("deployment")
+    status_message = payload.get("status_message", "Heartbeat received")
+
+    for field, value, limit in (
+        ("version", version, 80),
+        ("deployment", deployment, 80),
+        ("status_message", status_message, 500),
+    ):
+        if value is not None and (
+            not isinstance(value, str) or len(value) > limit
+        ):
+            return jsonify({"error": "invalid_" + field}), 400
+
+    if not isinstance(status_message, str) or not status_message.strip():
+        return jsonify({"error": "invalid_status_message"}), 400
+
+    now = datetime.now(timezone.utc).isoformat()
+    connection = None
+
+    try:
+        connection = app.config["LUMS_GET_CONNECTION"]()
+        connection.execute(
+            """
+            INSERT INTO system_update_agent
+                (id, last_seen, current_version, deployment, status_message)
+            VALUES (1, ?, ?, ?, ?)
+            ON CONFLICT(id) DO UPDATE SET
+                last_seen = excluded.last_seen,
+                current_version = excluded.current_version,
+                deployment = excluded.deployment,
+                status_message = excluded.status_message
+            """,
+            (now, version, deployment, status_message.strip()),
+        )
+        connection.commit()
+    except sqlite3.Error:
+        if connection is not None:
+            connection.rollback()
+        logger.exception("Could not record host-updater heartbeat")
+        return jsonify({"error": "heartbeat_storage_failed"}), 500
+    finally:
+        if connection is not None:
+            connection.close()
+
+    return jsonify({
+        "status": "ok",
+        "last_seen": now,
+        "update_execution_enabled": False,
+    }), 200
 
 
 @app.route("/api/system-updates", methods=["GET"])

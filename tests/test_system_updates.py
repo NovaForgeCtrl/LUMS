@@ -361,6 +361,83 @@ def test_update_api_is_denied_to_operators_and_viewers(
     assert response.get_json() == {"error": "authorization_required"}
 
 
+
+def test_host_updater_heartbeat_requires_dedicated_token(
+    update_api, monkeypatch, tmp_path
+):
+    _, client = update_api
+    token_file = tmp_path / "host-updater-token"
+    token_file.write_text("test-host-updater-secret-" + "x" * 32)
+    monkeypatch.setenv("LUMS_HOST_UPDATER_TOKEN_FILE", str(token_file))
+
+    response = client.post(
+        "/api/host-updater/heartbeat",
+        json={"version": "dev", "deployment": "test",
+              "status_message": "Heartbeat test"},
+    )
+
+    assert response.status_code == 401
+    assert response.get_json()["error"] == (
+        "host_updater_authentication_required"
+    )
+
+
+def test_host_updater_heartbeat_records_status_without_enabling_updates(
+    update_api, monkeypatch, tmp_path
+):
+    db_path, client = update_api
+    token = "test-host-updater-secret-" + "x" * 32
+    token_file = tmp_path / "host-updater-token"
+    token_file.write_text(token)
+    monkeypatch.setenv("LUMS_HOST_UPDATER_TOKEN_FILE", str(token_file))
+
+    response = client.post(
+        "/api/host-updater/heartbeat",
+        headers={"Authorization": "Bearer " + token},
+        json={
+            "version": "dev",
+            "deployment": "test-host",
+            "status_message": "Heartbeat test",
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.get_json()["status"] == "ok"
+    assert response.get_json()["update_execution_enabled"] is False
+
+    connection = sqlite3.connect(db_path)
+    row = connection.execute(
+        """
+        SELECT last_seen, current_version, deployment, status_message
+        FROM system_update_agent WHERE id = 1
+        """
+    ).fetchone()
+    connection.close()
+
+    assert row is not None
+    assert row[1:] == ("dev", "test-host", "Heartbeat test")
+    assert row[0]
+
+
+def test_host_updater_heartbeat_rejects_oversized_fields(
+    update_api, monkeypatch, tmp_path
+):
+    _, client = update_api
+    token = "test-host-updater-secret-" + "x" * 32
+    token_file = tmp_path / "host-updater-token"
+    token_file.write_text(token)
+    monkeypatch.setenv("LUMS_HOST_UPDATER_TOKEN_FILE", str(token_file))
+
+    response = client.post(
+        "/api/host-updater/heartbeat",
+        headers={"Authorization": "Bearer " + token},
+        json={"status_message": "x" * 501},
+    )
+
+    assert response.status_code == 400
+    assert response.get_json()["error"] == "invalid_status_message"
+
+
 def test_update_request_requires_live_agent_and_csrf(update_api):
     db_path, client = update_api
     login(client, 1, "admin")
