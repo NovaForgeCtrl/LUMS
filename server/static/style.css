@@ -7423,6 +7423,13 @@ body.lums-sidebar-layout {
     font-variant-numeric: tabular-nums;
 }
 
+.telemetry-threshold-line {
+    stroke: var(--danger-color, #b42318);
+    stroke-dasharray: 5 4;
+    stroke-width: 1.5;
+    opacity: 0.8;
+}
+
 .fleet-table th,
 .fleet-table td {
     font-variant-numeric: tabular-nums;
@@ -7692,5 +7699,161 @@ html[data-theme="admin"] .theme-symbol::before {
 
     .monitor-table {
         min-width: 560px;
+    }
+}
+
+.health-dashboard-grid {
+    display: grid;
+    grid-template-columns: repeat(12, minmax(0, 1fr));
+    gap: 20px;
+    align-items: start;
+}
+
+.dashboard-widget {
+    grid-column: span var(--widget-span, 12);
+    min-width: 0;
+    margin-top: 0;
+}
+
+.dashboard-customizer {
+    margin-bottom: 20px;
+}
+
+.dashboard-customizer-controls,
+.dashboard-customizer-options,
+.dashboard-widget-controls {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.dashboard-customizer-controls button,
+.dashboard-widget-controls button,
+.dashboard-customizer-options input,
+.dashboard-widget-controls select {
+    min-height: 36px;
+}
+
+.dashboard-customizer-options {
+    align-items: stretch;
+    margin-top: 16px;
+}
+
+.dashboard-customizer-options[hidden],
+.dashboard-widget-controls[hidden] {
+    display: none;
+}
+
+.dashboard-customizer-options fieldset {
+    display: flex;
+    flex: 1 1 240px;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px 12px;
+    min-width: 0;
+    margin: 0;
+    padding: 10px 12px;
+    border: 1px solid var(--border-color, rgba(127, 127, 127, 0.35));
+}
+
+.dashboard-customizer-options legend {
+    padding: 0 5px;
+    font-weight: 650;
+}
+
+.dashboard-customizer-options input[type="number"] {
+    width: 68px;
+}
+
+.dashboard-customizer-options p {
+    flex-basis: 100%;
+    margin: 0;
+    font-size: 0.9rem;
+}
+
+#dashboard-settings-status {
+    min-height: 1.5em;
+}
+
+.dashboard-widget.is-editing {
+    outline: 2px dashed var(--accent-color, #5262a4);
+    outline-offset: 4px;
+}
+
+.dashboard-widget.is-dragging {
+    opacity: 0.55;
+}
+
+.dashboard-widget[hidden] {
+    display: none;
+}
+
+.dashboard-widget-controls {
+    justify-content: flex-end;
+    margin-bottom: 10px;
+}
+
+.dashboard-drag-handle {
+    cursor: grab;
+    touch-action: none;
+}
+
+.dashboard-drag-handle:active {
+    cursor: grabbing;
+}
+
+.dashboard-widget-controls button,
+.dashboard-widget-controls select {
+    padding: 5px 8px;
+}
+
+.dashboard-widget-controls .dashboard-move-button {
+    min-width: 38px;
+}
+
+.integration-status-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.integration-monitor-help {
+    margin: 8px 0;
+}
+
+#telemetry-events-body tr[data-kind="threshold_exceeded"],
+#telemetry-events-body tr[data-kind="telemetry_lost"] {
+    color: var(--danger-color, #b42318);
+}
+
+#telemetry-events-body tr[data-kind="threshold_recovered"],
+#telemetry-events-body tr[data-kind="telemetry_restored"] {
+    color: var(--success-color, #176b32);
+}
+
+@media (max-width: 900px) {
+    .health-dashboard-grid {
+        grid-template-columns: repeat(6, minmax(0, 1fr));
+    }
+
+    .dashboard-widget {
+        grid-column: span 6;
+    }
+}
+
+@media (max-width: 640px) {
+    .health-dashboard-grid {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .dashboard-widget {
+        grid-column: 1;
+    }
+
+    .dashboard-customizer-options fieldset {
+        flex-basis: 100%;
+    }
+
+    .integration-status-grid {
+        grid-template-columns: minmax(0, 1fr);
     }
 }

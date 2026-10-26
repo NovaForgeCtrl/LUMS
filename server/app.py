@@ -6,7 +6,10 @@ from flask import (
     url_for,
     redirect,
     session,
+    Response,
 )
+import csv
+import io
 import os
 import logging
 from pathlib import Path
@@ -2136,6 +2139,67 @@ TELEMETRY_MAX_COUNTER_VALUE = 2**63 - 1
 # Counter deltas across longer gaps would hide real traffic peaks.
 TELEMETRY_MAX_RATE_GAP_SECONDS = 300
 TELEMETRY_STALE_SECONDS = 120
+TELEMETRY_WIDGET_WIDTHS = (4, 6, 8, 12)
+TELEMETRY_WIDGET_IDS = (
+    "summary", "clients", "history", "system", "events", "backup",
+)
+TELEMETRY_INTEGRATIONS = ("wazuh", "suricata")
+
+
+def default_telemetry_dashboard_settings():
+    return {
+        "layout": [
+            {"id": "summary", "width": 12, "visible": True},
+            {"id": "clients", "width": 4, "visible": True},
+            {"id": "history", "width": 8, "visible": True},
+            {"id": "system", "width": 12, "visible": True},
+            {"id": "events", "width": 12, "visible": True},
+            {"id": "backup", "width": 6, "visible": True},
+        ],
+        "thresholds": {"cpu": 90, "memory": 90, "disk": 90},
+        "integrations": {"wazuh": False, "suricata": False},
+    }
+
+
+def validate_telemetry_dashboard_settings(settings):
+    if not isinstance(settings, dict) or set(settings) != {
+        "layout", "thresholds", "integrations",
+    }:
+        return False
+    layout = settings["layout"]
+    if not isinstance(layout, list) or len(layout) != len(TELEMETRY_WIDGET_IDS):
+        return False
+    seen = set()
+    for widget in layout:
+        if (
+            not isinstance(widget, dict)
+            or set(widget) != {"id", "width", "visible"}
+            or widget["id"] not in TELEMETRY_WIDGET_IDS
+            or widget["id"] in seen
+            or isinstance(widget["width"], bool)
+            or widget["width"] not in TELEMETRY_WIDGET_WIDTHS
+            or not isinstance(widget["visible"], bool)
+        ):
+            return False
+        seen.add(widget["id"])
+    thresholds = settings["thresholds"]
+    if (
+        not isinstance(thresholds, dict)
+        or set(thresholds) != {"cpu", "memory", "disk"}
+        or any(
+            isinstance(value, bool)
+            or not isinstance(value, int)
+            or not 50 <= value <= 99
+            for value in thresholds.values()
+        )
+    ):
+        return False
+    integrations = settings["integrations"]
+    return (
+        isinstance(integrations, dict)
+        and set(integrations) == set(TELEMETRY_INTEGRATIONS)
+        and all(isinstance(value, bool) for value in integrations.values())
+    )
 
 
 def parse_telemetry_time(value):
@@ -2473,6 +2537,61 @@ def add_system_interface_rates(system, previous, seconds):
     return result
 
 
+def record_telemetry_system_events(
+    connection, client_id, recorded_at, previous, current
+):
+    previous_services = {
+        item["name"]: item["state"]
+        for item in (previous or {}).get("services", {}).get("items", [])
+    }
+    for service in current.get("services", {}).get("items", []):
+        name = service["name"]
+        old_state = previous_services.get(name)
+        state = service["state"]
+        if state == "failed" and old_state != "failed":
+            event_type = "service_failed"
+        elif state in ("active", "inactive") and old_state == "failed":
+            event_type = "service_recovered"
+        else:
+            continue
+        connection.execute(
+            """
+            INSERT INTO client_telemetry_events (
+                client_id, recorded_at, event_type, metric, value
+            ) VALUES (?, ?, ?, ?, NULL)
+            """,
+            (client_id, recorded_at, event_type, name),
+        )
+
+    security = current.get("security_events", {})
+    old_security = (previous or {}).get("security_events", {})
+    last_failed = parse_telemetry_time(
+        security.get("ssh_last_failed_at")
+    )
+    previous_failed = parse_telemetry_time(
+        old_security.get("ssh_last_failed_at")
+    )
+    recorded_time = parse_telemetry_time(recorded_at)
+    if (
+        last_failed is not None
+        and (previous_failed is None or last_failed > previous_failed)
+        and recorded_time is not None
+        and last_failed <= recorded_time + timedelta(minutes=5)
+    ):
+        connection.execute(
+            """
+            INSERT INTO client_telemetry_events (
+                client_id, recorded_at, event_type, metric, value
+            ) VALUES (?, ?, 'ssh_failure', 'ssh', ?)
+            """,
+            (
+                client_id,
+                last_failed.isoformat(),
+                security.get("ssh_failed_24h"),
+            ),
+        )
+
+
 @app.route("/api/telemetry", methods=["POST"])
 @client_auth_required
 def ingest_telemetry():
@@ -2572,6 +2691,13 @@ def ingest_telemetry():
                         current_time - previous_time
                     ).total_seconds()
 
+            record_telemetry_system_events(
+                connection,
+                client["id"],
+                recorded_at,
+                previous,
+                data["system"],
+            )
             system = add_system_interface_rates(
                 data["system"], previous, elapsed
             )
@@ -2596,16 +2722,32 @@ def ingest_telemetry():
             INSERT INTO client_telemetry (
                 client_id, recorded_at, cpu_percent, memory_percent,
                 memory_total_bytes, memory_available_bytes,
-                network_rx_bytes, network_tx_bytes
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                network_rx_bytes, network_tx_bytes, disk_percent
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 client["id"], recorded_at, float(cpu), float(memory),
                 memory_total, memory_available, network_rx, network_tx,
+                (
+                    round(
+                        100 * data["system"]["disk"]["used_bytes"]
+                        / data["system"]["disk"]["total_bytes"],
+                        2,
+                    )
+                    if (
+                        data.get("system")
+                        and data["system"].get("disk")
+                    )
+                    else None
+                ),
             ),
         )
         connection.execute(
             "DELETE FROM client_telemetry WHERE recorded_at < ?",
+            (cutoff,),
+        )
+        connection.execute(
+            "DELETE FROM client_telemetry_events WHERE recorded_at < ?",
             (cutoff,),
         )
         connection.commit()
@@ -2658,32 +2800,7 @@ def client_telemetry(client_id):
         if client is None:
             return jsonify({"error": "client_not_found"}), 404
 
-        cutoff = (
-            datetime.now(timezone.utc) - timedelta(hours=hours)
-        ).isoformat()
-
-        rows = connection.execute(
-            """
-            SELECT recorded_at, cpu_percent, memory_percent,
-                   memory_total_bytes, memory_available_bytes,
-                   network_rx_bytes, network_tx_bytes
-            FROM client_telemetry
-            WHERE client_id = ? AND recorded_at >= ?
-            ORDER BY recorded_at ASC
-            """,
-            (client_id, cutoff),
-        ).fetchall()
-        rows = add_network_rates(rows)
-
-        # Keep the complete history in storage, but bound dashboard responses.
-        # Evenly spaced indices preserve the oldest and newest samples.
-        if len(rows) > TELEMETRY_MAX_RESPONSE_POINTS:
-            last_index = len(rows) - 1
-            denominator = TELEMETRY_MAX_RESPONSE_POINTS - 1
-            rows = [
-                rows[(index * last_index + denominator // 2) // denominator]
-                for index in range(TELEMETRY_MAX_RESPONSE_POINTS)
-            ]
+        rows = telemetry_history_rows(connection, client_id, hours)
 
         return jsonify({
             "client_id": client_id,
@@ -2696,6 +2813,384 @@ def client_telemetry(client_id):
             "Failed to load telemetry for client %s", client_id
         )
         return jsonify({"error": "telemetry_query_failed"}), 500
+    finally:
+        connection.close()
+
+
+@app.route("/api/telemetry/dashboard-settings", methods=["GET", "PUT"])
+@login_required
+@role_required(
+    ROLE_ADMINISTRATOR,
+    ROLE_OPERATOR,
+    ROLE_VIEWER,
+    permission="clients.view",
+)
+@csrf_required
+def telemetry_dashboard_settings():
+    connection = get_connection()
+    user_id = current_user_id()
+    try:
+        if request.method == "GET":
+            row = connection.execute(
+                """
+                SELECT settings_json
+                FROM user_dashboard_settings
+                WHERE user_id = ?
+                """,
+                (user_id,),
+            ).fetchone()
+            if row is None:
+                return jsonify(default_telemetry_dashboard_settings())
+            settings = json.loads(row["settings_json"])
+            if not validate_telemetry_dashboard_settings(settings):
+                logger.error(
+                    "Invalid telemetry dashboard settings for user %s",
+                    user_id,
+                )
+                return jsonify({"error": "dashboard_settings_invalid"}), 500
+            return jsonify(settings)
+
+        settings = request.get_json(silent=True)
+        if not validate_telemetry_dashboard_settings(settings):
+            return jsonify({"error": "invalid_dashboard_settings"}), 400
+        connection.execute(
+            """
+            INSERT INTO user_dashboard_settings (
+                user_id, settings_json, updated_at
+            ) VALUES (?, ?, ?)
+            ON CONFLICT(user_id) DO UPDATE SET
+                settings_json = excluded.settings_json,
+                updated_at = excluded.updated_at
+            """,
+            (
+                user_id,
+                json.dumps(settings, separators=(",", ":"), allow_nan=False),
+                datetime.now(timezone.utc).isoformat(),
+            ),
+        )
+        connection.commit()
+        return jsonify({"status": "saved"})
+    except (sqlite3.Error, json.JSONDecodeError):
+        connection.rollback()
+        logger.exception(
+            "Unable to load or save telemetry dashboard settings for user %s",
+            user_id,
+        )
+        return jsonify({"error": "dashboard_settings_failed"}), 500
+    finally:
+        connection.close()
+
+
+def telemetry_history_rows(connection, client_id, hours, downsample=True):
+    cutoff = (
+        datetime.now(timezone.utc) - timedelta(hours=hours)
+    ).isoformat()
+    rows = connection.execute(
+        """
+        SELECT recorded_at, cpu_percent, memory_percent,
+               memory_total_bytes, memory_available_bytes,
+               network_rx_bytes, network_tx_bytes, disk_percent
+        FROM client_telemetry
+        WHERE client_id = ? AND recorded_at >= ?
+        ORDER BY recorded_at ASC
+        """,
+        (client_id, cutoff),
+    ).fetchall()
+    rows = add_network_rates(rows)
+    if downsample and len(rows) > TELEMETRY_MAX_RESPONSE_POINTS:
+        last_index = len(rows) - 1
+        denominator = TELEMETRY_MAX_RESPONSE_POINTS - 1
+        rows = [
+            rows[(index * last_index + denominator // 2) // denominator]
+            for index in range(TELEMETRY_MAX_RESPONSE_POINTS)
+        ]
+    return rows
+
+
+def telemetry_events_from_rows(rows, thresholds, now=None):
+    now = now or datetime.now(timezone.utc)
+    events = []
+    active = {"cpu": False, "memory": False, "disk": False}
+    previous_time = None
+    metric_keys = (
+        ("cpu", "cpu_percent"),
+        ("memory", "memory_percent"),
+        ("disk", "disk_percent"),
+    )
+    for row in rows:
+        recorded = parse_telemetry_time(row["recorded_at"])
+        if recorded is None:
+            continue
+        if previous_time is not None:
+            gap = (recorded - previous_time).total_seconds()
+            if gap > TELEMETRY_STALE_SECONDS:
+                events.append({
+                    "timestamp": (
+                        previous_time
+                        + timedelta(seconds=TELEMETRY_STALE_SECONDS)
+                    ).isoformat(),
+                    "kind": "telemetry_lost",
+                    "metric": None,
+                    "value": None,
+                    "threshold": None,
+                })
+                events.append({
+                    "timestamp": recorded.isoformat(),
+                    "kind": "telemetry_restored",
+                    "metric": None,
+                    "value": None,
+                    "threshold": None,
+                })
+        for metric, key in metric_keys:
+            value = row[key]
+            exceeded = value is not None and value >= thresholds[metric]
+            if exceeded and not active[metric]:
+                events.append({
+                    "timestamp": recorded.isoformat(),
+                    "kind": "threshold_exceeded",
+                    "metric": metric,
+                    "value": value,
+                    "threshold": thresholds[metric],
+                })
+            elif not exceeded and active[metric]:
+                events.append({
+                    "timestamp": recorded.isoformat(),
+                    "kind": "threshold_recovered",
+                    "metric": metric,
+                    "value": value,
+                    "threshold": thresholds[metric],
+                })
+            active[metric] = exceeded
+        previous_time = recorded
+
+    if previous_time is not None:
+        if (now - previous_time).total_seconds() > TELEMETRY_STALE_SECONDS:
+            events.append({
+                "timestamp": (
+                    previous_time
+                    + timedelta(seconds=TELEMETRY_STALE_SECONDS)
+                ).isoformat(),
+                "kind": "telemetry_lost",
+                "metric": None,
+                "value": None,
+                "threshold": None,
+            })
+    return sorted(events, key=lambda event: event["timestamp"], reverse=True)[:500]
+
+
+def parse_telemetry_hours():
+    try:
+        hours = int(request.args.get("hours", "24"))
+    except (TypeError, ValueError):
+        return None
+    return hours if 1 <= hours <= TELEMETRY_MAX_HISTORY_HOURS else None
+
+
+def csv_response(filename, fieldnames, rows):
+    output = io.StringIO(newline="")
+    writer = csv.DictWriter(output, fieldnames=fieldnames, extrasaction="ignore")
+    writer.writeheader()
+    writer.writerows(rows)
+    return Response(
+        output.getvalue(),
+        content_type="text/csv; charset=utf-8",
+        headers={
+            "Content-Disposition": f'attachment; filename="{filename}"',
+            "Cache-Control": "no-store",
+        },
+    )
+
+
+@app.route(
+    "/api/clients/<int:client_id>/telemetry/events",
+    methods=["GET"],
+)
+@login_required
+@role_required(
+    ROLE_ADMINISTRATOR,
+    ROLE_OPERATOR,
+    ROLE_VIEWER,
+    permission="clients.view",
+)
+def client_telemetry_events(client_id):
+    hours = parse_telemetry_hours()
+    if hours is None:
+        return jsonify({"error": "invalid_hours"}), 400
+    connection = get_connection()
+    try:
+        client = connection.execute(
+            "SELECT id, hostname FROM clients WHERE id = ? AND enabled = 1",
+            (client_id,),
+        ).fetchone()
+        if client is None:
+            return jsonify({"error": "client_not_found"}), 404
+        settings_row = connection.execute(
+            """
+            SELECT settings_json FROM user_dashboard_settings WHERE user_id = ?
+            """,
+            (current_user_id(),),
+        ).fetchone()
+        settings = (
+            json.loads(settings_row["settings_json"])
+            if settings_row else default_telemetry_dashboard_settings()
+        )
+        if not validate_telemetry_dashboard_settings(settings):
+            return jsonify({"error": "dashboard_settings_invalid"}), 500
+        rows = telemetry_history_rows(
+            connection, client_id, hours, downsample=False
+        )
+        events = telemetry_events_from_rows(
+            rows, settings["thresholds"]
+        )
+        cutoff = datetime.now(timezone.utc) - timedelta(hours=hours)
+        persisted_rows = connection.execute(
+            """
+            SELECT recorded_at, event_type, metric, value
+            FROM client_telemetry_events
+            WHERE client_id = ? AND recorded_at >= ?
+            ORDER BY recorded_at DESC
+            LIMIT 500
+            """,
+            (client_id, cutoff.isoformat()),
+        ).fetchall()
+        events.extend({
+            "timestamp": row["recorded_at"],
+            "kind": row["event_type"],
+            "metric": row["metric"],
+            "value": row["value"],
+            "threshold": None,
+        } for row in persisted_rows)
+        system_row = connection.execute(
+            """
+            SELECT recorded_at, payload_json
+            FROM client_system_status
+            WHERE client_id = ?
+            """,
+            (client_id,),
+        ).fetchone()
+        if system_row is not None:
+            system_time = parse_telemetry_time(system_row["recorded_at"])
+            system = json.loads(system_row["payload_json"])
+            security = system.get("security_events", {})
+            failed_at = parse_telemetry_time(
+                security.get("ssh_last_failed_at")
+            )
+            if failed_at is not None and failed_at >= cutoff:
+                if not any(
+                    event["kind"] == "ssh_failure"
+                    and event["metric"] == "ssh"
+                    for event in events
+                ):
+                    events.append({
+                        "timestamp": failed_at.isoformat(),
+                        "kind": "ssh_failure",
+                        "metric": "ssh",
+                        "value": security.get("ssh_failed_24h"),
+                        "threshold": None,
+                    })
+            services = system.get("services", {}).get("items", [])
+            if system_time is not None and system_time >= cutoff:
+                for service in services:
+                    if service.get("state") == "failed":
+                        name = service.get("name", "service")
+                        if not any(
+                            event["kind"] == "service_failed"
+                            and event["metric"] == name
+                            for event in events
+                        ):
+                            events.append({
+                                "timestamp": system_time.isoformat(),
+                                "kind": "service_failed",
+                                "metric": name,
+                                "value": None,
+                                "threshold": None,
+                            })
+        events = sorted(
+            events,
+            key=lambda event: event["timestamp"],
+            reverse=True,
+        )[:500]
+        export_format = request.args.get("format", "json").lower()
+        if export_format == "csv":
+            return csv_response(
+                f"telemetry-events-client-{client_id}.csv",
+                ("timestamp", "kind", "metric", "value", "threshold"),
+                events,
+            )
+        if export_format != "json":
+            return jsonify({"error": "invalid_format"}), 400
+        return jsonify({
+            "client_id": client_id,
+            "hostname": client["hostname"],
+            "hours": hours,
+            "events": events,
+        })
+    except (sqlite3.Error, json.JSONDecodeError):
+        logger.exception(
+            "Failed to load telemetry events for client %s", client_id
+        )
+        return jsonify({"error": "telemetry_events_query_failed"}), 500
+    finally:
+        connection.close()
+
+
+@app.route(
+    "/api/clients/<int:client_id>/telemetry/export",
+    methods=["GET"],
+)
+@login_required
+@role_required(
+    ROLE_ADMINISTRATOR,
+    ROLE_OPERATOR,
+    ROLE_VIEWER,
+    permission="clients.view",
+)
+def export_client_telemetry(client_id):
+    hours = parse_telemetry_hours()
+    if hours is None:
+        return jsonify({"error": "invalid_hours"}), 400
+    export_format = request.args.get("format", "csv").lower()
+    if export_format not in ("csv", "json"):
+        return jsonify({"error": "invalid_format"}), 400
+    connection = get_connection()
+    try:
+        client = connection.execute(
+            "SELECT id, hostname FROM clients WHERE id = ? AND enabled = 1",
+            (client_id,),
+        ).fetchone()
+        if client is None:
+            return jsonify({"error": "client_not_found"}), 404
+        rows = telemetry_history_rows(
+            connection, client_id, hours, downsample=False
+        )
+        fields = (
+            "recorded_at", "cpu_percent", "memory_percent",
+            "memory_total_bytes", "memory_available_bytes", "disk_percent",
+            "network_rx_bytes_per_second", "network_tx_bytes_per_second",
+        )
+        samples = [{key: row.get(key) for key in fields} for row in rows]
+        if export_format == "csv":
+            return csv_response(
+                f"telemetry-client-{client_id}-{hours}h.csv",
+                fields,
+                samples,
+            )
+        response = jsonify({
+            "client_id": client_id,
+            "hostname": client["hostname"],
+            "hours": hours,
+            "samples": samples,
+        })
+        response.headers["Content-Disposition"] = (
+            f'attachment; filename="telemetry-client-{client_id}-{hours}h.json"'
+        )
+        response.headers["Cache-Control"] = "no-store"
+        return response
+    except sqlite3.Error:
+        logger.exception(
+            "Failed to export telemetry for client %s", client_id
+        )
+        return jsonify({"error": "telemetry_export_failed"}), 500
     finally:
         connection.close()
 

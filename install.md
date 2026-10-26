@@ -5945,10 +5945,14 @@ Optionally, select systemd service units to report with a comma-separated
 allowlist:
 
 ```sh
-LUMS_MONITORED_SERVICES=lums-agent.service,lums-telemetry.service,ssh.service
+LUMS_MONITORED_SERVICES=lums-agent.service,lums-telemetry.service,ssh.service,wazuh-agent.service,suricata.service
 ```
 
 If unset, the agent uses its built-in list of LUMS, Docker, and SSH services.
+Wazuh and Suricata are optional: add only service units installed on the
+client, then enable their status rows in the `/health` dashboard. This reports
+systemd state only; it does not require or store API credentials or retrieve
+security alert feeds.
 
 If a private certificate authority is required, install its certificate at
 a path readable by the service process, such as

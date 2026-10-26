@@ -54,6 +54,8 @@ Agent version 1.2.0 and later also reports a bounded system snapshot:
 - selected systemd service states, run times and restart counts, plus Docker
   and Podman container names and normalized states when local tools and
   permissions allow read-only inspection.
+- disk utilization percentage on each telemetry sample for historical charts
+  and threshold-event evaluation.
 
 Agent version 1.3.0 and later also reports bounded operational-event
 summaries: failed SSH login counts and timestamps, recent journal warning and
@@ -87,10 +89,11 @@ reflect firewall policy rather than an outage.
 The server assigns the sample timestamp and rejects invalid payloads.
 
 After updating the server, run the database migration once
-(`python3 server/security_migration.py`) so the network columns and latest
-system-state table exist. Update the agent on each client to start reporting
-the new metrics. To monitor the LUMS server itself, register it as a client
-and install/configure the telemetry agent on that host as well.
+(`python3 server/security_migration.py`) so the network columns, latest
+system-state table, customizable dashboard settings, and event history exist.
+Update the agent on each client to start reporting the new metrics. To monitor
+the LUMS server itself, register it as a client and install/configure the
+telemetry agent on that host as well.
 
 ## Security and privacy
 
@@ -120,23 +123,47 @@ Access requires the appropriate client-view permission. Large result sets
 may be downsampled to a maximum of 1,000 samples.
 
 The `/health` dashboard offers 1-hour, 24-hour, and 7-day history ranges and
-refreshes its displayed data every five seconds. It shows CPU, memory and
-aggregate network history, plus live disk, load, uptime, kernel, operating
-system, interface, connectivity, sensor, service and container details for the
-selected client. It also shows a fleet overview
+refreshes its displayed data every five seconds. It shows CPU, memory, disk
+utilization and aggregate network history, plus live disk, load, uptime,
+kernel, operating system, interface, connectivity, sensor, service and
+container details for the selected client. It also shows a fleet overview
 (filterable by status, stale telemetry or high load, searchable and sortable)
 and per-client details. CPU and memory can be shown as a line chart, an area
 chart or a donut gauge of the current value; the chosen view is remembered in
 the browser. Network traffic is shown as download and upload rates. Telemetry
 older than two minutes is marked as stale. The fleet overview uses the
-`/api/telemetry/overview` endpoint, which requires the client-view permission. History requests are limited
-to 1–168 hours and may be downsampled to a maximum of 1,000 samples. The
-systemd timer is configured to run the one-shot agent every five seconds;
-actual sample frequency depends on service completion and network availability.
-The dashboard also displays recent SSH failures, journal warning/error counts,
-login/logout and boot history, and high CPU/RAM use (90% or more). Journal
-counts cover at most 500 matching records per query. The last successful
-backup creation is read from the server's audit log; it is not a restore test.
+`/api/telemetry/overview` endpoint, which requires the client-view permission.
+History requests are limited to 1–168 hours and may be downsampled to a
+maximum of 1,000 samples. The systemd timer is configured to run the one-shot
+agent every five seconds; actual sample frequency depends on service
+completion and network availability. The dashboard also displays recent SSH
+failures, journal warning/error counts, login/logout and boot history.
+Threshold warnings use the logged-in user's configurable CPU, RAM and disk
+limits. Journal counts cover at most 500 matching records per query. The last
+successful backup creation is read from the server's audit log; it is not a
+restore test.
+
+Each user can save an independent dashboard layout: reorder sections by drag
+and drop or the keyboard move buttons, change their widths, hide/show sections,
+and set CPU, RAM and disk thresholds from 50% to 99%. Defaults are 90%.
+Threshold crossings and telemetry gaps over two minutes appear in the event
+history. Threshold alerts are derived from retained samples and use the
+logged-in user's thresholds; service state transitions and new SSH failure
+timestamps are recorded during ingestion. Events are retained for up to seven
+days and the event endpoint returns at most 500 entries.
+
+CSV and JSON exports are available for the selected client and time range.
+History downloads include all retained samples for that range; charts remain
+downsampled to at most 1,000 points. Exports require `clients.view` and are
+not cached by the browser.
+
+Wazuh and Suricata can be enabled as optional per-user status rows in dashboard
+customization. These rows display configured systemd service state only; LUMS
+does not connect to their APIs or collect their alerts. To report a service,
+include its installed unit (for example `wazuh-agent.service`,
+`wazuh-manager.service`, or `suricata.service`) in the agent's
+`LUMS_MONITORED_SERVICES` allowlist. No integration credentials are required
+or stored by LUMS.
 
 ## Configuration
 

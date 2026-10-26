@@ -16,7 +16,94 @@
             </div>
         </header>
 
-        <section class="cards" aria-label="{{ tr('Current service, client and backup-storage status.') }}">
+        <section class="panel dashboard-customizer" id="dashboard-customizer"
+            data-csrf-token="{{ csrf_token }}"
+            data-settings-url="{{ url_for('telemetry_dashboard_settings') }}"
+            data-settings-load-error="{{ tr('Dashboard preferences could not be loaded.') }}"
+            data-settings-save-error="{{ tr('Dashboard preferences could not be saved.') }}"
+            data-settings-saved="{{ tr('Dashboard preferences saved.') }}"
+            data-edit="{{ tr('Customize dashboard') }}"
+            data-done="{{ tr('Finish customization') }}"
+            data-save="{{ tr('Save layout') }}"
+            data-reset="{{ tr('Restore default layout') }}"
+            data-hide-widget="{{ tr('Hide section') }}"
+            data-show-widget="{{ tr('Show section') }}"
+            data-move-up="{{ tr('Move section up') }}"
+            data-move-down="{{ tr('Move section down') }}"
+            data-drag="{{ tr('Drag to reorder') }}"
+            data-width="{{ tr('Section width') }}"
+            data-widgets="{{ tr('Visible sections') }}"
+            data-thresholds="{{ tr('Alert thresholds (%)') }}"
+            data-cpu-threshold="{{ tr('CPU') }}"
+            data-memory-threshold="{{ tr('RAM') }}"
+            data-disk-threshold="{{ tr('Disk') }}"
+            data-integrations="{{ tr('Optional integrations') }}"
+            data-wazuh="{{ tr('Wazuh') }}"
+            data-suricata="{{ tr('Suricata') }}"
+            data-integration-help="{{ tr('To enable status reporting, add the installed service unit to LUMS_MONITORED_SERVICES on the telemetry agent.') }}"
+            data-width-small="{{ tr('One third') }}"
+            data-width-medium="{{ tr('Half') }}"
+            data-width-large="{{ tr('Two thirds') }}"
+            data-width-full="{{ tr('Full width') }}"
+            data-history-csv="{{ tr('Export history CSV') }}"
+            data-history-json="{{ tr('Export history JSON') }}"
+            data-events-csv="{{ tr('Export events CSV') }}"
+            data-events-json="{{ tr('Export events JSON') }}"
+            data-events-title="{{ tr('Alert and outage history') }}"
+            data-events-empty="{{ tr('No alerts or outages in this period.') }}"
+            data-time="{{ tr('Time') }}"
+            data-client="{{ tr('Client') }}"
+            data-event="{{ tr('Event') }}"
+            data-metric="{{ tr('Metric') }}"
+            data-value="{{ tr('Value') }}"
+            data-threshold="{{ tr('Threshold') }}"
+            data-cpu-high="{{ tr('CPU threshold exceeded') }}"
+            data-cpu-recovered="{{ tr('CPU returned below threshold') }}"
+            data-memory-high="{{ tr('RAM threshold exceeded') }}"
+            data-memory-recovered="{{ tr('RAM returned below threshold') }}"
+            data-disk-high="{{ tr('Disk threshold exceeded') }}"
+            data-disk-recovered="{{ tr('Disk returned below threshold') }}"
+            data-telemetry-lost="{{ tr('Telemetry interrupted') }}"
+            data-telemetry-restored="{{ tr('Telemetry resumed') }}"
+            data-ssh-failure="{{ tr('Failed SSH login') }}"
+            data-service-failure="{{ tr('Service failure') }}"
+            data-service-recovered="{{ tr('Service recovered') }}"
+            data-ssh-metric="{{ tr('SSH') }}"
+            data-service-metric="{{ tr('Service') }}"
+            data-not-configured="{{ tr('Not monitored on this client') }}"
+            data-active="{{ tr('Active') }}"
+            data-inactive="{{ tr('Inactive') }}">
+            <div class="dashboard-customizer-controls">
+                <button type="button" id="dashboard-edit-button">{{ tr("Customize dashboard") }}</button>
+                <button type="button" id="dashboard-save-button" hidden>{{ tr("Save layout") }}</button>
+                <button type="button" id="dashboard-reset-button" hidden>{{ tr("Restore default layout") }}</button>
+                <span id="dashboard-settings-status" role="status" aria-live="polite"></span>
+            </div>
+            <div class="dashboard-customizer-options" id="dashboard-customizer-options" hidden>
+                <fieldset>
+                    <legend>{{ tr("Visible sections") }}</legend>
+                    <div id="dashboard-widget-toggles"></div>
+                </fieldset>
+                <fieldset>
+                    <legend>{{ tr("Alert thresholds (%)") }}</legend>
+                    <label for="threshold-cpu">{{ tr("CPU") }}</label>
+                    <input id="threshold-cpu" type="number" min="50" max="99" step="1">
+                    <label for="threshold-memory">{{ tr("RAM") }}</label>
+                    <input id="threshold-memory" type="number" min="50" max="99" step="1">
+                    <label for="threshold-disk">{{ tr("Disk") }}</label>
+                    <input id="threshold-disk" type="number" min="50" max="99" step="1">
+                </fieldset>
+                <fieldset>
+                    <legend>{{ tr("Optional integrations") }}</legend>
+                    <label><input type="checkbox" id="integration-wazuh"> {{ tr("Wazuh") }}</label>
+                    <label><input type="checkbox" id="integration-suricata"> {{ tr("Suricata") }}</label>
+                    <p>{{ tr("To enable status reporting, add the installed service unit to LUMS_MONITORED_SERVICES on the telemetry agent.") }}</p>
+                </fieldset>
+            </div>
+        </section>
+
+        <div class="health-dashboard-grid" id="health-dashboard-grid">
+        <section class="cards dashboard-widget" data-widget-id="summary" data-widget-label="{{ tr('Current service, client and backup-storage status.') }}" aria-label="{{ tr('Current service, client and backup-storage status.') }}">
             <article class="card">
                 <div class="card-title">{{ tr("Database") }}</div>
                 <div class="card-value">{{ tr(database_status|capitalize) }}</div>
@@ -31,7 +118,7 @@
             </article>
         </section>
 
-        <section class="panel">
+        <section class="panel dashboard-widget" data-widget-id="clients" data-widget-label="{{ tr('Client status') }}">
             <div class="panel-header">
                 <div>
                     <h2>{{ tr("Client status") }}</h2>
@@ -52,7 +139,7 @@
             </div>
         </section>
 
-        <section class="panel telemetry-panel" id="telemetry-dashboard"
+        <section class="panel telemetry-panel dashboard-widget" id="telemetry-dashboard" data-widget-id="history" data-widget-label="{{ tr('System telemetry') }}"
             data-loading="{{ tr('Loading telemetry…') }}"
             data-no-clients="{{ tr('No enabled clients found.') }}"
             data-no-samples="{{ tr('No telemetry samples available yet.') }}"
@@ -61,6 +148,7 @@
             data-updated="{{ tr('Last sample:') }}"
             data-cpu="{{ tr('CPU utilization') }}"
             data-memory="{{ tr('Memory utilization') }}"
+            data-disk="{{ tr('Disk utilization') }}"
             data-network="{{ tr('Network traffic') }}"
             data-download="{{ tr('Download') }}"
             data-upload="{{ tr('Upload') }}"
@@ -126,6 +214,8 @@
                     <option value="area">{{ tr("Area chart") }}</option>
                     <option value="donut">{{ tr("Donut (current)") }}</option>
                 </select>
+                <button type="button" id="export-history-csv">{{ tr("Export history CSV") }}</button>
+                <button type="button" id="export-history-json">{{ tr("Export history JSON") }}</button>
             </div>
 
             <p id="telemetry-status" role="status" aria-live="polite">{{ tr("Loading telemetry…") }}</p>
@@ -142,6 +232,11 @@
                     <p class="telemetry-current" id="telemetry-memory-value">—</p>
                     <svg id="telemetry-memory-chart" class="telemetry-chart" viewBox="0 0 640 220"></svg>
                 </article>
+                <article class="telemetry-chart-card">
+                    <h3>{{ tr("Disk utilization") }}</h3>
+                    <p class="telemetry-current" id="telemetry-disk-value">—</p>
+                    <svg id="telemetry-disk-chart" class="telemetry-chart" viewBox="0 0 640 220"></svg>
+                </article>
                 <article class="telemetry-chart-card telemetry-chart-wide">
                     <h3>{{ tr("Network traffic") }}</h3>
                     <p class="telemetry-current" id="telemetry-network-value">—</p>
@@ -153,7 +248,7 @@
                 </article>
             </div>
         </section>
-        <section class="panel system-monitor-panel" id="system-monitor"
+        <section class="panel system-monitor-panel dashboard-widget" id="system-monitor" data-widget-id="system" data-widget-label="{{ tr('Live system monitoring') }}"
             data-no-data="{{ tr('No detailed system data is available for this client.') }}"
             data-stale="{{ tr('System data is stale. Check whether the telemetry agent is running.') }}"
             data-loading="{{ tr('Waiting for system telemetry.') }}"
@@ -262,6 +357,11 @@
 
             <section class="monitor-section" aria-labelledby="services-monitor-heading">
                 <h3 id="services-monitor-heading">{{ tr("Services and containers") }}</h3>
+                <dl class="security-summary-grid integration-status-grid">
+                    <div id="wazuh-status-row" hidden><dt>Wazuh</dt><dd id="wazuh-status">—</dd></div>
+                    <div id="suricata-status-row" hidden><dt>Suricata</dt><dd id="suricata-status">—</dd></div>
+                </dl>
+                <p class="integration-monitor-help" id="integration-monitor-help" hidden>{{ tr("To enable status reporting, add the installed service unit to LUMS_MONITORED_SERVICES on the telemetry agent.") }}</p>
                 <div class="services-monitor-grid">
                     <div class="table-container">
                         <h4>{{ tr("Selected services") }}</h4>
@@ -308,7 +408,25 @@
                 </div>
             </section>
         </section>
-        <section class="panel" style="margin-top: 24px;">
+        <section class="panel dashboard-widget" data-widget-id="events" data-widget-label="{{ tr('Alert and outage history') }}">
+            <div class="panel-header">
+                <div>
+                    <h2>{{ tr("Alert and outage history") }}</h2>
+                    <p>{{ tr("Threshold crossings and telemetry interruptions for the selected client and period.") }}</p>
+                </div>
+                <div>
+                    <button type="button" id="export-events-csv">{{ tr("Export events CSV") }}</button>
+                    <button type="button" id="export-events-json">{{ tr("Export events JSON") }}</button>
+                </div>
+            </div>
+            <div class="table-container">
+                <table class="monitor-table">
+                    <thead><tr><th>{{ tr("Time") }}</th><th>{{ tr("Event") }}</th><th>{{ tr("Metric") }}</th><th>{{ tr("Value") }}</th><th>{{ tr("Threshold") }}</th></tr></thead>
+                    <tbody id="telemetry-events-body"></tbody>
+                </table>
+            </div>
+        </section>
+        <section class="panel dashboard-widget" data-widget-id="backup" data-widget-label="{{ tr('Backup storage') }}">
             <div class="panel-header">
                 <div>
                     <h2>{{ tr("Backup storage") }}</h2>
@@ -328,6 +446,7 @@
                 </div>
             </div>
         </section>
+        </div>
     </main>
     <script src="{{ url_for('static', filename='telemetry.js') }}" defer></script>
 </body>

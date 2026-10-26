@@ -15,11 +15,12 @@ host monitoring:
   states, service runtimes/restarts, and readable Docker/Podman container
   states from the selected telemetry client;
 - recent failed SSH login counts, journal error/warning counts, login/logout
-  times and boot journal timestamps, plus a warning when fresh CPU or memory
-  telemetry reaches 90%;
+  times and boot journal timestamps, plus CPU, RAM and disk threshold warnings
+  and detected telemetry interruptions;
 - whether the configured backup directory can be inspected and the latest
   backup file that the application recognizes, and the last successful backup
   creation recorded in the audit log.
+- optional Wazuh and Suricata systemd service-state rows when configured.
 
 This page is an operational overview, not a full monitoring or alerting system.
 The LUMS host appears in the client selector only if it is registered as a
@@ -75,9 +76,19 @@ assume that retention cleanup runs independently.
 
 The dashboard limits each journal query to 500 matching records; a displayed
 count of `500+` means the count may be higher. Login/logout history is limited
-to 20 events and boot history to 10 entries. High-resource warnings use the
-latest fresh CPU or memory sample and trigger at 90%. The backup-run timestamp
-comes from the audit log and is not an independent restore verification.
+to 20 events and boot history to 10 entries. Each user can save a custom
+dashboard layout, section widths and visibility, and CPU/RAM/disk thresholds
+(50–99%, default 90%). Threshold crossings and telemetry interruptions are
+derived from the retained sample history; service transitions and newly
+reported SSH failures are recorded as timestamped events for up to seven
+days. CSV/JSON exports provide all samples for the selected range; the
+interactive charts are capped at 1,000 points.
+
+Wazuh and Suricata rows are opt-in and report only systemd service states.
+They require the corresponding installed unit to be included in
+`LUMS_MONITORED_SERVICES`; they do not connect to Wazuh or Suricata APIs or
+import their alert feeds. The backup-run timestamp comes from the audit log
+and is not an independent restore verification.
 
 Telemetry requires client authentication. Remote agent connections require
 HTTPS; plain HTTP is accepted only for loopback addresses. Configure a CA file

@@ -14,12 +14,17 @@
     const networkValue = document.getElementById("telemetry-network-value");
     const cpuChart = document.getElementById("telemetry-cpu-chart");
     const memoryChart = document.getElementById("telemetry-memory-chart");
+    const diskValue = document.getElementById("telemetry-disk-value");
+    const diskChart = document.getElementById("telemetry-disk-chart");
     const networkChart = document.getElementById("telemetry-network-chart");
     const fleetBody = document.getElementById("fleet-body");
     const fleetFilter = document.getElementById("fleet-filter");
     const fleetSearch = document.getElementById("fleet-search");
     const systemRoot = document.getElementById("system-monitor");
     const systemStatus = document.getElementById("system-monitor-status");
+    const customizer = document.getElementById("dashboard-customizer");
+    const dashboardGrid = document.getElementById("health-dashboard-grid");
+    const dashboardStatus = document.getElementById("dashboard-settings-status");
     const systemLabels = Object.fromEntries(
         [
             "noData", "stale", "cpu", "memory", "load", "disk", "free",
@@ -52,6 +57,7 @@
         updated: root.dataset.updated,
         cpu: root.dataset.cpu,
         memory: root.dataset.memory,
+        disk: root.dataset.disk,
         network: root.dataset.network,
         download: root.dataset.download,
         upload: root.dataset.upload,
@@ -63,6 +69,24 @@
         offline: filterOptions.offline,
         unknown: root.dataset.unknown
     };
+    const dashboardLabels = Object.fromEntries(
+        [
+            "settingsLoadError", "settingsSaveError", "settingsSaved", "edit",
+            "done", "save", "reset", "hideWidget", "showWidget", "moveUp",
+            "moveDown", "drag", "width", "widgets", "thresholds",
+            "cpuThreshold", "memoryThreshold", "diskThreshold", "integrations",
+            "wazuh", "suricata", "integrationHelp", "widthSmall",
+            "widthMedium", "widthLarge", "widthFull", "historyCsv",
+            "historyJson", "eventsCsv", "eventsJson", "eventsTitle",
+            "eventsEmpty", "time", "client", "event", "metric", "value",
+            "threshold", "cpuHigh", "cpuRecovered", "memoryHigh",
+            "memoryRecovered", "diskHigh", "diskRecovered",
+            "telemetryLost", "telemetryRestored", "notConfigured",
+            "active", "inactive", "sshFailure", "serviceFailure",
+            "serviceRecovered",
+            "sshMetric", "serviceMetric"
+        ].map(key => [key, customizer.dataset[key]])
+    );
 
     const VIEW_KEY = "lums.telemetry.view";
     const VIEWS = ["line", "area", "donut"];
@@ -77,6 +101,19 @@
     let knownClientIds = "";
     let sortKey = "status";
     let sortDirection = 1;
+    let dashboardSettings = {
+        layout: [
+            { id: "summary", width: 12, visible: true },
+            { id: "clients", width: 4, visible: true },
+            { id: "history", width: 8, visible: true },
+            { id: "system", width: 12, visible: true },
+            { id: "events", width: 12, visible: true },
+            { id: "backup", width: 6, visible: true }
+        ],
+        thresholds: { cpu: 90, memory: 90, disk: 90 },
+        integrations: { wazuh: false, suricata: false }
+    };
+    let dashboardEditing = false;
 
     function readStoredView() {
         try {
@@ -265,9 +302,9 @@
         return { minTime, maxTime, span: Math.max(1, maxTime - minTime) };
     }
 
-    function drawPercentChart(svg, samples, key, label, view) {
+    function drawPercentChart(svg, samples, key, label, view, threshold) {
         if (view === "donut") {
-            drawDonut(svg, samples, key, label);
+            drawDonut(svg, samples, key, label, threshold);
             return;
         }
 
@@ -280,10 +317,21 @@
 
         const { minTime, maxTime, span } = timeBounds([series]);
         drawSeries(svg, series, minTime, span, 100, "telemetry-series-primary", view === "area");
+        if (Number.isFinite(threshold)) {
+            const y = PLOT.top +
+                (1 - threshold / 100) * (HEIGHT - PLOT.top - PLOT.bottom);
+            svg.appendChild(svgElement("line", {
+                x1: PLOT.left,
+                y1: y,
+                x2: WIDTH - PLOT.right,
+                y2: y,
+                class: "telemetry-threshold-line"
+            }));
+        }
         drawTimeLabels(svg, minTime, maxTime);
     }
 
-    function drawDonut(svg, samples, key, label) {
+    function drawDonut(svg, samples, key, label, threshold = 90) {
         svg.replaceChildren();
         svg.setAttribute("viewBox", `0 0 ${WIDTH} ${HEIGHT}`);
         svg.setAttribute("role", "img");
@@ -306,7 +354,9 @@
             cx: centerX, cy: centerY, r: radius,
             class: "telemetry-donut-track"
         }));
-        const level = value >= 90 ? "critical" : value >= 75 ? "warning" : "normal";
+        const level = value >= threshold
+            ? "critical"
+            : value >= Math.max(50, threshold - 15) ? "warning" : "normal";
         svg.appendChild(svgElement("circle", {
             cx: centerX, cy: centerY, r: radius,
             "stroke-dasharray": `${(value / 100) * circumference} ${circumference}`,
@@ -358,14 +408,25 @@
 
     function renderDetails(samples) {
         const view = viewSelect.value;
-        drawPercentChart(cpuChart, samples, "cpu_percent", labels.cpu, view);
-        drawPercentChart(memoryChart, samples, "memory_percent", labels.memory, view);
+        drawPercentChart(
+            cpuChart, samples, "cpu_percent", labels.cpu, view,
+            dashboardSettings.thresholds.cpu
+        );
+        drawPercentChart(
+            memoryChart, samples, "memory_percent", labels.memory, view,
+            dashboardSettings.thresholds.memory
+        );
+        drawPercentChart(
+            diskChart, samples, "disk_percent", labels.disk, view,
+            dashboardSettings.thresholds.disk
+        );
         drawNetworkChart(samples, view);
 
         const latest = samples[samples.length - 1];
         if (!latest) {
             cpuValue.textContent = "—";
             memoryValue.textContent = "—";
+            diskValue.textContent = "—";
             networkValue.textContent = "—";
             lastUpdated.textContent = "";
             return;
@@ -373,6 +434,7 @@
 
         cpuValue.textContent = formatPercent(Number(latest.cpu_percent));
         memoryValue.textContent = formatPercent(Number(latest.memory_percent));
+        diskValue.textContent = formatPercent(numberOrNull(latest.disk_percent));
         const rates = latestRates(samples);
         networkValue.textContent = rates
             ? `↓ ${formatRate(rates.rx)}  ↑ ${formatRate(rates.tx)}`
@@ -397,8 +459,10 @@
     function needsAttention(entry, metrics) {
         return entry.status !== "online" ||
             entry.telemetry_stale ||
-            (metrics.cpu ?? 0) >= 90 ||
-            (metrics.memory ?? 0) >= 90;
+            (metrics.cpu ?? 0) >= dashboardSettings.thresholds.cpu ||
+            (metrics.memory ?? 0) >= dashboardSettings.thresholds.memory ||
+            (numberOrNull(entry.latest && entry.latest.disk_percent) ?? 0) >=
+                dashboardSettings.thresholds.disk;
     }
 
     function matchesFilter(entry, metrics) {
@@ -459,6 +523,333 @@
     function localizedDate(value) {
         const date = new Date(value);
         return Number.isNaN(date.getTime()) ? value : date.toLocaleString();
+    }
+
+    function renderWidgetControls() {
+        const toggles = document.getElementById("dashboard-widget-toggles");
+        toggles.replaceChildren();
+        for (const widget of dashboardSettings.layout) {
+            const node = dashboardGrid.querySelector(
+                `[data-widget-id="${widget.id}"]`
+            );
+            if (!node) continue;
+            node.hidden = !widget.visible;
+            node.style.setProperty("--widget-span", String(widget.width));
+            dashboardGrid.appendChild(node);
+
+            let controls = node.querySelector(".dashboard-widget-controls");
+            if (!controls) {
+                controls = document.createElement("div");
+                controls.className = "dashboard-widget-controls";
+                const handle = document.createElement("button");
+                handle.type = "button";
+                handle.className = "dashboard-drag-handle";
+                handle.textContent = dashboardLabels.drag;
+                handle.draggable = true;
+                controls.appendChild(handle);
+
+                const widthLabel = document.createElement("label");
+                widthLabel.textContent = `${dashboardLabels.width}: `;
+                const widthSelect = document.createElement("select");
+                widthSelect.className = "dashboard-width-select";
+                for (const [width, text] of [
+                    [4, dashboardLabels.widthSmall],
+                    [6, dashboardLabels.widthMedium],
+                    [8, dashboardLabels.widthLarge],
+                    [12, dashboardLabels.widthFull]
+                ]) {
+                    const option = document.createElement("option");
+                    option.value = String(width);
+                    option.textContent = text;
+                    widthSelect.appendChild(option);
+                }
+                widthSelect.addEventListener("change", () => {
+                    const current = dashboardSettings.layout.find(
+                        item => item.id === widget.id
+                    );
+                    if (current) current.width = Number(widthSelect.value);
+                    node.style.setProperty("--widget-span", widthSelect.value);
+                });
+                widthLabel.appendChild(widthSelect);
+                controls.appendChild(widthLabel);
+
+                const hideButton = document.createElement("button");
+                hideButton.type = "button";
+                hideButton.textContent = dashboardLabels.hideWidget;
+                hideButton.addEventListener("click", () => {
+                    const current = dashboardSettings.layout.find(
+                        item => item.id === widget.id
+                    );
+                    if (current) current.visible = false;
+                    renderWidgetControls();
+                });
+                controls.appendChild(hideButton);
+                for (const [direction, text] of [
+                    [-1, dashboardLabels.moveUp],
+                    [1, dashboardLabels.moveDown]
+                ]) {
+                    const moveButton = document.createElement("button");
+                    moveButton.type = "button";
+                    moveButton.className = "dashboard-move-button";
+                    moveButton.textContent = direction < 0 ? "↑" : "↓";
+                    moveButton.setAttribute("aria-label", text);
+                    moveButton.addEventListener("click", () =>
+                        moveWidget(widget.id, direction)
+                    );
+                    controls.appendChild(moveButton);
+                }
+                node.prepend(controls);
+                handle.addEventListener("dragstart", event => {
+                    event.dataTransfer.setData("text/plain", widget.id);
+                    event.dataTransfer.effectAllowed = "move";
+                    node.classList.add("is-dragging");
+                });
+                handle.addEventListener("dragend", () =>
+                    node.classList.remove("is-dragging")
+                );
+                node.addEventListener("dragover", event => {
+                    if (dashboardEditing) event.preventDefault();
+                });
+                node.addEventListener("drop", event => {
+                    if (!dashboardEditing) return;
+                    event.preventDefault();
+                    const sourceId = event.dataTransfer.getData("text/plain");
+                    if (sourceId && sourceId !== widget.id) {
+                        reorderWidget(sourceId, widget.id);
+                    }
+                });
+            }
+            controls.hidden = !dashboardEditing;
+            controls.querySelector(".dashboard-width-select").value =
+                String(widget.width);
+
+            const toggleLabel = document.createElement("label");
+            const toggle = document.createElement("input");
+            toggle.type = "checkbox";
+            toggle.checked = widget.visible;
+            toggle.addEventListener("change", () => {
+                const current = dashboardSettings.layout.find(
+                    item => item.id === widget.id
+                );
+                if (current) current.visible = toggle.checked;
+                renderWidgetControls();
+            });
+            toggleLabel.append(toggle, document.createTextNode(
+                ` ${node.dataset.widgetLabel}`
+            ));
+            toggles.appendChild(toggleLabel);
+        }
+        for (const node of dashboardGrid.querySelectorAll(".dashboard-widget")) {
+            node.classList.toggle("is-editing", dashboardEditing);
+        }
+    }
+
+    function moveWidget(id, direction) {
+        const index = dashboardSettings.layout.findIndex(item => item.id === id);
+        const next = index + direction;
+        if (index < 0 || next < 0 || next >= dashboardSettings.layout.length) return;
+        const [widget] = dashboardSettings.layout.splice(index, 1);
+        dashboardSettings.layout.splice(next, 0, widget);
+        renderWidgetControls();
+    }
+
+    function reorderWidget(sourceId, targetId) {
+        const sourceIndex = dashboardSettings.layout.findIndex(
+            item => item.id === sourceId
+        );
+        const targetIndex = dashboardSettings.layout.findIndex(
+            item => item.id === targetId
+        );
+        if (sourceIndex < 0 || targetIndex < 0) return;
+        const [widget] = dashboardSettings.layout.splice(sourceIndex, 1);
+        dashboardSettings.layout.splice(targetIndex, 0, widget);
+        renderWidgetControls();
+    }
+
+    function applyDashboardSettings(settings) {
+        dashboardSettings = settings;
+        for (const [key, inputId] of [
+            ["cpu", "threshold-cpu"],
+            ["memory", "threshold-memory"],
+            ["disk", "threshold-disk"]
+        ]) {
+            document.getElementById(inputId).value = settings.thresholds[key];
+        }
+        document.getElementById("integration-wazuh").checked =
+            settings.integrations.wazuh;
+        document.getElementById("integration-suricata").checked =
+            settings.integrations.suricata;
+        renderWidgetControls();
+    }
+
+    function readDashboardControls() {
+        const thresholds = {
+            cpu: Number(document.getElementById("threshold-cpu").value),
+            memory: Number(document.getElementById("threshold-memory").value),
+            disk: Number(document.getElementById("threshold-disk").value)
+        };
+        if (Object.values(thresholds).some(value =>
+            !Number.isInteger(value) || value < 50 || value > 99
+        )) {
+            dashboardStatus.textContent = dashboardLabels.settingsSaveError;
+            return false;
+        }
+        dashboardSettings.thresholds = thresholds;
+        dashboardSettings.integrations = {
+            wazuh: document.getElementById("integration-wazuh").checked,
+            suricata: document.getElementById("integration-suricata").checked
+        };
+        return true;
+    }
+
+    async function saveDashboardSettings() {
+        if (!readDashboardControls()) return;
+        dashboardStatus.textContent = "";
+        try {
+            const response = await fetch(customizer.dataset.settingsUrl, {
+                method: "PUT",
+                credentials: "same-origin",
+                headers: {
+                    "Content-Type": "application/json",
+                    "X-CSRF-Token": customizer.dataset.csrfToken,
+                    Accept: "application/json"
+                },
+                body: JSON.stringify(dashboardSettings),
+                cache: "no-store"
+            });
+            if (!response.ok) throw new Error("Dashboard settings save failed");
+            dashboardStatus.textContent = dashboardLabels.settingsSaved;
+            renderSystemMonitor();
+            refreshDetails().catch(() => setStatus(labels.loadError, true));
+        } catch {
+            dashboardStatus.textContent = dashboardLabels.settingsSaveError;
+        }
+    }
+
+    async function loadDashboardSettings() {
+        try {
+            applyDashboardSettings(
+                await fetchJson(customizer.dataset.settingsUrl)
+            );
+        } catch {
+            dashboardStatus.textContent = dashboardLabels.settingsLoadError;
+            applyDashboardSettings(dashboardSettings);
+        }
+    }
+
+    function setDashboardEditing(editing) {
+        dashboardEditing = editing;
+        document.getElementById("dashboard-edit-button").textContent =
+            editing ? customizer.dataset.done : customizer.dataset.edit;
+        document.getElementById("dashboard-save-button").hidden = !editing;
+        document.getElementById("dashboard-reset-button").hidden = !editing;
+        document.getElementById("dashboard-customizer-options").hidden = !editing;
+        renderWidgetControls();
+    }
+
+    function initializeDashboardCustomizer() {
+        document.getElementById("dashboard-edit-button").addEventListener(
+            "click",
+            () => setDashboardEditing(!dashboardEditing)
+        );
+        document.getElementById("dashboard-save-button").addEventListener(
+            "click",
+            saveDashboardSettings
+        );
+        document.getElementById("dashboard-reset-button").addEventListener(
+            "click",
+            () => applyDashboardSettings({
+                layout: [
+                    { id: "summary", width: 12, visible: true },
+                    { id: "clients", width: 4, visible: true },
+                    { id: "history", width: 8, visible: true },
+                    { id: "system", width: 12, visible: true },
+                    { id: "events", width: 12, visible: true },
+                    { id: "backup", width: 6, visible: true }
+                ],
+                thresholds: { cpu: 90, memory: 90, disk: 90 },
+                integrations: { wazuh: false, suricata: false }
+            })
+        );
+    }
+
+    function renderTelemetryEvents(events) {
+        const body = document.getElementById("telemetry-events-body");
+        body.replaceChildren();
+        if (!events.length) {
+            renderTableMessage(body, dashboardLabels.eventsEmpty, 5);
+            return;
+        }
+        const eventText = {
+            "cpu:threshold_exceeded": dashboardLabels.cpuHigh,
+            "cpu:threshold_recovered": dashboardLabels.cpuRecovered,
+            "memory:threshold_exceeded": dashboardLabels.memoryHigh,
+            "memory:threshold_recovered": dashboardLabels.memoryRecovered,
+            "disk:threshold_exceeded": dashboardLabels.diskHigh,
+            "disk:threshold_recovered": dashboardLabels.diskRecovered,
+            "null:telemetry_lost": dashboardLabels.telemetryLost,
+            "null:telemetry_restored": dashboardLabels.telemetryRestored,
+            "ssh:ssh_failure": dashboardLabels.sshFailure,
+            "service:service_failed": dashboardLabels.serviceFailure,
+            "service:service_recovered": dashboardLabels.serviceRecovered
+        };
+        for (const item of events) {
+            const row = document.createElement("tr");
+            row.dataset.kind = item.kind;
+            appendCell(row, localizedDate(item.timestamp));
+            appendCell(
+                row,
+                eventText[`${item.metric}:${item.kind}`] ||
+                    (item.kind === "service_failed"
+                        ? dashboardLabels.serviceFailure
+                        : item.kind === "service_recovered"
+                            ? dashboardLabels.serviceRecovered
+                            : item.kind)
+            );
+            const metricLabel = item.metric === "cpu" ? labels.cpu
+                    : item.metric === "memory" ? labels.memory
+                        : item.metric === "disk" ? systemLabels.disk
+                            : item.metric === "ssh" ? dashboardLabels.sshMetric
+                                : item.metric === "service" ||
+                                    (typeof item.metric === "string" &&
+                                        item.metric.endsWith(".service"))
+                                    ? `${dashboardLabels.serviceMetric}: ${item.metric}`
+                                    : "—";
+            appendCell(row, metricLabel);
+            appendCell(
+                row,
+                item.value === null ? "—"
+                    : ["cpu", "memory", "disk"].includes(item.metric)
+                        ? formatPercent(item.value)
+                        : String(item.value)
+            );
+            appendCell(
+                row,
+                item.threshold === null
+                    ? "—"
+                    : formatPercent(item.threshold)
+            );
+            body.appendChild(row);
+        }
+    }
+
+    function configureExportButtons() {
+        const clientId = clientSelect.value;
+        if (!clientId) return;
+        const hours = rangeSelect.value;
+        for (const [id, path, format] of [
+            ["export-history-csv", "export", "csv"],
+            ["export-history-json", "export", "json"],
+            ["export-events-csv", "events", "csv"],
+            ["export-events-json", "events", "json"]
+        ]) {
+            document.getElementById(id).onclick = () => {
+                const url =
+                    `/api/clients/${encodeURIComponent(clientId)}/telemetry/${path}` +
+                    `?hours=${encodeURIComponent(hours)}&format=${format}`;
+                window.location.assign(url);
+            };
+        }
     }
 
     function renderSystemTables(entry) {
@@ -582,14 +973,20 @@
         const cpu = latest ? numberOrNull(latest.cpu_percent) : null;
         const memory = latest ? numberOrNull(latest.memory_percent) : null;
         const fresh = entry && !entry.telemetry_stale;
-        const highCpu = fresh && cpu !== null && cpu >= 90;
-        const highMemory = fresh && memory !== null && memory >= 90;
+        const disk = latest ? numberOrNull(latest.disk_percent) : null;
+        const highCpu = fresh && cpu !== null &&
+            cpu >= dashboardSettings.thresholds.cpu;
+        const highMemory = fresh && memory !== null &&
+            memory >= dashboardSettings.thresholds.memory;
+        const highDisk = fresh && disk !== null &&
+            disk >= dashboardSettings.thresholds.disk;
 
-        alert.classList.toggle("is-high", highCpu || highMemory);
-        if (highCpu || highMemory) {
+        alert.classList.toggle("is-high", highCpu || highMemory || highDisk);
+        if (highCpu || highMemory || highDisk) {
             const levels = [];
-            if (highCpu) levels.push(`${systemLabels.cpuLabel} ${formatPercent(cpu)}`);
-            if (highMemory) levels.push(`${systemLabels.memoryLabel} ${formatPercent(memory)}`);
+            if (highCpu) levels.push(`${systemLabels.cpuLabel} ${formatPercent(cpu)} (≥ ${dashboardSettings.thresholds.cpu}%)`);
+            if (highMemory) levels.push(`${systemLabels.memoryLabel} ${formatPercent(memory)} (≥ ${dashboardSettings.thresholds.memory}%)`);
+            if (highDisk) levels.push(`${systemLabels.disk} ${formatPercent(disk)} (≥ ${dashboardSettings.thresholds.disk}%)`);
             alert.textContent = `${systemLabels.resourceHigh} (${levels.join(", ")})`;
         } else if (entry && latest && !entry.telemetry_stale) {
             alert.textContent = systemLabels.resourceOk;
@@ -675,6 +1072,48 @@
         }
     }
 
+    function renderOptionalIntegrations(system) {
+        const services = system && system.services && system.services.items || [];
+        const integrationSpecs = [
+            {
+                id: "wazuh",
+                rowId: "wazuh-status-row",
+                valueId: "wazuh-status",
+                match: /^(wazuh-agent|wazuh-manager|wazuh)$/i
+            },
+            {
+                id: "suricata",
+                rowId: "suricata-status-row",
+                valueId: "suricata-status",
+                match: /^(suricata|suricata-update)$/i
+            }
+        ];
+        let missing = false;
+        for (const spec of integrationSpecs) {
+            const row = document.getElementById(spec.rowId);
+            row.hidden = !dashboardSettings.integrations[spec.id];
+            if (!dashboardSettings.integrations[spec.id]) continue;
+            const matches = services.filter(item =>
+                spec.match.test(item.name.replace(/\.service$/, ""))
+            );
+            if (!matches.length) {
+                setSystemValue(spec.valueId, dashboardLabels.notConfigured);
+                missing = true;
+                continue;
+            }
+            setSystemValue(
+                spec.valueId,
+                matches.map(item =>
+                    `${item.name}: ${item.state === "active" || item.state === "running"
+                        ? dashboardLabels.active
+                        : dashboardLabels.inactive}`
+                ).join(" · ")
+            );
+        }
+        document.getElementById("integration-monitor-help").hidden =
+            !missing;
+    }
+
     function renderSystemMonitor() {
         const entry = fleet.find(
             item => String(item.client_id) === clientSelect.value
@@ -694,6 +1133,7 @@
             }
             renderSystemTables(entry);
             renderSecurityMonitor(entry);
+            renderOptionalIntegrations(null);
             return;
         }
 
@@ -747,6 +1187,7 @@
         );
         renderSystemTables(entry);
         renderSecurityMonitor(entry);
+        renderOptionalIntegrations(system);
     }
 
     function renderFleet() {
@@ -867,13 +1308,19 @@
 
         const sequence = ++requestSequence;
         const hours = rangeSelect.value;
-        const result = await fetchJson(
-            `/api/clients/${encodeURIComponent(clientId)}/telemetry?hours=${encodeURIComponent(hours)}`
-        );
+        const baseUrl =
+            `/api/clients/${encodeURIComponent(clientId)}/telemetry`;
+        const [result, eventResult] = await Promise.all([
+            fetchJson(`${baseUrl}?hours=${encodeURIComponent(hours)}`),
+            fetchJson(`${baseUrl}/events?hours=${encodeURIComponent(hours)}`)
+        ]);
         if (sequence !== requestSequence) return;
 
         const samples = Array.isArray(result.samples) ? result.samples : [];
+        const events = Array.isArray(eventResult.events) ? eventResult.events : [];
         renderDetails(samples);
+        renderTelemetryEvents(events);
+        configureExportButtons();
         setStatus(samples.length ? "" : labels.noSamples);
     }
 
@@ -914,9 +1361,14 @@
     }
 
     viewSelect.value = readStoredView();
+    initializeDashboardCustomizer();
     setStatus(labels.loading);
-    refresh();
-    timer = window.setInterval(refresh, 5000);
+    loadDashboardSettings().finally(() => {
+        renderFleet();
+        renderSystemMonitor();
+        refresh();
+        timer = window.setInterval(refresh, 5000);
+    });
 
     window.addEventListener("pagehide", () => {
         if (timer !== null) window.clearInterval(timer);

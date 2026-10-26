@@ -76,6 +76,9 @@ def telemetry_env(tmp_path, monkeypatch):
             network_tx_bytes INTEGER CHECK (
                 network_tx_bytes IS NULL OR network_tx_bytes >= 0
             ),
+            disk_percent REAL CHECK (
+                disk_percent IS NULL OR (disk_percent >= 0 AND disk_percent <= 100)
+            ),
             FOREIGN KEY (client_id) REFERENCES clients(id)
                 ON DELETE CASCADE
         );
@@ -89,6 +92,23 @@ def telemetry_env(tmp_path, monkeypatch):
             payload_json TEXT NOT NULL,
             FOREIGN KEY (client_id) REFERENCES clients(id)
                 ON DELETE CASCADE
+        );
+
+        CREATE TABLE user_dashboard_settings (
+            user_id INTEGER PRIMARY KEY,
+            settings_json TEXT NOT NULL,
+            updated_at TEXT NOT NULL,
+            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+        );
+
+        CREATE TABLE client_telemetry_events (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            client_id INTEGER NOT NULL,
+            recorded_at TEXT NOT NULL,
+            event_type TEXT NOT NULL,
+            metric TEXT NOT NULL,
+            value REAL,
+            FOREIGN KEY (client_id) REFERENCES clients(id) ON DELETE CASCADE
         );
         """
     )
@@ -474,6 +494,151 @@ def test_telemetry_history_returns_only_requested_client(
     assert data["client_id"] == 1
     assert len(data["samples"]) == 1
     assert data["samples"][0]["cpu_percent"] == 25
+
+
+def test_telemetry_dashboard_settings_are_saved_per_user(telemetry_env):
+    client = telemetry_env["app"].test_client()
+    login_as(client)
+    defaults = client.get("/api/telemetry/dashboard-settings")
+    assert defaults.status_code == 200
+    settings = defaults.get_json()
+    settings["thresholds"]["cpu"] = 85
+    settings["integrations"]["wazuh"] = True
+    settings["layout"][0]["width"] = 6
+
+    with client.session_transaction() as session:
+        session["csrf_token"] = "test-csrf"
+    saved = client.put(
+        "/api/telemetry/dashboard-settings",
+        headers={"X-CSRF-Token": "test-csrf"},
+        json=settings,
+    )
+    assert saved.status_code == 200
+    assert client.get(
+        "/api/telemetry/dashboard-settings"
+    ).get_json() == settings
+
+    viewer = telemetry_env["app"].test_client()
+    login_as(viewer, user_id=3, username="viewer")
+    assert viewer.get(
+        "/api/telemetry/dashboard-settings"
+    ).get_json()["thresholds"]["cpu"] == 90
+
+
+def test_telemetry_dashboard_settings_reject_invalid_threshold(telemetry_env):
+    client = telemetry_env["app"].test_client()
+    login_as(client)
+    settings = client.get(
+        "/api/telemetry/dashboard-settings"
+    ).get_json()
+    settings["thresholds"]["disk"] = 100
+    with client.session_transaction() as session:
+        session["csrf_token"] = "test-csrf"
+
+    response = client.put(
+        "/api/telemetry/dashboard-settings",
+        headers={"X-CSRF-Token": "test-csrf"},
+        json=settings,
+    )
+
+    assert response.status_code == 400
+    assert response.get_json()["error"] == "invalid_dashboard_settings"
+
+
+def test_telemetry_events_and_exports_are_bounded_and_authenticated(telemetry_env):
+    client = telemetry_env["app"].test_client()
+    login_as(client)
+    now = datetime.now(timezone.utc)
+    connection = telemetry_env["connection"]()
+    connection.executemany(
+        """
+        INSERT INTO client_telemetry (
+            client_id, recorded_at, cpu_percent, memory_percent,
+            memory_total_bytes, memory_available_bytes, disk_percent
+        ) VALUES (1, ?, ?, ?, 1000, 500, ?)
+        """,
+        [
+            ((now - timedelta(seconds=60)).isoformat(), 95, 60, 40),
+            ((now - timedelta(seconds=30)).isoformat(), 80, 60, 92),
+        ],
+    )
+    connection.commit()
+    connection.close()
+
+    events = client.get("/api/clients/1/telemetry/events?hours=1")
+    assert events.status_code == 200
+    event_items = events.get_json()["events"]
+    assert any(item["kind"] == "threshold_exceeded" for item in event_items)
+    assert any(item["metric"] == "cpu" for item in event_items)
+    assert any(item["metric"] == "disk" for item in event_items)
+
+    event_csv = client.get(
+        "/api/clients/1/telemetry/events?hours=1&format=csv"
+    )
+    assert event_csv.status_code == 200
+    assert event_csv.mimetype == "text/csv"
+    assert b"timestamp,kind,metric,value,threshold" in event_csv.data
+
+    history_csv = client.get(
+        "/api/clients/1/telemetry/export?hours=1&format=csv"
+    )
+    assert history_csv.status_code == 200
+    assert b"disk_percent" in history_csv.data
+    history_json = client.get(
+        "/api/clients/1/telemetry/export?hours=1&format=json"
+    )
+    assert history_json.status_code == 200
+    assert history_json.get_json()["samples"][0]["disk_percent"] == 40
+
+
+def test_ingestion_persists_service_and_ssh_event_transitions(telemetry_env):
+    client = telemetry_env["app"].test_client()
+    login_as(client)
+    now = datetime.now(timezone.utc)
+    auth_headers = {"Authorization": "Bearer pytest-client-token"}
+    first = system_snapshot()
+    first["services"]["items"][0]["state"] = "failed"
+    first["security_events"]["ssh_last_failed_at"] = now.isoformat()
+    first["security_events"]["ssh_failed_24h"] = 3
+    failed_response = client.post(
+        "/api/telemetry",
+        headers=auth_headers,
+        json=telemetry_payload(system=first),
+    )
+    assert failed_response.status_code == 200
+
+    recovered = json.loads(json.dumps(first))
+    recovered["services"]["items"][0]["state"] = "active"
+    recovery_response = client.post(
+        "/api/telemetry",
+        headers=auth_headers,
+        json=telemetry_payload(system=recovered),
+    )
+    assert recovery_response.status_code == 200
+
+    connection = telemetry_env["connection"]()
+    events = connection.execute(
+        """
+        SELECT event_type, metric, value
+        FROM client_telemetry_events
+        WHERE client_id = 1
+        ORDER BY id
+        """
+    ).fetchall()
+    connection.close()
+
+    assert [(row["event_type"], row["metric"]) for row in events] == [
+        ("service_failed", "ssh.service"),
+        ("ssh_failure", "ssh"),
+        ("service_recovered", "ssh.service"),
+    ]
+    assert events[1]["value"] == 3
+    history = client.get(
+        "/api/clients/1/telemetry/events?hours=1"
+    ).get_json()["events"]
+    assert [event["kind"] for event in history].count("service_failed") == 1
+    assert [event["kind"] for event in history].count("service_recovered") == 1
+    assert [event["kind"] for event in history].count("ssh_failure") == 1
 
 
 

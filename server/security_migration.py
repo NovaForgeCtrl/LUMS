@@ -29,6 +29,8 @@ TELEMETRY_MIGRATION_VERSION = "009-telemetry"
 TELEMETRY_RETENTION_INDEX_MIGRATION_VERSION = "010-telemetry-retention-index"
 TELEMETRY_NETWORK_MIGRATION_VERSION = "011-telemetry-network"
 TELEMETRY_SYSTEM_STATE_MIGRATION_VERSION = "012-telemetry-system-state"
+TELEMETRY_DASHBOARD_MIGRATION_VERSION = "013-telemetry-dashboard"
+TELEMETRY_EVENT_HISTORY_MIGRATION_VERSION = "014-telemetry-event-history"
 
 
 def utc_now():
@@ -552,6 +554,42 @@ def migrate_telemetry_system_state(connection):
     """)
 
 
+def migrate_telemetry_dashboard(connection):
+    add_column_if_missing(
+        connection,
+        "client_telemetry",
+        "disk_percent",
+        "REAL CHECK (disk_percent IS NULL OR (disk_percent >= 0 AND disk_percent <= 100))",
+    )
+    connection.execute("""
+        CREATE TABLE IF NOT EXISTS user_dashboard_settings (
+            user_id INTEGER PRIMARY KEY,
+            settings_json TEXT NOT NULL,
+            updated_at TEXT NOT NULL,
+            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+        )
+    """)
+
+
+def migrate_telemetry_event_history(connection):
+    connection.execute("""
+        CREATE TABLE IF NOT EXISTS client_telemetry_events (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            client_id INTEGER NOT NULL,
+            recorded_at TEXT NOT NULL,
+            event_type TEXT NOT NULL,
+            metric TEXT NOT NULL,
+            value REAL,
+            FOREIGN KEY (client_id) REFERENCES clients(id)
+                ON DELETE CASCADE
+        )
+    """)
+    connection.execute("""
+        CREATE INDEX IF NOT EXISTS idx_client_telemetry_events_client_time
+        ON client_telemetry_events(client_id, recorded_at)
+    """)
+
+
 def run_migration(db_path, admin_username, skip_admin):
     if not os.path.exists(db_path):
         raise RuntimeError(
@@ -825,6 +863,48 @@ def run_migration(db_path, admin_username, skip_admin):
             print(
                 f"[OK] Migration "
                 f"{TELEMETRY_SYSTEM_STATE_MIGRATION_VERSION} completed"
+            )
+
+        if migration_already_applied(
+            connection,
+            TELEMETRY_DASHBOARD_MIGRATION_VERSION
+        ):
+            print(
+                f"[INFO] Migration "
+                f"{TELEMETRY_DASHBOARD_MIGRATION_VERSION} "
+                "is already recorded"
+            )
+        else:
+            migrate_telemetry_dashboard(connection)
+            record_migration(
+                connection,
+                TELEMETRY_DASHBOARD_MIGRATION_VERSION
+            )
+            connection.commit()
+            print(
+                f"[OK] Migration "
+                f"{TELEMETRY_DASHBOARD_MIGRATION_VERSION} completed"
+            )
+
+        if migration_already_applied(
+            connection,
+            TELEMETRY_EVENT_HISTORY_MIGRATION_VERSION
+        ):
+            print(
+                f"[INFO] Migration "
+                f"{TELEMETRY_EVENT_HISTORY_MIGRATION_VERSION} "
+                "is already recorded"
+            )
+        else:
+            migrate_telemetry_event_history(connection)
+            record_migration(
+                connection,
+                TELEMETRY_EVENT_HISTORY_MIGRATION_VERSION
+            )
+            connection.commit()
+            print(
+                f"[OK] Migration "
+                f"{TELEMETRY_EVENT_HISTORY_MIGRATION_VERSION} completed"
             )
 
         print_schema(connection)
