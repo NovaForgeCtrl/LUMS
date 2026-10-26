@@ -1985,6 +1985,10 @@ Routine administration, maintenance, backups, upgrades, operational procedures, 
 
 Security architecture, security controls, audit findings, hardening, and release-readiness security information.
 
+### `telemetry.md`
+
+Optional CPU and memory telemetry, agent configuration, data retention, security, and troubleshooting.
+
 ### `troubleshooting.md`
 
 Diagnostic procedures for server, client, jobs, package management, authentication, database, container, and network problems.
@@ -2270,6 +2274,7 @@ install.md
 administration.md
 security.md
 troubleshooting.md
+telemetry.md
 LUMS_Optional_Theme_System.md
 ```
 
