@@ -1,48 +1,49 @@
 
-LUMS Installation Guide
-Linux Update Management Server
+# LUMS Installation Guide
+## Linux Update Management Server
 
 Project: LUMS
 Slogan: Linux Update Management without the noise.
 Repository: NovaForgeCtrl/LUMS
-Getting Started: Understand the Installation Before You Begin
+## Getting Started: Understand the Installation Before You Begin
 
 This guide covers a complete server installation, including advanced
 maintenance and verification procedures. It is not a single script to run
 without review: the server name, TLS certificate, secret file, backup
 destination, network, and database vary between installations.
-What gets installed?
+### What gets installed?
 
-    LUMS server: the web interface and API, running in a Docker container.
+* LUMS server: the web interface and API, running in a Docker container.
 
-    Nginx: accepts external HTTPS connections and forwards them locally to
+* Nginx: accepts external HTTPS connections and forwards them locally to
     the container.
 
-    Data volume: contains the SQLite database. This volume must survive
+* Data volume: contains the SQLite database. This volume must survive
     upgrades and must never be deleted during a normal container replacement.
 
-    Secret file: protects application sessions, among other things. Never
+* Secret file: protects application sessions, among other things. Never
     put it in the Git repository, a Docker image, or a chat message.
 
-    LUMS Agent and Watcher: installed separately on managed Linux clients. A
+* LUMS Agent and Watcher: installed separately on managed Linux clients. A
     working server alone does not update any clients.
 
-Term	Meaning
-Terminal / shell	A text window where you enter Linux commands.
-sudo	Runs the command that follows with administrator rights. Linux may ask for your password.
-Host	The Linux computer running Docker and the LUMS server.
-Container	An isolated process running the LUMS web application.
-Image	A prepared template Docker uses to start a container.
-Volume	Persistent Docker storage that remains when a container is replaced.
-Placeholder	Text such as LUMS-SERVER that must be replaced with your actual value.
-Run tests only (this does not install a server)
+| Term | Meaning |
+| --- | --- |
+| Terminal / shell | A text window where you enter Linux commands. |
+| sudo | Runs the command that follows with administrator rights. Linux may ask for your password. |
+| Host | The Linux computer running Docker and the LUMS server. |
+| Container | An isolated process running the LUMS web application. |
+| Image | A prepared template Docker uses to start a container. |
+| Volume | Persistent Docker storage that remains when a container is replaced. |
+| Placeholder | Text such as LUMS-SERVER that must be replaced with your actual value. |
+### Run tests only (this does not install a server)
 
 These steps are suitable for Debian 13 to check out the source and run tests
 locally. They do not create a production server reachable over the network
 and do not install an agent on another computer. sudo is only needed to
 install Debian packages.
-bash
 
+```bash
 sudo apt update
 sudo apt install -y git python3 python3-venv
 git clone https://github.com/NovaForgeCtrl/LUMS.git ~/LUMS
@@ -50,6 +51,7 @@ cd ~/LUMS
 python3 -m venv .venv-test
 ./.venv-test/bin/python -m pip install -r server/requirements.txt -r requirements-dev.txt
 ./.venv-test/bin/pytest -q
+```
 
 apt update refreshes package lists; it does not upgrade all installed
 software. The .venv-test Python virtual environment keeps test dependencies
@@ -63,7 +65,7 @@ For a real installation, continue with the numbered sections and read the
 security and backup instructions first. If LUMS is already running, use the
 upgrade procedure in administration.md, not the
 first-install procedure.
-1. Overview
+# 1. Overview
 
 LUMS is a centralised Linux update management platform for controlled update distribution, client reporting, package management, update-job execution, result validation and auditable administration.
 
@@ -71,66 +73,67 @@ The current architecture separates the management server from the managed Linux 
 
 The server provides:
 
-    Web-based administration
+* Web-based administration
 
-    Client management
+* Client management
 
-    Client authentication
+* Client authentication
 
-    Package inventory
+* Package inventory
 
-    Available-update reporting
+* Available-update reporting
 
-    Package search
+* Package search
 
-    Package installation and removal
+* Package installation and removal
 
-    Update-job management
+* Update-job management
 
-    Job result validation
+* Job result validation
 
-    Update history
+* Update history
 
-    Role-based access control
+* Role-based access control
 
-    Audit logging
+* Audit logging
 
-    SQLite-based persistent state
+* SQLite-based persistent state
 
 Linux clients provide:
 
-    System information
+* System information
 
-    Installed-package inventory
+* Installed-package inventory
 
-    Available-update detection
+* Available-update detection
 
-    Package operations
+* Package operations
 
-    Update-job execution
+* Update-job execution
 
-    Idle-state detection
+* Idle-state detection
 
-    Job checkpointing and recovery
+* Job checkpointing and recovery
 
-    Reboot detection
+* Reboot detection
 
-    Result reporting
+* Result reporting
 
 The current implementation supports:
-text
 
+```text
 Debian / Ubuntu
     └── APT / dpkg
 
 Arch Linux
     └── pacman
+```
 
-2. Architecture
+# 2. Architecture
 
 The production architecture is:
-text
 
+```text
                          LUMS Server
                               │
                               │ HTTPS :443
@@ -170,27 +173,29 @@ text
               ├── Package Search
               ├── Job Retrieval
               └── Job Result
+```
 
 The LUMS application is not intended to be directly exposed to the network.
 
 The application container is bound to:
-text
 
+```text
 127.0.0.1:5050 → container:5000
+```
 
 Nginx is the external HTTPS entry point.
 
 Port 5000 is not published directly.
 
 Port 5050 must remain localhost-only.
-3. Application Components
+# 3. Application Components
 
 A complete LUMS installation consists of several components.
-3.1 LUMS Server
+## 3.1 LUMS Server
 
 The server contains:
-text
 
+```text
 Flask
 Gunicorn
 SQLite
@@ -201,31 +206,35 @@ RBAC
 Audit logging
 Job management
 Package management
+```
 
 The application runs inside the Docker container:
-text
 
+```text
 lums
+```
 
 The persistent database is stored outside the container's writable application filesystem:
-text
 
+```text
 lums-data:/var/lib/lums/lums.db
+```
 
-3.2 Nginx
+## 3.2 Nginx
 
 Nginx provides:
-text
 
+```text
 HTTPS termination
 TLS certificate handling
 HTTP → HTTPS redirect
 Reverse proxy
 External network entry point
+```
 
 The intended request path is:
-text
 
+```text
 Browser
    │
    │ HTTPS
@@ -238,20 +247,22 @@ Nginx
    │
    ▼
 LUMS
+```
 
 The Flask/Gunicorn application should not be exposed directly to the LAN.
-3.3 Linux Agent
+## 3.3 Linux Agent
 
 The LUMS Agent runs on every managed Linux client.
 
 The current Agent version is:
-text
 
+```text
 1.7.0
+```
 
 The Agent is responsible for:
-text
 
+```text
 System information
 Installed packages
 Available updates
@@ -261,20 +272,22 @@ Job claiming
 Package operations
 Result reporting
 Reboot detection
+```
 
 The Agent communicates with the LUMS server using HTTPS and a client-specific Bearer token.
-3.4 Execution Watcher
+## 3.4 Execution Watcher
 
 The execution watcher is responsible for controlled update-job execution.
 
 The current Watcher version is:
-text
 
+```text
 1.2.1
+```
 
 The Watcher handles:
-text
 
+```text
 Pending-job detection
 Idle-state checks
 Atomic job claiming
@@ -282,15 +295,16 @@ Update execution
 Checkpoint handling
 Interrupted-job recovery
 Result processing
+```
 
 The Watcher is intentionally separated from ordinary client reporting.
-4. Security Model
+# 4. Security Model
 
 The installation must preserve the LUMS security baseline.
 
 The production server uses:
-text
 
+```text
 HTTPS
 Bearer-token client authentication
 Role-based web authorisation
@@ -303,16 +317,19 @@ Non-root application user
 Localhost-only application port
 Persistent Docker volume
 Read-only secret mount
+```
 
 The Docker container runs as the unprivileged user:
-text
 
+```text
 lums
+```
 
 with UID:
-text
 
+```text
 10001
+```
 
 The container must not run in privileged mode.
 
@@ -321,20 +338,21 @@ The root filesystem must remain read-only.
 The application must not require write access to its application directory.
 
 Persistent application data is stored through the dedicated Docker volume.
-5. Current RBAC Model
+# 5. Current RBAC Model
 
 LUMS currently provides three web roles:
-text
 
+```text
 administrator
 operator
 viewer
+```
 
-Administrator
+## Administrator
 
 Administrators can perform administrative operations including:
-text
 
+```text
 View clients
 View installed software
 View available updates
@@ -346,12 +364,13 @@ Create and disable clients
 Rotate client tokens
 Manage users
 Manage roles
+```
 
-Operator
+## Operator
 
 Operators can perform operational management:
-text
 
+```text
 View clients
 View installed software
 View available updates
@@ -359,94 +378,103 @@ Create and execute update jobs
 View update history
 Use package management
 Use system maintenance
+```
 
 Operators do not have access to:
-text
 
+```text
 User management
 Role management
 Client creation/disabling
 Client-token rotation
+```
 
-Viewer
+## Viewer
 
 Viewers have intentionally restricted access.
 
 A Viewer can access:
-text
 
+```text
 Clients
 Installed software
+```
 
 The following management areas are hidden from the Viewer interface and protected server-side:
-text
 
+```text
 Available updates
 Update Jobs
 Update History
 Package Management
 System Maintenance
+```
 
 UI hiding is therefore not the security boundary.
 
 Server-side authorisation remains mandatory.
-6. Installation Requirements
-6.1 LUMS Server
+# 6. Installation Requirements
+## 6.1 LUMS Server
 
 The current deployment requires a Linux host with:
-text
 
+```text
 Docker Engine
 Git
 Nginx
 OpenSSL
 Network connectivity
 Persistent storage
+```
 
 The server must have enough storage for:
-text
 
+```text
 Docker images
 SQLite database
 Application data
 Logs
 Backups
+```
 
 The LUMS application itself runs inside Docker.
-6.2 Linux Clients
+## 6.2 Linux Clients
 
 Managed Linux clients require:
-text
 
+```text
 Python 3
 systemd
 Supported package manager
 Network connectivity to the LUMS server
 Valid client token
 Trusted TLS certificate
+```
 
 Supported package-management families:
-text
 
+```text
 Debian / Ubuntu
     APT / dpkg
 
 Arch Linux
     pacman
+```
 
 The client must be able to reach the LUMS HTTPS endpoint.
-7. Recommended Directory Layout
+# 7. Recommended Directory Layout
 
 The recommended server-side repository location is:
-text
 
+```text
 /opt/lums-public/
+```
 
 The repository contains the application source, Agent source and tests.
 
 A typical installation uses:
-text
 
+```text
 /opt/lums-public/
     ├── agent/
     ├── server/
@@ -454,77 +482,87 @@ text
     ├── Dockerfile
     ├── requirements.txt
     └── requirements-dev.txt
+```
 
 Host-side configuration is kept outside the repository:
-text
 
+```text
 /etc/lums/
     ├── secrets/
     │   └── lums_secret
     └── tls/
         ├── lums.crt
         └── lums.key
+```
 
 Persistent application data is stored in:
-text
 
+```text
 lums-data:/var/lib/lums
+```
 
 The SQLite database is:
-text
 
+```text
 /var/lib/lums/lums.db
+```
 
 The database must never be stored inside the Git working tree.
 
 Secrets and private TLS material must also remain outside the repository.
-8. Repository Preparation
+# 8. Repository Preparation
 
 Clone the repository into the intended installation directory:
-bash
 
+```bash
 sudo mkdir -p /opt
 cd /opt
 
 sudo git clone \
     https://github.com/NovaForgeCtrl/LUMS.git \
     lums-public
+```
 
 Enter the repository:
-bash
 
+```bash
 cd /opt/lums-public
+```
 
 Check the working tree:
-bash
 
+```bash
 git status
+```
 
 Inspect the current revision:
-bash
 
+```bash
 git log -1 --oneline --decorate
+```
 
 For controlled deployments, the exact commit used for the installation should be recorded.
 
 Do not build production images from an unknown or unverified working tree.
-9. Repository Security Check
+# 9. Repository Security Check
 
 Before building the production image, verify that sensitive files have not been placed into the repository.
 
 Review the working tree:
-bash
 
+```bash
 git status --short
+```
 
 Review ignored files where appropriate:
-bash
 
+```bash
 git status --ignored --short
+```
 
 The repository must not contain:
-text
 
+```text
 Production database files
 Private TLS keys
 Application secrets
@@ -533,18 +571,20 @@ Credential dumps
 Backup databases
 Runtime logs
 Temporary backup files
+```
 
 The project uses repository ignore rules to prevent common backup artefacts from being accidentally tracked.
 
 Before committing changes, inspect the staged file list carefully.
-10. Prepare Host Configuration Directories
+# 10. Prepare Host Configuration Directories
 
 Create the required host-side directories:
-bash
 
+```bash
 sudo install -d -m 700 /etc/lums
 sudo install -d -m 700 /etc/lums/secrets
 sudo install -d -m 700 /etc/lums/tls
+```
 
 The secret directory contains the application secret.
 
@@ -553,92 +593,103 @@ The TLS directory contains the TLS certificate and private key.
 Protecting these directories reduces the risk of accidental disclosure.
 
 Verify:
-bash
 
+```bash
 sudo stat -c '%a %U:%G %n' \
     /etc/lums \
     /etc/lums/secrets \
     /etc/lums/tls
+```
 
-11. Create the Application Secret
+# 11. Create the Application Secret
 
 The LUMS application secret is stored on the host rather than embedded directly into the Docker image.
 
 The production secret path is:
-text
 
+```text
 /etc/lums/secrets/lums_secret
+```
 
 Generate a random secret:
-bash
 
+```bash
 sudo sh -c 'umask 077 && openssl rand -hex 32 > /etc/lums/secrets/lums_secret'
+```
 
 Protect the resulting file:
-bash
 
+```bash
 sudo chmod 600 \
     /etc/lums/secrets/lums_secret
+```
 
 Verify the permissions without displaying the secret:
-bash
 
+```bash
 sudo stat -c '%a %U:%G %n' \
     /etc/lums/secrets/lums_secret
+```
 
 Expected:
-text
 
+```text
 600
+```
 
 The secret must never be:
-text
 
+```text
 Committed to Git
 Printed into logs
 Included in the Docker image
 Placed into screenshots
 Published in issues
 Included in documentation
+```
 
 The container receives the secret through a read-only bind mount.
-12. Prepare TLS Material
+# 12. Prepare TLS Material
 
 LUMS uses HTTPS for external access.
 
 The recommended host-side locations are:
-text
 
+```text
 /etc/lums/tls/lums.crt
 /etc/lums/tls/lums.key
+```
 
 Install the appropriate certificate and private key before configuring Nginx.
 
 Protect the private key:
-bash
 
+```bash
 sudo chmod 600 \
     /etc/lums/tls/lums.key
+```
 
 The certificate may be readable by the Nginx service:
-bash
 
+```bash
 sudo chmod 644 \
     /etc/lums/tls/lums.crt
+```
 
 Verify:
-bash
 
+```bash
 sudo stat -c '%a %U:%G %n' \
     /etc/lums/tls/lums.crt \
     /etc/lums/tls/lums.key
+```
 
 The private key must never be committed to Git or included in the Docker image.
-13. Installation Principle
+# 13. Installation Principle
 
 The installation should proceed in controlled stages:
-text
 
+```text
 Repository
     ↓
 Host configuration
@@ -660,100 +711,113 @@ Administrator
 Server validation
     ↓
 Linux clients
+```
 
 Do not connect production clients before the server has passed its own validation checks.
 
 The following sections continue with Docker image construction and the hardened production deployment.
-14. Build the LUMS Docker Image
+# 14. Build the LUMS Docker Image
 
 Before building the production image, make sure the repository is in the intended state.
 
 Enter the repository:
-bash
 
+```bash
 cd /opt/lums-public
+```
 
 Run the test suite before creating a production image:
-bash
 
+```bash
 ./.venv-test/bin/pytest -q
+```
 
 The test count is expected to grow as the project evolves.
 
 The important requirement is that the relevant test suite completes successfully before deployment.
 
 Build the Docker image:
-bash
 
+```bash
 sudo docker build \
     -t lums:latest \
     .
+```
 
 Verify that the image exists:
-bash
 
+```bash
 sudo docker image ls lums
+```
 
 Inspect the image:
-bash
 
+```bash
 sudo docker image inspect lums:latest
+```
 
 The production image is based on a pinned Python 3.13 slim base image.
 
 The Dockerfile also uses pinned production dependencies where required.
-15. Review the Docker Build
+# 15. Review the Docker Build
 
 Before deploying the image, review the build output for unexpected errors or warnings.
 
 Check the resulting image:
-bash
 
+```bash
 sudo docker inspect \
     lums:latest
+```
 
 Verify the configured application user:
-bash
 
+```bash
 sudo docker image inspect \
     lums:latest \
     --format '{{.Config.User}}'
+```
 
 The application is intended to run as:
-text
 
+```text
 lums
+```
 
 The application must not require root privileges during normal execution.
 
 Review the Dockerfile when changing the build process:
-bash
 
+```bash
 sed -n '1,240p' Dockerfile
+```
 
 Do not add secrets, certificates or production databases to the Docker build context.
 
 The repository contains a .dockerignore file to reduce the risk of accidentally including runtime artefacts in the image.
-16. Create the Persistent Docker Volume
+# 16. Create the Persistent Docker Volume
 
 Create the persistent LUMS data volume:
-bash
 
+```bash
 sudo docker volume create lums-data
+```
 
 Verify:
-bash
 
+```bash
 sudo docker volume inspect lums-data
+```
 
 The volume stores persistent application data:
-text
 
+```text
 lums-data
     ↓
 /var/lib/lums
     ↓
 /var/lib/lums/lums.db
+```
 
 The container filesystem itself must not be treated as persistent application storage.
 
@@ -763,29 +827,31 @@ The database therefore survives container replacement as long as the lums-data v
     Never remove lums-data during a normal application upgrade.
 
 Removing the volume removes the SQLite database stored inside it.
-17. Verify the Persistent Volume
+# 17. Verify the Persistent Volume
 
 Before starting LUMS, confirm that the volume exists:
-bash
 
+```bash
 sudo docker volume inspect \
     lums-data
+```
 
 The volume can also be checked through Docker:
-bash
 
+```bash
 sudo docker volume ls | grep lums-data
+```
 
 A newly created volume will normally not contain a database yet.
 
 The database is initialised by the LUMS application during deployment.
-18. Production Container Configuration
+# 18. Production Container Configuration
 
 The production container uses several security controls simultaneously.
 
 The expected runtime baseline is:
-text
 
+```text
 Non-root user
 Read-only root filesystem
 All Linux capabilities dropped
@@ -795,26 +861,29 @@ Localhost-only application binding
 Read-only application-secret mount
 Persistent writable data volume
 Dedicated /tmp tmpfs
+```
 
 The application port is published only to localhost:
-text
 
+```text
 127.0.0.1:5050 → container:5000
+```
 
 The external HTTPS endpoint is provided by Nginx.
-19. Start the Hardened LUMS Container
+# 19. Start the Hardened LUMS Container
 
 Before starting a new production container, make sure another container named lums is not already running:
-bash
 
+```bash
 sudo docker ps \
     --filter name=lums
+```
 
 If an existing deployment is being replaced, preserve the existing container until the new image has been validated.
 
 Start the hardened container:
-bash
 
+```bash
 sudo docker run -d \
     --name lums \
     --restart unless-stopped \
@@ -828,6 +897,7 @@ sudo docker run -d \
     -v lums-data:/var/lib/lums \
     -e LUMS_SECRET_KEY_FILE=/run/secrets/lums_secret \
     lums:latest
+```
 
 The application secret is mounted read-only.
 
@@ -838,268 +908,304 @@ The root filesystem is read-only.
 All Linux capabilities are dropped.
 
 The no-new-privileges security option prevents processes inside the container from gaining additional privileges.
-20. Verify the Container State
+# 20. Verify the Container State
 
 Check the running container:
-bash
 
+```bash
 sudo docker ps \
     --filter name=lums
+```
 
 Expected state:
-text
 
+```text
 Up ...
+```
 
 Check the container state directly:
-bash
 
+```bash
 sudo docker inspect \
     --format '{{.State.Status}}' \
     lums
+```
 
 Expected:
-text
 
+```text
 running
+```
 
 Inspect recent logs:
-bash
 
+```bash
 sudo docker logs \
     --tail 100 \
     lums
+```
 
 Application startup errors must be resolved before continuing with the installation.
-21. Verify Container Security
+# 21. Verify Container Security
 
 Inspect the effective runtime security configuration:
-bash
 
+```bash
 sudo docker inspect lums \
     --format='User={{.Config.User}} ReadonlyRootfs={{.HostConfig.ReadonlyRootfs}} Privileged={{.HostConfig.Privileged}} CapDrop={{json .HostConfig.CapDrop}} SecurityOpt={{json .HostConfig.SecurityOpt}}'
+```
 
 The expected baseline is:
-text
 
+```text
 User=lums
 ReadonlyRootfs=true
 Privileged=false
 CapDrop=["ALL"]
 SecurityOpt=["no-new-privileges:true"]
+```
 
 The exact formatting of the Docker output may vary.
 
 The effective configuration is what matters.
-22. Verify the Application Port
+# 22. Verify the Application Port
 
 Check the published Docker port:
-bash
 
+```bash
 sudo docker port lums
+```
 
 Expected:
-text
 
+```text
 5000/tcp -> 127.0.0.1:5050
+```
 
 The following is not acceptable for the production application:
-text
 
+```text
 0.0.0.0:5050
+```
 
 or:
-text
 
+```text
 0.0.0.0:5000
+```
 
 The application is intentionally accessible only through the local reverse-proxy path.
 
 Check the listening sockets:
-bash
 
+```bash
 sudo ss -lntp | grep -E ':5050|:5000'
+```
 
 Only the localhost application binding should be present.
-23. Verify the Secret Mount
+# 23. Verify the Secret Mount
 
 Confirm that the secret is mounted:
-bash
 
+```bash
 sudo docker inspect lums \
     --format='{{range .Mounts}}{{println .Source "->" .Destination "RW=" .RW}}{{end}}'
+```
 
 The application secret should appear similar to:
-text
 
+```text
 /etc/lums/secrets/lums_secret -> /run/secrets/lums_secret RW=false
+```
 
 The exact output may contain additional mount information.
 
 The important property is:
-text
 
+```text
 RW=false
+```
 
 Never print the secret contents.
 
 A direct readability test is sufficient:
-bash
 
+```bash
 sudo docker exec lums \
     sh -c 'test -r /run/secrets/lums_secret && echo "secret mount: OK"'
+```
 
 Expected:
-text
 
+```text
 secret mount: OK
+```
 
-24. Verify the Persistent Volume Mount
+# 24. Verify the Persistent Volume Mount
 
 Inspect the container mounts:
-bash
 
+```bash
 sudo docker inspect lums \
     --format='{{range .Mounts}}{{println .Type .Source "->" .Destination "RW=" .RW}}{{end}}'
+```
 
 The LUMS data volume must be mounted at:
-text
 
+```text
 /var/lib/lums
+```
 
 and must be writable:
-text
 
+```text
 RW=true
+```
 
 The expected relationship is:
-text
 
+```text
 lums-data
     ↓
 /var/lib/lums
+```
 
 The root filesystem remains read-only while the dedicated data volume provides the required persistent write access.
-25. Verify the Read-Only Root Filesystem
+# 25. Verify the Read-Only Root Filesystem
 
 The application root filesystem must be read-only.
 
 The container runtime should report:
-text
 
+```text
 ReadonlyRootfs=true
+```
 
 A controlled write test can be performed inside the container.
 
 For example:
-bash
 
+```bash
 sudo docker exec lums \
     sh -c 'touch /app/.write-test'
+```
 
 The command should fail because /app is part of the read-only container filesystem.
 
 Do not disable the read-only root filesystem merely because an application component attempts to write outside its designated writable locations.
 
 If the application requires persistent data, use the appropriate volume or runtime filesystem instead.
-26. Verify the Writable Temporary Filesystem
+# 26. Verify the Writable Temporary Filesystem
 
 The container provides a dedicated /tmp tmpfs.
 
 Verify:
-bash
 
+```bash
 sudo docker exec lums \
     sh -c 'touch /tmp/lums-write-test && rm -f /tmp/lums-write-test && echo "tmpfs: OK"'
+```
 
 Expected:
-text
 
+```text
 tmpfs: OK
+```
 
 The temporary filesystem is configured with:
-text
 
+```text
 noexec
 nosuid
+```
 
 and a size limit.
 
 This provides temporary writable storage without making the container root filesystem writable.
-27. Verify the Application Data Directory
+# 27. Verify the Application Data Directory
 
 The LUMS application requires write access to its persistent data directory.
 
 Test:
-bash
 
+```bash
 sudo docker exec lums \
     sh -c 'touch /var/lib/lums/.write-test && rm -f /var/lib/lums/.write-test && echo "data volume: OK"'
+```
 
 Expected:
-text
 
+```text
 data volume: OK
+```
 
 This confirms that the dedicated writable volume is available while the rest of the container remains read-only.
-28. Verify the Application User
+# 28. Verify the Application User
 
 Confirm the effective runtime user:
-bash
 
+```bash
 sudo docker exec lums \
     id
+```
 
 The process should run as the unprivileged LUMS user.
 
 Expected identity includes:
-text
 
+```text
 uid=10001(lums)
+```
 
 The exact group information may vary according to the image configuration.
 
 The container must not run as:
-text
 
+```text
 root
+```
 
 during normal operation.
-29. Database Initialisation
+# 29. Database Initialisation
 
 After the container starts, check whether the database exists:
-bash
 
+```bash
 sudo docker exec lums \
     ls -lh /var/lib/lums/lums.db
+```
 
 If the application has initialised successfully, the database should be present.
 
 The database is located at:
-text
 
+```text
 /var/lib/lums/lums.db
+```
 
 inside the container and physically persists through:
-text
 
+```text
 lums-data
+```
 
 The database must not be copied into:
-text
 
+```text
 /opt/lums-public
+```
 
 or committed to Git.
-30. Verify SQLite Runtime Configuration
+# 30. Verify SQLite Runtime Configuration
 
 The current LUMS production baseline uses:
-text
 
+```text
 journal_mode = wal
 busy_timeout = 5000 ms
 synchronous = 2
 foreign_keys = ON
+```
 
 The application explicitly enables foreign-key enforcement for database connections.
 
@@ -1108,8 +1214,8 @@ The database uses WAL mode for normal production operation.
 The runtime configuration can be inspected from the application database.
 
 For example:
-bash
 
+```bash
 sudo docker exec -i lums \
     python3 - <<'PY'
 import sqlite3
@@ -1126,21 +1232,23 @@ for pragma in (
 
 db.close()
 PY
+```
 
 Expected values are equivalent to:
-text
 
+```text
 journal_mode=wal
 busy_timeout=5000
 synchronous=2
 foreign_keys=0
+```
 
 The application enables foreign keys explicitly.
-31. Verify Database Integrity
+# 31. Verify Database Integrity
 
 Run an SQLite integrity check:
-bash
 
+```bash
 sudo docker exec lums \
     python3 - <<'PY'
 import sqlite3
@@ -1150,73 +1258,81 @@ result = db.execute("PRAGMA integrity_check").fetchone()[0]
 print(result)
 db.close()
 PY
+```
 
 Expected:
-text
 
+```text
 ok
+```
 
 Do not continue with deployment if the integrity check reports database corruption.
-32. Verify Database Migrations
+# 32. Verify Database Migrations
 
 LUMS uses application migrations for database schema changes.
 
 Inspect the migration-related files:
-bash
 
+```bash
 ls -lh \
     server/*migration*.py
+```
 
 The application performs required migrations during startup/deployment according to the current implementation.
 
 After startup, inspect the application logs:
-bash
 
+```bash
 sudo docker logs \
     --tail 200 \
     lums
+```
 
 Migration errors must be investigated before creating users or connecting clients.
 
 Do not manually modify the production SQLite schema unless the project documentation explicitly requires it.
-33. Local Application Validation
+# 33. Local Application Validation
 
 Before configuring Nginx, confirm that the application responds locally.
 
 The Docker application is bound to:
-text
 
+```text
 127.0.0.1:5050
+```
 
 A local request can be tested with:
-bash
 
+```bash
 curl -I \
     http://127.0.0.1:5050/
+```
 
 The exact HTTP response depends on the current application route and authentication state.
 
 The important requirement is that the request reaches the running LUMS application.
 
 If the connection fails, inspect:
-bash
 
+```bash
 sudo docker ps \
     --filter name=lums
+```
 
 and:
-bash
 
+```bash
 sudo docker logs \
     --tail 200 \
     lums
+```
 
 Do not expose port 5050 externally as a troubleshooting workaround.
-34. Initial Server Checkpoint
+# 34. Initial Server Checkpoint
 
 At this stage, the server should satisfy:
-text
 
+```text
 [ ] Repository cloned
 [ ] Working tree reviewed
 [ ] Production tests completed
@@ -1235,22 +1351,24 @@ text
 [ ] SQLite integrity check succeeds
 [ ] Foreign keys are enabled
 [ ] Local application endpoint responds
+```
 
 Do not connect production clients yet.
 
 The next stage configures Nginx, HTTPS and the external LUMS endpoint.
-35. Configure Nginx
+# 35. Configure Nginx
 
 Nginx provides the external HTTPS entry point for LUMS.
 
 The application itself remains bound to:
-text
 
+```text
 127.0.0.1:5050
+```
 
 The intended request path is:
-text
 
+```text
 Client
    │
    │ HTTPS
@@ -1263,10 +1381,11 @@ Nginx :443
    │
    ▼
 LUMS container :5000
+```
 
 Create the Nginx site configuration:
-bash
 
+```bash
 sudo tee /etc/nginx/sites-available/lums > /dev/null <<'EOF'
 server {
     listen 80;
@@ -1296,138 +1415,155 @@ server {
     }
 }
 EOF
+```
 
 Replace:
-text
 
+```text
 LUMS-SERVER
+```
 
 with the hostname or address used by the installation.
 
 Do not use the literal placeholder in a production configuration.
-36. Enable the LUMS Nginx Configuration
+# 36. Enable the LUMS Nginx Configuration
 
 Create the enabled-site link:
-bash
 
+```bash
 sudo ln -s \
     /etc/nginx/sites-available/lums \
     /etc/nginx/sites-enabled/lums
+```
 
 If the default Nginx site is not required, remove it:
-bash
 
+```bash
 sudo rm -f \
     /etc/nginx/sites-enabled/default
+```
 
 Do not remove other Nginx configurations belonging to unrelated applications.
-37. Validate the Nginx Configuration
+# 37. Validate the Nginx Configuration
 
 Always test the configuration before reloading Nginx:
-bash
 
+```bash
 sudo nginx -t
+```
 
 Expected:
-text
 
+```text
 syntax is ok
 test is successful
+```
 
 Only after a successful configuration test should Nginx be reloaded:
-bash
 
+```bash
 sudo systemctl reload nginx
+```
 
 Verify the service:
-bash
 
+```bash
 sudo systemctl status \
     nginx \
     --no-pager
+```
 
 Nginx must be running before continuing with HTTPS validation.
-38. Verify TLS Certificate Files
+# 38. Verify TLS Certificate Files
 
 Confirm that the configured certificate files exist:
-bash
 
+```bash
 sudo ls -lh \
     /etc/lums/tls/lums.crt \
     /etc/lums/tls/lums.key
+```
 
 Verify permissions:
-bash
 
+```bash
 sudo stat -c '%a %U:%G %n' \
     /etc/lums/tls/lums.crt \
     /etc/lums/tls/lums.key
+```
 
 The private key should normally be:
-text
 
+```text
 600
+```
 
 The certificate can normally be:
-text
 
+```text
 644
+```
 
 Never print the private-key contents.
-39. Verify the HTTPS Endpoint
+# 39. Verify the HTTPS Endpoint
 
 Test HTTPS locally:
-bash
 
+```bash
 curl -I \
     https://LUMS-SERVER/
+```
 
 Replace LUMS-SERVER with the hostname covered by the server's TLS
 certificate. Do not use -k for routine verification; it skips certificate
 validation.
 
 When the certificate is trusted by the system, use certificate verification:
-bash
 
+```bash
 curl -I \
     https://LUMS-SERVER/
+```
 
 A successful response confirms that the request reaches the Nginx HTTPS endpoint.
 
 The exact HTTP status depends on the requested route and authentication state.
 
 The important requirement is that the TLS connection succeeds and the request reaches LUMS.
-40. Verify HTTP to HTTPS Redirect
+# 40. Verify HTTP to HTTPS Redirect
 
 The HTTP listener must redirect clients to HTTPS.
 
 Test:
-bash
 
+```bash
 curl -I \
     http://LUMS-SERVER/
+```
 
 Expected behaviour:
-text
 
+```text
 HTTP/1.1 301 ...
 Location: https://...
+```
 
 The LUMS application should not be operated through an unencrypted HTTP connection.
 
 Do not permanently configure clients with certificate verification disabled merely because the initial certificate is not trusted.
 
 Fix the trust configuration instead.
-41. Verify the External Network Path
+# 41. Verify the External Network Path
 
 Inspect the listening sockets:
-bash
 
+```bash
 sudo ss -lntp | grep -E ':80|:443|:5050|:5000'
+```
 
 The intended architecture is:
-text
 
+```text
 80
  │
  └── HTTP redirect
@@ -1442,112 +1578,125 @@ text
         │
         ▼
 Docker :5000
+```
 
 Port 5050 must not be exposed to the LAN.
 
 Port 5000 must not be exposed directly.
 
 The Docker application port is an internal reverse-proxy endpoint.
-42. Verify Security Headers
+# 42. Verify Security Headers
 
 Inspect the HTTPS response headers:
-bash
 
+```bash
 curl -I \
     https://LUMS-SERVER/
+```
 
 Review the returned headers rather than assuming that the security configuration is active.
 
 Relevant security headers may include:
-text
 
+```text
 X-Content-Type-Options
 X-Frame-Options
 Referrer-Policy
 Content-Security-Policy
+```
 
 The exact headers depend on the current LUMS application and Nginx configuration.
 
 If a required header is missing, inspect the effective Nginx configuration:
-bash
 
+```bash
 sudo nginx -T
+```
 
 and the application configuration:
-bash
 
+```bash
 sudo docker logs \
     --tail 100 \
     lums
+```
 
 Do not add security headers blindly without checking which layer is already responsible for them.
-43. Verify Host Handling
+# 43. Verify Host Handling
 
 The production deployment should not expose the application through an unintended default Nginx site.
 
 Review the active configuration:
-bash
 
+```bash
 sudo nginx -T
+```
 
 Check the enabled sites:
-bash
 
+```bash
 ls -la \
     /etc/nginx/sites-enabled/
+```
 
 The intended LUMS virtual host should be present.
 
 The default site should not unexpectedly serve the LUMS application.
 
 When using an IP address as the LUMS endpoint, ensure that the configured server_name and certificate match the actual deployment model.
-44. Verify Docker Exposure Again
+# 44. Verify Docker Exposure Again
 
 After Nginx is configured, confirm that the application remains localhost-only:
-bash
 
+```bash
 sudo docker port lums
+```
 
 Expected:
-text
 
+```text
 5000/tcp -> 127.0.0.1:5050
+```
 
 The reverse proxy does not require changing the Docker binding.
 
 Do not change it to:
-text
 
+```text
 0.0.0.0:5050
+```
 
 just because Nginx is listening on the network.
 
 Nginx and Docker have deliberately separate exposure boundaries.
-45. Create the Initial Administrator
+# 45. Create the Initial Administrator
 
 The initial administrator must be created using the current repository's administrator initialisation mechanism.
 
 Before running an initialisation command, inspect the available repository implementation:
-bash
 
+```bash
 cd /opt/lums-public
+```
 
 Review the security-related initialisation files:
-bash
 
+```bash
 find server \
     -maxdepth 1 \
     -type f \
     -iname '*security*' \
     -o -iname '*migration*'
+```
 
 Then inspect the current migration/initialisation implementation before executing it.
 
 For example:
-bash
 
+```bash
 sed -n '1,260p' \
     server/security_migration.py
+```
 
 Use the initialisation procedure provided by the exact repository revision being deployed.
 
@@ -1555,18 +1704,19 @@ Use the initialisation procedure provided by the exact repository revision being
     Do not copy an administrator password into shell history or documentation.
 
 The initial administrator must receive:
-text
 
+```text
 role = administrator
+```
 
 The administrator account is required for the first web login and subsequent client administration.
-46. Verify the Administrator Account
+# 46. Verify the Administrator Account
 
 After administrator initialisation, verify the account without exposing authentication material.
 
 A database inspection can be performed from the container:
-bash
 
+```bash
 sudo docker exec lums \
     python3 - <<'PY'
 import sqlite3
@@ -1586,46 +1736,51 @@ for row in rows:
 
 db.close()
 PY
+```
 
 Expected administrator properties include:
-text
 
+```text
 enabled = 1
 role = administrator
+```
 
 Do not print:
-text
 
+```text
 password hashes
 session data
 client tokens
 application secrets
+```
 
-47. Administrator Password
+# 47. Administrator Password
 
 Use a unique administrator password.
 
 The password should not be reused from:
-text
 
+```text
 other servers
 Linux accounts
 GitHub accounts
 email accounts
 network devices
 other LUMS installations
+```
 
 The LUMS application stores passwords using the configured password-hashing mechanism.
 
 Do not attempt to replace the application password hash manually in SQLite.
 
 If the administrator password must be changed, use the supported application mechanism.
-48. First Web Login
+# 48. First Web Login
 
 Open the LUMS HTTPS endpoint:
-text
 
+```text
 https://LUMS-SERVER/
+```
 
 Log in with the administrator account.
 
@@ -1634,8 +1789,8 @@ After authentication, the administrator should have access to the administrative
 The administrator interface should provide access to the areas permitted by the current RBAC implementation.
 
 At minimum, the administrator should be able to access:
-text
 
+```text
 Clients
 Installed software
 Available updates
@@ -1644,8 +1799,9 @@ Update history
 Package management
 System maintenance
 User management
+```
 
-49. Verify Administrator RBAC
+# 49. Verify Administrator RBAC
 
 After login, verify that administrative functions are available.
 
@@ -1656,15 +1812,15 @@ The administrator should also be able to perform client-management operations pe
 Server-side authorisation remains the security boundary.
 
 The browser interface is not trusted merely because an element is visible or hidden.
-50. Create an Operator
+# 50. Create an Operator
 
 After the administrator account has been verified, create an operator account through the LUMS user-management interface.
 
 The operator role is intended for operational update management.
 
 An operator can access:
-text
 
+```text
 Clients
 Installed software
 Available updates
@@ -1672,41 +1828,45 @@ Update jobs
 Update history
 Package management
 System maintenance
+```
 
 An operator must not be able to perform administrator-only functions such as:
-text
 
+```text
 User management
 Role management
 Client creation/disabling
 Client-token rotation
+```
 
 Verify the permissions using the application interface and, where appropriate, the API authorisation behaviour.
-51. Create a Viewer
+# 51. Create a Viewer
 
 A Viewer account can be created when read-only access is required.
 
 The Viewer role is intentionally restricted.
 
 A Viewer can access:
-text
 
+```text
 Clients
 Installed software
+```
 
 The following areas must not be available to a Viewer:
-text
 
+```text
 Available updates
 Update jobs
 Update history
 Package management
 System maintenance
+```
 
 These restrictions are enforced server-side.
 
 The interface may additionally hide unavailable functions.
-52. Verify Viewer Isolation
+# 52. Verify Viewer Isolation
 
 Log in using a Viewer account and verify the visible interface.
 
@@ -1717,16 +1877,17 @@ The Viewer must not be able to bypass the UI and invoke protected endpoints dire
 An authorisation failure should be returned for protected operations.
 
 The expected principle is:
-text
 
+```text
 UI restriction
      +
 server-side authorisation
      =
 RBAC boundary
+```
 
 Never rely on JavaScript or hidden HTML elements as the only authorisation mechanism.
-53. Verify Session and CSRF Protection
+# 53. Verify Session and CSRF Protection
 
 After the first successful login, verify that the application uses its configured session and CSRF protections.
 
@@ -1735,32 +1896,34 @@ The installation should not disable CSRF protection to make API requests or brow
 If a legitimate request fails with a CSRF error, inspect the application flow rather than disabling the protection.
 
 Session-related behaviour is documented in:
-text
 
+```text
 docs/security.md
+```
 
-54. Verify Login Rate Limiting
+# 54. Verify Login Rate Limiting
 
 The current login protection uses persistent failure tracking.
 
 The configured progression is:
-text
 
+```text
 5 attempts  → 30 seconds
 6 attempts  → 60 seconds
 7 attempts  → 120 seconds
 8+ attempts → 300 seconds
+```
 
 Successful authentication clears the applicable failure state.
 
 Do not repeatedly trigger failed authentication against a production installation simply to test the mechanism.
 
 Use the existing test suite for repeated automated validation.
-55. Server Validation Checkpoint
+# 55. Server Validation Checkpoint
 
 At this stage, verify:
-text
 
+```text
 [ ] Nginx is running
 [ ] Nginx configuration passes nginx -t
 [ ] TLS certificate is installed
@@ -1779,17 +1942,18 @@ text
 [ ] Viewer restrictions are enforced server-side
 [ ] CSRF protection remains enabled
 [ ] Session protection remains enabled
+```
 
 Only after the server passes these checks should Linux clients be installed.
 
 The next section covers the Linux Agent, client configuration, TLS trust and systemd integration.
-56. Linux Client Installation
+# 56. Linux Client Installation
 
 LUMS clients are Linux systems managed by the LUMS server.
 
 A client installation consists of:
-text
 
+```text
 Linux system
     ↓
 LUMS Agent
@@ -1803,24 +1967,27 @@ TLS trust
 systemd service
     ↓
 Reporting timer
+```
 
 Update execution is handled separately by the execution watcher.
 
 The current Agent version is:
-text
 
+```text
 1.7.0
+```
 
 The current Watcher version is:
-text
 
+```text
 1.2.1
+```
 
-57. Supported Linux Clients
+# 57. Supported Linux Clients
 
 The current package-management implementations support:
-text
 
+```text
 Debian / Ubuntu
     ↓
 APT / dpkg
@@ -1828,262 +1995,299 @@ APT / dpkg
 Arch Linux
     ↓
 pacman
+```
 
 Verify the operating system before installing the client:
-bash
 
+```bash
 cat /etc/os-release
+```
 
 Verify the architecture:
-bash
 
+```bash
 uname -m
+```
 
 Verify systemd:
-bash
 
+```bash
 systemctl --version
+```
 
 The client requires a functioning systemd installation.
-58. Client Network Requirements
+# 58. Client Network Requirements
 
 The client must be able to reach the LUMS HTTPS endpoint.
 
 Test basic network connectivity:
-bash
 
+```bash
 ping LUMS-SERVER
+```
 
 A successful ping is not required when ICMP is blocked.
 
 The important requirement is HTTPS connectivity.
 
 Test the LUMS endpoint:
-bash
 
+```bash
 curl -I \
     https://LUMS-SERVER/
+```
 
 If the server uses a private CA, the client must trust that CA before continuing.
 
 Do not disable TLS verification as a permanent workaround.
-59. Obtain the LUMS Agent
+# 59. Obtain the LUMS Agent
 
 The Agent source is included in the LUMS repository.
 
 On the client, obtain the repository or otherwise transfer the required Agent files through the approved deployment method.
 
 The relevant files are:
-text
 
+```text
 agent/agent.py
 agent/watcher.py
 agent/package_manager.py
+```
 
 The recommended installation directory is:
-text
 
+```text
 /opt/lums-agent
+```
 
 Create it:
-bash
 
+```bash
 sudo install -d -m 755 \
     /opt/lums-agent
+```
 
-60. Install the Agent Files
+# 60. Install the Agent Files
 
 From the LUMS repository:
-bash
 
+```bash
 cd /opt/lums-public
+```
 
 Install the Agent:
-bash
 
+```bash
 sudo cp \
     agent/agent.py \
     /opt/lums-agent/agent.py
+```
 
 Install the Watcher:
-bash
 
+```bash
 sudo cp \
     agent/watcher.py \
     /opt/lums-agent/watcher.py
+```
 
 Install the package-manager abstraction:
-bash
 
+```bash
 sudo cp \
     agent/package_manager.py \
     /opt/lums-agent/package_manager.py
+```
 
 Verify:
-bash
 
+```bash
 ls -lh \
     /opt/lums-agent/
+```
 
 The directory should contain the installed Agent components.
-61. Verify Agent Versions
+# 61. Verify Agent Versions
 
 Verify the installed Agent version:
-bash
 
+```bash
 grep -n \
     'AGENT_VERSION' \
     /opt/lums-agent/agent.py
+```
 
 The current version is:
-text
 
+```text
 1.7.0
+```
 
 Verify the Watcher:
-bash
 
+```bash
 grep -n \
     'WATCHER_VERSION' \
     /opt/lums-agent/watcher.py
+```
 
 The current version is:
-text
 
+```text
 1.2.1
+```
 
 If the installed versions do not match the intended deployment revision, stop and verify that the correct repository revision is being used.
-62. Install systemd Service Files
+# 62. Install systemd Service Files
 
 The Agent and Watcher use separate systemd services.
 
 Install the Agent service:
-bash
 
+```bash
 sudo cp \
     agent/lums-agent.service \
     /etc/systemd/system/lums-agent.service
+```
 
 Install the Watcher service:
-bash
 
+```bash
 sudo cp \
     agent/lums-agent-watcher.service \
     /etc/systemd/system/lums-agent-watcher.service
+```
 
 Install the reporting timer:
-bash
 
+```bash
 sudo cp \
     agent/lums-agent.timer \
     /etc/systemd/system/lums-agent.timer
+```
 
 Install the Watcher timer:
-bash
 
+```bash
 sudo cp \
     agent/lums-agent-watcher.timer \
     /etc/systemd/system/lums-agent-watcher.timer
+```
 
 Reload systemd:
-bash
 
+```bash
 sudo systemctl daemon-reload
+```
 
-63. Verify the systemd Units
+# 63. Verify the systemd Units
 
 Inspect the Agent service:
-bash
 
+```bash
 systemctl cat \
     lums-agent.service
+```
 
 Inspect the Watcher service:
-bash
 
+```bash
 systemctl cat \
     lums-agent-watcher.service
+```
 
 Inspect the Agent timer:
-bash
 
+```bash
 systemctl cat \
     lums-agent.timer
+```
 
 Inspect the Watcher timer:
-bash
 
+```bash
 systemctl cat \
     lums-agent-watcher.timer
+```
 
 The units should reference the installed files under:
-text
 
+```text
 /opt/lums-agent/
+```
 
 Do not enable the timers until the client configuration and authentication have been completed.
-64. Create the Client Configuration
+# 64. Create the Client Configuration
 
 The client configuration is stored outside the Git repository.
 
 Use:
-text
 
+```text
 /etc/default/lums-agent
+```
 
 Create the file:
-bash
 
+```bash
 sudo install -m 600 /dev/null \
     /etc/default/lums-agent
+```
 
 The configuration contains the LUMS server endpoint and the client token.
 
 Example structure:
-text
 
+```text
 LUMS_BASE=https://LUMS-SERVER
 LUMS_TOKEN=<CLIENT-TOKEN>
+```
 
 Replace:
-text
 
+```text
 LUMS-SERVER
+```
 
 with the actual LUMS server endpoint.
 
 Replace:
-text
 
+```text
 <CLIENT-TOKEN>
+```
 
 with the token assigned to this client.
 
 Protect the configuration:
-bash
 
+```bash
 sudo chmod 600 \
     /etc/default/lums-agent
+```
 
 Verify without displaying its contents:
-bash
 
+```bash
 sudo stat -c '%a %U:%G %n' \
     /etc/default/lums-agent
+```
 
 Expected:
-text
 
+```text
 600
+```
 
-65. Client Tokens
+# 65. Client Tokens
 
 Each LUMS client has its own authentication token.
 
 The token is used as:
-text
 
+```text
 Authorization: Bearer <CLIENT-TOKEN>
+```
 
 The server does not need the original token value after provisioning.
 
@@ -2092,33 +2296,35 @@ The server stores a cryptographic representation of the token for validation.
 This means that client credentials should be treated like passwords.
 
 Never place a real token into:
-text
 
+```text
 Git
 documentation
 screenshots
 issue reports
 shell history
 public configuration
+```
 
-66. Provision the Client Token
+# 66. Provision the Client Token
 
 Create or provision the client from the LUMS administrator interface according to the current client-management workflow.
 
 The resulting client token must be transferred to the intended client through a secure channel.
 
 Store it only in:
-text
 
+```text
 /etc/default/lums-agent
+```
 
 on the client.
 
 Do not reuse one client token across multiple machines.
 
 The intended relationship is:
-text
 
+```text
 Client A
     ↓
 Token A
@@ -2130,15 +2336,16 @@ Token B
 Client C
     ↓
 Token C
+```
 
 A compromised token should therefore identify only its associated client.
-67. Client Token Rotation
+# 67. Client Token Rotation
 
 Client tokens can be rotated by an administrator.
 
 The rotation flow is:
-text
 
+```text
 Current token
      ↓
 Administrator rotates token
@@ -2148,11 +2355,12 @@ Old token invalidated
 New token issued
      ↓
 Client configuration updated
+```
 
 After updating the client configuration, run the Agent manually to verify that authentication succeeds.
 
 A rotated token must not continue to be accepted indefinitely.
-68. TLS Trust
+# 68. TLS Trust
 
 The LUMS Agent communicates with the server over HTTPS.
 
@@ -2165,68 +2373,76 @@ For a private laboratory CA, install the CA certificate on the client.
 Do not solve certificate problems by disabling verification.
 
 The correct solution is to make the client trust the intended certificate authority.
-69. Debian / Ubuntu TLS Trust
+# 69. Debian / Ubuntu TLS Trust
 
 On Debian-family systems, a private CA can be installed into the system trust store.
 
 Copy the CA certificate:
-bash
 
+```bash
 sudo cp \
     lums-ca.crt \
     /usr/local/share/ca-certificates/lums-ca.crt
+```
 
 Update the trust store:
-bash
 
+```bash
 sudo update-ca-certificates
+```
 
 Verify that the certificate is accepted:
-bash
 
+```bash
 curl -I \
     https://LUMS-SERVER/
+```
 
 If the command succeeds without -k, the system trust configuration is working.
-70. Arch Linux TLS Trust
+# 70. Arch Linux TLS Trust
 
 On Arch Linux, install the private CA using the system's configured trust-store mechanism.
 
 After installing the CA, update the trust database according to the active trust-store configuration.
 
 Verify:
-bash
 
+```bash
 curl -I \
     https://LUMS-SERVER/
+```
 
 The connection should succeed without:
-text
 
+```text
 -k
+```
 
 Do not permanently configure the Agent to ignore certificate verification.
-71. Verify the Package Manager
+# 71. Verify the Package Manager
 
 The Agent detects the supported package-management family.
 
 For Debian/Ubuntu:
-bash
 
+```bash
 command -v apt
+```
 
 and:
-bash
 
+```bash
 command -v dpkg-query
+```
 
 Verify installed packages:
-bash
 
+```bash
 dpkg-query \
     -W \
     -f='${binary:Package}\t${Version}\n' \
     | head
+```
 
 Verify available updates:
 bash
@@ -2244,55 +2460,61 @@ bash
 pacman -Q | head
 
 Verify available updates:
-bash
 
+```bash
 pacman -Qu
+```
 
 The package-manager abstraction uses the appropriate implementation automatically.
-72. Verify Agent Permissions
+# 72. Verify Agent Permissions
 
 Inspect the installation directory:
-bash
 
+```bash
 ls -ld \
     /opt/lums-agent
+```
 
 Inspect the installed files:
-bash
 
+```bash
 ls -lh \
     /opt/lums-agent/
+```
 
 The Agent does not need write access to its own source directory.
 
 The client configuration remains protected separately:
-bash
 
+```bash
 sudo stat -c '%a %U:%G %n' \
     /etc/default/lums-agent
+```
 
 Expected:
-text
 
+```text
 600
+```
 
 The Agent requires sufficient system privileges to inspect package state and perform package operations.
 
 The exact runtime privileges are defined by the installed systemd service.
-73. Verify the Agent Configuration
+# 73. Verify the Agent Configuration
 
 Before starting the service, verify that the configuration file exists:
-bash
 
+```bash
 sudo test -r \
     /etc/default/lums-agent \
     && echo "agent configuration: OK"
+```
 
 Do not print the contents of the configuration file.
 
 Verify that the required variables exist without exposing the token:
-bash
 
+```bash
 sudo sh -c '
 set -a
 . /etc/default/lums-agent
@@ -2304,52 +2526,58 @@ echo "LUMS_BASE: configured"
 test -n "$LUMS_TOKEN" &&
 echo "LUMS_TOKEN: configured"
 '
+```
 
 The token value itself must not be printed.
-74. Test the Agent Manually
+# 74. Test the Agent Manually
 
 Before enabling the timer, execute the Agent once manually:
-bash
 
+```bash
 sudo systemctl start \
     lums-agent.service
+```
 
 Check the result:
-bash
 
+```bash
 sudo systemctl status \
     lums-agent.service \
     --no-pager
+```
 
 The Agent is a one-shot service.
 
 After successful completion, it may show:
-text
 
+```text
 Active: inactive (dead)
+```
 
 This is normal.
 
 The important result is:
-text
 
+```text
 status=0/SUCCESS
+```
 
 Inspect the journal:
-bash
 
+```bash
 sudo journalctl \
     -u lums-agent.service \
     -n 100 \
     --no-pager
+```
 
-75. Verify the First Client Report
+# 75. Verify the First Client Report
 
 A successful Agent run should report the client to the LUMS server.
 
 The complete path is:
-text
 
+```text
 Agent
    ↓
 HTTPS
@@ -2363,28 +2591,30 @@ Bearer authentication
 Client lookup
    ↓
 Report accepted
+```
 
 Inspect the server logs when required:
-bash
 
+```bash
 sudo docker logs \
     --tail 100 \
     lums
+```
 
 The client should appear in the LUMS web interface after a successful report.
 
 The local service being successful is not sufficient by itself.
 
 The server must accept the report.
-76. Verify the Client in the Web Interface
+# 76. Verify the Client in the Web Interface
 
 Log in as an administrator or operator.
 
 Open the client overview.
 
 The new client should report information such as:
-text
 
+```text
 Hostname
 IP address
 Operating system
@@ -2393,67 +2623,75 @@ Agent version
 Last report
 Installed packages
 Available updates
+```
 
 The reported information belongs to that client.
 
 A client must not be able to access another client's resources.
-77. Enable the Reporting Timer
+# 77. Enable the Reporting Timer
 
 Only after the manual Agent run succeeds should the reporting timer be enabled:
-bash
 
+```bash
 sudo systemctl enable --now \
     lums-agent.timer
+```
 
 Check:
-bash
 
+```bash
 sudo systemctl status \
     lums-agent.timer \
     --no-pager
+```
 
 Inspect the schedule:
-bash
 
+```bash
 systemctl list-timers \
     lums-agent.timer \
     --no-pager
+```
 
 The timer periodically starts:
-text
 
+```text
 lums-agent.service
+```
 
 The service itself remains a one-shot unit.
 
 Therefore, it is normal for the service to return to:
-text
 
+```text
 inactive (dead)
+```
 
 between timer executions.
-78. Verify Scheduled Reporting
+# 78. Verify Scheduled Reporting
 
 After enabling the timer, inspect the next scheduled execution:
-bash
 
+```bash
 systemctl list-timers \
     --all \
     --no-pager | grep lums-agent
+```
 
 After the timer has executed, inspect:
-bash
 
+```bash
 sudo journalctl \
     -u lums-agent.service \
     -n 100 \
     --no-pager
+```
 
 Verify the corresponding client report in LUMS.
 
 A healthy reporting cycle is:
-text
 
+```text
 Timer
   ↓
 Agent service
@@ -2467,12 +2705,13 @@ Update detection
 HTTPS report
   ↓
 LUMS database
+```
 
-79. Client Installation Checkpoint
+# 79. Client Installation Checkpoint
 
 Before installing the execution watcher, verify:
-text
 
+```text
 [ ] Supported Linux distribution
 [ ] Python 3 available
 [ ] systemd available
@@ -2488,17 +2727,18 @@ text
 [ ] Client visible in LUMS
 [ ] Reporting timer enabled
 [ ] Scheduled reporting verified
+```
 
 Do not proceed to update-job testing until the reporting path is working.
 
 The next section installs and validates the execution watcher.
-80. Install the Execution Watcher
+# 80. Install the Execution Watcher
 
 The LUMS execution watcher is responsible for detecting and executing pending update jobs on the client.
 
 The architecture separates reporting from execution:
-text
 
+```text
 Reporting
     │
     ▼
@@ -2512,98 +2752,109 @@ Execution
 lums-agent-watcher.service
     │
     └── pending update jobs
+```
 
 This separation allows regular client reporting to continue independently from update execution.
-81. Verify the Watcher Installation
+# 81. Verify the Watcher Installation
 
 Verify that the Watcher is present:
-bash
 
+```bash
 ls -lh \
     /opt/lums-agent/watcher.py
+```
 
 Verify the installed version:
-bash
 
+```bash
 grep -n \
     'WATCHER_VERSION' \
     /opt/lums-agent/watcher.py
+```
 
 The current Watcher version is:
-text
 
+```text
 1.2.1
+```
 
-82. Verify the Watcher Service
+# 82. Verify the Watcher Service
 
 Inspect the systemd unit:
-bash
 
+```bash
 systemctl cat \
     lums-agent-watcher.service
+```
 
 The service must reference:
-text
 
+```text
 /opt/lums-agent/watcher.py
+```
 
 Verify the unit is known to systemd:
-bash
 
+```bash
 systemctl status \
     lums-agent-watcher.service \
     --no-pager
+```
 
 The service may be inactive when no execution has been triggered.
 
 This is not by itself an error.
-83. Verify the Watcher Timer
+# 83. Verify the Watcher Timer
 
 Before enabling the Watcher timer, verify that:
 
-    /etc/default/lums-agent exists and contains the correct client configuration.
+- /etc/default/lums-agent exists and contains the correct client configuration.
 
-    The LUMS server endpoint and client token are configured correctly.
+- The LUMS server endpoint and client token are configured correctly.
 
-    A manual Agent run succeeded and the server accepted the client report.
+- A manual Agent run succeeded and the server accepted the client report.
 
-    Both Watcher unit files were installed from the repository.
+- Both Watcher unit files were installed from the repository.
 
 Do not enable the timer while authentication or reporting is failing.
 
 Inspect the timer:
-bash
 
+```bash
 systemctl cat \
     lums-agent-watcher.timer
+```
 
 Enable the timer only after verifying all prerequisites above:
-bash
 
+```bash
 sudo systemctl enable --now \
     lums-agent-watcher.timer
+```
 
 Verify:
-bash
 
+```bash
 systemctl status \
     lums-agent-watcher.timer \
     --no-pager
+```
 
 Inspect the next scheduled execution:
-bash
 
+```bash
 systemctl list-timers \
     lums-agent-watcher.timer \
     --no-pager
+```
 
-84. Understand Idle-Aware Execution
+# 84. Understand Idle-Aware Execution
 
 The Watcher can use client idle information before executing update jobs.
 
 The intended flow is:
-text
 
+```text
 Pending job
     │
     ▼
@@ -2624,76 +2875,83 @@ Idle detection
             │
             ▼
         use configured
+```
         fallback behaviour
 
 Idle detection must never be interpreted as authentication or authorisation.
 
 It is an execution scheduling mechanism only.
-85. Verify Idle Detection
+# 85. Verify Idle Detection
 
 Run the idle detection path manually through the installed Agent/Watcher implementation.
 
 Inspect the resulting service journal:
-bash
 
+```bash
 sudo journalctl \
     -u lums-agent-watcher.service \
     -n 100 \
     --no-pager
+```
 
 If the platform does not provide the required idle information, the client may report idle detection as unavailable.
 
 This is not automatically a failure.
 
 The important distinction is:
-text
 
+```text
 idle_supported = available
+```
 
 versus:
-text
 
+```text
 idle_supported = unavailable
+```
 
 The client must not be assumed to be idle merely because no idle information was returned.
-86. Create a Controlled Test Update Job
+# 86. Create a Controlled Test Update Job
 
 Do not begin installation testing with a large system update.
 
 Use a small, known package for the first test.
 
 The package should:
-text
 
+```text
 exist in the configured repository
 be safe to install
 be removable again
 not be required by the operating system
+```
 
 Example test package:
-text
 
+```text
 sl
+```
 
 Before creating the job, verify whether it is already installed:
-bash
 
+```bash
 dpkg-query \
     -W \
     -f='${Status}\n' \
     sl \
     2>/dev/null || true
+```
 
 For Arch Linux, use a package that is available in the configured repositories and is suitable for a reversible test.
 
 Do not blindly use sl on every distribution.
-87. Verify Package Search
+# 87. Verify Package Search
 
 Use the LUMS Package Management interface to search for the selected package.
 
 The search flow is:
-text
 
+```text
 Browser
    ↓
 LUMS API
@@ -2709,55 +2967,61 @@ Package Search Result
 LUMS API
    ↓
 Browser
+```
 
 Verify that the result contains the expected information:
-text
 
+```text
 Package
 Version
 Description
 Status
 Action
+```
 
 For Arch Linux, repository information may also be returned.
-88. Package Management Permissions
+# 88. Package Management Permissions
 
 Package management is restricted by RBAC.
 
 Administrator:
-text
 
+```text
 Allowed
+```
 
 Operator:
-text
 
+```text
 Allowed
+```
 
 Viewer:
-text
 
+```text
 Not allowed
+```
 
 A Viewer must not be able to execute package installation or removal by directly calling the API.
 
 The browser interface hiding the feature is only an additional usability restriction.
 
 The server-side authorisation is the actual security boundary.
-89. Test Package Installation
+# 89. Test Package Installation
 
 Create an installation job through the LUMS interface.
 
 The logical operation is:
-text
 
+```text
 INSTALL_PACKAGE
+```
 
 The job is stored in the LUMS database before the Agent executes it.
 
 The expected flow is:
-text
 
+```text
 Create job
    ↓
 PENDING
@@ -2769,90 +3033,98 @@ RUNNING
 Package manager
    ↓
 SUCCESS
+```
 
 Monitor the job in the LUMS interface.
 
 Do not manually modify the database to force a job state.
-90. Verify the Installation Result
+# 90. Verify the Installation Result
 
 After the job reports success, verify the package locally.
 
 On Debian/Ubuntu:
-bash
 
+```bash
 dpkg-query \
     -W \
     -f='${binary:Package}\t${Version}\n' \
     sl
+```
 
 Verify the package manager agrees:
-bash
 
+```bash
 apt-cache policy \
     sl
+```
 
 The package must actually be installed.
 
 A LUMS SUCCESS state must correspond to a successful client-side operation.
-91. Verify the Job Result
+# 91. Verify the Job Result
 
 Inspect the LUMS job history.
 
 Verify:
-text
 
+```text
 Action
 Package
 Client
 Start time
 Completion time
 Result
+```
 
 The result returned by the client must be validated by the server.
 
 Invalid or incomplete result data must not silently turn into a successful job.
 
 This validation is part of the LUMS security and reliability model.
-92. Test Package Removal
+# 92. Test Package Removal
 
 After verifying installation, create a removal job:
-text
 
+```text
 REMOVE_PACKAGE
+```
 
 Monitor:
-text
 
+```text
 PENDING
    ↓
 RUNNING
    ↓
 SUCCESS
+```
 
 After completion:
-bash
 
+```bash
 dpkg-query \
     -W \
     -f='${Status}\n' \
     sl \
     2>/dev/null || true
+```
 
 The package should no longer be installed.
 
 If the package was not installed before the test, do not treat the absence as proof of a successful removal operation.
-93. Test Package Update
+# 93. Test Package Update
 
 Package updates use:
-text
 
+```text
 UPDATE_PACKAGE
+```
 
 The server validates that the requested package is an available update before creating the corresponding job.
 
 The general flow is:
-text
 
+```text
 Client reports available updates
        ↓
 User selects package
@@ -2864,53 +3136,58 @@ Update job created
 Watcher executes
        ↓
 Result reported
+```
 
 Do not manually construct update requests that bypass the normal validation path.
-94. Test System Update
+# 94. Test System Update
 
 A complete system update uses:
-text
 
+```text
 UPDATE_SYSTEM
+```
 
 This operation affects the package-manager state of the client more broadly than a single-package operation.
 
 For the first system-update test:
-text
 
+```text
 Use a test client
 Use a current backup
 Monitor the console
 Monitor the LUMS job
 Do not interrupt the package manager
+```
 
 Do not use the production server itself as the first system-update test target.
-95. Package Manager Locks
+# 95. Package Manager Locks
 
 APT and pacman can use package-manager locks.
 
 When an operation fails because another package-management process is active, inspect the running processes before taking action.
 
 Debian/Ubuntu:
-bash
 
+```bash
 ps aux | grep -E \
     '[a]pt|[d]pkg|[u]nattended'
+```
 
 Arch Linux:
-bash
 
+```bash
 ps aux | grep -E \
     '[p]acman|[p]ar'
+```
 
 Do not delete package-manager lock files while the package manager is actually running.
 
 A lock normally protects against concurrent package operations.
-96. Distinguish LUMS Failures from Package Manager Failures
+# 96. Distinguish LUMS Failures from Package Manager Failures
 
 When a job fails, determine which layer failed.
-text
 
+```text
 LUMS API
    │
    ├── Job creation failure
@@ -2932,32 +3209,35 @@ Package manager
    │
    ▼
 Operating system
+```
 
 Inspect the client journal:
-bash
 
+```bash
 sudo journalctl \
     -u lums-agent-watcher.service \
     -n 200 \
     --no-pager
+```
 
 Inspect the LUMS container:
-bash
 
+```bash
 sudo docker logs \
     --tail 200 \
     lums
+```
 
 Do not immediately retry a failed job without determining why it failed.
-97. Verify Job Checkpointing
+# 97. Verify Job Checkpointing
 
 LUMS tracks job and package-item state.
 
 For package-based jobs, individual package items can be checkpointed.
 
 The intended behaviour is:
-text
 
+```text
 Package A → SUCCESS
 Package B → SUCCESS
 Package C → RUNNING
@@ -2972,50 +3252,55 @@ Package C → RUNNING
 Package A → not repeated
 Package B → not repeated
 Package C → resumed / handled
+```
 
 This prevents completed package operations from unnecessarily being repeated after an interruption.
-98. Test Controlled Job Recovery
+# 98. Test Controlled Job Recovery
 
 Use a non-critical test job.
 
 Start the job and observe its state:
-text
 
+```text
 PENDING
+```
 
 then:
-text
 
+```text
 RUNNING
+```
 
 Do not deliberately interrupt a production update.
 
 For recovery testing, use a dedicated test client and a controlled package operation.
 
 After an interruption or simulated failure, restart the Watcher:
-bash
 
+```bash
 sudo systemctl restart \
     lums-agent-watcher.timer
+```
 
 Then inspect:
-bash
 
+```bash
 sudo journalctl \
     -u lums-agent-watcher.service \
     -n 200 \
     --no-pager
+```
 
 Verify that already successful package items are not unnecessarily executed again.
-99. Verify Reboot Detection
+# 99. Verify Reboot Detection
 
 Some package operations may require a reboot.
 
 The Agent/Watcher reports reboot requirements to LUMS.
 
 The general flow is:
-text
 
+```text
 Package operation
       ↓
 Reboot requirement detected
@@ -3023,15 +3308,16 @@ Reboot requirement detected
 Result reported
       ↓
 LUMS records reboot state
+```
 
 After a test operation that legitimately requires a reboot, verify the corresponding job result in the LUMS interface.
 
 Do not reboot a production client solely to test the mechanism unless the system is intended for that test.
-100. Verify Reporting After Reboot
+# 100. Verify Reporting After Reboot
 
 When a test client is rebooted, verify that:
-text
 
+```text
 systemd
    ↓
 LUMS Agent timer
@@ -3039,88 +3325,98 @@ LUMS Agent timer
 Agent report
    ↓
 LUMS server
+```
 
 continues to work.
 
 Check:
-bash
 
+```bash
 systemctl status \
     lums-agent.timer \
     --no-pager
+```
 
 and:
-bash
 
+```bash
 systemctl status \
     lums-agent-watcher.timer \
     --no-pager
+```
 
 Then inspect the latest report in the LUMS interface.
-101. Verify Update Detection
+# 101. Verify Update Detection
 
 Run the Agent manually:
-bash
 
+```bash
 sudo systemctl start \
     lums-agent.service
+```
 
 Inspect:
-bash
 
+```bash
 sudo journalctl \
     -u lums-agent.service \
     -n 100 \
     --no-pager
+```
 
 The client should report:
-text
 
+```text
 Installed packages
 Available updates
 Agent status
+```
 
 The server should update the client's current state.
 
 Do not confuse:
-text
 
+```text
 available updates
+```
 
 with:
-text
 
+```text
 installed packages
+```
 
 They represent different data sets.
-102. Verify Installed Software
+# 102. Verify Installed Software
 
 Open the client's installed-software section in LUMS.
 
 The package list should correspond to the client-side package manager.
 
 For Debian/Ubuntu:
-bash
 
+```bash
 dpkg-query \
     -W \
     -f='${binary:Package}\t${Version}\n'
+```
 
 For Arch:
-bash
 
+```bash
 pacman -Q
+```
 
 The LUMS inventory is informational until a job is explicitly created.
 
 The installed-package filter does not itself modify the client.
-103. Verify Package Search Separately
+# 103. Verify Package Search Separately
 
 The Package Management search is separate from the installed-package filter.
 
 The distinction is:
-text
 
+```text
 Installed Package Filter
     ↓
 Searches the package inventory already reported by the client
@@ -3128,11 +3424,12 @@ Searches the package inventory already reported by the client
 Package Management Search
     ↓
 Requests package information from the client's package manager
+```
 
 Do not treat the two search functions as interchangeable.
 
 A package may be available through APT or pacman without being installed.
-104. Verify Viewer Package Isolation
+# 104. Verify Viewer Package Isolation
 
 Log in as a Viewer.
 
@@ -3143,40 +3440,42 @@ Then verify the server-side restriction by attempting an unauthorised package-ma
 The request must be rejected.
 
 Viewer access must remain read-only.
-105. Verify Operator Package Management
+# 105. Verify Operator Package Management
 
 Log in as an Operator.
 
 Verify access to:
-text
 
+```text
 Package Search
 Package Installation
 Package Removal
 Package Updates
 Update Jobs
 Update History
+```
 
 The Operator must not gain access to administrator-only user-management functions.
-106. Verify Administrator Package Management
+# 106. Verify Administrator Package Management
 
 Log in as an Administrator.
 
 Verify the same package-management capabilities as the Operator.
 
 Additionally verify access to:
-text
 
+```text
 User Management
 Client Management
 Client Token Rotation
+```
 
 Administrator permissions must remain server-side enforced.
-107. First End-to-End Package Test
+# 107. First End-to-End Package Test
 
 The first complete package-management test should follow this sequence:
-text
 
+```text
 1. Client reports successfully
 2. Package search succeeds
 3. Package result is displayed
@@ -3190,13 +3489,14 @@ text
 11. Job becomes SUCCESS
 12. Installed package is verified locally
 13. Package is visible in LUMS inventory
+```
 
 Only after this sequence succeeds should broader update testing begin.
-108. Client Execution Checkpoint
+# 108. Client Execution Checkpoint
 
 Verify:
-text
 
+```text
 [ ] Watcher installed
 [ ] Watcher version verified
 [ ] Watcher timer enabled
@@ -3214,17 +3514,18 @@ text
 [ ] Viewer cannot mutate package state
 [ ] Operator can manage packages
 [ ] Administrator can manage packages
+```
 
 At this point, the core LUMS client execution path is installed and validated.
 
 The next section covers full end-to-end validation, RBAC verification, backup/restore, maintenance, upgrades and final installation checks.
-109. Full End-to-End Validation
+# 109. Full End-to-End Validation
 
 After the server and at least one Linux client have been configured, perform a complete end-to-end validation.
 
 The complete LUMS path is:
-text
 
+```text
 Browser
    │
    ▼
@@ -3250,43 +3551,48 @@ SQLite
    │
    ▼
 Web Interface
+```
 
 Do not consider the installation complete merely because the web interface opens.
 
 All major layers must be verified.
-110. Server Health Check
+# 110. Server Health Check
 
 Verify the LUMS container:
-bash
 
+```bash
 sudo docker ps \
     --filter name=lums
+```
 
 Verify the container state:
-bash
 
+```bash
 sudo docker inspect \
     lums \
     --format '{{.State.Status}}'
+```
 
 Expected:
-text
 
+```text
 running
+```
 
 Inspect recent logs:
-bash
 
+```bash
 sudo docker logs \
     --tail 100 \
     lums
+```
 
 The logs should not contain an active startup or migration failure.
-111. Container Security Check
+# 111. Container Security Check
 
 Verify the runtime security configuration:
-bash
 
+```bash
 sudo docker inspect lums \
     --format '
 User={{.Config.User}}
@@ -3295,50 +3601,56 @@ Privileged={{.HostConfig.Privileged}}
 CapDrop={{json .HostConfig.CapDrop}}
 SecurityOpt={{json .HostConfig.SecurityOpt}}
 '
+```
 
 Expected baseline:
-text
 
+```text
 User=lums
 ReadonlyRootfs=true
 Privileged=false
 CapDrop=["ALL"]
 SecurityOpt=["no-new-privileges:true"]
+```
 
 Verify the network binding:
-bash
 
+```bash
 sudo docker port \
     lums
+```
 
 Expected:
-text
 
+```text
 5000/tcp -> 127.0.0.1:5050
+```
 
-112. Persistent Storage Check
+# 112. Persistent Storage Check
 
 Verify the LUMS volume:
-bash
 
+```bash
 sudo docker volume inspect \
     lums-data
+```
 
 Verify that the application database exists:
-bash
 
+```bash
 sudo docker exec \
     lums \
     ls -lh /var/lib/lums/lums.db
+```
 
 The database must reside in persistent storage.
 
 Do not store the production database only inside the container filesystem.
-113. SQLite Health Check
+# 113. SQLite Health Check
 
 Inspect the current SQLite runtime configuration:
-bash
 
+```bash
 sudo docker exec -i lums \
     python3 - <<'PY'
 import sqlite3
@@ -3358,21 +3670,23 @@ for name in (
 
 db.close()
 PY
+```
 
 The current baseline is:
-text
 
+```text
 journal_mode=wal
 busy_timeout=5000
 synchronous=2
 foreign_keys=0
+```
 
 The application explicitly enables foreign-key enforcement.
-114. SQLite Integrity Check
+# 114. SQLite Integrity Check
 
 Run:
-bash
 
+```bash
 sudo docker exec -i lums \
     python3 - <<'PY'
 import sqlite3
@@ -3387,72 +3701,79 @@ print(result)
 
 db.close()
 PY
+```
 
 Expected:
-text
 
+```text
 ok
+```
 
 Do not continue with a new production rollout if the integrity check reports corruption.
-115. Verify Database Migrations
+# 115. Verify Database Migrations
 
 Inspect the migration state:
-bash
 
+```bash
 sudo docker logs \
     --tail 200 \
     lums | grep -i migration
+```
 
 The application must complete its configured migrations before normal operation.
 
 Do not manually modify the migration state table unless the current LUMS migration procedure explicitly requires it.
-116. Run the Automated Test Suite
+# 116. Run the Automated Test Suite
 
 On the LUMS development/test environment:
-bash
 
+```bash
 cd /opt/lums-public
+```
 
 Run:
-bash
 
+```bash
 ./.venv-test/bin/pytest -q
+```
 
 The number of tests changes as the project evolves; rely on the command's
 result, not a fixed count in this document.
 
 The important requirement is:
-text
 
+```text
 all tests pass
+```
 
 Do not ignore failing tests because the production web interface appears functional.
-117. Verify RBAC
+# 117. Verify RBAC
 
 The current role model is:
-Function	Administrator	Operator	Viewer
-View clients	Yes	Yes	Yes
-Installed software	Yes	Yes	Yes
-Available updates	Yes	Yes	No
-Create/execute jobs	Yes	Yes	No
-Update history	Yes	Yes	No
-Package management	Yes	Yes	No
-System maintenance	Yes	Yes	No
-Create/disable clients	Yes	No	No
-Rotate client tokens	Yes	No	No
-User management	Yes	No	No
-Role management	Yes	No	No
+| Function | Administrator | Operator | Viewer |
+| --- | --- | --- | --- |
+| View clients | Yes | Yes | Yes |
+| Installed software | Yes | Yes | Yes |
+| Available updates | Yes | Yes | No |
+| Create/execute jobs | Yes | Yes | No |
+| Update history | Yes | Yes | No |
+| Package management | Yes | Yes | No |
+| System maintenance | Yes | Yes | No |
+| Create/disable clients | Yes | No | No |
+| Rotate client tokens | Yes | No | No |
+| User management | Yes | No | No |
+| Role management | Yes | No | No |
 
 The interface should reflect these permissions.
 
 More importantly, the API must enforce them independently.
-118. Verify Administrator Access
+# 118. Verify Administrator Access
 
 Log in as Administrator.
 
 Verify access to:
-text
 
+```text
 Clients
 Installed software
 Available updates
@@ -3461,22 +3782,24 @@ Update history
 Package management
 System maintenance
 User management
+```
 
 Verify client-management functions:
-text
 
+```text
 Create client
 Disable client
 Rotate client token
+```
 
 The Administrator should be able to perform these operations.
-119. Verify Operator Access
+# 119. Verify Operator Access
 
 Log in as Operator.
 
 Verify access to:
-text
 
+```text
 Clients
 Installed software
 Available updates
@@ -3484,145 +3807,158 @@ Update jobs
 Update history
 Package management
 System maintenance
+```
 
 Verify that administrator-only functionality is unavailable:
-text
 
+```text
 User management
 Role management
 Client creation/disabling
 Client-token rotation
+```
 
 Do not rely only on hidden UI elements.
 
 Protected API operations must reject unauthorised requests.
-120. Verify Viewer Access
+# 120. Verify Viewer Access
 
 Log in as Viewer.
 
 The Viewer should be able to access:
-text
 
+```text
 Clients
 Installed software
+```
 
 The following must not be available:
-text
 
+```text
 Available updates
 Update jobs
 Update history
 Package management
 System maintenance
+```
 
 The Viewer must not be able to mutate client state.
-121. Verify Client Authentication
+# 121. Verify Client Authentication
 
 Confirm that every client uses its own Bearer token.
 
 The expected model is:
-text
 
+```text
 Client A → Token A
 Client B → Token B
 Client C → Token C
+```
 
 Do not share tokens between clients.
 
 Verify that a rotated or revoked token is no longer accepted.
 
 Never place real tokens into test output or documentation.
-122. Verify Update Detection
+# 122. Verify Update Detection
 
 On a test client:
-bash
 
+```bash
 sudo systemctl start \
     lums-agent.service
+```
 
 Inspect:
-bash
 
+```bash
 sudo journalctl \
     -u lums-agent.service \
     -n 100 \
     --no-pager
+```
 
 Then verify the client in the LUMS interface.
 
 The reported information should include current package inventory and update information where supported.
-123. Verify Update Job Creation
+# 123. Verify Update Job Creation
 
 Create a controlled update job through the LUMS interface.
 
 The job should initially appear as:
-text
 
+```text
 PENDING
+```
 
 The Watcher then processes the job:
-text
 
+```text
 PENDING
    ↓
 RUNNING
    ↓
 SUCCESS
+```
 
 or:
-text
 
+```text
 PENDING
    ↓
 RUNNING
    ↓
 FAILED
+```
 
 depending on the actual operation result.
 
 Do not manually change the database state.
-124. Verify Job Execution
+# 124. Verify Job Execution
 
 Inspect the client Watcher:
-bash
 
+```bash
 sudo journalctl \
     -u lums-agent-watcher.service \
     -n 200 \
     --no-pager
+```
 
 Inspect the LUMS server:
-bash
 
+```bash
 sudo docker logs \
     --tail 200 \
     lums
+```
 
 Compare the server-side job state with the client-side execution result.
 
 The two must agree.
-125. Verify Package Result Validation
+# 125. Verify Package Result Validation
 
 A job must not become successful merely because the client submitted a syntactically valid response.
 
 The server validates the returned result.
 
 Verify this through the automated result-validation tests:
-bash
 
+```bash
 ./.venv-test/bin/pytest -q \
     tests/test_job_result.py
+```
 
 A successful result must contain the expected structure and valid job context.
 
 Malformed or inconsistent results must be rejected.
-126. Verify Job Recovery
+# 126. Verify Job Recovery
 
 Use a dedicated test client for recovery testing.
 
 The recovery model is:
-text
 
+```text
 Job
  │
  ├── package item A → SUCCESS
@@ -3634,132 +3970,147 @@ Job
                        │
                        ▼
                   resume safely
+```
 
 After recovery, previously successful package items must not be unnecessarily repeated.
 
 Inspect:
-bash
 
+```bash
 sudo journalctl \
     -u lums-agent-watcher.service \
     -n 200 \
     --no-pager
+```
 
 Then verify the final job state in LUMS.
-127. Verify Reboot Detection
+# 127. Verify Reboot Detection
 
 For a controlled test update that requires a reboot, verify that the client reports the reboot requirement.
 
 After reboot:
-bash
 
+```bash
 systemctl status \
     lums-agent.timer \
     --no-pager
+```
 
 and:
-bash
 
+```bash
 systemctl status \
     lums-agent-watcher.timer \
     --no-pager
+```
 
 The client must resume normal reporting after boot.
-128. Verify Audit Logging
+# 128. Verify Audit Logging
 
 Perform a controlled administrative action, then inspect the LUMS audit log.
 
 Relevant operations include:
-text
 
+```text
 Login
 User creation
 Client creation
 Client-token rotation
 Job creation
 Package management
+```
 
 Audit entries should provide enough information to reconstruct the administrative action without exposing secrets.
 
 Do not log:
-text
 
+```text
 Passwords
 Client tokens
 Application secrets
 Private keys
 Session secrets
+```
 
-129. Verify Log Redaction
+# 129. Verify Log Redaction
 
 Inspect recent logs:
-bash
 
+```bash
 sudo docker logs \
     --tail 200 \
     lums
+```
 
 Inspect client logs:
-bash
 
+```bash
 sudo journalctl \
     -u lums-agent.service \
     -n 200 \
     --no-pager
+```
 
 and:
-bash
 
+```bash
 sudo journalctl \
     -u lums-agent-watcher.service \
     -n 200 \
     --no-pager
+```
 
 Authentication credentials and secrets must not appear in normal diagnostic output.
 
 If a diagnostic command would expose a secret, do not paste its output into an issue, commit or documentation.
-130. Verify Network Exposure
+# 130. Verify Network Exposure
 
 Inspect listening ports:
-bash
 
+```bash
 sudo ss -lntp
+```
 
 The LUMS application port should remain:
-text
 
+```text
 127.0.0.1:5050
+```
 
 Nginx provides the external service:
-text
 
+```text
 :80
 :443
+```
 
 The application must not be directly exposed through:
-text
 
+```text
 0.0.0.0:5050
+```
 
 or:
-text
 
+```text
 0.0.0.0:5000
+```
 
-131. Verify Firewall Configuration
+# 131. Verify Firewall Configuration
 
 If a host firewall is enabled, inspect it:
-bash
 
+```bash
 sudo ufw status verbose
+```
 
 The deployment should expose only the services required by the host.
 
 Do not create a firewall rule for port 5050 merely because Docker uses that port internally.
 
 The intended architecture is:
-text
 
+```text
 LAN
  │
  ▼
@@ -3773,74 +4124,81 @@ Nginx
  │
  ▼
 LUMS
+```
 
-132. Backup Strategy
+# 132. Backup Strategy
 
 The LUMS SQLite database is persistent application state.
 
 At minimum, backups should protect:
-text
 
+```text
 LUMS database
 TLS material
 LUMS application secret
 Deployment configuration
+```
 
 Backups must be stored outside the active LUMS container.
 
 Do not store backups inside:
-text
 
+```text
 /app
+```
 
 or rely on the container filesystem.
 
 The Docker volume:
-text
 
+```text
 lums-data
+```
 
 contains persistent application data, but a Docker volume is not itself a backup.
-133. Database Backup
+# 133. Database Backup
 
 Before backing up the database, identify the database file:
-bash
 
+```bash
 sudo docker exec \
     lums \
     ls -lh /var/lib/lums/lums.db
+```
 
 A database backup should be performed using a consistent SQLite backup mechanism.
 
 Do not copy a live SQLite database blindly while it is being modified if the backup procedure cannot guarantee consistency.
 
 After creating a backup, verify that the backup file exists and is protected.
-134. Configuration Backup
+# 134. Configuration Backup
 
 Protect the following deployment material:
-text
 
+```text
 /etc/lums/secrets/
 /etc/lums/tls/
 /etc/nginx/sites-available/lums
 /etc/nginx/sites-enabled/lums
+```
 
 Do not publish these files.
 
 The following files are particularly sensitive:
-text
 
+```text
 /etc/lums/secrets/lums_secret
 /etc/lums/tls/lums.key
+```
 
 Protect backup permissions accordingly.
-135. Restore Planning
+# 135. Restore Planning
 
 A restore should be tested on a non-production system before it is needed for disaster recovery.
 
 The restore sequence is conceptually:
-text
 
+```text
 Backup
   ↓
 Verify backup integrity
@@ -3858,13 +4216,14 @@ Start LUMS
 Run integrity checks
   ↓
 Validate users/clients/jobs
+```
 
 Do not overwrite a production database without first preserving the existing state.
-136. Verify a Database Restore
+# 136. Verify a Database Restore
 
 After restoring a database, run:
-bash
 
+```bash
 sudo docker exec lums \
     python3 - <<'PY'
 import sqlite3
@@ -3879,27 +4238,30 @@ print(
 
 db.close()
 PY
+```
 
 Expected:
-text
 
+```text
 ok
+```
 
 Then verify:
-text
 
+```text
 users
 clients
 update jobs
 package data
 audit data
+```
 
 Do not assume that a successful SQLite integrity check proves that the complete application state is correct.
-137. Maintenance Principles
+# 137. Maintenance Principles
 
 Routine maintenance should follow:
-text
 
+```text
 Observe
    ↓
 Back up
@@ -3907,70 +4269,78 @@ Back up
 Change
    ↓
 Verify
+```
 
 Do not perform unrelated maintenance during an active update job.
 
 Before maintenance:
-bash
 
+```bash
 sudo docker ps \
     --filter name=lums
+```
 
 Check active jobs in the LUMS interface.
 
 If an update is running, allow it to finish unless the maintenance operation specifically requires interruption.
-138. Container Maintenance
+# 138. Container Maintenance
 
 Inspect the running image:
-bash
 
+```bash
 sudo docker inspect \
     lums \
     --format '{{.Config.Image}}'
+```
 
 Inspect the container:
-bash
 
+```bash
 sudo docker ps \
     --filter name=lums
+```
 
 Inspect recent logs:
-bash
 
+```bash
 sudo docker logs \
     --tail 100 \
     lums
+```
 
 Do not remove the persistent volume during ordinary container maintenance.
 
 The volume contains application state.
-139. Image Maintenance
+# 139. Image Maintenance
 
 Before replacing the production image:
-bash
 
+```bash
 cd /opt/lums-public
+```
 
 Run the automated tests:
-bash
 
+```bash
 ./.venv-test/bin/pytest -q
+```
 
 Build the new image:
-bash
 
+```bash
 sudo docker build \
     -t lums:new \
     .
+```
 
 Do not replace the running container until the image has passed the required validation.
 
 Keep the currently working container available until the replacement has been verified.
-140. Controlled Container Replacement
+# 140. Controlled Container Replacement
 
 When replacing the production container:
-text
 
+```text
 Current container
        │
        ▼
@@ -3996,20 +4366,22 @@ Validate HTTPS
        │
        ▼
 Validate application
+```
 
 The persistent volume must remain:
-text
 
+```text
 lums-data
+```
 
 The secret mount must remain read-only.
 
 The application port must remain localhost-only.
-141. Verify Runtime Security After Replacement
+# 141. Verify Runtime Security After Replacement
 
 After every container replacement, repeat:
-bash
 
+```bash
 sudo docker inspect lums \
     --format '
 User={{.Config.User}}
@@ -4018,39 +4390,44 @@ Privileged={{.HostConfig.Privileged}}
 CapDrop={{json .HostConfig.CapDrop}}
 SecurityOpt={{json .HostConfig.SecurityOpt}}
 '
+```
 
 Verify:
-text
 
+```text
 User=lums
 ReadonlyRootfs=true
 Privileged=false
 CapDrop=["ALL"]
 SecurityOpt=["no-new-privileges:true"]
+```
 
 Also verify:
-bash
 
+```bash
 sudo docker port \
     lums
+```
 
 Expected:
-text
 
+```text
 5000/tcp -> 127.0.0.1:5050
+```
 
-142. Verify Persistent Data After Replacement
+# 142. Verify Persistent Data After Replacement
 
 After starting the replacement container:
-bash
 
+```bash
 sudo docker exec \
     lums \
     ls -lh /var/lib/lums/lums.db
+```
 
 Then:
-bash
 
+```bash
 sudo docker exec lums \
     python3 - <<'PY'
 import sqlite3
@@ -4059,18 +4436,20 @@ db = sqlite3.connect("/var/lib/lums/lums.db")
 print(db.execute("PRAGMA integrity_check").fetchone()[0])
 db.close()
 PY
+```
 
 Expected:
-text
 
+```text
 ok
+```
 
 Finally verify that existing users and clients are still present through the LUMS interface.
-143. Maintenance Completion Checkpoint
+# 143. Maintenance Completion Checkpoint
 
 After maintenance, verify:
-text
 
+```text
 [ ] Container running
 [ ] Runtime hardening intact
 [ ] Persistent volume mounted
@@ -4085,13 +4464,14 @@ text
 [ ] Watcher working
 [ ] Update jobs working
 [ ] Audit logging working
+```
 
 Only after these checks is the maintenance operation complete.
-144. Installation State at This Point
+# 144. Installation State at This Point
 
 A correctly installed LUMS environment now consists of:
-text
 
+```text
                     ┌──────────────────────┐
                     │       Browser        │
                     └──────────┬───────────┘
@@ -4131,17 +4511,18 @@ text
                └──────────────┬──────────────┘
                               ▼
                        APT / pacman
+```
 
 This is the intended operational architecture.
 
 The next section covers upgrades, uninstallation and the final installation checklist.
-145. Upgrade Procedure
+# 145. Upgrade Procedure
 
 LUMS upgrades should be performed in controlled steps.
 
 The recommended sequence is:
-text
 
+```text
 Review
    ↓
 Backup
@@ -4153,127 +4534,142 @@ Build
 Deploy
    ↓
 Validate
+```
 
 Do not upgrade the production installation solely because a new Git revision exists.
 
 Review the changes first:
-bash
 
+```bash
 cd /opt/lums-public
 
 git status
 git log --oneline -10
+```
 
 Review the relevant application, Agent and migration changes before deployment.
-146. Create a Pre-Upgrade Backup
+# 146. Create a Pre-Upgrade Backup
 
 Before replacing the production container, create a current backup of the persistent LUMS state.
 
 Verify the active volume:
-bash
 
+```bash
 sudo docker inspect \
     lums \
     --format '{{json .Mounts}}'
+```
 
 Confirm that:
-text
 
+```text
 lums-data
+```
 
 is still mounted at:
-text
 
+```text
 /var/lib/lums
+```
 
 Also protect the external configuration:
-text
 
+```text
 /etc/lums/secrets/
 /etc/lums/tls/
 /etc/nginx/
+```
 
 Do not proceed with an upgrade if the required backup cannot be verified.
-147. Stop Unnecessary Changes During an Upgrade
+# 147. Stop Unnecessary Changes During an Upgrade
 
 Before upgrading, inspect active jobs in the LUMS interface.
 
 Avoid replacing the application while a critical update job is actively executing.
 
 If necessary, wait until the job reaches a final state:
-text
 
+```text
 SUCCESS
+```
 
 or:
-text
 
+```text
 FAILED
+```
 
 Do not manually change a job from RUNNING to SUCCESS or FAILED simply to make an upgrade possible.
-148. Update the Repository
+# 148. Update the Repository
 
 Move to the repository:
-bash
 
+```bash
 cd /opt/lums-public
+```
 
 Inspect the current state:
-bash
 
+```bash
 git status
+```
 
 Update the repository using the normal project workflow.
 
 After updating:
-bash
 
+```bash
 git log --oneline -5
+```
 
 Verify that the intended revision is checked out.
 
 Do not deploy a repository containing unintended local modifications.
 
 If local changes are present:
-bash
 
+```bash
 git status
+```
 
 Review them before continuing.
-149. Run the Test Suite Before Building
+# 149. Run the Test Suite Before Building
 
 Run:
-bash
 
+```bash
 ./.venv-test/bin/pytest -q
+```
 
 All tests must pass.
 
 A changed test count is not automatically a problem. The requirement is that
 the complete suite finishes successfully.
-150. Build the Updated Image
+# 150. Build the Updated Image
 
 Build a new image without immediately replacing the running container:
-bash
 
+```bash
 sudo docker build \
     -t lums:new \
     .
+```
 
 Verify the image:
-bash
 
+```bash
 sudo docker image inspect \
     lums:new
+```
 
 The build must complete successfully.
 
 Do not use a failed or partially built image for production deployment.
-151. Verify the Updated Image
+# 151. Verify the Updated Image
 
 Review the image metadata:
-bash
 
+```bash
 sudo docker image inspect \
     lums:new \
     --format '
@@ -4281,43 +4677,48 @@ User={{.Config.User}}
 Entrypoint={{json .Config.Entrypoint}}
 Cmd={{json .Config.Cmd}}
 '
+```
 
 The image must preserve the expected non-root application model.
 
 The production runtime must still provide:
-text
 
+```text
 read-only root filesystem
 dropped Linux capabilities
 no-new-privileges
 read-only secret mount
 persistent application volume
 localhost-only application port
+```
 
-152. Replace the Production Container
+# 152. Replace the Production Container
 
 When the new image has passed validation, replace the running container using the established hardened configuration.
 
 Stop the existing container:
-bash
 
+```bash
 sudo docker stop \
     lums
+```
 
 Remove only the container:
-bash
 
+```bash
 sudo docker rm \
     lums
+```
 
 Do not remove:
-text
 
+```text
 lums-data
+```
 
 Start the replacement with the hardened runtime:
-bash
 
+```bash
 sudo docker run -d \
     --name lums \
     --restart unless-stopped \
@@ -4331,25 +4732,28 @@ sudo docker run -d \
     -v lums-data:/var/lib/lums \
     -e LUMS_SECRET_KEY_FILE=/run/secrets/lums_secret \
     lums:new
+```
 
-153. Verify the Replacement Container
+# 153. Verify the Replacement Container
 
 Check:
-bash
 
+```bash
 sudo docker ps \
     --filter name=lums
+```
 
 Then:
-bash
 
+```bash
 sudo docker logs \
     --tail 100 \
     lums
+```
 
 Verify the runtime:
-bash
 
+```bash
 sudo docker inspect lums \
     --format '
 User={{.Config.User}}
@@ -4358,44 +4762,49 @@ Privileged={{.HostConfig.Privileged}}
 CapDrop={{json .HostConfig.CapDrop}}
 SecurityOpt={{json .HostConfig.SecurityOpt}}
 '
+```
 
 Expected:
-text
 
+```text
 User=lums
 ReadonlyRootfs=true
 Privileged=false
 CapDrop=["ALL"]
 SecurityOpt=["no-new-privileges:true"]
+```
 
-154. Verify Application Availability
+# 154. Verify Application Availability
 
 Check the local application endpoint:
-bash
 
+```bash
 curl -I \
     http://127.0.0.1:5050/
+```
 
 Then test the public HTTPS path:
-bash
 
+```bash
 curl -I \
     https://LUMS-SERVER/
+```
 
 Verify login through the browser.
 
 Do not consider the upgrade complete until the external HTTPS path has also been tested.
-155. Verify Persistent State After Upgrade
+# 155. Verify Persistent State After Upgrade
 
 Check the database:
-bash
 
+```bash
 sudo docker exec lums \
     ls -lh /var/lib/lums/lums.db
+```
 
 Run:
-bash
 
+```bash
 sudo docker exec lums \
     python3 - <<'PY'
 import sqlite3
@@ -4404,77 +4813,85 @@ db = sqlite3.connect("/var/lib/lums/lums.db")
 print(db.execute("PRAGMA integrity_check").fetchone()[0])
 db.close()
 PY
+```
 
 Expected:
-text
 
+```text
 ok
+```
 
 Verify through the web interface that:
-text
 
+```text
 users
 clients
 jobs
 audit history
 package information
+```
 
 remain available.
-156. Verify Client Communication After Upgrade
+# 156. Verify Client Communication After Upgrade
 
 Run the Agent on a test client:
-bash
 
+```bash
 sudo systemctl start \
     lums-agent.service
+```
 
 Inspect:
-bash
 
+```bash
 sudo journalctl \
     -u lums-agent.service \
     -n 100 \
     --no-pager
+```
 
 Verify that the server accepts the report.
 
 Then verify the client in the LUMS interface.
-157. Verify Update Execution After Upgrade
+# 157. Verify Update Execution After Upgrade
 
 Create a controlled test job.
 
 Verify:
-text
 
+```text
 PENDING
    ↓
 RUNNING
    ↓
 SUCCESS
+```
 
 or an expected:
-text
 
+```text
 FAILED
+```
 
 state when the operation genuinely fails.
 
 Inspect the Watcher:
-bash
 
+```bash
 sudo journalctl \
     -u lums-agent-watcher.service \
     -n 200 \
     --no-pager
+```
 
 This confirms that the upgrade did not break the execution path.
-158. Verify Security Baseline After Upgrade
+# 158. Verify Security Baseline After Upgrade
 
 Every production upgrade must preserve the security baseline.
 
 Verify:
-text
 
+```text
 [ ] HTTPS
 [ ] Bearer client authentication
 [ ] RBAC
@@ -4488,41 +4905,45 @@ text
 [ ] Persistent data volume
 [ ] Localhost-only Docker port
 [ ] Firewall policy
+```
 
 A functional upgrade that weakens these properties is not considered complete.
-159. Rollback Procedure
+# 159. Rollback Procedure
 
 If the new container fails validation, do not immediately destroy the previous deployment information.
 
 First inspect:
-bash
 
+```bash
 sudo docker logs \
     --tail 200 \
     lums
+```
 
 If the previous image is still available:
-bash
 
+```bash
 sudo docker images
+```
 
 restore the previously validated image using the same hardened container configuration.
 
 The persistent volume remains:
-text
 
+```text
 lums-data
+```
 
 Do not restore a database backup merely because the application container was replaced.
 
 Only restore the database when the database itself must be recovered.
-160. Uninstallation Preparation
+# 160. Uninstallation Preparation
 
 Before uninstalling LUMS, decide whether the persistent application data must be retained.
 
 The following are separate resources:
-text
 
+```text
 Container
 Image
 Persistent volume
@@ -4530,156 +4951,176 @@ Configuration
 TLS material
 Nginx configuration
 Client installations
+```
 
 Removing the container does not remove the Docker volume.
 
 This distinction is intentional.
-161. Remove the LUMS Container
+# 161. Remove the LUMS Container
 
 Stop the container:
-bash
 
+```bash
 sudo docker stop \
     lums
+```
 
 Remove it:
-bash
 
+```bash
 sudo docker rm \
     lums
+```
 
 Verify:
-bash
 
+```bash
 sudo docker ps -a \
     --filter name=lums
+```
 
 The persistent volume is still present unless explicitly removed.
-162. Remove the LUMS Docker Image
+# 162. Remove the LUMS Docker Image
 
 List images:
-bash
 
+```bash
 sudo docker images \
     'lums*'
+```
 
 Remove only images that are no longer required:
-bash
 
+```bash
 sudo docker rmi \
     lums:new
+```
 
 Repeat for other obsolete local LUMS images as appropriate.
 
 Do not remove the image currently required for a rollback before the installation has been fully decommissioned.
-163. Remove the Persistent Volume
+# 163. Remove the Persistent Volume
 
 Only perform this step when the LUMS database is no longer required.
 
 Verify:
-bash
 
+```bash
 sudo docker volume inspect \
     lums-data
+```
 
 Create a final backup if required.
 
 Then remove:
-bash
 
+```bash
 sudo docker volume rm \
     lums-data
+```
 
 This permanently removes the persistent application data stored in that volume.
 
 Do not run this command during normal upgrades.
-164. Remove LUMS Server Configuration
+# 164. Remove LUMS Server Configuration
 
 When the server is permanently decommissioned, remove the LUMS-specific configuration:
-text
 
+```text
 /etc/lums/
 /etc/nginx/sites-available/lums
 /etc/nginx/sites-enabled/lums
+```
 
 Remove the Nginx site:
-bash
 
+```bash
 sudo rm -f \
     /etc/nginx/sites-enabled/lums
+```
 
 Remove the configuration:
-bash
 
+```bash
 sudo rm -f \
     /etc/nginx/sites-available/lums
+```
 
 Then validate Nginx:
-bash
 
+```bash
 sudo nginx -t
+```
 
 Reload:
-bash
 
+```bash
 sudo systemctl reload nginx
+```
 
 Only remove /etc/lums/ after verifying that no other application depends on it.
-165. Remove Client Installations
+# 165. Remove Client Installations
 
 LUMS clients must be decommissioned separately.
 
 Disable the Agent timer:
-bash
 
+```bash
 sudo systemctl disable --now \
     lums-agent.timer
+```
 
 Disable the Watcher timer:
-bash
 
+```bash
 sudo systemctl disable --now \
     lums-agent-watcher.timer
+```
 
 Stop any remaining services:
-bash
 
+```bash
 sudo systemctl stop \
     lums-agent.service \
     lums-agent-watcher.service
+```
 
 Remove the installed systemd units:
-bash
 
+```bash
 sudo rm -f \
     /etc/systemd/system/lums-agent.service \
     /etc/systemd/system/lums-agent-watcher.service \
     /etc/systemd/system/lums-agent.timer \
     /etc/systemd/system/lums-agent-watcher.timer
+```
 
 Reload systemd:
-bash
 
+```bash
 sudo systemctl daemon-reload
+```
 
 Remove the Agent installation:
-bash
 
+```bash
 sudo rm -rf \
     /opt/lums-agent
+```
 
 Remove the client configuration:
-bash
 
+```bash
 sudo rm -f \
     /etc/default/lums-agent
+```
 
 Only perform these steps when the client is genuinely being removed from LUMS management.
-166. Final Server Installation Checklist
+# 166. Final Server Installation Checklist
 
 A completed LUMS installation should satisfy all of the following:
-text
 
+```text
 SERVER
 [ ] Debian/Linux host prepared
 [ ] Docker installed
@@ -4703,10 +5144,11 @@ SERVER
 [ ] Database initialised
 [ ] SQLite integrity check passes
 [ ] Migrations complete
+```
 
-167. Final Client Installation Checklist
-text
+# 167. Final Client Installation Checklist
 
+```text
 CLIENT
 [ ] Supported Linux distribution
 [ ] systemd available
@@ -4725,10 +5167,11 @@ CLIENT
 [ ] Idle detection verified
 [ ] Package inventory verified
 [ ] Update detection verified
+```
 
-168. Final Functional Checklist
-text
+# 168. Final Functional Checklist
 
+```text
 FUNCTIONALITY
 [ ] Administrator login works
 [ ] Operator login works
@@ -4751,10 +5194,11 @@ FUNCTIONALITY
 [ ] Logs contain no secrets
 [ ] End-to-end reporting verified
 [ ] End-to-end update execution verified
+```
 
-169. Final Security Checklist
-text
+# 169. Final Security Checklist
 
+```text
 SECURITY
 [ ] HTTPS enforced
 [ ] Client Bearer authentication enabled
@@ -4779,59 +5223,66 @@ SECURITY
 [ ] Default Nginx site removed or controlled
 [ ] Backup procedure defined
 [ ] Restore procedure tested
+```
 
-170. Final Test Checklist
+# 170. Final Test Checklist
 
 Run the complete automated test suite:
-bash
 
+```bash
 cd /opt/lums-public
 
 ./.venv-test/bin/pytest -q
+```
 
 The installation should only be considered complete when the complete test suite passes.
 
 Then verify the production runtime manually:
-bash
 
+```bash
 sudo docker ps \
     --filter name=lums
+```
 
-bash
 
+```bash
 sudo docker logs \
     --tail 100 \
     lums
+```
 
-bash
 
+```bash
 curl -I \
     https://LUMS-SERVER/
+```
 
-bash
 
+```bash
 sudo ss -lntp
+```
 
-171. Final Documentation Check
+# 171. Final Documentation Check
 
 Before declaring the installation complete, verify that the documentation matches the actual deployment.
 
 At minimum, review:
-text
 
+```text
 install.md
 security.md
 troubleshooting.md
 administration.md
 docs/README.md
+```
 
-The root-level technical guides are the English source of truth. The localised
-guides in docs/locales/ are concise beginner guides, not word-for-word copies
-of every technical section.
+The root-level English guides are the technical source of truth. Translated
+guides are listed in the [documentation index](../../README.md), but may not yet
+include every technical detail.
 
 The documentation must not contain:
-text
 
+```text
 old container commands
 obsolete image names
 obsolete RBAC rules
@@ -4841,15 +5292,16 @@ obsolete authentication mechanisms
 real secrets
 real client tokens
 private keys
+```
 
 If the deployment changes, update the documentation together with the implementation.
-172. Release Readiness
+# 172. Release Readiness
 
 A successful installation does not automatically mean that LUMS has an official release.
 
 The current project state deliberately separates:
-text
 
+```text
 Working implementation
 Security audit
 Documentation review
@@ -4857,15 +5309,16 @@ Release preparation
 Versioning
 Git tag
 GitHub Release
+```
 
 An official LUMS release should only be created after the complete implementation, security review, documentation review and final validation have been completed.
 
 Until then, treat the repository as an actively developed project.
-173. Operational Baseline
+# 173. Operational Baseline
 
 The current documented baseline is:
-text
 
+```text
 LUMS Server
     Docker
     Nginx
@@ -4899,13 +5352,14 @@ Roles
     Administrator
     Operator
     Viewer
+```
 
 This baseline should be treated as the reference state for troubleshooting and future maintenance.
-174. Installation Complete
+# 174. Installation Complete
 
 The installation is complete when:
-text
 
+```text
 Server
   │
   ├── HTTPS works
@@ -4932,18 +5386,20 @@ Operations
   ├── Restore is understood
   ├── Troubleshooting documentation is available
   └── Security baseline is maintained
+```
 
 The fundamental LUMS operational principle is:
-text
 
+```text
 Observe first.
 Change second.
 Verify third.
 Document last.
+```
 
 For production changes, extend this to:
-text
 
+```text
 Backup
    ↓
 Change
@@ -4951,5 +5407,6 @@ Change
 Verify
    ↓
 Document
+```
 
 A LUMS installation should always remain reproducible, auditable and recoverable.

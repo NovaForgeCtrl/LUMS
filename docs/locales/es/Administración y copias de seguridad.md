@@ -482,7 +482,7 @@ Agregue estas opciones a la configuración del contenedor LUMS:
 
 Use un disco separado o almacenamiento remoto para la resiliencia contra fallos del host. Por ejemplo, monte primero un NAS en el host Debian, luego use esa ruta montada como el lado izquierdo del montaje bind de Docker. La UI de copias de seguridad muestra el directorio base del lado del contenedor; la ruta relativa seleccionada está debajo de él. El destino de la copia de seguridad debe estar disponible y ser escribible dentro del contenedor; de lo contrario, la interfaz informa que el almacenamiento de copias de seguridad no está disponible.
 
-Para los pasos de restauración, consulte [`server/static/backup-restore.md`](server/static/backup-restore.md).
+Para los pasos de restauración, consulte [`server/static/backup-restore.md`](../../../server/static/backup-restore.md).
 
 ---
 

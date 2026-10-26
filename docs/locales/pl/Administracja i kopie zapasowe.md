@@ -526,7 +526,7 @@ katalog bazowy po stronie kontenera; wybrana ścieżka względna znajduje się p
 Miejsce docelowe kopii zapasowych musi być dostępne i zapisywalne wewnątrz kontenera;
 w przeciwnym razie interfejs zgłasza, że magazyn kopii zapasowych jest niedostępny.
 
-Kroki przywracania opisano w [`server/static/backup-restore.md`](server/static/backup-restore.md).
+Kroki przywracania opisano w [`server/static/backup-restore.md`](../../../server/static/backup-restore.md).
 
 ---
 

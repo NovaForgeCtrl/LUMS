@@ -15,11 +15,11 @@ kanske ditt konto inte har behörighet att använda den. Fråga din administrat�
 hjälp; dela inte konton och använd inte en klienttoken som webbplatslösenord.
 
 **Installerar eller driftar du LUMS?** Börja med
-[installationsguiden](install.md), läs sedan
-[administrationsguiden](administration.md). Om något går fel, använd
-[felsökningsguiden](troubleshooting.md). Dessa detaljerade tekniska guider
-underhålls på engelska; kortfattade översatta nybörjarguider finns i
-[`docs/locales/`](docs/README.md).
+[installationsguiden](Installation och uppgraderingar.md), läs sedan
+[administrationsguiden](Administration och säkerhetskopior.md). Om något går fel, använd
+[felsökningsguiden](Felsökning.md). Översatta guider finns också, men deras
+omfattning kan skilja sig från de engelska tekniska originalen. I
+[dokumentationsindexet](../../README.md) listas tillgängliga språkversioner.
 
 En testkörning eller en framgångsrikt byggd Docker-avbildning är **inte** en produktionsinstallation.
 En produktionsdistribution behöver också HTTPS, en skyddad programhemlighet, beständig data,
@@ -1017,7 +1017,7 @@ för kontoinnehavaren.
 
 Administratörer med `backups.manage` kan skapa validerade `.db`- eller `.db.gz`-
 databassäkerhetskopior i en serverkonfigurerad katalog och välja en säker undermapp
-inom den monterade platsen. Se [`administration.md`](administration.md) och
+inom den monterade platsen. Se [`administration.md`](Administration och säkerhetskopior.md) och
 den inbyggda Markdown-återställningsguiden för Docker-lagringsinställning och återställning.
 
 Användarlösenord lagras med Argon2-lösenordshashning snarare än klartext eller reversibel kryptering.

@@ -19,15 +19,17 @@ sudo docker ps -a --filter name=lums
 sudo docker logs --tail 100 lums
 sudo systemctl status nginx --no-pager
 sudo nginx -t
+```
 
 docker ps -a visar även stoppade containrar. docker logs läser senaste applikationsmeddelanden. systemctl status visar om Nginx körs; nginx -t kontrollerar dess konfiguration utan att ändra den. Om nginx -t misslyckas ska du inte ladda om Nginx förrän orsaken har åtgärdats.
 Första kontroller på en hanterad klient
-bash
 
+```bash
 sudo systemctl status lums-agent.service --no-pager
 sudo journalctl -u lums-agent.service -n 100 --no-pager
 sudo systemctl status lums-agent-watcher.service --no-pager
 sudo journalctl -u lums-agent-watcher.service -n 100 --no-pager
+```
 
 Agenten och Watchern är separata tjänster: en lyckad Agent-rapport bevisar inte att Watchern kan köra uppdateringsjobb. För en oneshot-tjänst kan inactive vara normalt efter en lyckad körning; kontrollera även resultatet och loggmeddelandena.
 Innan du delar kommandoutdata
@@ -35,7 +37,7 @@ Innan du delar kommandoutdata
 Kontrollera loggar och konfiguration för lösenord, klienttoken, sessions- eller API-nycklar, privata nycklar och personuppgifter. Dela aldrig innehållet i hemliga filer eller fullständiga miljövariabelvärden. Om du behöver hjälp, dela endast relevanta felmeddelanden efter att du tagit bort känslig information.
 
 Börja inte med att radera databasen eller Docker-volymen, köra containern som privilegierad, inaktivera säkerhetsalternativ, ta bort pakethanterarens låsfiler eller rotera tokens. Dessa åtgärder kan skada data, radera bevis eller förvärra problemet. Om en kontroll misslyckas, spara dess utdata och fortsätt till relevant avsnitt nedan.
-1. Felsökningsfilosofi
+# 1. Felsökningsfilosofi
 
 LUMS består av flera oberoende komponenter.
 
@@ -45,6 +47,7 @@ Den huvudsakliga operativa vägen är:
 text
 
 Linux-klient
+```text
     │
     ├── LUMS Agent
     │
@@ -61,11 +64,13 @@ Linux-klient
             │
             ▼
          SQLite
+```
 
 Uppdateringsexekvering lägger till pakethanteringslagret:
 text
 
 Webbläsare
+```text
    │
    ▼
 LUMS API
@@ -93,6 +98,7 @@ LUMS API
    │
    ▼
 SQLite
+```
 
 När du felsöker, identifiera den första felande komponenten.
 
@@ -100,35 +106,35 @@ Till exempel:
 text
 
 Agent-rapport misslyckas
-    ↓
+* ↓
 Kontrollera agenttjänsten
-    ↓
+* ↓
 Kontrollera nätverket
-    ↓
+* ↓
 Kontrollera TLS
-    ↓
+* ↓
 Kontrollera klienttoken
-    ↓
+* ↓
 Kontrollera LUMS API
 
 Gör inte omedelbart följande:
 
-    ändra databasen
+* ändra databasen
 
-    radera Docker-volymen
+* radera Docker-volymen
 
-    installera om Agenten
+* installera om Agenten
 
-    rotera autentiseringsuppgifter
+* rotera autentiseringsuppgifter
 
-    ta bort pakethanterarens låsfiler
+* ta bort pakethanterarens låsfiler
 
-    inaktivera säkerhetskontroller
+* inaktivera säkerhetskontroller
 
-    göra containern privilegierad
+* göra containern privilegierad
 
 Dessa åtgärder kan förstöra användbar diagnostisk information eller skapa ytterligare problem.
-2. Diagnostisk baslinje
+# 2. Diagnostisk baslinje
 
 Innan du undersöker ett specifikt problem, fastställ det aktuella tillståndet för huvudkomponenterna.
 
@@ -139,8 +145,10 @@ Applikationsport: 127.0.0.1:5050
 Extern åtkomst: HTTPS via Nginx
 Databas: /var/lib/lums/lums.db
 Docker-volym: lums-data
+```text
 Agent: 1.7.0
 Watcher: 1.2.1
+```
 
 Produktionscontainern är härdad med:
 text
@@ -158,6 +166,7 @@ Den förväntade nätverksvägen är:
 text
 
 Klient / Webbläsare
+```text
        │
        ▼
      HTTPS
@@ -173,22 +182,25 @@ Klient / Webbläsare
        │
        ▼
     LUMS :5000
+```
 
-3. Första diagnostiska kontroller
+# 3. Första diagnostiska kontroller
 3.1 Kontrollera LUMS-containern
 
 På LUMS-servern:
-bash
 
+```bash
 sudo docker ps
+```
 
 Containern lums ska köra.
 
 För en fullständig containeröversikt:
-bash
 
+```bash
 sudo docker ps -a \
     --filter name=lums
+```
 
 Ta inte bort stoppade containrar innan du undersökt dem.
 
@@ -196,18 +208,20 @@ Ta inte bort stoppade containrar innan du undersökt dem.
 3.2 Kontrollera senaste applikationsloggar
 
 Inspektera de senaste LUMS-loggarna:
-bash
 
+```bash
 sudo docker logs \
     --tail 100 \
     lums
+```
 
 För live-utdata:
-bash
 
+```bash
 sudo docker logs \
     -f \
     lums
+```
 
 När du undersöker en specifik begäran eller ett jobb, starta logginspektionen innan du återskapar problemet där det är möjligt.
 
@@ -215,108 +229,121 @@ Det gör det lättare att korrelera klientåtgärden med motsvarande händelse p
 3.3 Kontrollera Nginx
 
 Kontrollera omvänd proxy:
-bash
 
+```bash
 sudo systemctl status nginx \
     --no-pager
+```
 
 Validera konfigurationen:
-bash
 
+```bash
 sudo nginx -t
+```
 
 Ett lyckat konfigurationstest ska rapportera:
-text
 
+```text
 syntax is ok
 test is successful
+```
 
 Om Nginx inte körs kommer HTTPS-åtkomst till LUMS normalt att misslyckas även om Docker-containern själv är frisk.
 3.4 Kontrollera Agenten
 
 På en hanterad Linux-klient:
-bash
 
+```bash
 sudo systemctl status \
     lums-agent.service \
     --no-pager
+```
 
 Inspektera senaste Agent-utdata:
-bash
 
+```bash
 sudo journalctl \
     -u lums-agent.service \
     -n 100 \
     --no-pager
+```
 
 För en Type=oneshot-tjänst kan ett inaktivt tillstånd efter en lyckad körning vara normalt.
 
 Den viktiga informationen är körningsresultatet.
 
 En lyckad körning ska sluta med:
-text
 
+```text
 status=0/SUCCESS
+```
 
 3.5 Kontrollera Execution Watcher
 
 Watchern är en separat komponent från rapporterande Agent.
 
 Kontrollera den oberoende:
-bash
 
+```bash
 sudo systemctl status \
     lums-agent-watcher.service \
     --no-pager
+```
 
 Inspektera senaste utdata:
-bash
 
+```bash
 sudo journalctl \
     -u lums-agent-watcher.service \
     -n 100 \
     --no-pager
+```
 
 En lyckad Agent-rapport bevisar därför inte att exekveringswatchern fungerar korrekt.
 3.6 Kontrollera LUMS-timers
 
 Kontrollera alla relevanta timers:
-bash
 
+```bash
 sudo systemctl list-timers \
     --all | grep lums
+```
 
 De förväntade timers inkluderar Agentens och watcherns schemaläggningsmekanismer.
 
 Om en timer saknas eller är inaktiv, inspektera motsvarande enhet innan du ändrar något.
-4. LUMS-containern körs inte
+# 4. LUMS-containern körs inte
 
 Om containern lums inte körs ska du inte omedelbart återskapa den.
 
 Inspektera först dess tillstånd:
-bash
 
+```bash
 sudo docker ps -a \
     --filter name=lums
+```
 
 Inspektera sedan containern:
-bash
 
+```bash
 sudo docker inspect lums
+```
 
 Kontrollera de senaste loggarna:
-bash
 
+```bash
 sudo docker logs \
     --tail 200 \
     lums
+```
 
 Kontrollera utgångstillståndet:
-bash
 
+```bash
 sudo docker inspect \
     --format '{{.State.Status}} {{.State.ExitCode}}' \
     lums
+```
 
 Resultatet kan hjälpa till att skilja mellan:
 text
@@ -328,28 +355,31 @@ Container runtime-fel
 Hälsa-/startproblem
 
 Om containern avslutades oväntat, bevara loggarna och containertillståndet innan du ersätter den.
-5. Containern startar men LUMS går inte att nå
+# 5. Containern startar men LUMS går inte att nå
 
 LUMS-applikationen är inte avsedd att nås direkt via Docker-applikationsporten från nätverket.
 
 Produktionsapplikationen är bunden till:
-text
 
+```text
 127.0.0.1:5050
+```
 
 Verifiera portbindningen:
-bash
 
+```bash
 sudo docker port lums
+```
 
 Kontrollera även värdens lyssnare:
-bash
 
+```bash
 sudo ss -lntp | grep -E ':443|:5050'
+```
 
 Den förväntade arkitekturen är:
-text
 
+```text
 HTTPS :443
     │
     ▼
@@ -363,45 +393,50 @@ Docker
     │
     ▼
 LUMS :5000
+```
 
 Om containern körs men HTTPS misslyckas, undersök lagren individuellt:
 
-    Docker-container
+* Docker-container
 
-    Lokal applikationsport
+* Lokal applikationsport
 
-    Nginx-konfiguration
+* Nginx-konfiguration
 
-    TLS
+4. TLS
 
-    Brandvägg/nätverksväg
+* Brandvägg/nätverksväg
 
 Exponera inte port 5050 offentligt som en felsökningsgenväg.
-6. Nginx returnerar ett fel
+# 6. Nginx returnerar ett fel
 
 Kontrollera tjänsten:
-bash
 
+```bash
 sudo systemctl status nginx \
     --no-pager
+```
 
 Validera konfigurationen:
-bash
 
+```bash
 sudo nginx -t
+```
 
 Inspektera senaste Nginx-meddelanden:
-bash
 
+```bash
 sudo journalctl \
     -u nginx \
     -n 100 \
     --no-pager
+```
 
 Verifiera sedan att LUMS-containern faktiskt körs:
-bash
 
+```bash
 sudo docker ps
+```
 
 Ett omvänd proxy-fel innebär inte automatiskt att LUMS-applikationen själv är trasig.
 
@@ -409,6 +444,7 @@ Möjliga felplatser inkluderar:
 text
 
 Webbläsare
+```text
    ↓
 TLS
    ↓
@@ -419,14 +455,16 @@ Nginx
 Docker
    ↓
 LUMS
+```
 
 Testa lagren separat istället för att ändra flera komponenter samtidigt.
-7. HTTPS / TLS-problem
+# 7. HTTPS / TLS-problem
 
 Testa först HTTPS-slutpunkten:
-bash
 
+```bash
 curl -I https://LUMS-SERVER/
+```
 
 Om certifikatverifiering misslyckas, avgör om problemet är:
 text
@@ -439,62 +477,70 @@ Nginx-konfiguration
 Klient-CA-konfiguration
 
 Validera Nginx:
-bash
 
+```bash
 sudo nginx -t
+```
 
 Om certifikatet eller TLS-konfigurationen avsiktligt ändrades, ladda om Nginx:
-bash
 
+```bash
 sudo systemctl reload nginx
+```
 
 Testa sedan igen:
-bash
 
+```bash
 curl -I https://LUMS-SERVER/
+```
 
 Klienter som använder en privat certifikatutfärdare måste lita på lämpligt CA-certifikat.
 
 Inaktivera inte TLS-certifikatverifiering som en permanent lösning.
 
 Ett lyckat anslutningstest som kringgår certifikatvalidering bevisar inte att produktions-TLS-konfigurationen är korrekt.
-8. Agenttjänsten misslyckas
+# 8. Agenttjänsten misslyckas
 
 Kontrollera tjänsten:
-bash
 
+```bash
 sudo systemctl status \
     lums-agent.service \
     --no-pager
+```
 
 Läs den senaste journalen:
-bash
 
+```bash
 sudo journalctl \
     -u lums-agent.service \
     -n 200 \
     --no-pager
+```
 
 Starta tjänsten igen endast efter att ha inspekterat det tidigare resultatet:
-bash
 
+```bash
 sudo systemctl start \
     lums-agent.service
+```
 
 Kontrollera sedan:
-bash
 
+```bash
 sudo systemctl status \
     lums-agent.service \
     --no-pager
+```
 
 och:
-bash
 
+```bash
 sudo journalctl \
     -u lums-agent.service \
     -n 100 \
     --no-pager
+```
 
 Leta efter:
 text
@@ -508,53 +554,59 @@ Python-undantag
 Pakethanteringsfel
 
 Installera inte om Agenten bara för att en enskild körning misslyckades.
-9. Agenten rapporterar att LUMS_TOKEN saknas
+# 9. Agenten rapporterar att LUMS_TOKEN saknas
 
 Agenten får normalt sin produktionskonfiguration via sin systemd-tjänstemiljö.
 
 Om Agenten startas manuellt från ett skal laddas systemd EnvironmentFile inte automatiskt in i det skalet.
 
 Därför:
-bash
 
+```bash
 sudo /opt/lums-agent/agent.py --version
+```
 
 kan bete sig annorlunda än:
-bash
 
+```bash
 sudo systemctl start \
     lums-agent.service
+```
 
 när token endast tillhandahålls via systemd-konfiguration.
 
 När du undersöker autentiseringsproblem, testa den faktiska tjänsten först:
-bash
 
+```bash
 sudo systemctl start \
     lums-agent.service
+```
 
 Inspektera sedan:
-bash
 
+```bash
 sudo journalctl \
     -u lums-agent.service \
     -n 100 \
     --no-pager
+```
 
 Kopiera inte produktions-tokens till skalkommandon i onödan.
 
 Skriv aldrig ut en produktions-token i en diagnostisk logg.
-10. Agenten kan inte nå servern
+# 10. Agenten kan inte nå servern
 
 Börja med nätverksanslutning:
-bash
 
+```bash
 ping LUMS-SERVER
+```
 
 Testa sedan HTTPS:
-bash
 
+```bash
 curl -I https://LUMS-SERVER/
+```
 
 Om HTTPS fungerar men Agenten fortfarande misslyckas, undersök:
 text
@@ -567,24 +619,26 @@ Klientidentitet
 Agentversion
 
 Inspektera Agenten:
-bash
 
+```bash
 sudo journalctl \
     -u lums-agent.service \
     -n 200 \
     --no-pager
+```
 
 Inspektera samtidigt servern:
-bash
 
+```bash
 sudo docker logs \
     --tail 200 \
     lums
+```
 
 Detta hjälper till att avgöra om begäran når LUMS överhuvudtaget.
 
 Om klienten ser ett anslutningsfel och servern inte visar någon motsvarande begäran, undersök nätverks- eller TLS-vägen innan du ändrar applikationskonfigurationen.
-11. Fortsätt felsökningen
+# 11. Fortsätt felsökningen
 
 Om de grundläggande server-, Docker-, Nginx-, TLS- och Agent-lagren fungerar, fortsätt med:
 text
@@ -597,7 +651,7 @@ Idle-detektering
 Väntande jobb
 
 Nästa avsnitt fortsätter med klientautentisering och tokenrelaterade problem.
-12. Klientautentisering
+# 12. Klientautentisering
 
 LUMS använder klientspecifik autentisering för Agent-kommunikation.
 
@@ -607,28 +661,31 @@ Autentiseringsfel ska undersökas utan att exponera klienttoken.
 12.1 Klienten accepteras inte av LUMS
 
 Om en Agent rapporterar ett autentiseringsfel, inspektera först Agent-loggen:
-bash
 
+```bash
 sudo journalctl \
     -u lums-agent.service \
     -n 100 \
     --no-pager
+```
 
 Inspektera sedan LUMS-containerloggarna:
-bash
 
+```bash
 sudo docker logs \
     --tail 100 \
     lums
+```
 
 Leta efter:
-text
 
+```text
 401 Unauthorized
 403 Forbidden
 Invalid client token
 Unknown client
 Authentication failure
+```
 
 Ett 401-svar indikerar vanligtvis ett autentiseringsproblem.
 
@@ -658,7 +715,7 @@ Om klienten finns, jämför den konfigurerade klientidentiteten med den identite
 Själva produktions-token får aldrig skrivas ut i diagnostisk utdata.
 
 Använd konfigurationsmetadata och tjänstestatus för felsökning istället för att exponera autentiseringsuppgifter.
-13. Klienttokenrotation
+# 13. Klienttokenrotation
 
 Klienttokenrotation ogiltigförklarar den tidigare token och ersätter den med en ny autentiseringsuppgift.
 
@@ -668,6 +725,7 @@ Den förväntade sekvensen är:
 text
 
 Administratör
+```text
     │
     ▼
 Rotera klienttoken
@@ -682,43 +740,48 @@ Ny token tilldelas klienten
 Agentkonfiguration uppdateras
     │
     ▼
+```
 Agenten rapporterar igen
 
 Om Agenten fortsätter använda den gamla token kommer autentiseringen att misslyckas.
 13.1 Efter tokenrotation
 
 Kontrollera Agenttjänsten:
-bash
 
+```bash
 sudo systemctl status \
     lums-agent.service \
     --no-pager
+```
 
 Kör sedan Agenten via systemd:
-bash
 
+```bash
 sudo systemctl start \
     lums-agent.service
+```
 
 Inspektera resultatet:
-bash
 
+```bash
 sudo journalctl \
     -u lums-agent.service \
     -n 100 \
     --no-pager
+```
 
 Om autentiseringen fortfarande misslyckas, inspektera serverloggarna:
-bash
 
+```bash
 sudo docker logs \
     --tail 100 \
     lums
+```
 
 Rotera inte token upprepade gånger.
 
 Upprepad rotation kan göra det svårare att avgöra vilken autentiseringsuppgift som för närvarande är distribuerad på klienten.
-14. Klienten är inaktiverad
+# 14. Klienten är inaktiverad
 
 En inaktiverad klient får inte behandlas som en aktiv hanterad klient.
 
@@ -741,23 +804,23 @@ Uppdateringsidentifiering består av flera oberoende steg.
 
 Agenten måste:
 
-    köra pakethanterarens fråga
+* köra pakethanterarens fråga
 
-    tolka resultatet
+* tolka resultatet
 
-    skicka resultatet till LUMS
+* skicka resultatet till LUMS
 
-    LUMS måste validera resultatet
+* LUMS måste validera resultatet
 
-    LUMS måste spara resultatet
+* LUMS måste spara resultatet
 
-    användargränssnittet måste visa det aktuella tillståndet
+* användargränssnittet måste visa det aktuella tillståndet
 
 Ett fel i något steg kan göra att uppdateringsinformationen verkar felaktig.
 
 Det grundläggande flödet är:
-text
 
+```text
 APT / pacman
      │
      ▼
@@ -773,6 +836,7 @@ LUMS API
 SQLite
      │
      ▼
+```
 Webbgränssnitt
 
 15.1 Inga uppdateringar visas
@@ -780,19 +844,21 @@ Webbgränssnitt
 Avgör först om klienten faktiskt rapporterade framgångsrikt.
 
 Kontrollera:
-bash
 
+```bash
 sudo journalctl \
     -u lums-agent.service \
     -n 100 \
     --no-pager
+```
 
 Inspektera sedan servern:
-bash
 
+```bash
 sudo docker logs \
     --tail 100 \
     lums
+```
 
 Om Agenten slutfördes framgångsrikt men inga uppdateringar visas, undersök API- och databastillståndet innan du ändrar pakethanteraren.
 15.2 Uppdateringsidentifiering för Debian / Ubuntu
@@ -800,9 +866,10 @@ Om Agenten slutfördes framgångsrikt men inga uppdateringar visas, undersök AP
 Debian-pakethanteraren använder APT.
 
 När du undersöker APT-relaterade problem, verifiera först att APT själv fungerar:
-bash
 
+```bash
 sudo apt update
+```
 
 Kör inte automatiskt paketuppgraderingar under felsökning.
 
@@ -814,16 +881,17 @@ Om APT rapporterar repository-, DNS-, TLS-, signatur- eller låsningsfel, lös d
 Arch Linux använder pacman.
 
 Kontrollera repository-metadata:
-bash
 
+```bash
 sudo pacman -Sy
+```
 
 Använd detta endast när uppdatering av repository-metadata faktiskt krävs för diagnostiken.
 
 Kombinera inte en onödig systemuppgradering med ett diagnostiskt test.
 
 För paketrelaterade fel, inspektera den exakta pacman-utdata innan du ändrar konfigurationen.
-16. Tillgängliga uppdateringar skiljer sig mellan LUMS och klienten
+# 16. Tillgängliga uppdateringar skiljer sig mellan LUMS och klienten
 
 Uppdateringsinformation kan ändras mellan två observationer.
 
@@ -831,11 +899,11 @@ Till exempel:
 text
 
 Klienten rapporterar uppdateringar
-        ↓
+  * ↓
 Repository-metadata ändras
-        ↓
+  * ↓
 Paketet uppgraderas manuellt
-        ↓
+  * ↓
 LUMS visar äldre information
 
 Tänk därför alltid på tidsstämpeln för den senaste lyckade klientrapporten.
@@ -851,7 +919,7 @@ Pakethanterarens tillstånd
 Repository-metadata
 Visat uppdateringstillstånd
 
-17. Pakethantering
+# 17. Pakethantering
 
 LUMS pakethantering är separat från filtret för installerade paket som visas på klientsidan.
 
@@ -859,6 +927,7 @@ Arbetsflödet för pakethantering är:
 text
 
 Användare
+```text
  │
  ▼
 Paketsökning
@@ -879,6 +948,7 @@ Sökresultat
 LUMS API
  │
  ▼
+```
 Webbgränssnitt
 
 Att installera, ta bort eller uppdatera ett paket använder den normala jobbmekanismen i LUMS.
@@ -887,6 +957,7 @@ Den förväntade exekveringsvägen är:
 text
 
 Paketåtgärd
+```text
      │
      ▼
 Uppdateringsjobb
@@ -899,23 +970,26 @@ Agent
      │
      ▼
 APT / pacman
+```
 
 17.1 Paketsökning returnerar inga resultat
 
 Verifiera först att Agenten är operativ:
-bash
 
+```bash
 sudo systemctl status \
     lums-agent.service \
     --no-pager
+```
 
 Inspektera sedan Agent-journalen:
-bash
 
+```bash
 sudo journalctl \
     -u lums-agent.service \
     -n 200 \
     --no-pager
+```
 
 För Debian-baserade klienter, verifiera APT-metadata.
 
@@ -945,54 +1019,58 @@ Pakethanteringsfel
 Inspektera motsvarande uppdateringsjobb.
 
 Agent-journalen ska innehålla pakethanterarens resultat.
-18. Paketinstallationsjobb
+# 18. Paketinstallationsjobb
 
 Paketinstallation använder den normala infrastrukturen för uppdateringsjobb.
 
 Den relevanta åtgärden är:
-text
 
+```text
 INSTALL_PACKAGE
+```
 
 Vid felsökning av en installation:
 
-    Kontrollera jobbets tillstånd i LUMS.
+* Kontrollera jobbets tillstånd i LUMS.
 
-    Kontrollera Agentens körning.
+* Kontrollera Agentens körning.
 
-    Kontrollera pakethanterarens utdata.
+* Kontrollera pakethanterarens utdata.
 
-    Kontrollera det slutliga resultatet som rapporterats till LUMS.
+* Kontrollera det slutliga resultatet som rapporterats till LUMS.
 
 Ändra inte jobbstatus manuellt i SQLite.
 
 Den förväntade livscykeln är:
-text
+```text
 
 PENDING
    ↓
 RUNNING
    ↓
 SUCCESS
+```
 
 eller:
-text
 
+```text
 PENDING
    ↓
 RUNNING
    ↓
 FAILED
+```
 
 En misslyckad paketinstallation ska förbli spårbar genom de normala jobb- och granskningsmekanismerna.
-19. Paketborttagningsjobb
+# 19. Paketborttagningsjobb
 
 Paketborttagning följer samma jobblivscykel.
 
 Åtgärden är:
-text
 
+```text
 REMOVE_PACKAGE
+```
 
 När en borttagning misslyckas, inspektera:
 text
@@ -1005,37 +1083,40 @@ Slutligt jobbresultat
 Ta inte bort databasposter manuellt för att dölja en misslyckad paketåtgärd.
 
 Ett misslyckat jobb är användbar diagnostisk information.
-20. Paketuppdateringsjobb
+# 20. Paketuppdateringsjobb
 
 En paketspecifik uppdatering använder:
-text
 
+```text
 UPDATE_PACKAGE
+```
 
 Paketet måste vara känt av LUMS som having en tillgänglig uppdatering innan jobbet skapas.
 
 Om användargränssnittet inte erbjuder den förväntade paketuppdateringen:
 
-    uppdatera uppdateringsinformationen
+* uppdatera uppdateringsinformationen
 
-    verifiera pakethanterarens tillstånd
+* verifiera pakethanterarens tillstånd
 
-    verifiera resultatet för tillgängliga uppdateringar
+* verifiera resultatet för tillgängliga uppdateringar
 
-    inspektera serverloggarna om tillståndet är inkonsekvent
+* inspektera serverloggarna om tillståndet är inkonsekvent
 
 Infoga inte uppdateringsposter manuellt i SQLite.
-21. Systemuppdateringsjobb
+# 21. Systemuppdateringsjobb
 
 En fullständig systemuppdatering använder:
-text
 
+```text
 UPDATE_SYSTEM
+```
 
 Detta skiljer sig från:
-text
 
+```text
 UPDATE_PACKAGE
+```
 
 Systemuppdateringen kan påverka flera paket och kan kräva omstart beroende på operativsystem och resulterande pakettillstånd.
 
@@ -1048,16 +1129,17 @@ Resultatinsamling
 Omstartsdetektering
 Rapportering efter omstart
 
-22. Pakethanterarens låsningar
+# 22. Pakethanterarens låsningar
 
 Pakethanterare kan vägra en åtgärd när en annan pakethanteringsprocess redan körs.
 
 Typiska exempel inkluderar:
-text
 
+```text
 APT is already running
 dpkg is locked
 pacman is locked
+```
 
 Identifiera först processen som håller låset.
 
@@ -1085,7 +1167,7 @@ Försök igen
 Skilj alltid mellan ett pakethanteringsfel och ett LUMS-fel.
 
 Till exempel:
-text
+```text
 
 APT misslyckas
     ↓
@@ -1102,6 +1184,7 @@ APT lyckas
     ↓
 Agenten kan inte rapportera resultat
     ↓
+```
 LUMS tar aldrig emot SUCCESS
 
 Här kan paketåtgärden ha lyckats medan LUMS rapporteringsväg misslyckades.
@@ -1126,12 +1209,13 @@ Ett pakethanteringsfel ska inte automatiskt leda till en Docker-ombyggnad.
 Ett problem med användargränssnittet ska inte automatiskt leda till att databasen raderas.
 
 Ett autentiseringsfel ska inte automatiskt leda till att Agenten installeras om.
-25. Nästa felsökningsområde
+# 25. Nästa felsökningsområde
 
 Om klientautentisering, uppdateringsidentifiering och pakethantering fungerar är nästa diagnostiska område själva exekveringslivscykeln:
 text
 
 Uppdateringsjobb
+```text
     ↓
 Watcher
     ↓
@@ -1143,10 +1227,11 @@ Resultat
     ↓
 Checkpoint / Återställning
     ↓
+```
 Slutligt jobbtillstånd
 
 Nästa avsnitt täcker Execution Watcher, Idle-detektering, jobbtillstånd, återställning och omstarthantering.
-26. Uppdateringsjobbsexekvering
+# 26. Uppdateringsjobbsexekvering
 
 LUMS uppdateringsjobb körs asynkront via Agenten och Execution Watcher.
 
@@ -1154,6 +1239,7 @@ Den normala exekveringsvägen är:
 text
 
 Användare
+```text
  │
  ▼
 LUMS API
@@ -1181,6 +1267,7 @@ LUMS API
  │
  ▼
 SQLite
+```
 
 Ett jobb som syns i användargränssnittet är inte nödvändigtvis redan under exekvering.
 
@@ -1190,26 +1277,29 @@ Fastställ alltid det aktuella jobbtillståndet först.
 Om ett jobb förblir i PENDING, kontrollera Execution Watcher innan du undersöker Agenten.
 
 Kontrollera watchern:
-bash
 
+```bash id="wq5h3v"
 sudo systemctl status \
     lums-agent-watcher.service \
     --no-pager
+```
 
 Inspektera senaste watcher-utdata:
-bash
 
+```bash id="8y0v7e"
 sudo journalctl \
     -u lums-agent-watcher.service \
     -n 200 \
     --no-pager
+```
 
 Kontrollera sedan Agenten:
-bash
 
+```bash id="j8x4qm"
 sudo systemctl status \
     lums-agent.service \
     --no-pager
+```
 
 Ett väntande jobb indikerar normalt att exekveringssteget ännu inte har startat.
 
@@ -1224,27 +1314,29 @@ Klienten har inte rapporterat nyligen
 Jobbet är ännu inte kvalificerat för exekvering
 
 Ändra inte jobbtillståndet manuellt i SQLite.
-27. Jobbet har fastnat i RUNNING
+# 27. Jobbet har fastnat i RUNNING
 
 Ett RUNNING-jobb indikerar att exekveringen har startat.
 
 Avgör först om Agenten faktiskt kör jobbet.
 
 Kontrollera:
-bash
 
+```bash id="s2z5ek"
 sudo journalctl \
     -u lums-agent.service \
     -n 200 \
     --no-pager
+```
 
 Inspektera sedan watchern:
-bash
 
+```bash id="x4f6cb"
 sudo journalctl \
     -u lums-agent-watcher.service \
     -n 200 \
     --no-pager
+```
 
 Ett körande jobb kan ta lite tid beroende på:
 text
@@ -1287,24 +1379,26 @@ Autentiseringsfel
 Det ursprungliga felet bör bevaras när det är möjligt.
 
 Ersätt inte ett misslyckat jobb med en manuellt skapad lyckad post.
-29. Jobbet är SUCCESS men paketet ändrades inte
+# 29. Jobbet är SUCCESS men paketet ändrades inte
 
 Ett lyckat LUMS-jobb innebär att den begärda åtgärden slutfördes enligt Agentens resultat.
 
 Om det förväntade pakettillståndet inte matchar jobbresultatet, verifiera klienten direkt.
 
 För Debian-baserade system:
-bash
 
+```bash id="gqdbm7"
 dpkg-query -W \
     -f='${Package} ${Version}\n' \
     PACKAGE_NAME
+```
 
 För Arch Linux:
-bash
 
+```bash id="2x9f7v"
 pacman -Q \
     PACKAGE_NAME
+```
 
 Ersätt PACKAGE_NAME med paketet som undersöks.
 
@@ -1319,35 +1413,38 @@ Pakethanterarens utdata tolkades annorlunda än förväntat
 Jobbresultatet genererades före en annan lokal ändring
 
 Ändra inte LUMS-databasen förrän avvikelsen har identifierats.
-30. Execution Watcher
+# 30. Execution Watcher
 
 Execution Watcher ansvarar för att upptäcka jobb som är kvalificerade för exekvering.
 
 Watchern måste behandlas som en oberoende komponent.
 
 Kontrollera dess tjänst:
-bash
 
+```bash id="w5m0c8"
 sudo systemctl status \
     lums-agent-watcher.service \
     --no-pager
+```
 
 Kontrollera dess timer:
-bash
 
+```bash id="3v1x7r"
 sudo systemctl list-timers \
     --all | grep lums
+```
 
 Inspektera dess journal:
-bash
 
+```bash id="d5m0xk"
 sudo journalctl \
     -u lums-agent-watcher.service \
     -n 200 \
     --no-pager
+```
 
 Om Agenten fungerar men jobb aldrig startar, bör watchern vara en av de första komponenterna att undersöka.
-31. Watchern körs men utför inga jobb
+# 31. Watchern körs men utför inga jobb
 
 En watcher-körning innebär inte automatiskt att ett jobb startas.
 
@@ -1368,7 +1465,7 @@ Exekveringsvillkoren är uppfyllda
 Om klienten inte är kvalificerad kan watchern korrekt lämna jobbet väntande.
 
 Detta är inte nödvändigtvis ett fel.
-32. Idle-detektering
+# 32. Idle-detektering
 
 LUMS kan använda klientens idle-information när den beslutar om ett jobb ska köras.
 
@@ -1382,34 +1479,36 @@ Felsökningssekvensen är:
 text
 
 Agenten rapporterar
-     ↓
+* ↓
 Idle-information tillgänglig?
-     ↓
+* ↓
 Idle-tillstånd acceptabelt?
-     ↓
+* ↓
 Jobbet kvalificerat?
-     ↓
+* ↓
 Watchern kör
 
 32.1 Klienten rapporterar men anses inte vara idle
 
 Kontrollera Agent-journalen:
-bash
 
+```bash id="5r2q1k"
 sudo journalctl \
     -u lums-agent.service \
     -n 200 \
     --no-pager
+```
 
 Leta efter den rapporterade idle-informationen.
 
 Inspektera sedan watchern:
-bash
 
+```bash id="2a6v8m"
 sudo journalctl \
     -u lums-agent-watcher.service \
     -n 200 \
     --no-pager
+```
 
 Den viktiga skillnaden är:
 text
@@ -1462,30 +1561,32 @@ text
 Slutfört arbete förblir slutfört.
 Ofullständigt arbete förblir återställningsbart.
 
-35. Avbrutet jobb
+# 35. Avbrutet jobb
 
 Om ett jobb avbröts, inspektera först dess tillstånd.
 
 Inspektera sedan Agenten:
-bash
 
+```bash id="3u8d4k"
 sudo journalctl \
     -u lums-agent.service \
     -n 200 \
     --no-pager
+```
 
 Inspektera watchern:
-bash
 
+```bash id="w4x1b9"
 sudo journalctl \
     -u lums-agent-watcher.service \
     -n 200 \
     --no-pager
+```
 
 Markera inte jobbet som lyckat manuellt.
 
 Återställningsmekanismen ska avgöra vilka paketposter som redan slutförts.
-36. Återställning upprepar en paketoperation
+# 36. Återställning upprepar en paketoperation
 
 När återställning utlöses bör redan lyckade paketposter inte köras igen i onödan.
 
@@ -1511,35 +1612,37 @@ Den förväntade återställningsvägen är:
 text
 
 Uppdatering startar
-    ↓
+* ↓
 Paketoperation
-    ↓
+* ↓
 Klientomstart
-    ↓
+* ↓
 Agenten startar igen
-    ↓
+* ↓
 Tillstånd rapporteras
-    ↓
+* ↓
 LUMS utvärderar återställning
 
 En omstart innebär därför inte automatiskt att jobbet misslyckades permanent.
 
 Inspektera Agenttjänsten efter att klienten återvänt:
-bash
 
+```bash id="jjh3u8"
 sudo systemctl status \
     lums-agent.service \
     --no-pager
+```
 
 Inspektera sedan senaste körningarna:
-bash
 
+```bash id="h7y5gk"
 sudo journalctl \
     -u lums-agent.service \
     -n 200 \
     --no-pager
+```
 
-38. Omstartsdetektering
+# 38. Omstartsdetektering
 
 Omstartsdetektering används för att avgöra om en systemomstart inträffade som en del av en uppdateringsoperation.
 
@@ -1558,27 +1661,29 @@ Faktiskt omstartstillstånd
 Agentrapport efter omstart
 Slutligt LUMS-jobbtillstånd
 
-39. Jobbresultatet rapporterades inte
+# 39. Jobbresultatet rapporterades inte
 
 Om paketoperationen verkar ha slutförts men LUMS inte visar det slutliga resultatet, undersök rapporteringsvägen.
 
 Kontrollera Agenten:
-bash
 
+```bash id="t0r8kf"
 sudo journalctl \
     -u lums-agent.service \
     -n 200 \
     --no-pager
+```
 
 Kontrollera sedan servern:
-bash
 
+```bash id="h5n1xv"
 sudo docker logs \
     --tail 200 \
     lums
+```
 
 Om Agenten rapporterar ett fel medan själva paketoperationen lyckades, klassificera problemet som ett rapporteringsfel snarare än ett pakethanteringsfel.
-40. Serveromstart under jobbexekvering
+# 40. Serveromstart under jobbexekvering
 
 En serveromstart får inte automatiskt behandlas som bevis på att en uppdateringsoperation misslyckades.
 
@@ -1617,19 +1722,21 @@ Granskningshändelser
 Databasen är ett applikationsdatalager, inte ett manuellt reparationsgränssnitt.
 
 Direkta ändringar kan kringgå validering, auktorisering, granskning och återställningslogik.
-42. Manuella ändringar av jobbtillstånd
+# 42. Manuella ändringar av jobbtillstånd
 
 Manuella SQL-ändringar av uppdateringsjobbets tillstånd bör inte användas som normal felsökning.
 
 Undvik operationer som:
-sql
 
+```sql id="8hbyqv"
 UPDATE update_jobs ...
+```
 
 eller:
-sql
 
+```sql id="n1h7yr"
 DELETE FROM update_jobs ...
+```
 
 såvida inte en kontrollerad databasåterställningsprocedur uttryckligen kräver dem.
 
@@ -1639,17 +1746,18 @@ Normala operativa problem bör lösas genom applikations- och Agent-mekanismerna
 43. Diagnostisk matris för Watcher och Agent
 
 Använd följande matris för att identifiera det mest sannolika lagret:
-Symtom	Första komponent att inspektera
-Klienten kan inte autentisera	Agent + LUMS API
-Klienten rapporterar framgångsrikt men jobbet förblir väntande	Execution Watcher
-Jobbet blir körande men slutförs inte	Agent + pakethanterare
-Paketoperationen misslyckas	Pakethanterare
-Paketoperationen lyckas men resultatet saknas	Agentrapportering
-Klienten startade om under uppdateringen	Agent + återställning
-Jobbet förblir inkonsekvent efter omstart	Återställning + databastillstånd
-Jobbet upptäcks aldrig	Watcher + timer
-Klienten är inte kvalificerad	Idle / klienttillstånd
-Användargränssnittet visar inaktuellt tillstånd	API + senaste klientrapport
+| Symtom | Första komponent att inspektera |
+| --- | --- |
+| Klienten kan inte autentisera | Agent + LUMS API |
+| Klienten rapporterar framgångsrikt men jobbet förblir väntande | Execution Watcher |
+| Jobbet blir körande men slutförs inte | Agent + pakethanterare |
+| Paketoperationen misslyckas | Pakethanterare |
+| Paketoperationen lyckas men resultatet saknas | Agentrapportering |
+| Klienten startade om under uppdateringen | Agent + återställning |
+| Jobbet förblir inkonsekvent efter omstart | Återställning + databastillstånd |
+| Jobbet upptäcks aldrig | Watcher + timer |
+| Klienten är inte kvalificerad | Idle / klienttillstånd |
+| Användargränssnittet visar inaktuellt tillstånd | API + senaste klientrapport |
 
 Denna matris är en utgångspunkt, inte en ersättning för att inspektera de faktiska loggarna och jobbtillståndet.
 44. Nästa felsökningsområde
@@ -1665,14 +1773,15 @@ Containersäkerhet
 Tester och CI
 
 Dessa områden bör undersökas separat från paketexekvering.
-45. Felsökning av SQLite och databasen
+# 45. Felsökning av SQLite och databasen
 
 LUMS använder SQLite som sin applikationsdatabas.
 
 Produktionsdatabasen lagras i den beständiga Docker-volymen:
-text
 
+```text id="9c6w3e"
 /var/lib/lums/lums.db
+```
 
 Databasen hanteras av applikationen och får normalt inte ändras manuellt.
 
@@ -1686,19 +1795,21 @@ Datakonsistens
 Migreringstillstånd
 Applikationslogik
 
-46. Databasen är inte tillgänglig
+# 46. Databasen är inte tillgänglig
 
 Om LUMS rapporterar ett databasfel, kontrollera först om containern körs:
-bash
 
+```bash id="0l5q6h"
 sudo docker ps
+```
 
 Inspektera sedan applikationsloggarna:
-bash
 
+```bash id="6j5p8m"
 sudo docker logs \
     --tail 200 \
     lums
+```
 
 Radera inte Docker-volymen omedelbart.
 
@@ -1714,23 +1825,25 @@ Uppdateringsjobb
 Granskningsdata
 Applikationstillstånd
 
-47. SQLite-databaslåsning
+# 47. SQLite-databaslåsning
 
 SQLite-låsningsproblem bör undersökas genom applikationsloggarna.
 
 Inspektera:
-bash
 
+```bash id="l8f6vk"
 sudo docker logs \
     --tail 200 \
     lums
+```
 
 Produktionsapplikationen använder:
-text
 
+```text id="2d3m8x"
 journal_mode = wal
 busy_timeout = 5000
 synchronous = 2
+```
 
 Applikationen aktiverar också SQLite-främmandenyckeltvingande på sina databasanslutningar.
 
@@ -1746,7 +1859,7 @@ Oväntad processavslutning
 Filsystemproblem
 
 Ta inte bort SQLite-journalfiler manuellt.
-48. SQLite-främmandenycklar
+# 48. SQLite-främmandenycklar
 
 LUMS aktiverar uttryckligen SQLite-främmandenyckeltvingande på applikationsnivå.
 
@@ -1757,7 +1870,7 @@ Om ett främmandenyckelrelaterat fel uppstår, inspektera applikationsloggarna f
 Inaktivera inte främmandenyckeltvingande för att få en operation att lyckas.
 
 Ett främmandenyckelfel kan indikera ett applikationslogik- eller dataintegritetsproblem.
-49. SQLite-databasintegritet
+# 49. SQLite-databasintegritet
 
 Om databaskorruption misstänks, sluta göra onödiga ändringar först.
 
@@ -1787,16 +1900,17 @@ Radera databasen
 Återskapa databasen
 Återskapa Docker-volymen
 
-50. Databasmigreringar
+# 50. Databasmigreringar
 
 LUMS använder applikationsmigreringar för att införa databasschemändringar.
 
 När ett migreringsproblem uppstår, inspektera containerloggarna:
-bash
 
+```bash id="x4h9vf"
 sudo docker logs \
     --tail 200 \
     lums
+```
 
 Leta efter:
 text
@@ -1811,18 +1925,20 @@ Migrering redan tillämpad
 Redigera inte migreringsposter manuellt om inte migreringssystemet specifikt kräver en kontrollerad återställningsprocedur.
 
 En migrering som redan har tillämpats bör normalt inte köras manuellt igen.
-51. Databasvolym
+# 51. Databasvolym
 
 LUMS-databasen lagras i den beständiga Docker-volymen:
-text
 
+```text id="p6m3jw"
 lums-data
+```
 
 Inspektera volymen:
-bash
 
+```bash id="v4c7yq"
 sudo docker volume inspect \
     lums-data
+```
 
 Volymen måste förbli beständig över normal containeråterskapning.
 
@@ -1831,43 +1947,47 @@ Själva applikationscontainern är disponibel.
 Applikationsdata är det inte.
 
 Därför:
-text
 
+```text id="z9f4ws"
 Container
     ≠
+```
 Beständig databas
 
 Att återskapa containern får inte förväxlas med att återskapa datavolymen.
-52. Databasens diskutrymme
+# 52. Databasens diskutrymme
 
 SQLite kräver tillgängligt filsystemutrymme för normal drift.
 
 Kontrollera värdens filsystem:
-bash
 
+```bash id="j6k1pt"
 df -h
+```
 
 Kontrollera även inode-tillgänglighet:
-bash
 
+```bash id="q2c5ra"
 df -i
+```
 
 Lågt diskutrymme kan producera databasfel som initialt ser ut som applikationsproblem.
 
 Om databasen plötsligt blir skrivskyddad eller skrivningar börjar misslyckas, verifiera filsystemskapaciteten innan du ändrar SQLite-konfigurationen.
-53. Felsökning av RBAC
+# 53. Felsökning av RBAC
 
 LUMS använder rollbaserad åtkomstkontroll.
 
 De nuvarande rollerna är:
-text
 
+```text id="k8w5j2"
 Administrator
 Operator
 Viewer
+```
 
 Behörigheterna är avsiktligt olika.
-53.1 Administrator
+## 53.1 Administrator
 
 Administratörer kan:
 text
@@ -1885,7 +2005,7 @@ Hantera användare
 Hantera roller
 
 Administratörsspecifika operationer inkluderar användarhantering och rolladministration.
-53.2 Operator
+## 53.2 Operator
 
 Operatorer kan:
 text
@@ -1906,7 +2026,7 @@ Hantera roller
 Skapa eller inaktivera klienter
 Rotera klienttokens
 
-53.3 Viewer
+## 53.3 Viewer
 
 Viewers har avsiktligt begränsad åtkomst.
 
@@ -1928,13 +2048,13 @@ Systemunderhåll
 Detta är en avsiktlig säkerhetskontroll.
 
 Om en Viewer kan komma åt en av dessa funktioner, behandla problemet som ett RBAC-problem snarare än bara ett UI-problem.
-54. Viewer ser för mycket
+# 54. Viewer ser för mycket
 
 Om en Viewer ser funktioner som inte bör vara tillgängliga, kontrollera båda lagren:
 text
 
 Webbläsargränssnitt
-    +
+* +
 Auktorisering på serversidan
 
 Att dölja ett element i JavaScript eller HTML är inte tillräcklig säkerhet.
@@ -1943,18 +2063,18 @@ API:et måste också avvisa obehöriga operationer.
 
 Vid undersökning:
 
-    Fastställ den autentiserade användarens roll.
+* Fastställ den autentiserade användarens roll.
 
-    Identifiera den berörda slutpunkten.
+* Identifiera den berörda slutpunkten.
 
-    Kontrollera serverns svar.
+* Kontrollera serverns svar.
 
-    Inspektera applikationsloggarna vid behov.
+* Inspektera applikationsloggarna vid behov.
 
-    Verifiera det relevanta RBAC-testet.
+* Verifiera det relevanta RBAC-testet.
 
 Lös inte ett auktoriseringsproblem genom att bara dölja UI-elementet.
-55. Viewer kan inte se förväntad data
+# 55. Viewer kan inte se förväntad data
 
 En Viewer bör fortfarande kunna komma åt den information som uttryckligen tillåts av den aktuella RBAC-modellen.
 
@@ -1997,6 +2117,7 @@ Om en Administrator får ett auktoriseringsfel:
 text
 
 Verifiera autentiserad session
+```text id="3h6q8f"
         ↓
 Verifiera aktuell roll
         ↓
@@ -2004,12 +2125,13 @@ Verifiera slutpunktsauktorisering
         ↓
 Inspektera CSRF-krav
         ↓
+```
 Inspektera applikationsloggar
 
 För tillståndsändrande operationer kan en giltig session ensam inte vara tillräcklig.
 
 CSRF-skydd måste också uppfyllas där det krävs.
-58. Användarhantering
+# 58. Användarhantering
 
 Användarhantering är begränsad till Administratörer.
 
@@ -2017,13 +2139,15 @@ Arbetsflödet för användarhantering är:
 text
 
 Administratör
+```text id="x4j6pw"
     │
     ▼
 Användarhantering
     │
-    ├── Skapa användare
-    ├── Tilldela roll
-    └── Aktivera / inaktivera användare
+```
+* ├── Skapa användare
+* ├── Tilldela roll
+* └── Aktivera / inaktivera användare
 
 När en användare inte kan skapas, kontrollera:
 text
@@ -2039,7 +2163,7 @@ Applikationsloggar
 Skapa inte användare direkt i SQLite.
 
 Direkt databasinsättning kringgår lösenordshashning, validering, auktorisering och granskningsloggning.
-59. Användarskapande misslyckas
+# 59. Användarskapande misslyckas
 
 Om användarskapande misslyckas, inspektera webbläsarens svar och serverloggarna.
 
@@ -2178,6 +2302,7 @@ Om en tillståndsändrande begäran oväntat misslyckas:
 text
 
 Verifiera autentiserad session
+```text id="9w3r5b"
         ↓
 Verifiera CSRF-token
         ↓
@@ -2185,6 +2310,7 @@ Verifiera begärandemetod
         ↓
 Verifiera slutpunkt
         ↓
+```
 Inspektera serversvar
 
 Inaktivera inte CSRF-skydd som en felsökningslösning.
@@ -2215,16 +2341,17 @@ Sidan har varit öppen länge
 
 Ladda om sidan och upprätta en ny session innan du antar att auktoriseringen på serversidan är felaktig.
 68. Diagnostisk RBAC-matris
-Symtom	Första komponent att inspektera
-Viewer ser management-UI	Klientsidans rollhantering
-Viewer API-begäran lyckas	RBAC på serversidan
-Operator får 403	Slutpunktens behörighetsmodell
-Administrator får 403	Session / CSRF / slutpunktsauktorisering
-Användare kan inte skapas	Adminroll + validering
-Inaktiverad användare kan logga in	Kontotillstånd + sessionshantering
-Inloggning tillfälligt blockerad	Hastighetsbegränsning
-Tillståndsändrande begäran avvisas	CSRF / session
-UI och API är oense	Webbläsartillstånd + serverauktorisering
+| Symtom | Första komponent att inspektera |
+| --- | --- |
+| Viewer ser management-UI | Klientsidans rollhantering |
+| Viewer API-begäran lyckas | RBAC på serversidan |
+| Operator får 403 | Slutpunktens behörighetsmodell |
+| Administrator får 403 | Session / CSRF / slutpunktsauktorisering |
+| Användare kan inte skapas | Adminroll + validering |
+| Inaktiverad användare kan logga in | Kontotillstånd + sessionshantering |
+| Inloggning tillfälligt blockerad | Hastighetsbegränsning |
+| Tillståndsändrande begäran avvisas | CSRF / session |
+| UI och API är oense | Webbläsartillstånd + serverauktorisering |
 
 Resultatet av auktoriseringen på serversidan är alltid viktigare än huruvida ett gränssnittselement är synligt.
 69. Nästa felsökningsområde
@@ -2241,23 +2368,25 @@ Diagnostiska ögonblicksbilder
 Slutlig återställningschecklista
 
 Dessa områden bör undersökas utan att försvaga säkerhetsbaslinjen.
-70. Applikationsloggning
+# 70. Applikationsloggning
 
 LUMS använder applikationsloggning för att tillhandahålla diagnostisk information utan att exponera känsliga autentiseringsuppgifter.
 
 När du undersöker ett applikationsproblem, börja med de senaste loggarna:
-bash
 
+```bash id="f6m2qa"
 sudo docker logs \
     --tail 200 \
     lums
+```
 
 För kontinuerlig övervakning:
-bash
 
+```bash id="x3v8kp"
 sudo docker logs \
     -f \
     lums
+```
 
 Återskapa problemet medan du övervakar loggarna när det är möjligt.
 
@@ -2265,16 +2394,16 @@ Det gör det lättare att korrelera:
 text
 
 Användaråtgärd
-    ↓
+* ↓
 HTTP-begäran
-    ↓
+* ↓
 Applikationshändelse
-    ↓
+* ↓
 Databasoperation
-    ↓
+* ↓
 Agentinteraktion
 
-71. Applikationsloggar innehåller ett fel
+# 71. Applikationsloggar innehåller ett fel
 
 Identifiera först komponenten som producerade meddelandet.
 
@@ -2326,15 +2455,15 @@ Använd applikationsloggar för tekniska körningsdetaljer och granskningsloggar
 
 Om en förväntad granskningshändelse saknas:
 
-    Identifiera den exakta åtgärden.
+* Identifiera den exakta åtgärden.
 
-    Identifiera API-slutpunkten.
+* Identifiera API-slutpunkten.
 
-    Verifiera att åtgärden faktiskt nådde servern.
+* Verifiera att åtgärden faktiskt nådde servern.
 
-    Inspektera applikationsloggarna.
+* Inspektera applikationsloggarna.
 
-    Avgör om åtgärden avvisades innan granskningshändelsen borde ha skapats.
+* Avgör om åtgärden avvisades innan granskningshändelsen borde ha skapats.
 
 Infoga inte manuellt granskningsposter bara för att få en granskningskedja att verka komplett.
 
@@ -2389,105 +2518,113 @@ Begränsade temporära filsystem
 Om en av dessa egenskaper oväntat ändras, behandla det som konfigurationsdrift.
 
 Försvaga inte containern för att lösa ett applikationsproblem om inte säkerhetspåverkan har utvärderats uttryckligen.
-77. Verifiera container runtime-säkerhet
+# 77. Verifiera container runtime-säkerhet
 
 Inspektera containern:
-bash
 
+```bash id="b8x5jq"
 sudo docker inspect lums
+```
 
 För en fokuserad runtime-kontroll:
-bash
 
+```bash id="r3n7cw"
 sudo docker inspect \
     --format='ReadonlyRootfs={{.HostConfig.ReadonlyRootfs}} Privileged={{.HostConfig.Privileged}} CapDrop={{json .HostConfig.CapDrop}} SecurityOpt={{json .HostConfig.SecurityOpt}}' \
     lums
+```
 
 De förväntade värdena inkluderar:
-text
 
+```text id="k5m2zr"
 ReadonlyRootfs=true
 Privileged=false
 CapDrop=[ALL]
 SecurityOpt=[no-new-privileges:true]
+```
 
 Det exakta formatet kan variera mellan Docker-versioner.
 
 Det är säkerhetsegenskaperna i sig som är viktiga.
-78. Containern körs som root
+# 78. Containern körs som root
 
 LUMS-applikationen bör köras som sin dedikerade oprivilegierade applikationsanvändare.
 
 Om containern oväntat körs som root, inspektera först avbildningen och runtime-konfigurationen:
-bash
 
+```bash id="p6x4nz"
 sudo docker inspect \
     --format='{{.Config.User}}' \
     lums
+```
 
 Inspektera sedan Dockerfile.
 
 Lös inte applikationsbehörighetsproblem genom att byta produktionscontainern till root.
 
 Om en katalog kräver skrivåtkomst, identifiera den exakta sökvägen och avgör om den ska vara beständig applikationsdata eller temporär data.
-79. Skrivskyddat rotfilsystem
+# 79. Skrivskyddat rotfilsystem
 
 Produktionscontainern använder ett skrivskyddat rotfilsystem.
 
 Detta skyddar applikationsavbildningen från onödig runtime-modifiering.
 
 Om applikationen rapporterar:
-text
 
+```text id="y5k8mc"
 Read-only filesystem
 Permission denied
 Cannot create file
 Cannot write temporary data
+```
 
 avgör först var applikationen försöker skriva.
 
 Förväntade skrivbara platser är avsiktligt begränsade.
 
 Beständig applikationsdata hör hemma i:
-text
 
+```text id="q9m3xr"
 /var/lib/lums
+```
 
 Temporär runtime-data kan använda de konfigurerade temporära filsystemen.
 
 Inaktivera inte --read-only bara för att en applikationssökväg oväntat är skrivbar.
-80. /tmp är inte skrivbart
+# 80. /tmp är inte skrivbart
 
 Om applikationen kräver tillfällig lagring, verifiera det temporära filsystemet:
-bash
 
+```bash id="a7w4vn"
 sudo docker inspect \
     --format='{{json .HostConfig.Tmpfs}}' \
     lums
+```
 
 Produktionscontainern tillhandahåller en begränsad /tmp.
 
 Det temporära filsystemet är endast avsett för transient data.
 
 Beständig data får inte lagras där.
-81. Problem med hemlig montering
+# 81. Problem med hemlig montering
 
 LUMS applikationshemlighet tillhandahålls genom en skyddad filmontering.
 
 Hemligheten bör inte bäddas in direkt i avbildningen.
 
 Om LUMS rapporterar en saknad hemlighet, inspektera först runtime-konfigurationen:
-bash
 
+```bash id="j4p7zx"
 sudo docker inspect \
     lums
+```
 
 Kontrollera att den hemliga monteringen finns och är skrivskyddad.
 
 Skriv inte ut innehållet i hemligheten.
 
 En användbar diagnostik är att verifiera att filen finns och har förväntade behörigheter utan att visa dess innehåll.
-82. Hemlig fil saknas
+# 82. Hemlig fil saknas
 
 Om den hemliga filen inte finns på värden kan containern inte autentisera eller initiera korrekt.
 
@@ -2498,40 +2635,44 @@ Avgör först om den förväntade hemliga sökvägen finns.
 En ersättningshemlighet kan ogiltigförklara befintliga sessioner eller annat kryptografiskt tillstånd beroende på hur applikationen använder den.
 
 Varje avsiktlig hemlig ersättning måste därför behandlas som en kontrollerad säkerhetsoperation.
-83. Beständig volym är inte skrivbar
+# 83. Beständig volym är inte skrivbar
 
 Om LUMS inte kan skriva applikationsdata, inspektera volymen:
-bash
 
+```bash id="y6c2mt"
 sudo docker volume inspect \
     lums-data
+```
 
 Inspektera sedan containerns monteringar:
-bash
 
+```bash id="e5w8rq"
 sudo docker inspect \
     --format='{{json .Mounts}}' \
     lums
+```
 
 Applikationsdatabasen måste finnas på den beständiga skrivbara volymen.
 
 Gör inte hela containerfilsystemet skrivbart som en lösning.
 
 Den korrekta lösningen är att identifiera den specifika sökväg som kräver persistens.
-84. Docker-containern startar men applikationen misslyckas
+# 84. Docker-containern startar men applikationen misslyckas
 
 Om containern startar och omedelbart avslutas:
-bash
 
+```bash id="t7x3mp"
 sudo docker ps -a \
     --filter name=lums
+```
 
 Inspektera sedan:
-bash
 
+```bash id="n4q6vz"
 sudo docker logs \
     --tail 200 \
     lums
+```
 
 Vanliga orsaker inkluderar:
 text
@@ -2547,7 +2688,7 @@ Beroendeproblem
 Bygg inte om avbildningen omedelbart.
 
 Avgör om problemet finns i avbildningen, runtime-konfigurationen, beständig data eller extern konfiguration.
-85. Docker-avbildning vs. containerkonfiguration
+# 85. Docker-avbildning vs. containerkonfiguration
 
 En fungerande avbildning kan fortfarande misslyckas på grund av felaktig runtime-konfiguration.
 
@@ -2555,29 +2696,31 @@ Skilj alltid mellan:
 text
 
 Docker-avbildning
-    +
+* +
 Container runtime-konfiguration
-    +
+* +
 Beständig volym
-    +
+* +
 Hemlighet/konfiguration
 
 Till exempel:
 text
 
 Avbildningen är giltig
-      +
+* +
 Fel volym
-      =
+* =
 Applikationsfel
 
 eller:
 text
 
 Avbildningen är giltig
+```text id="s7q2mj"
       +
+```
 Saknad hemlighet
-      =
+* =
 Applikationsstartfel
 
 Bygg inte om en annars giltig avbildning för att åtgärda ett runtime-konfigurationsproblem.
@@ -2614,27 +2757,30 @@ Säkerhetskopior
 Annat onödigt runtime-material
 
 Om ett bygge oväntat innehåller en fil som inte bör finnas, inspektera:
-bash
 
+```bash id="q5m8cz"
 cat .dockerignore
+```
 
 Lös inte byggkontextproblem genom att kopiera känsliga filer till avbildningen.
-88. Filsystemsbehörighetsproblem
+# 88. Filsystemsbehörighetsproblem
 
 Om LUMS rapporterar behörighetsfel, identifiera den exakta sökvägen först.
 
 Användbar information:
-bash
 
+```bash id="p4r7yn"
 sudo docker inspect \
     lums
+```
 
 och:
-bash
 
+```bash id="n8v2km"
 sudo docker logs \
     --tail 200 \
     lums
+```
 
 Den viktiga skillnaden är:
 text
@@ -2648,7 +2794,7 @@ Värdkonfiguration
 Var och en har olika förväntade behörigheter.
 
 Ändra inte rekursivt äganderätt eller behörigheter över hela filsystemet som en felsökningsgenväg.
-89. Produktionskonfigurationsdrift
+# 89. Produktionskonfigurationsdrift
 
 Konfigurationsdrift uppstår när den körande miljön inte längre matchar den avsedda säkerhetsbaslinjen.
 
@@ -2665,28 +2811,30 @@ Oväntad container körs
 
 Om drift upptäcks:
 
-    Registrera det aktuella tillståndet.
+* Registrera det aktuella tillståndet.
 
-    Avgör när det ändrades.
+* Avgör när det ändrades.
 
-    Identifiera den ansvariga konfigurationen.
+* Identifiera den ansvariga konfigurationen.
 
-    Korrigera konfigurationen avsiktligt.
+* Korrigera konfigurationen avsiktligt.
 
-    Kör om relevant säkerhetsverifiering.
+* Kör om relevant säkerhetsverifiering.
 
 Gör inte flera orelaterade ändringar samtidigt.
-90. Oväntad nätverksexponering
+# 90. Oväntad nätverksexponering
 
 Applikationsporten bör förbli lokal:
-text
 
+```text id="n7w4cp"
 127.0.0.1:5050
+```
 
 Kontrollera lyssnare:
-bash
 
+```bash id="y2m6vk"
 sudo ss -lntp
+```
 
 Om 5050 exponeras på en icke-loopback-adress, undersök Docker-portmappningen omedelbart.
 
@@ -2696,19 +2844,22 @@ Den avsedda arkitekturen är:
 text
 
 Nätverk
+```text id="h3x8qm"
    ↓
 Nginx :443
    ↓
 127.0.0.1:5050
    ↓
 LUMS
+```
 
-91. Oväntade Docker-containrar
+# 91. Oväntade Docker-containrar
 
 Lista alla containrar:
-bash
 
+```bash id="c6w9rz"
 sudo docker ps -a
+```
 
 Oväntade containrar bör identifieras innan de tas bort.
 
@@ -2723,19 +2874,20 @@ Volymer
 Omstartspolicy
 
 Ta inte bort en okänd container utan att först avgöra om den är en del av LUMS-distributionen eller en nödvändig reservmiljö.
-92. Docker-volymen får inte raderas under normal felsökning
+# 92. Docker-volymen får inte raderas under normal felsökning
 
 Följande operation är destruktiv:
-bash
 
+```bash id="q7v3mc"
 sudo docker volume rm lums-data
+```
 
 Den får inte användas som ett allmänt felsökningssteg.
 
 Att radera volymen kan ta bort applikationsdatabasen och associerat beständigt tillstånd.
 
 Om en ren installation avsiktligt krävs, behandla det som en separat migrerings- eller återställningsoperation och verifiera säkerhetskopior först.
-93. Säkerhetsbaslinje efter runtime-ändringar
+# 93. Säkerhetsbaslinje efter runtime-ändringar
 
 Efter att ha ändrat produktions-Docker-konfigurationen, verifiera säkerhetsbaslinjen igen.
 
@@ -2764,7 +2916,7 @@ Vanliga felkombinationer
 Slutlig felsökningschecklista
 
 De sista avsnitten tillhandahåller en kompakt procedur för att samla tillräckligt med information för att diagnostisera ett problem utan att i onödan ändra produktionsmiljön.
-95. Tester och CI
+# 95. Tester och CI
 
 Automatiserade tester är en viktig del av felsökningen av LUMS.
 
@@ -2773,14 +2925,15 @@ Innan du undersöker ett produktionsproblem som en applikationsdefekt, verifiera
 Den aktuella fullständiga testsviten ska passera innan en release anses redo.
 
 Kör den fullständiga testsviten från repositoryt:
-bash
 
+```bash id="m4x8kp"
 ./.venv-test/bin/pytest -q
+```
 
 En lyckad körning ska rapportera alla tester som godkända.
 
 Antalet tester ändras när ytterligare tester läggs till. Det viktiga villkoret är att den fullständiga testsviten lyckas snarare än att förlita sig på ett fast testantal.
-96. Ett testfel innebär inte automatiskt att produktionen är trasig
+# 96. Ett testfel innebär inte automatiskt att produktionen är trasig
 
 Ett misslyckat test kan orsakas av:
 text
@@ -2800,48 +2953,51 @@ Den korrekta sekvensen är:
 text
 
 Testfel
-    ↓
+* ↓
 Läs fullständigt fel
-    ↓
+* ↓
 Identifiera påverkad komponent
-    ↓
+* ↓
 Reproducera lokalt
-    ↓
+* ↓
 Fastställ rotorsak
-    ↓
+* ↓
 Tillämpa kontrollerad åtgärd
-    ↓
+* ↓
 Kör relevanta tester
-    ↓
+* ↓
 Kör fullständig testsvit
 
-97. RBAC-testfel
+# 97. RBAC-testfel
 
 När du undersöker auktoriseringsproblem, kör RBAC-testerna först:
-bash
 
+```bash id="k6w2pv"
 ./.venv-test/bin/pytest -q tests/test_rbac.py
+```
 
 Testerna täcker rollspecifikt beteende och auktoriseringsgränser.
 
 Om problemet gäller klientsidan, använd relevant delmängd när det är lämpligt:
-bash
 
+```bash id="z5n8rc"
 ./.venv-test/bin/pytest -q \
     tests/test_rbac.py -k client_page
+```
 
 Försvaga inte auktoriseringen för att få ett test att passera.
 
 Ett misslyckat auktoriseringstest kan indikera en säkerhetsregression.
-98. Testfel för paketsökning
+# 98. Testfel för paketsökning
 
 Pakethanteringsfunktionalitet har dedikerad testtäckning.
 
 När du undersöker paketsökningsbeteende:
-bash
 
+```bash id="b7x3mf"
 ./.venv-test/bin/pytest -q \
     tests/test_package_search.py
+```
 
 Om felet involverar paketexekvering eller jobbresultat, inspektera även relevanta jobbresultattester.
 
@@ -2853,83 +3009,92 @@ Paketsökningsproblem
 Agentproblem
 Integrationsproblem
 
-99. Tester för validering av jobbresultat
+# 99. Tester för validering av jobbresultat
 
 Hantering av jobbresultat är säkerhetskänslig eftersom servern inte blint får lita på godtycklig klientinmatning.
 
 Kör relevanta tester när du undersöker resultatvalidering:
-bash
 
+```bash id="w6q2vz"
 ./.venv-test/bin/pytest -q \
     tests/test_job_result.py
+```
 
 Ett fel här bör behandlas som ett applikationskorrekthets- och säkerhetsproblem.
 
 Kringgå inte resultatvalidering för att få en klientrapport att lyckas.
-100. CI-fel
+# 100. CI-fel
 
 LUMS använder kontinuerlig integration för att verifiera projektet innan ändringar accepteras.
 
 Om CI misslyckas:
 
-    Identifiera det misslyckade jobbet.
+* Identifiera det misslyckade jobbet.
 
-    Läs det fullständiga felet.
+* Läs det fullständiga felet.
 
-    Avgör om felet är kod-, beroende-, test- eller miljörelaterat.
+* Avgör om felet är kod-, beroende-, test- eller miljörelaterat.
 
-    Reproducera lokalt där det är möjligt.
+* Reproducera lokalt där det är möjligt.
 
-    Åtgärda rotorsaken.
+* Åtgärda rotorsaken.
 
-    Kör relevanta tester.
+* Kör relevanta tester.
 
-    Kör den fullständiga testsviten.
+* Kör den fullständiga testsviten.
 
 Ignorera inte CI-fel bara för att produktionsmiljön för närvarande verkar funktionell.
-101. Diagnostisk ögonblicksbild
+# 101. Diagnostisk ögonblicksbild
 
 När du ber om hjälp med ett LUMS-problem, samla en minimal diagnostisk ögonblicksbild.
 
 Målet är att tillhandahålla tillräckligt med information för att identifiera den felande komponenten utan att exponera hemligheter.
 
 En användbar ögonblicksbild inkluderar:
-bash
 
+```bash id="x8p4qn"
 sudo docker ps
+```
 
-bash
 
+```bash id="c5m7vz"
 sudo docker logs --tail 100 lums
+```
 
-bash
 
+```bash id="f2w9yk"
 sudo systemctl status nginx --no-pager
+```
 
-bash
 
+```bash id="n6r3tx"
 sudo systemctl status lums-agent.service --no-pager
+```
 
-bash
 
+```bash id="q7v4mc"
 sudo systemctl status lums-agent-watcher.service --no-pager
+```
 
-bash
 
+```bash id="z3k8wp"
 sudo journalctl -u lums-agent.service -n 100 --no-pager
+```
 
-bash
 
+```bash id="h5m2rx"
 sudo journalctl -u lums-agent-watcher.service -n 100 --no-pager
+```
 
-bash
 
+```bash id="p9x6kc"
 sudo ss -lntp
+```
 
 Använd endast de kommandon som är relevanta för problemet.
 
 Dumpa inte hela miljön i en supportförfrågan.
-102. Diagnostisk ögonblicksbild får inte innehålla hemligheter
+# 102. Diagnostisk ögonblicksbild får inte innehålla hemligheter
 
 Innan du delar diagnostisk utdata, kontrollera efter:
 text
@@ -2948,21 +3113,22 @@ Anta inte att en logg är säker bara för att den kom från en systemtjänst.
 103. Matris för felkombinationer
 
 Vissa symtom blir lättare att diagnostisera när flera komponenter beaktas tillsammans.
-Symtom	Mest sannolikt område att inspektera först
-Webbläsaren kan inte ansluta	Nginx / TLS / nätverk
-Nginx fungerar men applikationen misslyckas	Docker / LUMS
-LUMS fungerar men klienten kan inte rapportera	Agent / TLS / token
-Klienten rapporterar men jobbet förblir väntande	Watcher / kvalificering
-Jobbet körs men paketet misslyckas	APT / pacman
-Paketet lyckas men resultatet saknas	Agentrapportering
-Resultatet når servern men UI är inaktuellt	API / databas / webbläsartillstånd
-Viewer kan mutera data	RBAC på serversidan
-Användaren kan inte logga in	Konto / lösenord / hastighetsbegränsning
-Inloggning fungerar men åtgärd avvisas	RBAC / CSRF
-Databasskrivningar misslyckas	SQLite / disk / behörigheter
-Containern förlorar data efter återskapning	Beständig volymkonfiguration
-Applikationen skriver till rotfilsystemet	Containerfilsystemkonfiguration
-Port 5050 är externt nåbar	Docker / brandväggskonfiguration
+| Symtom | Mest sannolikt område att inspektera först |
+| --- | --- |
+| Webbläsaren kan inte ansluta | Nginx / TLS / nätverk |
+| Nginx fungerar men applikationen misslyckas | Docker / LUMS |
+| LUMS fungerar men klienten kan inte rapportera | Agent / TLS / token |
+| Klienten rapporterar men jobbet förblir väntande | Watcher / kvalificering |
+| Jobbet körs men paketet misslyckas | APT / pacman |
+| Paketet lyckas men resultatet saknas | Agentrapportering |
+| Resultatet når servern men UI är inaktuellt | API / databas / webbläsartillstånd |
+| Viewer kan mutera data | RBAC på serversidan |
+| Användaren kan inte logga in | Konto / lösenord / hastighetsbegränsning |
+| Inloggning fungerar men åtgärd avvisas | RBAC / CSRF |
+| Databasskrivningar misslyckas | SQLite / disk / behörigheter |
+| Containern förlorar data efter återskapning | Beständig volymkonfiguration |
+| Applikationen skriver till rotfilsystemet | Containerfilsystemkonfiguration |
+| Port 5050 är externt nåbar | Docker / brandväggskonfiguration |
 
 Denna tabell identifierar den första platsen att undersöka, inte nödvändigtvis den slutliga rotorsaken.
 104. Vanliga felsökningsmisstag
@@ -2992,9 +3158,10 @@ En lösning som tar bort en säkerhetskontroll är inte en slutförd åtgärd.
 Kör inte containern som privilegierad
 
 Undvik:
-text
 
+```text id="b3x7mz"
 --privileged
+```
 
 som en felsökningslösning.
 
@@ -3002,14 +3169,16 @@ Om applikationen kräver ytterligare åtkomst, avgör exakt vilken åtkomst som 
 Exponera inte port 5050
 
 Ändra inte:
-text
 
+```text id="v8n4qr"
 127.0.0.1:5050
+```
 
 till:
-text
 
+```text id="p2m6wy"
 0.0.0.0:5050
+```
 
 bara för att kringgå Nginx.
 
@@ -3017,10 +3186,11 @@ Applikationen är avsiktligt skyddad bakom den omvända proxyn.
 Ändra inte jobbtillstånd manuellt
 
 Undvik att direkt ändra:
-text
 
+```text id="r7c5xn"
 update_jobs
 update_job_packages
+```
 
 för att dölja ett operativt problem.
 
@@ -3076,32 +3246,33 @@ För ett allmänt LUMS-produktionsproblem, använd denna ordning:
 text
 
 1. Identifiera symtomet
-        ↓
+  * ↓
 2. Identifiera den påverkade komponenten
-        ↓
+  * ↓
 3. Inspektera aktuellt tillstånd
-        ↓
+  * ↓
 4. Inspektera relevanta loggar
-        ↓
+  * ↓
 5. Reproducera säkert
-        ↓
+  * ↓
 6. Fastställ det första felande lagret
-        ↓
+  * ↓
 7. Tillämpa minsta nödvändiga ändring
-        ↓
+  * ↓
 8. Testa igen
-        ↓
+  * ↓
 9. Verifiera säkerhetskontroller
-        ↓
+  * ↓
 10. Dokumentera resultatet
 
 Denna ordning förhindrar att orelaterade komponenter ändras i onödan.
-107. Fullständig systemdiagnostisk väg
+# 107. Fullständig systemdiagnostisk väg
 
 När den påverkade komponenten är okänd, följ den fullständiga vägen:
 text
 
 Webbläsare
+```text id="u7x3mp"
   │
   ▼
 Nginx / HTTPS
@@ -3140,6 +3311,7 @@ LUMS API
 SQLite
   │
   ▼
+```
 Webbgränssnitt
 
 Vid varje steg, fråga:
@@ -3200,11 +3372,11 @@ Sluta göra ändringar när:
 text
 
 Rotorsaken är identifierad
-    OCH
+* OCH
 Den korrigerande åtgärden är förstådd
-    OCH
+* OCH
 Systemet är stabilt
-    OCH
+* OCH
 Säkerhetskontroller förblir intakta
 
 Om rotorsaken inte är förstådd, bevara det aktuella tillståndet snarare än att upprepade gånger ändra miljön.
@@ -3214,7 +3386,7 @@ Ett rent bevarat fel är lättare att diagnostisera än ett delvis modifierat sy
 
 Den viktigaste LUMS-felsökningsregeln är:
 
-    Observera först. Ändra sedan. Verifiera sist.
+* Observera först. Ändra sedan. Verifiera sist.
 
 LUMS innehåller flera oberoende säkerhets- och exekveringslager.
 
@@ -3255,7 +3427,7 @@ Testbaslinje
 Föråldrade felsökningsinstruktioner kan vara farliga när de rekommenderar utfasade kommandon eller säkerhetsförsvagande lösningar.
 
 När ett produktionsbeteende ändras, uppdatera relevant dokumentation innan felsökningsproceduren anses slutförd.
-113. Aktuell baslinje
+# 113. Aktuell baslinje
 
 Den aktuella LUMS-baslinjen som dokumenteras av denna felsökningsguide inkluderar:
 text
@@ -3264,6 +3436,7 @@ Agentversion: 1.7.0
 Watcher-version: 1.2.1
 
 Applikationsport:
+```text id="m4x8qp"
 127.0.0.1:5050
 
 Databas:
@@ -3294,6 +3467,7 @@ Operator
 Viewer
 
 Viewer:
+```
 Endast klienter + installerad programvara
 
 Fullständig testsvit:
@@ -3302,7 +3476,7 @@ Passerande baslinje
 Det exakta testantalet kan ändras när projektet växer.
 
 Säkerhets- och arkitekturegenskaperna är den viktiga baslinjen.
-114. Slut på felsökningsguiden
+# 114. Slut på felsökningsguiden
 
 LUMS-felsökning bör förbli evidensdriven och säkerhetsmedveten.
 

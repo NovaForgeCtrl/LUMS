@@ -97,24 +97,25 @@ Administrator / Operator
         │
         ▼
     Web Interface
+```
 
 LUMS-palvelin ei suorita paketinhallintakomentoja suoraan hallinnoiduilla asiakkaille.
 
 Pakettitoiminnot suorittaa hallinnoituun järjestelmään asennettu LUMS-agentti.
-2. Hallinnolliset vastuut
+## 2. Hallinnolliset vastuut
 
 LUMS-hallinta voidaan jakaa useisiin alueisiin.
 Käyttäjähallinta
 
 Ylläpitäjät hallinnoivat:
 
-    LUMS-käyttäjiä
+* LUMS-käyttäjiä
 
-    käyttäjärooleja
+* käyttäjärooleja
 
-    tilin tilaa
+* tilin tilaa
 
-    hallinnollista pääsyä
+* hallinnollista pääsyä
 
 Käyttäjähallinta vaatii users.manage-oikeuden.
 
@@ -125,17 +126,17 @@ Asiakashallinta
 
 Ylläpitäjät hallinnoivat:
 
-    rekisteröityjä asiakkaita
+* rekisteröityjä asiakkaita
 
-    asiakkaan tilaa
+* asiakkaan tilaa
 
-    asiakastodennusta
+* asiakastodennusta
 
-    asiakastunnisteita
+* asiakastunnisteita
 
-    tunnisteen vaihtoa
+* tunnisteen vaihtoa
 
-    asiakkaan käyttöönottoa ja käytöstä poistoa
+* asiakkaan käyttöönottoa ja käytöstä poistoa
 
 Asiakashallinta vaatii clients.manage-oikeuden, koska asiakastodennus
 määrittää, mitkä järjestelmät saavat raportoida LUMSille.
@@ -143,17 +144,17 @@ Päivityshallinta
 
 Administrator- ja Operator-mallit myöntävät oikeudet:
 
-    tarkastella saatavilla olevia päivityksiä
+* tarkastella saatavilla olevia päivityksiä
 
-    luoda päivitystöitä
+* luoda päivitystöitä
 
-    suorittaa pakettitoimintoja
+* suorittaa pakettitoimintoja
 
-    tarkastella päivityshistoriaa
+* tarkastella päivityshistoriaa
 
-    hallita yksittäisiä paketteja
+* hallita yksittäisiä paketteja
 
-    suorittaa järjestelmäpäivityksiä
+* suorittaa järjestelmäpäivityksiä
 
 Viewer-malli on vain luku -tilassa eikä voi suorittaa päivitystoimintoja.
 Paketinhallinta
@@ -162,9 +163,9 @@ LUMS tukee paketinhallintatoimintoja asiakkaan natiivin paketinhallinnan kautta.
 
 Nykyiset tuetut paketinhallinnan taustajärjestelmät ovat:
 
-    APT/dpkg Debian-pohjaisille järjestelmille
+* APT/dpkg Debian-pohjaisille järjestelmille
 
-    pacman Arch Linuxille
+* pacman Arch Linuxille
 
 LUMS ei korvaa käyttöjärjestelmän paketinhallintaa.
 
@@ -173,28 +174,29 @@ Operatiivinen hallinta
 
 Ylläpitäjät ja operaattorit voivat joutua seuraamaan:
 
-    käynnissä olevia päivitystöitä
+* käynnissä olevia päivitystöitä
 
-    epäonnistuneita töitä
+* epäonnistuneita töitä
 
-    suoritettuja töitä
+* suoritettuja töitä
 
-    asiakasraportointia
+* asiakasraportointia
 
-    uudelleenkäynnistysvaatimuksia
+* uudelleenkäynnistysvaatimuksia
 
-    paketinhallinnan virheitä
+* paketinhallinnan virheitä
 
-    valvontatoimintaa
+* valvontatoimintaa
 
 Näiden tilanteiden yksityiskohtaiset vianmääritysmenettelyt on dokumentoitu tiedostossa troubleshooting.md.
 3. Hallinnolliset roolit
 
 LUMS tarjoaa tällä hetkellä kolme roolia.
-Rooli	Tarkoitus
-Administrator	Täysi hallinnollinen valvonta
-Operator	Päivittäinen operatiivinen hallinta
-Viewer	Vain luku -näkyvyys asiakkaisiin ja ohjelmistoihin
+| Rooli | Tarkoitus |
+| --- | --- |
+| Administrator | Täysi hallinnollinen valvonta |
+| Operator | Päivittäinen operatiivinen hallinta |
+| Viewer | Vain luku -näkyvyys asiakkaisiin ja ohjelmistoihin |
 
 Jokainen rooli on oikeusmalli. Tilin yksilöllisesti tallennetut
 oikeudet valvotaan palvelinpuolella.
@@ -202,36 +204,36 @@ oikeudet valvotaan palvelinpuolella.
 Käyttöliittymäelementin piilottamista ei siis pidetä itsessään turvakontrollina.
 
 Palvelimen on myös hylättävä luvattomat API-toiminnot.
-4. Administrator
+## 4. Administrator
 
 Administrator-malli tarjoaa oletuksena täyden joukon LUMS-sovelluksen
 oikeuksia.
 
 Ylläpitäjät voivat:
 
-    tarkastella hallinnoituja asiakkaita
+* tarkastella hallinnoituja asiakkaita
 
-    tarkastella asennettuja ohjelmistoja
+* tarkastella asennettuja ohjelmistoja
 
-    tarkastella saatavilla olevia päivityksiä
+* tarkastella saatavilla olevia päivityksiä
 
-    luoda ja suorittaa päivitystöitä
+* luoda ja suorittaa päivitystöitä
 
-    tarkastella päivityshistoriaa
+* tarkastella päivityshistoriaa
 
-    suorittaa paketinhallintatoimintoja
+* suorittaa paketinhallintatoimintoja
 
-    suorittaa järjestelmän ylläpitoa
+* suorittaa järjestelmän ylläpitoa
 
-    luoda asiakkaita
+* luoda asiakkaita
 
-    poistaa asiakkaita käytöstä
+* poistaa asiakkaita käytöstä
 
-    vaihtaa asiakastunnisteita
+* vaihtaa asiakastunnisteita
 
-    luoda ja hallita LUMS-käyttäjiä
+* luoda ja hallita LUMS-käyttäjiä
 
-    määrittää roolimalleja ja yksittäisiä oikeuksia
+* määrittää roolimalleja ja yksittäisiä oikeuksia
 
 Täydet Administrator-mallin oikeudet tulisi myöntää vain käyttäjille, jotka
 tarvitsevat niitä.
@@ -244,29 +246,29 @@ hallintaan.
 
 Operaattorit voivat:
 
-    tarkastella hallinnoituja asiakkaita
+* tarkastella hallinnoituja asiakkaita
 
-    tarkastella asennettuja ohjelmistoja
+* tarkastella asennettuja ohjelmistoja
 
-    tarkastella saatavilla olevia päivityksiä
+* tarkastella saatavilla olevia päivityksiä
 
-    luoda ja suorittaa päivitystöitä
+* luoda ja suorittaa päivitystöitä
 
-    tarkastella päivityshistoriaa
+* tarkastella päivityshistoriaa
 
-    suorittaa paketinhallintatoimintoja
+* suorittaa paketinhallintatoimintoja
 
-    suorittaa järjestelmän ylläpitoa
+* suorittaa järjestelmän ylläpitoa
 
 Operator-malli ei myönnä:
 
-    LUMS-käyttäjien luontia tai hallintaa
+* LUMS-käyttäjien luontia tai hallintaa
 
-    käyttäjäroolien määrittämistä
+* käyttäjäroolien määrittämistä
 
-    asiakkaiden luontia tai käytöstä poistoa
+* asiakkaiden luontia tai käytöstä poistoa
 
-    asiakastunnisteiden vaihtoa
+* asiakastunnisteiden vaihtoa
 
 Tämä oletuserottelu sallii rutiininomaiset päivitystoiminnot ilman
 tili- ja asiakashallintaoikeuksia. Yksittäisiä oikeuksia voi muuttaa
@@ -277,29 +279,29 @@ Viewer-malli tarjoaa vain luku -näkyvyyden.
 
 Viewerit voivat:
 
-    tarkastella hallinnoituja asiakkaita
+* tarkastella hallinnoituja asiakkaita
 
-    tarkastella asennettuja ohjelmistoja
+* tarkastella asennettuja ohjelmistoja
 
 Viewer-malli ei myönnä seuraavia hallintotoimintoja:
 
-    saatavilla olevien päivitysten hallinta
+* saatavilla olevien päivitysten hallinta
 
-    päivitystöiden luonti
+* päivitystöiden luonti
 
-    päivitystöiden suoritus
+* päivitystöiden suoritus
 
-    päivityshistoria
+* päivityshistoria
 
-    paketinhallinta
+* paketinhallinta
 
-    järjestelmän ylläpito
+* järjestelmän ylläpito
 
-    käyttäjähallinta
+* käyttäjähallinta
 
-    asiakashallinta
+* asiakashallinta
 
-    tunnisteen vaihto
+* tunnisteen vaihto
 
 Vastaavat mutatoivat API-toiminnot on myös suojattu palvelinpuolella.
 
@@ -311,45 +313,45 @@ Administrator
 
 Käytä, kun käyttäjän on hallittava:
 
-    käyttäjiä
+* käyttäjiä
 
-    rooleja
+* rooleja
 
-    asiakkaita
+* asiakkaita
 
-    asiakastodennusta
+* asiakastodennusta
 
-    tunnisteita
+* tunnisteita
 
-    päivityksiä
+* päivityksiä
 
-    paketteja
+* paketteja
 
-    järjestelmätoimintoja
+* järjestelmätoimintoja
 
-Operator
+## Operator
 
 Käytä, kun käyttäjän on suoritettava rutiininomaista operatiivista työtä, kuten:
 
-    päivitysten tarkistaminen
+* päivitysten tarkistaminen
 
-    pakettien asentaminen
+* pakettien asentaminen
 
-    pakettien poistaminen
+* pakettien poistaminen
 
-    pakettien päivittäminen
+* pakettien päivittäminen
 
-    päivitystöiden suorittaminen
+* päivitystöiden suorittaminen
 
-    työhistorian tarkastelu
+* työhistorian tarkastelu
 
-Viewer
+## Viewer
 
 Käytä, kun käyttäjä tarvitsee vain näkyvyyden:
 
-    asiakkaisiin
+* asiakkaisiin
 
-    asennettuihin ohjelmistoihin
+* asennettuihin ohjelmistoihin
 
 8. Hallinnollinen turvallisuusperiaate
 
@@ -359,29 +361,29 @@ Hallinnollinen pääsy tulisi rajoittaa käyttäjän tehtävään tarvittaviin t
 
 Erityisesti:
 
-    älä käytä Administrator-tilejä rutiininomaiseen katseluun
+* älä käytä Administrator-tilejä rutiininomaiseen katseluun
 
-    älä jaa tilejä ylläpitäjien kesken
+* älä jaa tilejä ylläpitäjien kesken
 
-    älä jaa asiakastunnisteita
+* älä jaa asiakastunnisteita
 
-    älä tallenna tunnistetietoja dokumentaatioon
+* älä tallenna tunnistetietoja dokumentaatioon
 
-    älä paljasta asiakastunnisteita kuvakaappauksissa tai lokeissa
+* älä paljasta asiakastunnisteita kuvakaappauksissa tai lokeissa
 
-    älä ohita LUMSin verkkokäyttöliittymää muokkaamalla tietokantaa suoraan, ellei dokumentoitu palautusmenettely nimenomaisesti vaadi sitä
+* älä ohita LUMSin verkkokäyttöliittymää muokkaamalla tietokantaa suoraan, ellei dokumentoitu palautusmenettely nimenomaisesti vaadi sitä
 
 Kun hallinnollinen toimenpide epäonnistuu, tutki syy ennen pysyvän tilan muuttamista.
 
 Käytä periaatetta:
 
-    Havaitse ensin. Muuta toiseksi. Varmista kolmanneksi.
+* Havaitse ensin. Muuta toiseksi. Varmista kolmanneksi.
 
-9. Hallinnollinen työnkulku
+## 9. Hallinnollinen työnkulku
 
 Normaalin hallinnollisen työnkulun tulisi noudattaa tätä järjestystä:
-text
 
+```text
 1. Authenticate
       │
       ▼
@@ -404,25 +406,27 @@ text
       │
       ▼
 8. Review history / audit information
+```
 
 Hallinnolliset toimenpiteet on aina varmennettava suorituksen jälkeen.
 
 Onnistunut API-pyyntö ei itsessään todista, että pyydetty paketti- tai järjestelmätoiminto suoritettiin onnistuneesti.
 
 Hallinnoidun asiakkaan raportoima lopullinen tila on olennainen toiminnallinen tulos.
-10. Dokumentaation erottelu
+## 10. Dokumentaation erottelu
 
 LUMS-dokumentaatiosarja on tarkoituksella jaettu erillisiin toimintaoppaisiin.
-Asiakirja	Tarkoitus
-install.md	Asennus ja ensimmäinen käyttöönotto
-administration.md	Päivittäinen hallinta
-security.md	Turvallisuusarkkitehtuuri ja tarkastustulokset
-troubleshooting.md	Diagnoosi ja palautus
+| Asiakirja | Tarkoitus |
+| --- | --- |
+| install.md | Asennus ja ensimmäinen käyttöönotto |
+| administration.md | Päivittäinen hallinta |
+| security.md | Turvallisuusarkkitehtuuri ja tarkastustulokset |
+| troubleshooting.md | Diagnoosi ja palautus |
 
 Tämän oppaan tulisi siksi välttää yksityiskohtaisten asennus- ja vianmääritysmenettelyjen toistamista.
 
 Sen sijaan se kuvaa, mitä ylläpitäjät voivat hallita, mitä kukin toimenpide tarkoittaa ja miten normaaleja hallinnollisia työnkulkuja suoritetaan.
-11. Käyttäjähallinta
+## 11. Käyttäjähallinta
 
 Käyttäjähallinta on saatavilla käyttäjille, joilla on users.manage-oikeus.
 
@@ -435,8 +439,8 @@ LUMS-käyttäjä todentaa itsensä verkkosovellukseen sovellustilillä.
 Hallinnoitu asiakas todentaa itsensä LUMS-API:iin asiakastunnisteella.
 
 Näitä todentamismekanismeja ei saa sekoittaa.
-text
 
+```text
 LUMS User
     │
     │ username + password
@@ -451,26 +455,27 @@ Managed Client
     │ client token
     ▼
 LUMS API
+```
 
-12. Käyttäjien luominen
+## 12. Käyttäjien luominen
 
 Käyttäjät, joilla on users.manage, voivat luoda uusia LUMS-käyttäjiä.
 
 Kun käyttäjä luodaan, ylläpitäjä määrittää:
 
-    käyttäjänimen
+* käyttäjänimen
 
-    salasanan
+* salasanan
 
-    roolitunnisteen, ja roolimalli on saatavilla myöhempää oikeuksien määrittämistä varten
+* roolitunnisteen, ja roolimalli on saatavilla myöhempää oikeuksien määrittämistä varten
 
 Saatavilla olevat roolimallit ovat:
 
-    administrator
+* administrator
 
-    operator
+* operator
 
-    viewer
+* viewer
 
 Palvelin validoi annetut arvot ennen tilin luomista.
 
@@ -478,15 +483,16 @@ Uudet tilit alkavat ilman oikeuksia. Luomisen jälkeen ylläpitäjät voivat
 määrittää yksittäisiä valintaruutuja tai soveltaa yhtä roolimalleista. Mallin
 soveltaminen esivalitsee sen oletusoikeudet, joita voidaan sitten mukauttaa.
 Saatavilla olevat oikeudet ovat:
-Oikeus	Myönnetty pääsy
-clients.view	Tarkastele asiakasluetteloa ja järjestelmätietoja
-software.view	Tarkastele asennettuja ohjelmistoja
-updates.view	Tarkastele päivityksiä, töitä ja päivityshistoriaa
-packages.search	Hae pakettivarastoista
-jobs.manage	Luo pakettitoimintoja ja päivitystöitä
-clients.manage	Rekisteröi/poista asiakkaita ja vaihda asiakastunnisteita
-users.manage	Luo käyttäjiä ja hallitse rooleja, oikeuksia ja sisäisiä muistiinpanoja
-backups.manage	Luo ja tarkastele tietokannan varmuuskopioita
+| Oikeus | Myönnetty pääsy |
+| --- | --- |
+| clients.view | Tarkastele asiakasluetteloa ja järjestelmätietoja |
+| software.view | Tarkastele asennettuja ohjelmistoja |
+| updates.view | Tarkastele päivityksiä, töitä ja päivityshistoriaa |
+| packages.search | Hae pakettivarastoista |
+| jobs.manage | Luo pakettitoimintoja ja päivitystöitä |
+| clients.manage | Rekisteröi/poista asiakkaita ja vaihda asiakastunnisteita |
+| users.manage | Luo käyttäjiä ja hallitse rooleja, oikeuksia ja sisäisiä muistiinpanoja |
+| backups.manage | Luo ja tarkastele tietokannan varmuuskopioita |
 
 Asiakkaisiin liittyvät oikeudet edellyttävät clients.view-oikeutta; jobs.manage edellyttää myös
 updates.view-oikeutta. LUMS estää viimeisen aktiivisen tilin poistamisen, jolla on
@@ -498,13 +504,13 @@ LUMS käyttää Argon2-pohjaista salasanatiivistystä sovelluksen tunnistetiedoi
 
 Luomisen jälkeen varmista, että:
 
-    käyttäjänimi näkyy käyttäjäluettelossa
+* käyttäjänimi näkyy käyttäjäluettelossa
 
-    roolimalli ja yksittäiset oikeudet ovat oikein
+* roolimalli ja yksittäiset oikeudet ovat oikein
 
-    tili on käytössä
+* tili on käytössä
 
-    käyttäjä voi todentaa itsensä onnistuneesti
+* käyttäjä voi todentaa itsensä onnistuneesti
 
 Älä siirrä salasanoja dokumentaation, tukipyyntöjen, kuvakaappausten tai muiden turvattomien kanavien kautta.
 Tietokannan varmuuskopiointikäyttöliittymä
@@ -527,15 +533,17 @@ perustan alapuolelta ja luo sen tarvittaessa; absoluuttiset polut, ylätason lä
 symlinkitetyt alihakemistot hylätään. Isäntäpolut on liitettävä Dockeriin
 palvelimen ylläpitäjän toimesta. Docker-käyttöönotossa luo erillinen isäntähakemisto,
 johon kontin UID/GID 10001 voi kirjoittaa:
-bash
 
+```bash
 sudo install -d -o 10001 -g 10001 -m 0700 /var/backups/lums
+```
 
 Lisää nämä vaihtoehdot LUMS-kontin kokoonpanoon:
-bash
 
+```bash
 -v /var/backups/lums:/var/backups/lums \
 -e LUMS_BACKUP_DIR=/var/backups/lums \
+```
 
 Käytä erillistä levyä tai etätallennusta isäntävian sietokyvyn parantamiseksi.
 Esimerkiksi liitä NAS ensin Debian-isäntään ja käytä sitten kyseistä liitettyä polkua
@@ -545,61 +553,62 @@ Varmuuskopiointikohteen on oltava käytettävissä ja kirjoitettavissa kontin si
 muuten käyttöliittymä ilmoittaa, että varmuuskopiointitallennus ei ole käytettävissä.
 
 Palautusohjeet ovat tiedostossa server/static/backup-restore.md.
-13. Käyttäjäroolit
+## 13. Käyttäjäroolit
 
 Valitse roolimalli vähimmän vaaditun oikeuden mukaan ja tarkista
 sitten kunkin tilin yksittäiset oikeudet.
-Roolimalli	Käyttäjähallinta	Asiakashallinta	Päivitykset	Paketinhallinta	Vain luku -pääsy
-Administrator	Kyllä	Kyllä	Kyllä	Kyllä	Kyllä
-Operator	Ei	Ei	Kyllä	Kyllä	Kyllä
-Viewer	Ei	Ei	Ei	Ei	Kyllä
+| Roolimalli | Käyttäjähallinta | Asiakashallinta | Päivitykset | Paketinhallinta | Vain luku -pääsy |
+| --- | --- | --- | --- | --- | --- |
+| Administrator | Kyllä | Kyllä | Kyllä | Kyllä | Kyllä |
+| Operator | Ei | Ei | Kyllä | Kyllä | Kyllä |
+| Viewer | Ei | Ei | Ei | Ei | Kyllä |
 
 Nämä ovat oletuksia, eivät kiinteitä rajoja. Ylläpitäjät voivat mukauttaa kunkin
 käyttäjän oikeusjoukkoa. Roolin valvonta tapahtuu palvelimella
 tuloksena olevien käyttäjäkohtaisten oikeuksien kautta.
 
 Verkkokäyttöliittymä heijastaa määritettyä roolia, mutta palvelin on edelleen ensisijainen turvaraja.
-14. Käyttäjätilien poistaminen käytöstä
+## 14. Käyttäjätilien poistaminen käytöstä
 
 Kun tilin ei enää pitäisi päästä LUMSiin, poista tili käytöstä sen sijaan, että jakaisit tai käyttäisit tunnistetietoja uudelleen.
 
 Esimerkkejä:
 
-    ylläpitäjä lähtee projektista
+* ylläpitäjä lähtee projektista
 
-    operaattori ei enää tarvitse pääsyä
+* operaattori ei enää tarvitse pääsyä
 
-    hallinnollisen pääsyn väliaikainen poisto
+* hallinnollisen pääsyn väliaikainen poisto
 
-    turvallisuusvaste vaarantuneelle tilille
+* turvallisuusvaste vaarantuneelle tilille
 
 Kun tili on poistettu käytöstä, varmista, että todentaminen hylätään.
 
 Olemassa olevat todennetut istunnot on myös otettava huomioon tilin turvallisuustutkinnassa.
 
 Älä muokkaa users-taulukkoa manuaalisesti, ellei dokumentoitu palautusmenettely nimenomaisesti vaadi tietokantatason toimenpiteitä.
-15. Salasanahallinta
+## 15. Salasanahallinta
 
 Salasanat ovat sovelluksen tunnistetietoja, ja niitä on kohdeltava arkaluonteisina tietoina.
 
 Ylläpitäjien on varmistettava, että:
 
-    salasanoja ei jaeta
+* salasanoja ei jaeta
 
-    salasanoja ei tallenneta Gitiin
+* salasanoja ei tallenneta Gitiin
 
-    salasanoja ei sijoiteta dokumentaatioon
+* salasanoja ei sijoiteta dokumentaatioon
 
-    salasanoja ei sisällytetä kuvakaappauksiin
+* salasanoja ei sisällytetä kuvakaappauksiin
 
-    salasanoja ei kirjoiteta tarpeettomasti komentotulkin historiaan
+* salasanoja ei kirjoiteta tarpeettomasti komentotulkin historiaan
 
-    käyttäjät saavat tunnistetietonsa asianmukaisen turvallisen kanavan kautta
+* käyttäjät saavat tunnistetietonsa asianmukaisen turvallisen kanavan kautta
 
 LUMS tallentaa salasanatiivisteitä selkokielisten salasanojen sijaan.
 
 Jos salasanan epäillään vaarantuneen, vaihda se asianmukaisen tilinhallintamenettelyn kautta sen sijaan, että yrittäisit palauttaa alkuperäisen salasanan.
-16. Istunnot
+## 16. Istunnot
 
 LUMS käyttää todennettuja sovellusistuntoja verkkopääsyyn.
 
@@ -609,27 +618,28 @@ Ylläpitäjien on kohdeltava odottamatonta todennettua istuntoa turvallisuustapa
 
 Asiaankuuluvia tilanteita ovat:
 
-    käytöstä poistettu tili, joka näyttää edelleen aktiiviselta
+* käytöstä poistettu tili, joka näyttää edelleen aktiiviselta
 
-    odottamaton hallinnollinen pääsy
+* odottamaton hallinnollinen pääsy
 
-    epäilty tunnistetietojen vaarantuminen
+* epäilty tunnistetietojen vaarantuminen
 
-    odottamaton selainistunto
+* odottamaton selainistunto
 
-    turvallisuustutkinta
+* turvallisuustutkinta
 
 Yksityiskohtaiset istunto- ja todentamisvianmääritysohjeet ovat tiedostossa troubleshooting.md.
-17. Kirjautumisen nopeusrajoitus
+## 17. Kirjautumisen nopeusrajoitus
 
 LUMS soveltaa nopeusrajoitusta toistuviin epäonnistuneisiin kirjautumisyrityksiin.
 
 Nykyinen eteneminen on:
-Epäonnistuneet yritykset	Lukitus
-5	30 sekuntia
-6	60 sekuntia
-7	120 sekuntia
-8+	300 sekuntia
+| Epäonnistuneet yritykset | Lukitus |
+| --- | --- |
+| 5 | 30 sekuntia |
+| 6 | 60 sekuntia |
+| 7 | 120 sekuntia |
+| 8+ | 300 sekuntia |
 
 Nopeusrajoituksen tila tallennetaan SQLiteen.
 
@@ -639,35 +649,35 @@ Toistuvat todentamisepäonnistumiset tulisi tutkia sen sijaan, että ohittaisit 
 
 Mahdollisia syitä ovat:
 
-    virheelliset tunnistetiedot
+* virheelliset tunnistetiedot
 
-    vanhentuneet tallennetut tunnistetiedot
+* vanhentuneet tallennetut tunnistetiedot
 
-    automatisoitu asiakas, joka käyttää virheellisiä tunnistetietoja
+* automatisoitu asiakas, joka käyttää virheellisiä tunnistetietoja
 
-    toistuvat manuaaliset kirjautumisyritykset
+* toistuvat manuaaliset kirjautumisyritykset
 
-    mahdollinen tunnistetietohyökkäys
+* mahdollinen tunnistetietohyökkäys
 
-18. Asiakashallinta
+## 18. Asiakashallinta
 
 Hallinnoidut asiakkaat ovat Linux-järjestelmiä, joissa LUMS-agentti on käynnissä.
 
 Asiakas tarjoaa LUMSille tietoja, kuten:
 
-    asiakkaan identiteetti
+* asiakkaan identiteetti
 
-    asennettu ohjelmisto
+* asennettu ohjelmisto
 
-    saatavilla olevat päivitykset
+* saatavilla olevat päivitykset
 
-    paketinhallinnan tulokset
+* paketinhallinnan tulokset
 
-    päivitystöiden tulokset
+* päivitystöiden tulokset
 
-    uudelleenkäynnistystila
+* uudelleenkäynnistystila
 
-    toiminnallinen tila
+* toiminnallinen tila
 
 LUMS-palvelin tallentaa asiakkaan tilan ja tarjoaa sen verkkokäyttöliittymän kautta.
 
@@ -682,17 +692,17 @@ Käsittele asiakastunnisteita yhtä huolellisesti kuin salasanoja.
 
 Älä koskaan:
 
-    committoi tunnisteita Gitiin
+* committoi tunnisteita Gitiin
 
-    sijoita tunnisteita julkiseen dokumentaatioon
+* sijoita tunnisteita julkiseen dokumentaatioon
 
-    sisällytä tunnisteita kuvakaappauksiin
+* sisällytä tunnisteita kuvakaappauksiin
 
-    liitä tunnisteita ongelmaseurantaan
+* liitä tunnisteita ongelmaseurantaan
 
-    paljasta tunnisteita diagnostiikkatulosteissa
+* paljasta tunnisteita diagnostiikkatulosteissa
 
-    jaa yhden asiakkaan tunnistetta toiselle asiakkaalle
+* jaa yhden asiakkaan tunnistetta toiselle asiakkaalle
 
 Tunniste tulisi asentaa vain asiakkaalle, jolle se on myönnetty.
 20. Asiakkaan rekisteröinti
@@ -703,19 +713,19 @@ Rekisteröintiprosessi luo asiakkaan identiteetin ja todentamistunnistetiedot pa
 
 Rekisteröinnin jälkeen:
 
-    asenna LUMS-agentti
+* asenna LUMS-agentti
 
-    määritä asiakastunniste
+* määritä asiakastunniste
 
-    määritä LUMS-palvelimen päätepiste
+* määritä LUMS-palvelimen päätepiste
 
-    luo TLS-luottamus
+* luo TLS-luottamus
 
-    suorita agentin alustava ajo
+* suorita agentin alustava ajo
 
-    varmista, että asiakas raportoi onnistuneesti
+* varmista, että asiakas raportoi onnistuneesti
 
-    vahvista, että asiakas näkyy LUMS-käyttöliittymässä
+* vahvista, että asiakas näkyy LUMS-käyttöliittymässä
 
 Asiakasta ei pidä pitää toiminnallisena vain siksi, että agenttipalvelu käynnistyy onnistuneesti.
 
@@ -726,31 +736,31 @@ Asiakasnäkymää tulee käyttää eri toimintatilojen erottamiseen.
 
 Esimerkkejä:
 
-    asiakas rekisteröity, mutta ei raportoi
+* asiakas rekisteröity, mutta ei raportoi
 
-    asiakas raportoi normaalisti
+* asiakas raportoi normaalisti
 
-    asiakas raportoi vanhentuneita tietoja
+* asiakas raportoi vanhentuneita tietoja
 
-    asiakas poistettu käytöstä
+* asiakas poistettu käytöstä
 
-    asiakastodennuksen epäonnistuminen
+* asiakastodennuksen epäonnistuminen
 
-    asiakaspuolen paketinhallinnan epäonnistuminen
+* asiakaspuolen paketinhallinnan epäonnistuminen
 
 Kun asiakas lopettaa raportoinnin, selvitä ensin, onko ongelma:
 
-    verkkoyhteydessä
+* verkkoyhteydessä
 
-    TLS-luottamuksessa
+* TLS-luottamuksessa
 
-    asiakastodennuksessa
+* asiakastodennuksessa
 
-    agentin suorituksessa
+* agentin suorituksessa
 
-    palvelimen saatavuudessa
+* palvelimen saatavuudessa
 
-    palvelinpuolen käsittelyssä
+* palvelinpuolen käsittelyssä
 
 Vältä asiakastunnistetietojen muuttamista ennen kuin olet selvittänyt, mikä kerros todella epäonnistuu.
 22. Asiakastunnisteen vaihto
@@ -759,31 +769,31 @@ Asiakastunnisteita voidaan vaihtaa tarvittaessa.
 
 Tyypillisiä syitä ovat:
 
-    epäilty tunnisteen paljastuminen
+* epäilty tunnisteen paljastuminen
 
-    tunnistetietojen vaihtokäytäntö
+* tunnistetietojen vaihtokäytäntö
 
-    hallinnollinen ylläpito
+* hallinnollinen ylläpito
 
-    asiakaskokoonpanon korvaaminen
+* asiakaskokoonpanon korvaaminen
 
-    turvallisuuspoikkeaman vastatoimi
+* turvallisuuspoikkeaman vastatoimi
 
 Tunnisteen vaihto muuttaa asiakkaalle hyväksyttävää tunnistetta.
 
 Vaihdon jälkeen:
 
-    hanki uusi asiakastunniste
+* hanki uusi asiakastunniste
 
-    päivitä asiakaskokoonpano
+* päivitä asiakaskokoonpano
 
-    suorita agentti
+* suorita agentti
 
-    varmista onnistunut todentaminen
+* varmista onnistunut todentaminen
 
-    varmista tuloksena oleva asiakasraportti
+* varmista tuloksena oleva asiakasraportti
 
-    vahvista, että normaali raportointi jatkuu
+* vahvista, että normaali raportointi jatkuu
 
 Älä poista vanhaa asiakaskokoonpanoa ennen kuin uusi todentamispolku on varmennettu.
 23. Asiakkaan poistaminen käytöstä
@@ -792,29 +802,29 @@ Asiakas voidaan poistaa käytöstä, kun sen ei enää pitäisi osallistua LUMS-
 
 Esimerkkejä:
 
-    järjestelmän käytöstä poisto
+* järjestelmän käytöstä poisto
 
-    väliaikainen ylläpito
+* väliaikainen ylläpito
 
-    asiakkaan vaihto
+* asiakkaan vaihto
 
-    epäilty tunnistetietojen vaarantuminen
+* epäilty tunnistetietojen vaarantuminen
 
 Ennen asiakkaan poistamista käytöstä tarkista, onko siihen liittyviä aktiivisia päivitystöitä.
 
 Käytöstä poistamisen jälkeen:
 
-    varmista, että asiakasta ei enää käsitellä toiminnallisena
+* varmista, että asiakasta ei enää käsitellä toiminnallisena
 
-    tarkista asiaankuuluva päivitystyöhistoria
+* tarkista asiaankuuluva päivitystyöhistoria
 
-    säilytä tutkintaan tarvittavat valvontatiedot
+* säilytä tutkintaan tarvittavat valvontatiedot
 
 Älä poista pysyviä asiakastietoja vain siksi, että asiakas on tilapäisesti offline-tilassa.
 24. Asiakashallinnan tarkistuslista
 
 Kun lisäät tai muutat asiakasta, varmista koko ketju:
-text
+```text
 
 [ ] Client exists in LUMS
 [ ] Client is enabled
@@ -828,17 +838,18 @@ text
 [ ] Available updates are reported
 [ ] Update jobs can be tracked
 [ ] Results are returned correctly
+```
 
 Asiakas on toiminnallinen vain, kun koko raportointi- ja todentamisketju toimii.
-25. Hallinnollinen periaate
+## 25. Hallinnollinen periaate
 
 Käyttäjähallinnan ja asiakashallinnan tulisi pysyä erillään.
 
 LUMS-sovellustili määrittää, mitä henkilö saa tehdä.
 
 Asiakastunniste määrittää, mikä hallinnoitu järjestelmä saa kommunikoida LUMSin kanssa.
-text
 
+```text
 Application User
       │
       └── Role / Permissions
@@ -846,9 +857,10 @@ Application User
 Managed Client
       │
       └── Client Token / Identity
+```
 
 Älä käytä yhtä mekanismia toisen korvikkeena.
-26. Ohjelmistoluettelo
+## 26. Ohjelmistoluettelo
 
 LUMS ylläpitää hallinnoitujen asiakkaiden raportoimia ohjelmistotietoja.
 
@@ -861,7 +873,7 @@ Palvelin tarjoaa raportoidut tiedot asiakaskäyttöliittymän kautta.
 Luetteloa tulee pitää tilannekuvana asiakkaan raportoimasta tilasta.
 
 Se ei korvaa natiivia paketinhallintaa.
-27. Asennettu ohjelmisto
+## 27. Asennettu ohjelmisto
 
 Asennettu ohjelmisto -osio näyttää valitun asiakkaan raportoimat paketit.
 
@@ -872,8 +884,8 @@ Asennettujen ohjelmistojen suodatin on paikallinen käyttöliittymätoiminto.
 Se on erillään paketinhallinnan hausta.
 
 Tämä ero on tärkeä:
-text
 
+```text
 Installed Software
     │
     └── Filter already reported package inventory
@@ -881,9 +893,10 @@ Installed Software
 Package Management
     │
     └── Search the client's package repositories
+```
 
 Asennettu paketti ei siksi välttämättä näy paketinhallinnan haussa, jos se ei ole enää saatavilla määritetyssä varastossa.
-28. Saatavilla olevat päivitykset
+## 28. Saatavilla olevat päivitykset
 
 LUMS kerää myös tietoja paketeista, joille on saatavilla päivityksiä.
 
@@ -893,40 +906,40 @@ Raportoituja tietoja voidaan käyttää sellaisten pakettien tunnistamiseen, jot
 
 Ennen päivitystyön luomista tarkista:
 
-    asiakkaan identiteetti
+* asiakkaan identiteetti
 
-    paketin nimi
+* paketin nimi
 
-    tällä hetkellä asennettu versio
+* tällä hetkellä asennettu versio
 
-    saatavilla oleva versio
+* saatavilla oleva versio
 
-    paketin tila
+* paketin tila
 
-    onko asiakas tällä hetkellä tavoitettavissa
+* onko asiakas tällä hetkellä tavoitettavissa
 
 Älä oleta, että jokainen saatavilla oleva päivitys tulisi asentaa välittömästi.
 
 Toiminnalliset vaatimukset, huoltoikkunat, sovellusriippuvuudet ja asiakkaan tila on otettava huomioon ennen suoritusta.
-29. Paketinhallinta
+## 29. Paketinhallinta
 
 LUMS tarjoaa keskitettyjä paketinhallintatoimintoja tuetuille Linux-asiakkaille.
 
 Nykyiset paketinhallintatoiminnot ovat:
 
-    INSTALL_PACKAGE
+* INSTALL_PACKAGE
 
-    REMOVE_PACKAGE
+* REMOVE_PACKAGE
 
-    UPDATE_PACKAGE
+* UPDATE_PACKAGE
 
-    UPDATE_SYSTEM
+* UPDATE_SYSTEM
 
 Toiminto pyydetään LUMSin kautta, mutta LUMS-agentti suorittaa sen paikallisesti.
 
 Agentti delegoi varsinaisen pakettitoiminnon natiiville paketinhallinnalle.
-text
 
+```text
 LUMS Web UI
       │
       ▼
@@ -941,9 +954,10 @@ LUMS Agent
       ├── APT / dpkg
       │
       └── pacman
+```
 
 LUMS pysyy siten riippumattomana käyttöjärjestelmän pakettitietokannasta ja paketinhallintatoteutuksesta.
-30. Pakettihaku
+## 30. Pakettihaku
 
 Paketinhallinta-käyttöliittymä tarjoaa pakettihaun, joka on erillään asennettujen ohjelmistojen suodattimesta.
 
@@ -955,59 +969,59 @@ Arch Linuxissa agentti käyttää pacman-työkalua.
 
 Hakutulokset voivat sisältää:
 
-    paketin nimi
+* paketin nimi
 
-    paketin versio
+* paketin versio
 
-    paketin kuvaus
+* paketin kuvaus
 
-    varastotiedot, jos saatavilla
+* varastotiedot, jos saatavilla
 
 Pakettihaku ei asenna mitään.
 
 Haku on siten vain luku -toiminto.
-31. Paketin asentaminen
+## 31. Paketin asentaminen
 
 Ylläpitäjät ja operaattorit voivat luoda paketinasennustöitä.
 
 Normaali työnkulku on:
 
-    valitse hallinnoitu asiakas
+* valitse hallinnoitu asiakas
 
-    avaa Paketinhallinta
+* avaa Paketinhallinta
 
-    hae tarvittava paketti
+* hae tarvittava paketti
 
-    tarkista tulos
+* tarkista tulos
 
-    valitse asennustoiminto
+* valitse asennustoiminto
 
-    luo työ
+* luo työ
 
-    seuraa suoritusta
+* seuraa suoritusta
 
-    varmista tulos
+* varmista tulos
 
-    päivitä tai tarkista asennettu ohjelmisto uudelleen
+* päivitä tai tarkista asennettu ohjelmisto uudelleen
 
 Agentti asentaa paketin natiivin paketinhallinnan avulla.
 
 Työn onnistunut luominen ei tarkoita, että asennus on jo valmis.
 
 Lopullinen työtulos on tarkistettava.
-32. Paketin poistaminen
+## 32. Paketin poistaminen
 
 Paketin poistaminen noudattaa samaa hallittua työnkulkua.
 
 Ennen paketin poistamista varmista:
 
-    oikea asiakas
+* oikea asiakas
 
-    oikea paketti
+* oikea paketti
 
-    aiottu toimenpide
+* aiottu toimenpide
 
-    onko muut ohjelmistot riippuvaisia paketista
+* onko muut ohjelmistot riippuvaisia paketista
 
 Suorituksen jälkeen varmista tuloksena oleva työn tila ja asiakkaan raportoima ohjelmistotila.
 
@@ -1019,7 +1033,7 @@ Natiivi paketinhallinta vastaa edelleen toimenpiteen ratkaisemisesta.
 Tietty paketti voidaan päivittää, kun päivitys on saatavilla.
 
 Työnkulku on:
-text
+```text
 
 Available Update
       │
@@ -1034,13 +1048,14 @@ Agent Execution
       │
       ▼
 Result Validation
+```
 
 LUMS validoi pakettitiedot ennen vastaavan päivitystyön luomista.
 
 Jos pakettia ei enää ole listattu päivitettäväksi, työpyyntöä ei tule pitää kelvollisena päivitystoimintona.
 
 Tämä estää vanhentuneiden päivitystietojen sokean suorittamisen.
-34. Järjestelmän päivittäminen
+## 34. Järjestelmän päivittäminen
 
 UPDATE_SYSTEM suorittaa laajemman järjestelmäpäivityksen asiakkaan natiivin paketinhallintamekanismin avulla.
 
@@ -1048,29 +1063,29 @@ Tämä toimenpide vaikuttaa useampaan kuin yhteen pakettiin, joten sitä tulee p
 
 Ennen järjestelmäpäivityksen aloittamista varmista:
 
-    asiakkaan saatavuus
+* asiakkaan saatavuus
 
-    huoltoikkuna
+* huoltoikkuna
 
-    tällä hetkellä käynnissä olevat työt
+* tällä hetkellä käynnissä olevat työt
 
-    paketinhallinnan tila
+* paketinhallinnan tila
 
-    saatavilla oleva levytila tarvittaessa
+* saatavilla oleva levytila tarvittaessa
 
-    tarvitaanko mahdollisesti uudelleenkäynnistystä
+* tarvitaanko mahdollisesti uudelleenkäynnistystä
 
 Päivityksen jälkeen varmista:
 
-    työn tulos
+* työn tulos
 
-    asiakasraportti
+* asiakasraportti
 
-    asennettu ohjelmisto
+* asennettu ohjelmisto
 
-    saatavilla olevat päivitykset
+* saatavilla olevat päivitykset
 
-    uudelleenkäynnistystila
+* uudelleenkäynnistystila
 
 35. Päivitystyöt
 
@@ -1079,7 +1094,7 @@ Kaikki mutatoivat paketti- ja päivitystoiminnot esitetään LUMS-päivitystöin
 Tämä tarjoaa yhteisen suoritus- ja seurantamallin.
 
 Tyypillinen työn elinkaari:
-text
+```text
 
 PENDING
    │
@@ -1090,39 +1105,41 @@ RUNNING
    │
    ▼
 SUCCESS
+```
 
 Työ voi vaatia lisäkäsittelyä, kun asiakas tulee tavoittamattomaksi tai suoritus keskeytyy.
 
 Työhistoriaa tulee käyttää ensisijaisena toiminnallisena tietueena sen sijaan, että luotettaisiin pelkästään nykyiseen asiakasnäkymään.
-36. Työn luominen
+## 36. Työn luominen
 
 Ennen päivitystyön luomista varmista aiottu toimenpide huolellisesti.
 
 Tarkista:
 
-    asiakas
+* asiakas
 
-    toiminto
+* toiminto
 
-    paketti
+* paketti
 
-    kohdeversio tarvittaessa
+* kohdeversio tarvittaessa
 
-    nykyinen paketin tila
+* nykyinen paketin tila
 
-    ylläpitovaatimukset
+* ylläpitovaatimukset
 
 Tuetut toiminnot ovat:
-Toiminto	Tarkoitus
-INSTALL_PACKAGE	Asenna paketti
-REMOVE_PACKAGE	Poista paketti
-UPDATE_PACKAGE	Päivitä tietty paketti
-UPDATE_SYSTEM	Suorita järjestelmänlaajuinen päivitys
+| Toiminto | Tarkoitus |
+| --- | --- |
+| INSTALL_PACKAGE | Asenna paketti |
+| REMOVE_PACKAGE | Poista paketti |
+| UPDATE_PACKAGE | Päivitä tietty paketti |
+| UPDATE_SYSTEM | Suorita järjestelmänlaajuinen päivitys |
 
 Päivitystyön luominen on rajoitettu Administrator- ja Operator-rooleille.
 
 Viewerit eivät voi luoda päivitystöitä.
-37. Työn suoritus
+## 37. Työn suoritus
 
 Luomisen jälkeen LUMS-agentti käsittelee työn.
 
@@ -1135,90 +1152,91 @@ Agentti ei pidä onnistunutta HTTP-pyyntöä todisteena siitä, että pakettitoi
 Sen sijaan todellinen paketinhallinnan tulos palautetaan LUMSille.
 
 Tämä ero on tärkeä:
-text
 
+```text
 API request accepted
         ≠
 Package operation successful
+```
 
 Lopullinen suoritustulos on siksi aina tarkistettava.
-38. Työn tulokset
+## 38. Työn tulokset
 
 Valmiin työn tulee sisältää eksplisiittinen tulos.
 
 Asiaankuuluvia tuloksia ovat:
 
-    onnistunut suoritus
+* onnistunut suoritus
 
-    epäonnistunut suoritus
+* epäonnistunut suoritus
 
-    paketinhallinnan virhe
+* paketinhallinnan virhe
 
-    keskeytynyt suoritus
+* keskeytynyt suoritus
 
-    palautukseen liittyvä tila
+* palautukseen liittyvä tila
 
-    uudelleenkäynnistykseen liittyvä tila tarvittaessa
+* uudelleenkäynnistykseen liittyvä tila tarvittaessa
 
 Ylläpitäjien ja operaattorien tulee tarkastaa tulos, kun työ epäonnistuu, sen sijaan että he välittömästi toistaisivat saman toimenpiteen.
 
 Toistuva suoritus ilman alkuperäisen epäonnistumisen ymmärtämistä voi vaikeuttaa diagnoosia.
-39. Työhistoria
+## 39. Työhistoria
 
 Päivityshistoria tarjoaa toiminnallisen tietueen aiemmasta päivitystoiminnasta.
 
 Käytä sitä vastaamaan kysymyksiin, kuten:
 
-    Onko tämä paketti jo päivitetty?
+* Onko tämä paketti jo päivitetty?
 
-    Mikä asiakas suoritti toimenpiteen?
+* Mikä asiakas suoritti toimenpiteen?
 
-    Milloin työ luotiin?
+* Milloin työ luotiin?
 
-    Milloin suoritus alkoi?
+* Milloin suoritus alkoi?
 
-    Milloin suoritus päättyi?
+* Milloin suoritus päättyi?
 
-    Onnistuiko toimenpide?
+* Onnistuiko toimenpide?
 
-    Raportoiko paketinhallinta virheestä?
+* Raportoiko paketinhallinta virheestä?
 
 Historialliset työtiedot ovat erityisen tärkeitä tutkittaessa toistuvia epäonnistumisia tai keskeytyneitä ylläpitotoimenpiteitä.
-40. Epäonnistuneet työt
+## 40. Epäonnistuneet työt
 
 Kun työ epäonnistuu:
 
-    kirjaa asiakas ja työn tunniste
+* kirjaa asiakas ja työn tunniste
 
-    tarkista työn tulos
+* tarkista työn tulos
 
-    selvitä, tapahtuiko epäonnistuminen palvelimella vai asiakkaalla
+* selvitä, tapahtuiko epäonnistuminen palvelimella vai asiakkaalla
 
-    tarkista asiaankuuluvat agenttilokit
+* tarkista asiaankuuluvat agenttilokit
 
-    tarkista natiivin paketinhallinnan tila
+* tarkista natiivin paketinhallinnan tila
 
-    korjaa taustalla oleva ongelma
+* korjaa taustalla oleva ongelma
 
-    yritä uudelleen vasta, kun syy on ymmärretty
+* yritä uudelleen vasta, kun syy on ymmärretty
 
 Yleisiä syitä ovat:
 
-    tavoittamattomat varastot
+* tavoittamattomat varastot
 
-    paketinhallinnan lukot
+* paketinhallinnan lukot
 
-    verkko-ongelmat
+* verkko-ongelmat
 
-    virheelliset pakettipyynnöt
+* virheelliset pakettipyynnöt
 
-    riippuvuusristiriidat
+* riippuvuusristiriidat
 
-    riittämätön levytila
+* riittämätön levytila
 
-    keskeytyneet pakettitoiminnot
+* keskeytyneet pakettitoiminnot
 
-    asiakastodennuksen tai viestinnän ongelmat
+* asiakastodennuksen tai viestinnän ongelmat
 
 Yksityiskohtaiset diagnostiikkamenettelyt on dokumentoitu tiedostossa troubleshooting.md.
 41. Paketinhallinnan lukot
@@ -1227,13 +1245,13 @@ APT ja pacman voivat estää samanaikaiset pakettitoiminnot.
 
 Jos paketinhallintatoiminto epäonnistuu, koska paketinhallinta on jo käytössä:
 
-    tunnista aktiivinen paketinhallintaprosessi
+* tunnista aktiivinen paketinhallintaprosessi
 
-    selvitä, mikä toiminto on käynnissä
+* selvitä, mikä toiminto on käynnissä
 
-    odota laillisen toiminnon päättymistä tarvittaessa
+* odota laillisen toiminnon päättymistä tarvittaessa
 
-    yritä LUMS-toimintoa uudelleen sen jälkeen
+* yritä LUMS-toimintoa uudelleen sen jälkeen
 
 Älä poista paketinhallinnan lukkotiedostoja sokeasti, kun paketinhallinta on käynnissä.
 
@@ -1250,28 +1268,28 @@ Jos lepotilatiedot eivät ole saatavilla, agentin on raportoitava tämä tila se
 
 Ylläpitäjien tulee erottaa:
 
-    asiakas on lepotilassa
+* asiakas on lepotilassa
 
-    asiakas on aktiivinen
+* asiakas on aktiivinen
 
-    lepotilan tunnistus ei ole käytettävissä
+* lepotilan tunnistus ei ole käytettävissä
 
-    asiakas ei ole tavoitettavissa
+* asiakas ei ole tavoitettavissa
 
 Näillä tiloilla on erilaiset toiminnalliset merkitykset.
 43. Päivityksen suorituksen seuranta
 
 Ylläpidon aikana seuraa:
 
-    työn tila
+* työn tila
 
-    asiakkaan yhteys
+* asiakkaan yhteys
 
-    agentin toiminta
+* agentin toiminta
 
-    paketinhallinnan tulos
+* paketinhallinnan tulos
 
-    uudelleenkäynnistysvaatimus
+* uudelleenkäynnistysvaatimus
 
 Älä oleta, että työ, joka pysyy RUNNING-tilassa loputtomasti, tarkoittaa, että paketinhallinta työskentelee edelleen.
 
@@ -1284,21 +1302,21 @@ LUMS seuraa hallinnoidun asiakkaan raportoimaa uudelleenkäynnistystilaa.
 
 Järjestelmäpäivityksen jälkeen:
 
-    tarkista raportoitu uudelleenkäynnistystila
+* tarkista raportoitu uudelleenkäynnistystila
 
-    selvitä, vaaditaanko uudelleenkäynnistys
+* selvitä, vaaditaanko uudelleenkäynnistys
 
-    suorita uudelleenkäynnistys asianmukaisen huoltoikkunan aikana
+* suorita uudelleenkäynnistys asianmukaisen huoltoikkunan aikana
 
-    anna agentin raportoida uudelleen
+* anna agentin raportoida uudelleen
 
-    varmista, että asiakas palaa normaaliin toimintaan
+* varmista, että asiakas palaa normaaliin toimintaan
 
 Uudelleenkäynnistysvaatimusta ei tule automaattisesti tulkita päivityksen epäonnistumiseksi.
 45. Päivityksen toiminnallinen tarkistuslista
 
 Rutiininomaiseen pakettien ylläpitoon:
-text
+```text
 
 [ ] Correct client selected
 [ ] Client is reachable
@@ -1313,9 +1331,10 @@ text
 [ ] Available updates rechecked
 [ ] Reboot state checked
 [ ] Job history reviewed if required
+```
 
 Toimenpide on valmis vasta, kun tuloksena oleva asiakkaan tila on varmennettu.
-46. Paketinhallinnan periaate
+## 46. Paketinhallinnan periaate
 
 LUMS tarjoaa keskitetyn orkestroinnin ja näkyvyyden.
 
@@ -1323,10 +1342,10 @@ Hallinnoitu käyttöjärjestelmä vastaa edelleen varsinaisesta paketinhallinnas
 
 Siksi:
 
-    LUMS pyytää ja seuraa toimenpidettä. Natiivi paketinhallinta suorittaa sen.
+* LUMS pyytää ja seuraa toimenpidettä. Natiivi paketinhallinta suorittaa sen.
 
 Tämä erottelu antaa LUMSin hallita erilaisia Linux-järjestelmiä säilyttäen samalla kunkin käyttöjärjestelmän paketinhallinnan semantiikan.
-47. Työn palautus
+## 47. Työn palautus
 
 LUMS on suunniteltu käsittelemään keskeytyneitä päivitystöitä toistamatta sokeasti jo onnistuneesti suoritettuja toimintoja.
 
@@ -1334,26 +1353,26 @@ Päivityksen suoritus käyttää tarkistuspistetietoja edistymisen seuraamiseen.
 
 Tämä on erityisen tärkeää, kun:
 
-    agentti keskeytyy
+* agentti keskeytyy
 
-    asiakas käynnistyy uudelleen
+* asiakas käynnistyy uudelleen
 
-    palvelin käynnistetään uudelleen
+* palvelin käynnistetään uudelleen
 
-    verkkoyhteys on tilapäisesti poissa
+* verkkoyhteys on tilapäisesti poissa
 
-    pakettitoiminto valmistuu ennen kuin tulos raportoidaan
+* pakettitoiminto valmistuu ennen kuin tulos raportoidaan
 
 Palautusmekanismi käyttää tallennettua työn tilaa määrittääkseen, mitä työtä on vielä suoritettava.
-48. Pakettitason tarkistuspisteet
+## 48. Pakettitason tarkistuspisteet
 
 Useita pakettitoimintoja sisältävät työt käsitellään yksitellen.
 
 Onnistunut pakettitoiminto tallennetaan ennen kuin agentti siirtyy seuraavaan toimintoon.
 
 Käsitteellisesti:
-text
 
+```text
 Job
  │
  ├── Package A → SUCCESS
@@ -1363,32 +1382,33 @@ Job
  ├── Package C → interrupted
  │
  └── Package D → PENDING
+```
 
 Palautuksen jälkeen jo suoritettuja pakettitoimintoja ei tule suorittaa uudelleen tarpeettomasti.
 
 Jäljellä oleva työ voi jatkua tallennetusta tilasta.
 
 Tämä vähentää pakettitoimintojen toistamisen riskiä keskeytyksen jälkeen.
-49. Keskeytyneet työt
+## 49. Keskeytyneet työt
 
 Kun päivitystyö keskeytyy, älä heti luo korvaavaa työtä.
 
 Selvitä ensin:
 
-    mikä työ keskeytyi
+* mikä työ keskeytyi
 
-    mikä pakettitoiminto oli aktiivinen
+* mikä pakettitoiminto oli aktiivinen
 
-    mitkä pakettitoiminnot jo onnistuivat
+* mitkä pakettitoiminnot jo onnistuivat
 
-    suorittiko paketinhallinta toiminnon loppuun
+* suorittiko paketinhallinta toiminnon loppuun
 
-    palauttiko agentti työn automaattisesti
+* palauttiko agentti työn automaattisesti
 
-    vaatiiko asiakas uudelleenkäynnistyksen
+* vaatiiko asiakas uudelleenkäynnistyksen
 
 Olemassa oleva työhistoria ja agenttilokit tulee tarkistaa ennen manuaalista toimenpidettä.
-50. Agentin palautus
+## 50. Agentin palautus
 
 Agentti vastaa palautettavan työn jatkamisesta keskeytyksen jälkeen.
 
@@ -1399,7 +1419,7 @@ Jos pakettitoiminto on jo tallennettu onnistuneeksi, palautus ei saa sokeasti su
 Jos palautus ei voi turvallisesti määrittää toiminnon tilaa, tila tulee käsitellä toiminnallisena ongelmana ja tutkia.
 
 Älä muuta työn tiloja manuaalisesti tietokannassa vain saadaksesi työn näyttämään valmiilta.
-51. Palvelimen uudelleenkäynnistys työn aikana
+## 51. Palvelimen uudelleenkäynnistys työn aikana
 
 LUMS-palvelimen uudelleenkäynnistys ei välttämättä tarkoita, että asiakaspuolen pakettitoiminto keskeytyi.
 
@@ -1407,20 +1427,20 @@ Palvelimella ja asiakkaalla on erilliset suoritustilat.
 
 Palvelimen uudelleenkäynnistyksen jälkeen:
 
-    varmista, että LUMS-kontti on käynnissä
+* varmista, että LUMS-kontti on käynnissä
 
-    varmista tietokannan saatavuus
+* varmista tietokannan saatavuus
 
-    varmista, että asiakas voi kommunikoida LUMSin kanssa
+* varmista, että asiakas voi kommunikoida LUMSin kanssa
 
-    tarkista asiaankuuluvat päivitystyöt
+* tarkista asiaankuuluvat päivitystyöt
 
-    tarkista agenttiraportit
+* tarkista agenttiraportit
 
-    varmista lopullinen paketin tila
+* varmista lopullinen paketin tila
 
 Asiakaspuolen suoritustulos on edelleen tärkein totuuden lähde pakettitoiminnolle.
-52. Asiakkaan uudelleenkäynnistys työn aikana
+## 52. Asiakkaan uudelleenkäynnistys työn aikana
 
 Asiakkaan uudelleenkäynnistys voi keskeyttää agentin suorituksen tai johtua siitä, että päivitys itse vaatii uudelleenkäynnistyksen.
 
@@ -1434,26 +1454,26 @@ Järjestelmä käynnistyi uudelleen ennen toiminnon valmistumista tai ennen kuin
 
 Kun asiakas palaa:
 
-    anna agentin käynnistyä normaalisti
+* anna agentin käynnistyä normaalisti
 
-    varmista kommunikointi LUMSin kanssa
+* varmista kommunikointi LUMSin kanssa
 
-    tarkista asiaankuuluva työ
+* tarkista asiaankuuluva työ
 
-    varmista paketin tila
+* varmista paketin tila
 
-    tarkista uudelleenkäynnistystila
+* tarkista uudelleenkäynnistystila
 
-    anna palautuksen jatkua tarvittaessa
+* anna palautuksen jatkua tarvittaessa
 
-53. Uudelleenkäynnistyksen tunnistus
+## 53. Uudelleenkäynnistyksen tunnistus
 
 LUMS voi seurata hallinnoidun asiakkaan raportoimia uudelleenkäynnistysvaatimuksia.
 
 Uudelleenkäynnistyksen tunnistus ei ole sama kuin sen tunnistaminen, onko kone tällä hetkellä tavoitettavissa.
 
 Nämä ovat erillisiä tiloja:
-text
+```text
 
 Client reachable
         │
@@ -1464,44 +1484,46 @@ Client reachable
 Client unreachable
         │
         └── current state cannot be confirmed
+```
 
 Ylläpitäjien tulee siksi välttää tavoittamattoman asiakkaan käsittelemistä todisteena siitä, että uudelleenkäynnistys vaaditaan.
-54. Uudelleenkäynnistyksen jälkeinen varmistus
+## 54. Uudelleenkäynnistyksen jälkeinen varmistus
 
 Vaaditun uudelleenkäynnistyksen jälkeen:
 
-    odota, että käyttöjärjestelmä tulee saataville
+* odota, että käyttöjärjestelmä tulee saataville
 
-    varmista agenttipalvelu tai -ajastin
+* varmista agenttipalvelu tai -ajastin
 
-    varmista asiakastodennus
+* varmista asiakastodennus
 
-    varmista asiakasraportti
+* varmista asiakasraportti
 
-    tarkista asiaankuuluva päivitystyö
+* tarkista asiaankuuluva päivitystyö
 
-    varmista asennetut pakettiversiot
+* varmista asennetut pakettiversiot
 
-    varmista saatavilla olevat päivitykset
+* varmista saatavilla olevat päivitykset
 
-    tarkista, vaaditaanko toinen uudelleenkäynnistys
+* tarkista, vaaditaanko toinen uudelleenkäynnistys
 
 Uudelleenkäynnistys tulee katsoa toiminnallisesti valmiiksi vasta, kun asiakas on raportoinut onnistuneesti uudelleen.
-55. Päivitystyön seuranta
+## 55. Päivitystyön seuranta
 
 Ylläpitäjien ja operaattorien tulee seurata töitä suunnitellun ylläpidon aikana.
 
 Tärkeitä tiloja ovat:
-Tila	Merkitys
-PENDING	Työ on olemassa, mutta suoritus ei ole alkanut
-RUNNING	Työn suoritus on käynnissä
-SUCCESS	Suoritus valmistui onnistuneesti
-FAILED	Suoritus valmistui virheellä
+| Tila | Merkitys |
+| --- | --- |
+| PENDING | Työ on olemassa, mutta suoritus ei ole alkanut |
+| RUNNING | Työn suoritus on käynnissä |
+| SUCCESS | Suoritus valmistui onnistuneesti |
+| FAILED | Suoritus valmistui virheellä |
 
 Työn tilaa tulee aina tulkita yhdessä sen tulos tietojen kanssa.
 
 Esimerkiksi FAILED-työtä tulee tutkia sen tallennetun tuloksen avulla sen sijaan, että se yksinkertaisesti yritettäisiin uudelleen.
-56. Suorituksen valvoja
+## 56. Suorituksen valvoja
 
 LUMS-agentti sisältää erillisen suorituksen valvojan.
 
@@ -1518,29 +1540,32 @@ Agenttiversio on:
 Agent 1.7.0
 
 Nämä versiot tulee varmistaa asiakaspäivitysten jälkeen.
-57. Valvojan seuranta
+## 57. Valvojan seuranta
 
 Ylläpitäjät voivat tarkastaa valvojan systemdin kautta hallinnoidulla asiakkaalla.
 
 Hyödyllisiä tarkistuksia ovat:
-bash
 
+```bash
 systemctl status lums-agent-watcher.service --no-pager
+```
 
 ja:
-bash
 
+```bash
 journalctl -u lums-agent-watcher.service --no-pager -n 100
+```
 
 Ajastin voidaan tarkastaa komennolla:
-bash
 
+```bash
 systemctl status lums-agent-watcher.timer --no-pager
+```
 
 Kertaluontoisen palvelun tarkka aktiivinen/inaktiivinen tila tulee tulkita yhdessä sen ajastimen ja lokin kanssa.
 
 inactive (dead) -tila ei ole automaattisesti virhe kertaluontoiselle palvelulle.
-58. Raportointi- ja suoritusajastimet
+## 58. Raportointi- ja suoritusajastimet
 
 LUMS erottaa säännöllisen asiakasraportoinnin suorituksen seurannasta.
 
@@ -1549,80 +1574,83 @@ Raportointiajastin vastaa agentin ajastetusta suorituksesta.
 Valvojan ajastin vastaa valvojan ajastetusta suorituksesta.
 
 Tarkista molemmat, kun diagnosoit asiakaspuolen ajoitusongelmia:
-bash
 
+```bash
 systemctl list-timers --all | grep lums-agent
+```
 
 Odotetut yksiköt ovat:
-text
 
+```text
 lums-agent.timer
 lums-agent-watcher.timer
+```
 
 Jos ajastin ei ole käynnissä, tarkista:
-bash
 
+```bash
 systemctl status lums-agent.timer --no-pager
 systemctl status lums-agent-watcher.timer --no-pager
+```
 
 Tarkista sitten vastaavat lokimerkinnät.
-59. Valvontalokitus
+## 59. Valvontalokitus
 
 LUMS tallentaa tärkeät hallinnolliset ja turvallisuuteen liittyvät sovellustoiminnot valvontalokiin.
 
 Valvontatiedot voivat auttaa selvittämään:
 
-    mikä toiminto tapahtui
+* mikä toiminto tapahtui
 
-    kuka käyttäjä sen käynnisti
+* kuka käyttäjä sen käynnisti
 
-    mikä asiakas oli kyseessä
+* mikä asiakas oli kyseessä
 
-    milloin toiminto tapahtui
+* milloin toiminto tapahtui
 
-    hyväksyttiinkö toiminto
+* hyväksyttiinkö toiminto
 
-    mikä hallinnollinen toimenpide suoritettiin
+* mikä hallinnollinen toimenpide suoritettiin
 
 Valvontatietoja tulee pitää toiminnallisena todisteena.
 
 Niitä ei tule poistaa tai muuttaa huolettomasti.
-60. Hallinnolliset valvontatapahtumat
+## 60. Hallinnolliset valvontatapahtumat
 
 Asiaankuuluva hallinnollinen toiminta kattaa toiminnot, kuten:
 
-    käyttäjän luominen
+* käyttäjän luominen
 
-    roolin määrittäminen
+* roolin määrittäminen
 
-    asiakashallinta
+* asiakashallinta
 
-    tunnisteen vaihto
+* tunnisteen vaihto
 
-    päivitystyön luominen
+* päivitystyön luominen
 
-    paketinhallintatoiminnot
+* paketinhallintatoiminnot
 
-    todentamiseen liittyvät turvallisuustapahtumat
+* todentamiseen liittyvät turvallisuustapahtumat
 
 Tarkat tapahtumatiedot riippuvat toiminnosta.
 
 Ylläpitäjien tulee käyttää valvontatietoja yhdessä työhistorian kanssa tutkiessaan odottamatonta toimintaa.
-61. Valvontalokien käsittely
+## 61. Valvontalokien käsittely
 
 Valvontalokeja tulee käsitellä huolellisesti.
 
 Älä:
 
-    muokkaa historiallisia valvontamerkintöjä piilottaaksesi toiminnon
+* muokkaa historiallisia valvontamerkintöjä piilottaaksesi toiminnon
 
-    paljasta arkaluonteisia tunnistetietoja viedyissä lokeissa
+* paljasta arkaluonteisia tunnistetietoja viedyissä lokeissa
 
-    julkaise lokeja, jotka sisältävät asiakastunnisteita
+* julkaise lokeja, jotka sisältävät asiakastunnisteita
 
-    julkaise salasanoja tai todentamismateriaalia
+* julkaise salasanoja tai todentamismateriaalia
 
-    kopioi arkaluonteisia lokitulosteita julkisiin ongelmaseurantoihin
+* kopioi arkaluonteisia lokitulosteita julkisiin ongelmaseurantoihin
 
 Jos lokit on jaettava vianmääritystä varten, poista tunnistetiedot ja muut arkaluonteiset tiedot ensin.
 62. Sovelluslokit
@@ -1630,45 +1658,50 @@ Jos lokit on jaettava vianmääritystä varten, poista tunnistetiedot ja muut ar
 Sovelluslokit kuvaavat LUMS-palvelimen sisäistä toimintaa.
 
 Hyödyllisiä lähteitä ovat:
-bash
+```bash
 
 sudo docker logs --tail 100 lums
+```
 
 Live-seurantaan:
-bash
 
+```bash
 sudo docker logs -f lums
+```
 
 Kun tutkit ongelmaa, rajaa aikaväliä mahdollisuuksien mukaan.
 
 Älä automaattisesti tulosta koko tuotantolokia, kun pienempi asiaankuuluva osa riittää.
-63. Agenttilokit
+## 63. Agenttilokit
 
 Asiakaspuolen agentin toimintaa voidaan tarkastaa systemdin kautta:
-bash
 
+```bash
 journalctl -u lums-agent.service --no-pager -n 100
+```
 
 Valvojan toimintaan:
-bash
 
+```bash
 journalctl -u lums-agent-watcher.service --no-pager -n 100
+```
 
 Tietyn aikavälin osalta voidaan käyttää systemd-journal-suodatusta.
 
 Esimerkki:
-bash
 
+```bash
 journalctl -u lums-agent.service \
     --since "30 minutes ago" \
     --no-pager
+```
 
 Lokit tulee korreloida asiaankuuluvan työn tunnisteen kanssa aina kun mahdollista.
-64. Lokien korrelaatio
+## 64. Lokien korrelaatio
 
 Kun tutkit päivitysongelmaa, korreloi tietoja järjestelmän eri osista:
-text
 
+```text id="jv3j7c"
 Web UI
   │
   ├── Job ID
@@ -1684,13 +1717,14 @@ Agent
   │
   ▼
 Native Package Manager
+```
 
 Tämä estää yleisen virheen olettaa, että yhdessä kerroksessa havaittu ongelma sai alkunsa samasta kerroksesta.
-65. Hallinnollisen seurannan tarkistuslista
+## 65. Hallinnollisen seurannan tarkistuslista
 
 Normaalin toiminnan aikana tarkista säännöllisesti:
-text
 
+```text
 [ ] LUMS container is running
 [ ] HTTPS endpoint is available
 [ ] Database is accessible
@@ -1702,13 +1736,14 @@ text
 [ ] Package-manager operations complete normally
 [ ] Audit activity is available
 [ ] Logs contain no unexplained recurring errors
+```
 
 Näiden tarkistusten tiheyden tulee vastata LUMS-käyttöönoton toiminnallista merkitystä.
-66. Palautusperiaate
+## 66. Palautusperiaate
 
 Kun päivitysongelma ilmenee, turvallisin hallinnollinen lähestymistapa on:
-text
 
+```text
 Observe
    │
    ▼
@@ -1731,75 +1766,80 @@ Verify final state
    │
    ▼
 Document significant incidents
+```
 
 Vältä tuhoavia palautustoimenpiteitä, ellet ymmärrä todellista vikatilaa.
 
 Erityisesti: älä poista töitä, tietokantatietueita, paketinhallinnan lukkoja tai pysyviä asiakastietoja manuaalisesti vain palauttaaksesi siistin näköisen käyttöliittymän.
 
-    Säilytä todisteet ensin. Korjaa tila toiseksi. Varmista tulos kolmanneksi.
+* Säilytä todisteet ensin. Korjaa tila toiseksi. Varmista tulos kolmanneksi.
 
-67. Tietokannan hallinta
+## 67. Tietokannan hallinta
 
 LUMS käyttää SQLitea sovelluksen tietokantana.
 
 Tuotantotietokanta tallennetaan pysyvään Docker-taltioon:
-text
 
+```text
 /var/lib/lums/lums.db
+```
 
 Tietokanta on pysyvä kontin vaihdon yli niin kauan kuin Docker-taltio säilytetään.
 
 Tietokanta sisältää sovelluksen tilan, kuten:
 
-    käyttäjät
+* käyttäjät
 
-    hallinnoidut asiakkaat
+* hallinnoidut asiakkaat
 
-    päivitystyöt
+* päivitystyöt
 
-    pakettitiedot
+* pakettitiedot
 
-    valvontatiedot
+* valvontatiedot
 
-    todentamiseen liittyvä tila
+* todentamiseen liittyvä tila
 
-    migraation tila
+* migraation tila
 
 Ylläpitäjien tulee kohdella tietokantaa kriittisenä sovellustietona.
-68. SQLite-ajonaikainen kokoonpano
+## 68. SQLite-ajonaikainen kokoonpano
 
 Nykyinen tuotannon SQLite-perustaso on:
-Asetus	Arvo
-journal_mode	wal
-busy_timeout	5000
-synchronous	2
-foreign_keys	sovellus ottaa käyttöön
+| Asetus | Arvo |
+| --- | --- |
+| journal_mode | wal |
+| busy_timeout | 5000 |
+| synchronous | 2 |
+| foreign_keys | sovellus ottaa käyttöön |
 
 Sovellus ottaa eksplisiittisesti käyttöön SQLite-viiteavainten valvonnan tietokantayhteyksille.
 
 Ylläpitäjien ei tule muuttaa näitä asetuksia huolettomasti.
 
 Tietokannan ajonaikaisen kokoonpanon muutokset tulee testata ennen tuotantoon viemistä.
-69. Tietokannan eheys
+## 69. Tietokannan eheys
 
 Tietokannan eheys tulee tarkistaa, kun on viitteitä tietokannan korruptiosta tai odottamattomasta sovelluskäyttäytymisestä.
 
 Tyypillinen SQLite-eheystarkistus on:
-bash
 
+```bash id="f0g8sl"
 sudo docker exec lums \
     sqlite3 /var/lib/lums/lums.db \
     "PRAGMA integrity_check;"
+```
 
 Terveen tietokannan pitäisi palauttaa:
-text
 
+```text
 ok
+```
 
 Jos eheystarkistus raportoi virheitä, älä jatka sovelluksen tilan muuttamista sokeasti.
 
 Säilytä asianomainen tietokanta ja tutki syy.
-70. Tietokantamigraatiot
+## 70. Tietokantamigraatiot
 
 LUMS käyttää sovellusmigraatioita tietokantamuutosten tuomiseen.
 
@@ -1809,145 +1849,156 @@ Ylläpitäjien ei tule muokata migraation tilaa manuaalisesti vain ohittaakseen 
 
 Sovelluspäivityksen jälkeen varmista:
 
-    kontti käynnistyy onnistuneesti
+* kontti käynnistyy onnistuneesti
 
-    migraatiot valmistuvat
+* migraatiot valmistuvat
 
-    sovellus on tavoitettavissa
+* sovellus on tavoitettavissa
 
-    olemassa olevat käyttäjät pysyvät saatavilla
+* olemassa olevat käyttäjät pysyvät saatavilla
 
-    olemassa olevat asiakkaat pysyvät saatavilla
+* olemassa olevat asiakkaat pysyvät saatavilla
 
-    olemassa oleva työhistoria pysyy saatavilla
+* olemassa oleva työhistoria pysyy saatavilla
 
-71. Pysyvä Docker-taltio
+## 71. Pysyvä Docker-taltio
 
 LUMS-sovellustiedot sisältävä Docker-taltio on kriittinen pysyvä resurssi.
 
 Tuotantotaltio on:
-text
+```text
 
 lums-data
+```
 
 Tarkista se komennolla:
-bash
 
+```bash id="f3z2kd"
 sudo docker volume inspect lums-data
+```
 
 Taltion on pysyttävä liitettynä, kun LUMS-kontti korvataan.
 
 Kontin poistaminen ei poista taltiota automaattisesti.
 
 Taltion poistaminen kuitenkin poistaa pysyvästi pysyvät sovellustiedot, ellei erillistä varmuuskopiota ole olemassa.
-72. Kontin hallinta
+## 72. Kontin hallinta
 
 LUMS-sovellus toimii kovennetussa Docker-kontissa.
 
 Tuotannon turvallisuusperustaso sisältää:
 
-    ei-root-sovelluskäyttäjä
+* ei-root-sovelluskäyttäjä
 
-    vain luku -juuritiedostojärjestelmä
+* vain luku -juuritiedostojärjestelmä
 
-    poistetut Linux-kyvykkyydet
+* poistetut Linux-kyvykkyydet
 
-    no-new-privileges
+* no-new-privileges
 
-    rajoitetut väliaikaiset tiedostojärjestelmät
+* rajoitetut väliaikaiset tiedostojärjestelmät
 
-    vain luku -salaisuuden liitos
+* vain luku -salaisuuden liitos
 
-    erillinen pysyvä datataltio
+* erillinen pysyvä datataltio
 
-    vain localhost -sovellusportti
+* vain localhost -sovellusportti
 
 Konttia ei tule käynnistää heikommilla turva-asetuksilla vain siksi, että vianmääritys helpottuu.
-73. Kontin tila
+## 73. Kontin tila
 
 Tarkista kontin nykyinen tila komennolla:
-bash
 
+```bash id="4n6p2v"
 sudo docker ps --filter name=lums
+```
 
 Tarkista täydellinen ajonaikainen kokoonpano komennolla:
-bash
 
+```bash id="k1q4z8"
 sudo docker inspect lums
+```
 
 Tärkeitä ominaisuuksia ovat:
 
-    käynnissä oleva tila
+* käynnissä oleva tila
 
-    uudelleenkäynnistyskäytäntö
+* uudelleenkäynnistyskäytäntö
 
-    käyttäjä
+* käyttäjä
 
-    vain luku -juuritiedostojärjestelmä
+* vain luku -juuritiedostojärjestelmä
 
-    kyvykkyydet
+* kyvykkyydet
 
-    turva-asetukset
+* turva-asetukset
 
-    porttisidonnat
+* porttisidonnat
 
-    taltioliitokset
+* taltioliitokset
 
 74. Kontin turvallisuuden varmistus
 
 Kovennetun ajonaikaisen ympäristön tulee edelleen tarjota odotetut ominaisuudet.
 
 Esimerkiksi:
-bash
 
+```bash id="0u7x3n"
 sudo docker inspect lums \
     --format '{{.Config.User}} {{.HostConfig.ReadonlyRootfs}} {{.HostConfig.Privileged}}'
+```
 
 Odotettu perustaso vastaa:
-text
 
+```text
 lums true false
+```
 
 Kyvykkyydet tulee pitää poistettuina:
-bash
 
+```bash id="k5n8ae"
 sudo docker inspect lums \
     --format '{{json .HostConfig.CapDrop}}'
+```
 
 Odotettu:
-text
 
+```text
 ["ALL"]
+```
 
 Turva-asetusten tulee sisältää:
-text
 
+```text
 no-new-privileges:true
+```
 
-75. Sovellusportti
+## 75. Sovellusportti
 
 LUMS-sovellus kuuntelee isäntää loopback-rajapinnan kautta.
 
 Odotettu yhdistäminen on:
-text
 
+```text
 127.0.0.1:5050 → container:5000
+```
 
 Varmista se komennolla:
-bash
 
+```bash id="b6v2w0"
 sudo docker port lums
+```
 
 Sovellusporttia ei tule altistaa suoraan LAN-verkkoon.
 
 Ulkoinen pääsy tarjotaan Nginxin kautta HTTPS:llä.
-76. Nginx ja HTTPS
+## 76. Nginx ja HTTPS
 
 Nginx tarjoaa LUMSin ulkoisen HTTPS-sisääntulopisteen.
 
 Normaali pyyntöpolku on:
-text
 
+```text
 Client Browser
       │
       ▼
@@ -1961,26 +2012,30 @@ Nginx
       │
       ▼
 LUMS Container
+```
 
 Docker-sovellusportin tulee pysyä sidottuna localhostiin.
 
 Ylläpitäjien tulee siksi välttää portin 5050 altistamista suoraan palomuurin tai Docker-kokoonpanon kautta.
-77. HTTPS-varmentaminen
+## 77. HTTPS-varmentaminen
 
 Nginx-muutosten jälkeen validoi kokoonpano aina ennen uudelleenlatausta:
-bash
 
+```bash id="7f1h9m"
 sudo nginx -t
+```
 
 Jos kokoonpano on kelvollinen:
-bash
 
+```bash id="4g5s2w"
 sudo systemctl reload nginx
+```
 
 Varmista sitten HTTPS:
-bash
 
+```bash id="2w8v6c"
 curl -I https://LUMS-SERVER/
+```
 
 Korvaa LUMS-SERVER isäntänimellä, jonka palvelimen TLS-varmenne kattaa. Älä käytä -k-valintaa rutiininomaiseen varmistukseen; se ohittaa varmenteen validoinnin.
 
@@ -1989,113 +2044,117 @@ Onnistunut HTTPS-vastaus vahvistaa, että Nginx tavoittaa LUMS-sovelluksen.
 Varmenteen validointi tulee myös testata käyttäen isäntänimeä tai osoitetta, jota ylläpitäjät normaalisti käyttävät.
 
 Älä poista varmenteen validointia pysyvästi käytöstä -k-valinnalla.
-78. HTTP-uudelleenohjaus
+## 78. HTTP-uudelleenohjaus
 
 HTTP-päätepisteen tulee ohjata asiakkaat HTTPS:ään.
 
 Varmista:
-bash
 
+```bash id="w5q0rx"
 curl -I http://127.0.0.1/
+```
 
 Odotettu toiminta on HTTP-uudelleenohjaus HTTPS-päätepisteeseen.
 
 Hallinnollisen pääsyn tulee käyttää HTTPS:ää.
-79. TLS-varmenteen ylläpito
+## 79. TLS-varmenteen ylläpito
 
 TLS-varmenteet ja yksityiset avaimet ovat Docker-kuvan ulkopuolella.
 
 Tyypilliset sijainnit ovat:
-text
 
+```text
 /etc/lums/tls/lums.crt
 /etc/lums/tls/lums.key
+```
 
 Yksityiset avaimet on pidettävä suojattuina.
 
 Ennen varmenteen korvaamista:
 
-    varmista uusi varmenne
+* varmista uusi varmenne
 
-    varmista vastaava yksityinen avain
+* varmista vastaava yksityinen avain
 
-    varmista tiedoston oikeudet
+* varmista tiedoston oikeudet
 
-    validoi Nginx-kokoonpano
+* validoi Nginx-kokoonpano
 
-    lataa Nginx uudelleen
+* lataa Nginx uudelleen
 
-    varmista HTTPS
+* varmista HTTPS
 
-    varmista sovelluksen kirjautuminen
+* varmista sovelluksen kirjautuminen
 
 Älä koskaan sijoita yksityisiä TLS-avaimia Git-arkistoon tai Docker-kuvaan.
-80. Salaisuuksien hallinta
+## 80. Salaisuuksien hallinta
 
 Sovelluksen salaisuus tallennetaan konttikuvan ulkopuolelle.
 
 Tuotantosalaisuus liitetään vain luku -tilassa konttiin:
-text
+```text
 
 /etc/lums/secrets/lums_secret
         │
         ▼
 /run/secrets/lums_secret
+```
 
 Sovellus vastaanottaa salaisuuden kautta:
-text
 
+```text
 LUMS_SECRET_KEY_FILE
+```
 
 Ylläpitäjät eivät saa koskaan:
 
-    committoida salaisuutta
+* committoida salaisuutta
 
-    tulostaa salaisuutta
+* tulostaa salaisuutta
 
-    sisällyttää salaisuutta dokumentaatioon
+* sisällyttää salaisuutta dokumentaatioon
 
-    paljastaa sitä kuvakaappauksissa
+* paljastaa sitä kuvakaappauksissa
 
-    sijoittaa sitä kuvakerrokseen
+* sijoittaa sitä kuvakerrokseen
 
 Jos salaisuuden epäillään paljastuneen, käsittele sitä vaarantuneena ja noudata asianmukaista salaisuuden vaihtomenettelyä.
-81. Varmuuskopiointistrategia
+## 81. Varmuuskopiointistrategia
 
 LUMS-tiedot tulee varmuuskopioida ennen merkittäviä hallinnollisia muutoksia.
 
 Vähintään ota huomioon seuraavien suojaaminen:
 
-    SQLite-sovellustiedot
+* SQLite-sovellustiedot
 
-    sovelluksen kokoonpano
+* sovelluksen kokoonpano
 
-    TLS-materiaali
+* TLS-materiaali
 
-    sovelluksen salaisuudet
+* sovelluksen salaisuudet
 
-    asiakaskokoonpanotiedot
+* asiakaskokoonpanotiedot
 
-    asiaankuuluva toiminnallinen dokumentaatio
+* asiaankuuluva toiminnallinen dokumentaatio
 
 Varmuuskopiot tulee tallentaa erilleen tuotantokontista ja sen pysyvästä Docker-taltiosta.
 
 Varmuuskopio, joka on vain samalla isännällä tai Docker-taltiossa, ei tarjoa riittävää suojaa kyseisen isännän tai taltion menetykseltä.
-82. Tietokannan varmuuskopiointi
+## 82. Tietokannan varmuuskopiointi
 
 SQLite-tietokanta tulee varmuuskopioida SQLite-tietoisella menetelmällä sen sijaan, että yksinkertaisesti kopioitaisiin aktiivisesti muokattavaa tietokantatiedostoa ottamatta huomioon sen tilaa.
 
 Ennen varmuuskopion suorittamista:
 
-    tunnista tuotantotietokanta
+* tunnista tuotantotietokanta
 
-    varmista, että varmuuskopion kohde on saatavilla
+* varmista, että varmuuskopion kohde on saatavilla
 
-    luo varmuuskopio asianmukaisella SQLite-turvallisella menetelmällä
+* luo varmuuskopio asianmukaisella SQLite-turvallisella menetelmällä
 
-    varmista, että varmuuskopio on olemassa
+* varmista, että varmuuskopio on olemassa
 
-    kirjaa, milloin se luotiin
+* kirjaa, milloin se luotiin
 
 Älä oleta, että onnistunut tiedostokopio automaattisesti tarkoittaa kelvollisen palautettavan tietokannan varmuuskopion olemassaoloa.
 83. Varmuuskopion varmentaminen
@@ -2104,62 +2163,64 @@ Varmuuskopiota ei pidetä luotettavana ennen kuin se on testattu.
 
 Varmista säännöllisesti, että varmuuskopio voidaan:
 
-    lukea
+* lukea
 
-    avata SQLite-datana
+* avata SQLite-datana
 
-    tarkistaa eheyden varalta
+* tarkistaa eheyden varalta
 
-    palauttaa eristettyyn testiympäristöön
+* palauttaa eristettyyn testiympäristöön
 
 Esimerkiksi purettu testikopio voidaan tarkistaa komennolla:
-bash
 
+```bash id="p3v7cx"
 sqlite3 /path/to/test-copy.db \
     "PRAGMA integrity_check;"
+```
 
 Odotettu tulos:
-text
 
+```text
 ok
+```
 
 Tuotannon varmuuskopiota ei saa koskaan testata korvaamalla aktiivinen tuotantotietokanta.
-84. Palautusperiaate
+## 84. Palautusperiaate
 
 Palautus on hallittu hallinnollinen toimenpide.
 
 Ennen palautusta:
 
-    tunnista oikea varmuuskopio
+* tunnista oikea varmuuskopio
 
-    varmista sen eheys
+* varmista sen eheys
 
-    määritä tarvittava palautuspiste
+* määritä tarvittava palautuspiste
 
-    pysäytä tai eristä sovelluksen toiminta tarpeen mukaan
+* pysäytä tai eristä sovelluksen toiminta tarpeen mukaan
 
-    säilytä nykyinen tuotantotila
+* säilytä nykyinen tuotantotila
 
-    palauta varmuuskopio
+* palauta varmuuskopio
 
-    varmista tietokannan eheys
+* varmista tietokannan eheys
 
-    käynnistä sovellus
+* käynnistä sovellus
 
-    varmista migraatiot
+* varmista migraatiot
 
-    varmista käyttäjät ja asiakkaat
+* varmista käyttäjät ja asiakkaat
 
-    varmista työhistoria
+* varmista työhistoria
 
-    varmista normaali asiakasraportointi
+* varmista normaali asiakasraportointi
 
 Älä korvaa tuotantotietokannan ainoaa kopiota palautuksen aikana.
 85. Palautuksen varmentaminen
 
 Palautuksen jälkeen varmista vähintään:
-text
 
+```text id="q6r2yh"
 [ ] Container starts
 [ ] Database opens
 [ ] SQLite integrity check passes
@@ -2172,22 +2233,23 @@ text
 [ ] HTTPS works
 [ ] Clients can report
 [ ] New operations can be created
+```
 
 Palautus on valmis vasta, kun sovellus ja sen hallinnoidut asiakkaat on varmennettu.
-86. Palvelimen varmuuskopiointiperiaate
+## 86. Palvelimen varmuuskopiointiperiaate
 
 Tärkein hallinnollinen sääntö pysyville LUMS-tiedoille on:
 
-    Älä koskaan suorita tuhoavaa tietokanta- tai taltiotoimenpidettä ilman varmennettua palautuspolkua.
+* Älä koskaan suorita tuhoavaa tietokanta- tai taltiotoimenpidettä ilman varmennettua palautuspolkua.
 
 Erityisesti: älä poista lums-data-taltiota vain siksi, että kontti rakennetaan uudelleen tai korvataan.
 
 Kontin korvaaminen ja pysyvien tietojen poistaminen ovat erillisiä toimenpiteitä.
-87. Palvelimen hallinnollinen tarkistuslista
+## 87. Palvelimen hallinnollinen tarkistuslista
 
 Ennen merkittävän palvelinpuolen muutoksen tekemistä:
-text
 
+```text id="7h3m0p"
 [ ] Current container state recorded
 [ ] Current image recorded
 [ ] Database backup available
@@ -2198,13 +2260,14 @@ text
 [ ] TLS material available
 [ ] Secret handling verified
 [ ] Rollback path known
+```
 
 Vasta kun nämä ehdot on otettu huomioon, merkittävä tuotantomuutos voidaan suorittaa.
-88. Palvelimen hallintaperiaate
+## 88. Palvelimen hallintaperiaate
 
 LUMS erottaa sovelluksen tilan kertakäyttöisestä sovelluskontista.
-text
 
+```text
 Disposable
 └── LUMS Container
 
@@ -2215,53 +2278,54 @@ Persistent
 External
 ├── TLS Material
 └── Application Secret
+```
 
 Tämä erottelu antaa sovelluskontin korvaamisen ilman, että pysyvät sovellustiedot tuhotaan tarkoituksella.
 
-    Korvaa sovellus tarvittaessa. Säilytä tiedot, ellei tietojen poistaminen ole nimenomaisesti tarkoitettu.
+* Korvaa sovellus tarvittaessa. Säilytä tiedot, ellei tietojen poistaminen ole nimenomaisesti tarkoitettu.
 
-89. Rutiininomainen ylläpito
+## 89. Rutiininomainen ylläpito
 
 Rutiininomainen ylläpito pitää LUMS-asennuksen luotettavana ja vähentää odottamattomien toimintaongelmien riskiä.
 
 Tyypillisiä ylläpitotoimintoja ovat:
 
-    epäonnistuneiden päivitystöiden tarkastelu
+* epäonnistuneiden päivitystöiden tarkastelu
 
-    asiakasraportoinnin tarkistaminen
+* asiakasraportoinnin tarkistaminen
 
-    sovelluslokien tarkastelu
+* sovelluslokien tarkastelu
 
-    valvontatoiminnan tarkastelu
+* valvontatoiminnan tarkastelu
 
-    varmuuskopioiden varmentaminen
+* varmuuskopioiden varmentaminen
 
-    saatavilla olevan levytilan tarkistaminen
+* saatavilla olevan levytilan tarkistaminen
 
-    Docker-kontin tilan tarkastelu
+* Docker-kontin tilan tarkastelu
 
-    TLS-varmenteen voimassaolon tarkistaminen
+* TLS-varmenteen voimassaolon tarkistaminen
 
-    turvapäivitysten tarkastelu
+* turvapäivitysten tarkastelu
 
-    nykyisen LUMS-version ja kuvan varmentaminen
+* nykyisen LUMS-version ja kuvan varmentaminen
 
 Ylläpito tulee suorittaa asianmukaisen huoltoikkunan aikana, kun muutokset voivat vaikuttaa tuotantoasiakkaisiin.
 90. Ylläpito ennen muutoksia
 
 Ennen ylläpitoa, joka voi vaikuttaa LUMS-palvelimeen:
 
-    tarkista aktiiviset päivitystyöt
+* tarkista aktiiviset päivitystyöt
 
-    varmista, että asiakkaat eivät ole odottamattomassa ylläpidossa
+* varmista, että asiakkaat eivät ole odottamattomassa ylläpidossa
 
-    luo tai varmista ajantasainen varmuuskopio
+* luo tai varmista ajantasainen varmuuskopio
 
-    kirjaa nykyinen kontin ja kuvan tila
+* kirjaa nykyinen kontin ja kuvan tila
 
-    dokumentoi suunniteltu muutos
+* dokumentoi suunniteltu muutos
 
-    varmista, että palautuspolku on olemassa
+* varmista, että palautuspolku on olemassa
 
 Älä aloita ylläpitoa pysäyttämällä tai poistamalla tuotantokomponentteja välittömästi.
 
@@ -2271,56 +2335,60 @@ Selvitä ensin nykyinen tila.
 LUMS-sovelluskuvat tulee rakentaa uudelleen tarkastetusta lähdekoodipuusta.
 
 Ennen uuden kuvan rakentamista:
-bash
 
+```bash id="x0m7r4"
 cd /opt/lums-public
+```
 
 Suorita automatisoitu testisarja:
-bash
 
+```bash id="4gk1dp"
 ./.venv-test/bin/pytest -q
+```
 
 Jatka vain, kun testitulos on ymmärretty.
 
 Rakenna uusi kuva erillisellä väliaikaisella tunnisteella:
-bash
 
+```bash id="m8q3vz"
 sudo docker build -t lums:new .
+```
 
 Väliaikainen tunniste antaa käynnissä olevan kuvan pysyä tunnistettavana korvausprosessin aikana.
-92. Kuvan varmentaminen
+## 92. Kuvan varmentaminen
 
 Uuden kuvan rakentamisen jälkeen varmista, että kuva on olemassa:
-bash
 
+```bash id="h6s2we"
 sudo docker image inspect lums:new
+```
 
 Tarkista kuvan kokoonpano ennen käyttöönottoa.
 
 Varmista tarvittaessa:
 
-    kuvan tiiviste
+* kuvan tiiviste
 
-    peruskuva
+* peruskuva
 
-    sovellustiedostot
+* sovellustiedostot
 
-    asennetut riippuvuudet
+* asennetut riippuvuudet
 
-    kuvan koko
+* kuvan koko
 
-    altistetut portit
+* altistetut portit
 
-    määritetty käyttäjä
+* määritetty käyttäjä
 
 Kuva tulee ottaa käyttöön vasta, kun koontien ja testien tulokset on tarkastettu.
-93. Hallittu kontin vaihto
+## 93. Hallittu kontin vaihto
 
 Kontin vaihto tulee suorittaa harkitusti.
 
 Ennen tuotantokontin korvaamista:
-text
 
+```text id="m3z8qk"
 [ ] Tests passed
 [ ] New image exists
 [ ] Database backup available
@@ -2330,12 +2398,13 @@ text
 [ ] Secret available
 [ ] TLS configuration available
 [ ] Rollback image identified
+```
 
 Ennen esimerkin suorittamista vertaa sitä todella käynnissä olevaan konttiin. Alla olevat arvot ovat esimerkki, eivätkä ne ole turvallinen komento jokaiseen asennukseen. Erityisesti Docker-bind-liitoksen lähdepolut :-merkin vasemmalla puolella on vastattava isäntääsi, ja vanhalla kontilla voi olla eri nimi.
 
 Näytä kuva, liitokset, julkaistut portit, uudelleenkäynnistyskäytäntö ja koventamisasetukset tulostamatta ympäristömuuttujien arvoja:
-bash
 
+```bash
 sudo docker inspect lums --format 'Image={{.Config.Image}}
 Mounts={{json .Mounts}}
 Ports={{json .HostConfig.PortBindings}}
@@ -2344,6 +2413,7 @@ Readonly={{.HostConfig.ReadonlyRootfs}}
 CapDrop={{json .HostConfig.CapDrop}}
 SecurityOpt={{json .HostConfig.SecurityOpt}}
 Tmpfs={{json .HostConfig.Tmpfs}}'
+```
 
 Tallenna tuloste yksityiseen paikkaan ja käytä sitä varmistaaksesi, että uusi kontti säilyttää saman tietokantataltion, salaisuustiedoston, varmuuskopiohakemiston, vain paikallisen porttisidonnan ja turva-asetukset. Älä liitä salaisuuksien sisältöä tai ympäristömuuttujien arvoja muistiinpanoihin tai viesteihin.
 
@@ -2352,14 +2422,15 @@ Pysäytä olemassa oleva kontti vasta, kun nämä ehdot on otettu huomioon.
 Tuotantokontin tulee säilyttää kovennettu ajonaikainen kokoonpano.
 
 Esimerkki:
-bash
 
+```bash id="n8q2kf"
 sudo docker stop lums
 sudo docker rename lums lums-before-upgrade
+```
 
 Käynnistä sitten uusi kuva vakiintuneella kovennetulla kokoonpanolla:
-bash
 
+```bash id="c7w4md"
 sudo docker run -d \
     --name lums \
     --restart unless-stopped \
@@ -2375,24 +2446,28 @@ sudo docker run -d \
     -e LUMS_SECRET_KEY_FILE=/run/secrets/lums_secret \
     -e LUMS_BACKUP_DIR=/var/backups/lums \
     lums:new
+```
 
 Älä poista lums-before-upgrade-konttia ennen kuin uusi käyttöönotto on validoitu.
-94. Päivityksen jälkeinen validointi
+## 94. Päivityksen jälkeinen validointi
 
 Heti kontin korvaamisen jälkeen varmista:
-bash
 
+```bash id="b4m7tz"
 sudo docker ps --filter name=lums
+```
 
 Tarkista sitten lokit:
-bash
 
+```bash id="v5n2ra"
 sudo docker logs --tail 100 lums
+```
 
 Varmista HTTPS:
-bash
 
+```bash id="w9x1kf"
 curl -I https://LUMS-SERVER/
+```
 
 Korvaa LUMS-SERVER isäntänimellä, jonka palvelimen TLS-varmenne kattaa. Älä käytä -k-valintaa rutiininomaiseen varmistukseen; se ohittaa varmenteen validoinnin.
 
@@ -2407,104 +2482,112 @@ Pidä vanha kontti, kunnes uusi versio on läpäissyt validoinnin. Jos
 uusi kontti on käyttökelvoton ja olet vahvistanut, että vanha kontti on
 nimeltään lums-before-upgrade, pysäytä ja poista vain uusi kontti, sitten
 nimeä vanha uudelleen ja käynnistä se:
-bash
 
+```bash
 sudo docker stop lums
 sudo docker rm lums
 sudo docker rename lums-before-upgrade lums
 sudo docker start lums
+```
 
 docker rm lums ilman -v-valintaa poistaa kontin, ei lums-data-taltiota. Älä koskaan lisää -v-valintaa tähän palautuskomentoon. Jos kontin nimi eroaa
 tai et ole varma, kumpi kontti on vanha ja kumpi uusi, älä suorita näitä
 komentoja; tarkista nykyinen tila tai kysy apua ylläpitäjältä. Palautuksen jälkeen
 tarkista lokit ja varmista, että verkkokäyttöliittymä ja tiedot ovat
 käytettävissä.
-95. Pysyvät tiedot päivityksen jälkeen
+## 95. Pysyvät tiedot päivityksen jälkeen
 
 Kontin vaihto ei saa poistaa pysyvää Docker-taltiota.
 
 Varmista:
-bash
 
+```bash id="j4p8sx"
 sudo docker inspect lums \
     --format '{{json .Mounts}}'
+```
 
 Vahvista, että:
-text
 
+```text id="m7z3kc"
 /var/lib/lums
+```
 
 on odotetun pysyvän taltion tukema.
 
 Varmista sitten:
 
-    käyttäjät ovat edelleen olemassa
+* käyttäjät ovat edelleen olemassa
 
-    roolit pysyvät oikeina
+* roolit pysyvät oikeina
 
-    asiakkaat pysyvät rekisteröityinä
+* asiakkaat pysyvät rekisteröityinä
 
-    työhistoria pysyy saatavilla
+* työhistoria pysyy saatavilla
 
-    valvontatiedot pysyvät saatavilla
+* valvontatiedot pysyvät saatavilla
 
-    migraatiot valmistuivat onnistuneesti
+* migraatiot valmistuivat onnistuneesti
 
-96. Turvallisuusperustaso päivityksen jälkeen
+## 96. Turvallisuusperustaso päivityksen jälkeen
 
 Uuden kuvan käyttöönoton jälkeen varmista kovennettu ajonaikainen ympäristö uudelleen.
 
 Tarkista:
-bash
 
+```bash id="q6c3xv"
 sudo docker inspect lums \
     --format '{{.Config.User}} {{.HostConfig.ReadonlyRootfs}} {{.HostConfig.Privileged}}'
+```
 
 Odotettu perustaso:
-text
 
+```text id="s0r8jm"
 lums true false
+```
 
 Varmista myös:
-text
 
+```text id="g4m2vx"
 CapDrop = ALL
 SecurityOpt = no-new-privileges:true
+```
 
 ja että:
-text
 
+```text id="c3p9rw"
 127.0.0.1:5050 → container:5000
+```
 
 pysyy sovelluksen altistuksena.
 
 Onnistunut sovelluspäivitys ei saa hiljaisesti heikentää turvallisuusperustasoa.
-97. Asiakasviestintä päivityksen jälkeen
+## 97. Asiakasviestintä päivityksen jälkeen
 
 Palvelinpäivityksen jälkeen varmista, että hallinnoidut asiakkaat voivat edelleen kommunikoida.
 
 Tarkista ensin ainakin yksi edustava asiakas.
 
 Varmista:
-text
 
+```text id="x8h5qk"
 [ ] Client authentication succeeds
 [ ] Client report is accepted
 [ ] Installed software is available
 [ ] Available updates are available
 [ ] Update jobs can be created
 [ ] Agent results are accepted
+```
 
 Jos useita asiakasalustoja on käytössä, varmista edustavat järjestelmät jokaiselta tuetulta alustalta.
-98. Päivityksen suoritus päivityksen jälkeen
+## 98. Päivityksen suoritus päivityksen jälkeen
 
 Älä suorita heti suurta tuotantopäivitystä LUMS-palvelimen korvaamisen jälkeen.
 
 Suorita ensin hallittu toiminnallinen testi.
 
 Sopivan testin tulisi varmistaa koko polku:
-text
 
+```text id="y7k2fd"
 Web UI
   ↓
 API
@@ -2520,54 +2603,55 @@ Result
 Database
   ↓
 Web UI
+```
 
 Vasta kun hallittu testi onnistuu, normaalit ylläpitotoimenpiteet voivat jatkua.
-99. Palautus
+## 99. Palautus
 
 Palautus tulee olla mahdollista, kun uusi kuva aiheuttaa odottamattoman tuotanto-ongelman.
 
 Säilytä:
 
-    edellinen toimiva kuva
+* edellinen toimiva kuva
 
-    pysyvät tiedot
+* pysyvät tiedot
 
-    tietokannan varmuuskopio
+* tietokannan varmuuskopio
 
-    edellinen kokoonpano
+* edellinen kokoonpano
 
-    edellinen TLS-materiaali
+* edellinen TLS-materiaali
 
-    asiaankuuluvat lokit
+* asiaankuuluvat lokit
 
 Jos uusi kontti ei ole käyttökelpoinen:
 
-    pysäytä uusi kontti
+* pysäytä uusi kontti
 
-    säilytä se tutkintaa varten mahdollisuuksien mukaan
+* säilytä se tutkintaa varten mahdollisuuksien mukaan
 
-    lopeta muut hallinnolliset muutokset
+* lopeta muut hallinnolliset muutokset
 
-    palauta aiemmin tunnettu toimiva kuva
+* palauta aiemmin tunnettu toimiva kuva
 
-    käytä uudelleen olemassa olevaa pysyvää taltiota
+* käytä uudelleen olemassa olevaa pysyvää taltiota
 
-    käynnistä kovennettu ajonaikainen ympäristö
+* käynnistä kovennettu ajonaikainen ympäristö
 
-    varmista sovellus
+* varmista sovellus
 
-    varmista asiakkaat
+* varmista asiakkaat
 
-    varmista työn tila
+* varmista työn tila
 
-    tutki epäonnistunut kuva erikseen
+* tutki epäonnistunut kuva erikseen
 
 Älä poista pysyvää taltiota osana normaalia palautusta.
 100. Palautuksen validointi
 
 Palautuksen jälkeen varmista:
-text
 
+```text id="z1j8md"
 [ ] LUMS starts
 [ ] HTTPS works
 [ ] Users can authenticate
@@ -2579,31 +2663,32 @@ text
 [ ] Package inventory is available
 [ ] Update jobs can be tracked
 [ ] Security baseline is intact
+```
 
 Palautus on valmis vasta, kun sovellus ja asiakasviestintäpolku on varmennettu.
-101. Hätätilanteiden hallinta
+## 101. Hätätilanteiden hallinta
 
 Hätätilanteiden hallinnan tulisi säilyttää todisteet ja pysyvä tila aina kun mahdollista.
 
 Esimerkkejä:
 
-    toistuvat sovelluksen kaatumiset
+* toistuvat sovelluksen kaatumiset
 
-    tietokannan eheysvirheet
+* tietokannan eheysvirheet
 
-    laajat asiakastodennuksen epäonnistumiset
+* laajat asiakastodennuksen epäonnistumiset
 
-    odottamaton pakettityön käyttäytyminen
+* odottamaton pakettityön käyttäytyminen
 
-    epäilty tunnistetietojen paljastuminen
+* epäilty tunnistetietojen paljastuminen
 
-    rikkoutuneet päivitykset
+* rikkoutuneet päivitykset
 
-    TLS-virheet, jotka vaikuttavat kaikkiin käyttäjiin
+* TLS-virheet, jotka vaikuttavat kaikkiin käyttäjiin
 
 Ensisijainen järjestys on:
-text
 
+```text id="f8k3wz"
 Preserve
    ↓
 Observe
@@ -2615,9 +2700,10 @@ Recover
 Verify
    ↓
 Document
+```
 
 Vältä lokien, tietokantojen, konttien tai asiakastietueiden poistamista vain siksi, että ne näyttävät olevan osa ongelmaa.
-102. Hallinnollisen muutoksen periaate
+## 102. Hallinnollisen muutoksen periaate
 
 Jokaisella merkittävällä tuotantomuutoksella tulisi olla kolme selkeästi määriteltyä tilaa:
 Ennen
@@ -2631,15 +2717,15 @@ Jälkeen
 Tuloksena oleva tila varmennetaan odotettua perustasoa vasten.
 
 Tämä tekee hallinnollisesta työstä toistettavaa ja vähentää tahatonta kokoonpanon ajautumista.
-103. Hallittu asennuksen poisto
+## 103. Hallittu asennuksen poisto
 
 Asennuksen poisto on tuhoava hallinnollinen toimenpide.
 
 Se tulee suorittaa vain, kun LUMS-käyttöönotto poistetaan tarkoituksella.
 
 Ennen LUMSin poistamista:
-text
 
+```text id="u5r2nc"
 [ ] All managed clients identified
 [ ] Active update jobs reviewed
 [ ] Required job history exported or preserved
@@ -2650,71 +2736,77 @@ text
 [ ] Application secret preserved if required
 [ ] Documentation preserved
 [ ] Reinstallation requirements documented
+```
 
 Älä poista pysyviä tietoja ennen kuin olet vahvistanut, ettei niitä enää tarvita.
-104. Kontin poistaminen
+## 104. Kontin poistaminen
 
 Poista sovelluskontti käytöstä poistamisen jälkeen:
-bash
 
+```bash id="n2x7kc"
 sudo docker stop lums
 sudo docker rm lums
+```
 
 Docker-taltiota ei tarkoituksella poisteta näillä komennoilla.
 
 Tämä antaa sovellustietojen pysyä saatavilla myöhempää tarkastusta tai palautusta varten.
-105. Pysyvien tietojen poistaminen
+## 105. Pysyvien tietojen poistaminen
 
 LUMS Docker-taltion poistaminen on erillinen tuhoava toimenpide.
 
 Suorita tämä vain, kun olet vahvistanut, ettei tietokantaa ja kaikkea tallennettua sovellustilaa enää tarvita.
 
 Esimerkki:
-bash
 
+```bash id="r8w3mz"
 sudo docker volume rm lums-data
+```
 
 Tämä poistaa pysyvästi kyseiseen taltioon tallennetut pysyvät sovellustiedot.
 
 Älä suorita tätä komentoa normaalin päivityksen tai palautuksen aikana.
-106. Asiakaskomponenttien poistaminen
+## 106. Asiakaskomponenttien poistaminen
 
 Kun hallinnoitu asiakas poistetaan pysyvästi LUMSista, poista sen agenttikomponentit tai poista ne käytöstä asiakkaan käyttöjärjestelmämenettelyn mukaisesti.
 
 Asiakkaan ei tule enää raportoida LUMS-palvelimelle käytöstä poistamisen jälkeen.
 
 Säilytä asiaankuuluvat työ- ja valvontatiedot ennen asiakkaan poistamista, jos historialliset tietueet vaaditaan.
-107. Lopullinen hallinnollinen tarkistuslista
+## 107. Lopullinen hallinnollinen tarkistuslista
 Käyttäjähallinta
-text
 
+```text id="p5z8cv"
 [ ] Users have appropriate roles
 [ ] Administrator access is limited
 [ ] Disabled accounts are reviewed
 [ ] Credentials are protected
+```
 
 Asiakashallinta
-text
 
+```text id="q2m7xd"
 [ ] Clients are correctly registered
 [ ] Client tokens are protected
 [ ] Disabled clients are reviewed
 [ ] Token rotation is performed when required
 [ ] Client reporting is healthy
+```
 
 Päivityshallinta
-text
 
+```text id="h6v9kt"
 [ ] Available updates are reviewed
 [ ] Update jobs are monitored
 [ ] Failed jobs are investigated
 [ ] Package operations are verified
 [ ] Reboot requirements are checked
 [ ] Job history is retained
+```
 
 Palvelimen hallinta
-text
 
+```text id="r3c8wn"
 [ ] Container is running
 [ ] Persistent volume is attached
 [ ] SQLite integrity is healthy
@@ -2722,10 +2814,11 @@ text
 [ ] TLS material is valid
 [ ] Application secret is protected
 [ ] Backups are available
+```
 
 Turvallisuus
-text
 
+```text id="v7m4qx"
 [ ] RBAC remains enforced
 [ ] Viewer restrictions remain intact
 [ ] Client authentication works
@@ -2733,12 +2826,13 @@ text
 [ ] Application port remains localhost-only
 [ ] No credentials are exposed
 [ ] Logs contain no unexplained sensitive information
+```
 
-108. Toiminnallinen perustaso
+## 108. Toiminnallinen perustaso
 
 Terveen LUMS-asennuksen tulisi täyttää seuraava perustaso:
-text
 
+```text id="d4k9sy"
 Application
     ├── HTTPS available
     ├── Authentication available
@@ -2771,14 +2865,15 @@ Recovery
     ├── Backups available
     ├── Restore path known
     └── Rollback path known
+```
 
-109. Hallinta valmis
+## 109. Hallinta valmis
 
 LUMS-hallinnassa tulisi aina priorisoida hallittuja, havaittavia ja palautuvia muutoksia.
 
 Hallinnollinen elinkaari on:
-text
 
+```text id="w6f1pa"
 Plan
   ↓
 Observe
@@ -2790,25 +2885,26 @@ Verify
 Document
   ↓
 Maintain
+```
 
 Tärkeimmät toimintaperiaatteet ovat:
 
-    Käytä vähimmän tarpeellisen oikeuden periaatetta.
+* Käytä vähimmän tarpeellisen oikeuden periaatetta.
 
-    Säilytä pysyvät tiedot.
+* Säilytä pysyvät tiedot.
 
-    Älä muuta tilaa ymmärtämättä nykyistä tilaa.
+* Älä muuta tilaa ymmärtämättä nykyistä tilaa.
 
-    Varmista jokaisen merkittävän toimenpiteen tulos.
+* Varmista jokaisen merkittävän toimenpiteen tulos.
 
-    Pidä testattu palautuspolku.
+* Pidä testattu palautuspolku.
 
 Asennusmenettelyt: katso install.md.
 
 Turvallisuusarkkitehtuuri ja tarkastustulokset: katso security.md.
 
 Diagnoosi- ja palautusmenettelyt: katso troubleshooting.md.
-110. Lopullinen hallintaperiaate
+## 110. Lopullinen hallintaperiaate
 
 LUMS on tarkoitettu tekemään Linux-päivitysten hallinnasta ennustettavaa ja havaittavaa.
 

@@ -8,7 +8,7 @@ LUMS hallinnoi Linux-päivityksiä keskitetysti. Palvelin näyttää asiakkaat, 
 
 **Käytätkö vain olemassa olevaa LUMS-asennusta?** Avaa ylläpitäjän antama osoite ja kirjaudu sisään omalla tililläsi. Jos jokin ominaisuus puuttuu, tililläsi ei ehkä ole oikeutta käyttää sitä. Kysy apua ylläpitäjältä; älä jaa tilejä äläkä käytä asiakastunnistetta verkkosalasanana.
 
-**Asennatko tai ylläpidätkö LUMSia?** Aloita [asennusoppaasta](install.md) ja lue sitten [hallintaopas](administration.md). Jos jotain menee pieleen, käytä [vianmääritysopasta](troubleshooting.md). Nämä yksityiskohtaiset tekniset oppaat ylläpidetään englanniksi; tiiviit käännetyt aloittelijan oppaat ovat saatavilla hakemistossa [`docs/locales/`](docs/README.md).
+**Asennatko tai ylläpidätkö LUMSia?** Aloita [asennusoppaasta](Asennus ja päivitykset.md) ja lue sitten [hallintaopas](Ylläpito ja varmuuskopiot.md). Jos jotain menee pieleen, käytä [vianmääritysopasta](Vianmääritys.md). Käännettyjä oppaita on myös saatavilla, mutta niiden kattavuus voi poiketa englanninkielisistä teknisistä alkuperäisversioista. [Dokumentaatiohakemisto](../../README.md) näyttää saatavilla olevat kieliversiot.
 
 Testiajo tai onnistuneesti rakennettu Docker-kuva **ei** ole tuotantoasennus. Tuotantokäyttöönotto vaatii myös HTTPS:n, suojatun sovellussalaisuuden, pysyvät tiedot, varmennetut varmuuskopiot ja kovennetun kontin. Älä kopioi tuotantokomentoja ennen kuin olet tarkistanut niiden paikkamerkit ja tallennuspolut omaa asennustasi vasten.
 
@@ -65,6 +65,7 @@ Perusarkkitehtuuri on:
       │ Package Manager │             │ Package Manager │
       │ Watcher         │             │ Watcher         │
       └─────────────────┘             └─────────────────┘
+```
 
 Miksi LUMS?
 
@@ -74,25 +75,25 @@ LUMS ei yritä korvata niitä.
 
 Sen sijaan LUMS tarjoaa hallintakerroksen näiden työkalujen ympärille, jotta ylläpitäjät voivat vastata keskitetysti kysymyksiin, kuten:
 
-    Mitä asiakkaita on olemassa?
+* Mitä asiakkaita on olemassa?
 
-    Mitä ohjelmistoja on asennettu?
+* Mitä ohjelmistoja on asennettu?
 
-    Mitä päivityksiä on saatavilla?
+* Mitä päivityksiä on saatavilla?
 
-    Mitkä paketit pitäisi asentaa tai poistaa?
+* Mitkä paketit pitäisi asentaa tai poistaa?
 
-    Mitkä päivitystyöt ovat käynnissä?
+* Mitkä päivitystyöt ovat käynnissä?
 
-    Mitä päivityksen aikana tapahtui?
+* Mitä päivityksen aikana tapahtui?
 
-    Raportoiko asiakas tuloksen onnistuneesti?
+* Raportoiko asiakas tuloksen onnistuneesti?
 
-    Vaadittiinko uudelleenkäynnistys?
+* Vaadittiinko uudelleenkäynnistys?
 
-    Voiko keskeytynyt työ palautua turvallisesti?
+* Voiko keskeytynyt työ palautua turvallisesti?
 
-    Kuka käynnisti ylläpitotoimenpiteen?
+* Kuka käynnisti ylläpitotoimenpiteen?
 
 Tavoitteena ei ole piilottaa taustalla olevaa Linux-paketinhallintaa.
 
@@ -108,15 +109,15 @@ Asiakastunnisteita ei tallenneta salasanana. Palvelin tallentaa SHA-256-tiiviste
 
 Ylläpitäjät voivat:
 
-    rekisteröidä asiakkaita
+* rekisteröidä asiakkaita
 
-    poistaa asiakkaita käytöstä
+* poistaa asiakkaita käytöstä
 
-    vaihtaa asiakastunnisteita
+* vaihtaa asiakastunnisteita
 
-    tarkastella asiakastilaa
+* tarkastella asiakastilaa
 
-    seurata asiakasraportointia
+* seurata asiakasraportointia
 
 Ohjelmistoluettelointi
 
@@ -140,21 +141,21 @@ LUMS tarjoaa paketinhallintatoimintoja asiakasagentin kautta.
 
 Tuetut pakettitoiminnot ovat:
 
-    INSTALL_PACKAGE
+* INSTALL_PACKAGE
 
-    REMOVE_PACKAGE
+* REMOVE_PACKAGE
 
-    UPDATE_PACKAGE
+* UPDATE_PACKAGE
 
-    UPDATE_SYSTEM
+* UPDATE_SYSTEM
 
 Paketinhallintakerros abstraktoi taustalla olevan paketinhallinnan.
 
 Tällä hetkellä tuetut paketinhallintaperheet ovat:
 
-    Debian / Ubuntu: APT / dpkg
+* Debian / Ubuntu: APT / dpkg
 
-    Arch Linux: pacman
+* Arch Linux: pacman
 
 Paketinhaku on myös saatavilla LUMSin kautta.
 
@@ -166,8 +167,8 @@ Päivitystoiminnot esitetään pysyvinä töinä.
 Työ voi sisältää yhden tai useamman pakettitoiminnon ja ylläpitää palvelinpuolen suoritustilaa.
 
 Yleinen elinkaari on:
-text
 
+```text
 PENDING
    │
    ▼
@@ -176,6 +177,7 @@ RUNNING
    ├──────────────► SUCCESS
    │
    └──────────────► FAILED
+```
 
 Pakettitason tuloksia seurataan erikseen, jotta keskeytyneet työt voidaan palauttaa tarpeettomasti toistamatta jo onnistuneesti suoritettuja toimintoja.
 Hallittu suoritus
@@ -187,8 +189,8 @@ Palvelin luo jäsenneltyjä töitä validoitujen toimintojen ja pakettinimien av
 Asiakasagentti yhdistää nämä toiminnot asianmukaiseen paikalliseen paketinhallintatoimintoon.
 
 Tämä luo tarkoituksellisen rajan seuraavien välille:
-text
 
+```text
 Web UI
    ↓
 API
@@ -197,6 +199,7 @@ Validoitu työ
    ↓
 Agentti
    ↓
+```
 Paketinhallinta
 
 Lepotilatietoinen suoritus
@@ -222,7 +225,7 @@ Tämä tarjoaa tarkistuspisteitä muistuttavan suoritusmallin monipakettitoiminn
 
 Tavoite on:
 
-    Palauta työ, äläkä käynnistä koko työtä sokeasti uudelleen.
+* Palauta työ, äläkä käynnistä koko työtä sokeasti uudelleen.
 
 Uudelleenkäynnistyksen tunnistus
 
@@ -237,13 +240,13 @@ Asiakasviestintä todennetaan asiakaskohtaisilla tunnisteilla.
 
 Tunnisteet ovat:
 
-    yksilöllisesti määritettyjä
+* yksilöllisesti määritettyjä
 
-    vaihdettavissa
+* vaihdettavissa
 
-    tallennettu palvelinpuolella vain SHA-256-tiivisteinä
+* tallennettu palvelinpuolella vain SHA-256-tiivisteinä
 
-    validoitu ennen asiakasraporttien hyväksymistä
+* validoitu ennen asiakasraporttien hyväksymistä
 
 Tunnisteen vaihto mahdollistaa ylläpitäjän mitätöidä aiemmin myönnetyn asiakastunnisteen luomatta asiakasta uudelleen.
 Valvottavuus
@@ -264,7 +267,7 @@ Suunnitteluperiaate
 
 LUMS noudattaa yksinkertaista periaatetta:
 
-    Tee Linux-päivitysten hallinnasta näkyvää, hallittua, palautettavaa ja valvottavaa – kuitenkaan piilottamatta alla olevia Linux-työkaluja.
+* Tee Linux-päivitysten hallinnasta näkyvää, hallittua, palautettavaa ja valvottavaa – kuitenkaan piilottamatta alla olevia Linux-työkaluja.
 
 Arkkitehtuuri
 
@@ -277,8 +280,8 @@ Asiakas vastaa paikallisesta järjestelmävuorovaikutuksesta.
 Paketinhallinta vastaa edelleen ohjelmistojen asentamisesta, poistamisesta tai päivittämisestä.
 
 Tämä erottelu on tarkoituksellinen.
-text
 
+```text
 Browser
    │
    │ HTTPS
@@ -319,6 +322,7 @@ Browser
           │ APT / dpkg         │
           │ pacman             │
           └────────────────────┘
+```
 
 Palvelinkomponentit
 
@@ -327,46 +331,46 @@ Verkkosovellus
 
 Verkkosovellus tarjoaa hallintakäyttöliittymän seuraaville:
 
-    asiakashallinta
+* asiakashallinta
 
-    ohjelmistoluettelointi
+* ohjelmistoluettelointi
 
-    päivitystiedot
+* päivitystiedot
 
-    päivitystyöt
+* päivitystyöt
 
-    paketinhallinta
+* paketinhallinta
 
-    päivityshistoria
+* päivityshistoria
 
-    käyttäjähallinta
+* käyttäjähallinta
 
-    järjestelmän ylläpito
+* järjestelmän ylläpito
 
 Käyttöliittymä noudattaa nykyisen käyttäjän RBAC-roolia.
 
 Siksi käyttöliittymän näkyvyys mukautetaan käyttäjän oikeuksien mukaan, mutta valtuutus valvotaan aina myös palvelinpuolella.
-API
+### API
 
 API yhdistää verkkokäyttöliittymän ja Linux-asiakkaat palvelinpuolen sovelluslogiikkaan.
 
 Se käsittelee toimintoja, kuten:
 
-    asiakasrekisteröinti ja -hallinta
+* asiakasrekisteröinti ja -hallinta
 
-    asiakasraportit
+* asiakasraportit
 
-    pakettihaut
+* pakettihaut
 
-    pakettihakujen tulokset
+* pakettihakujen tulokset
 
-    päivitystyöt
+* päivitystyöt
 
-    työtulokset
+* työtulokset
 
-    käyttäjähallinta
+* käyttäjähallinta
 
-    valvontatapahtumat
+* valvontatapahtumat
 
 API-päätepisteet validoivat syötteensä ennen tilaa muuttavia toimintoja.
 Todennus ja istunnot
@@ -377,20 +381,20 @@ Istunnot ovat palvelinohjattuja ja tukevat eksplisiittistä istunnon mitätöint
 
 Todennuksen turvallisuus sisältää:
 
-    salasanan tiivistys Argon2:lla
+* salasanan tiivistys Argon2:lla
 
-    istunnonhallinta
+* istunnonhallinta
 
-    istunnon mitätöinti
+* istunnon mitätöinti
 
-    kirjautumisen nopeusrajoitus
+* kirjautumisen nopeusrajoitus
 
-    CSRF-suojaus
+* CSRF-suojaus
 
-    roolipohjainen valtuutus
+* roolipohjainen valtuutus
 
 Asiakastodennus on erillään ylläpitäjätodennuksesta.
-RBAC
+### RBAC
 
 LUMS yhdistää roolimallit käyttäjäkohtaisiin oikeuksiin. Administrator-, Operator- ja Viewer-mallit tarjoavat aloitusoikeudet, joita voidaan mukauttaa jokaiselle tilille.
 
@@ -405,35 +409,36 @@ LUMS käyttää SQLitea pysyvään sovellustilaan.
 
 Tietokanta tallentaa tietoja, kuten:
 
-    käyttäjät
+* käyttäjät
 
-    istunnot
+* istunnot
 
-    asiakkaat
+* asiakkaat
 
-    asiakastodennustila
+* asiakastodennustila
 
-    ohjelmistoluettelo
+* ohjelmistoluettelo
 
-    saatavilla olevat päivitykset
+* saatavilla olevat päivitykset
 
-    päivitystyöt
+* päivitystyöt
 
-    pakettitason työtulokset
+* pakettitason työtulokset
 
-    pakettihakupyynnöt ja -tulokset
+* pakettihakupyynnöt ja -tulokset
 
-    valvontatiedot
+* valvontatiedot
 
 Sovellus ottaa eksplisiittisesti käyttöön SQLite-viiteavainten valvonnan tietokantayhteyksille.
 
 Nykyinen tuotannon SQLite-perustaso on:
-text
+```text
 
 journal_mode = wal
 busy_timeout = 5000
 synchronous = 2
 foreign_keys = ON
+```
 
 LUMS käyttää SQLite WAL -tilaa nykyisessä tuotantokokoonpanossa.
 Konttiarkkitehtuuri
@@ -443,17 +448,18 @@ LUMS-palvelin otetaan käyttöön kovennettuna Docker-konttina.
 Sovelluskonttia kohdellaan tarkoituksella kertakäyttöisenä.
 
 Pysyvä sovellustila tallennetaan erilliseen Docker-taltioon:
-text
 
+```text
 lums-data
+```
 
 Tuotantokontti käyttää vain luku -juuritiedostojärjestelmää.
 
 Kirjoitettavat sijainnit on tarkoituksella rajoitettu vaadittuihin ajonaikaisiin ja pysyviin tallennuspolkuihin.
 
 Tuotannon turvallisuusperustaso sisältää:
-text
 
+```text
 read-only root filesystem
 all Linux capabilities dropped
 no-new-privileges
@@ -462,11 +468,13 @@ restricted /run
 read-only secret mount
 dedicated persistent data volume
 non-root application user
+```
 
 Sovellus on sisäisesti saatavilla osoitteessa:
-text
 
+```text
 127.0.0.1:5050
+```
 
 Ulkoinen HTTPS-käyttö tarjotaan käänteisen välityspalvelimen kautta.
 Pysyvät ja kertakäyttöiset komponentit
@@ -497,29 +505,30 @@ LUMS-agentti
 Agentti vastaa vuorovaikutuksesta LUMS-palvelimen ja paikallisen Linux-järjestelmän kanssa.
 
 Nykyinen agenttiversio:
-text
 
+```text
 1.7.0
+```
 
 Agentti käsittelee:
 
-    todennus
+* todennus
 
-    luettelointi
+* luettelointi
 
-    päivitysten tunnistus
+* päivitysten tunnistus
 
-    pakettihaku
+* pakettihaku
 
-    pakettitoiminnot
+* pakettitoiminnot
 
-    päivitystöiden suoritus
+* päivitystöiden suoritus
 
-    tulosten raportointi
+* tulosten raportointi
 
-    uudelleenkäynnistyksen tunnistus
+* uudelleenkäynnistyksen tunnistus
 
-    lepotilan käsittely
+* lepotilan käsittely
 
 Paketinhallintakerros
 
@@ -528,7 +537,7 @@ Paketinhallintakerros tarjoaa hallitun abstraktion natiivin Linux-paketinhallinn
 Agentti ei vaadi LUMSia korvaamaan paketinhallintaa.
 
 Sen sijaan:
-text
+```text
 
 LUMS-toiminto
      │
@@ -538,6 +547,7 @@ Paketinhallinnan abstraktio
      ├── Debian / Ubuntu → APT / dpkg
      │
      └── Arch Linux      → pacman
+```
 
 Tämä pitää jakelukohtaisen pakettikäsittelyn asiakkaan sisällä.
 Suorituksen valvoja
@@ -545,9 +555,10 @@ Suorituksen valvoja
 Valvoja seuraa päivitystöiden suoritusta asiakkaalla.
 
 Nykyinen valvojan versio:
-text
 
+```text
 1.2.1
+```
 
 Valvoja työskentelee yhdessä agentin ja palvelinpuolen työtilan kanssa.
 
@@ -558,6 +569,7 @@ Normaali asiakasraportointi noudattaa tätä suuntaa:
 text
 
 Linux-asiakas
+```text
     │
     │ luettelo / päivitystiedot
     ▼
@@ -568,6 +580,7 @@ SQLite
     │
     ▼
 Web UI
+```
 
 Esimerkiksi asiakkaan suorittama päivitystarkistus tuottaa tiedot, jotka raportoidaan palvelimelle ja tallennetaan asiakkaan nykyiseksi päivitystilaksi.
 
@@ -578,6 +591,7 @@ Pakettihaku noudattaa erilaista pyyntö/vastaus-virtaa:
 text
 
 Selain
+```text
    │
    │ hakupyyntö
    ▼
@@ -596,6 +610,7 @@ Linux-asiakas
 LUMS-palvelin
    │
    ▼
+```
 Selain
 
 Siksi palvelimen ei tarvitse ylläpitää täydellistä etäpakettivarastoindeksiä jokaiselle asiakkaalle.
@@ -607,6 +622,7 @@ Päivitystyö noudattaa yleistä arkkitehtuuria:
 text
 
 Selain
+```text
    │
    │ luo työ
    ▼
@@ -636,11 +652,12 @@ LUMS API
 SQLite
    │
    ▼
+```
 Selain
 
 Tämä luo LUMSin keskeisen suoritusketjun:
 
-    Selain → API → SQLite → Agentti → Paketinhallinta → Tulos → SQLite → Käyttöliittymä
+* Selain → API → SQLite → Agentti → Paketinhallinta → Tulos → SQLite → Käyttöliittymä
 
 Atominen työn varaus
 
@@ -658,12 +675,13 @@ Palvelin luo jäsenneltyjä töitä.
 Asiakasagentti tulkitsee tuetut työtoiminnot ja suorittaa vastaavan paikallisen toiminnon.
 
 Tuetut pakettitoiminnot ovat:
-text
 
+```text
 INSTALL_PACKAGE
 REMOVE_PACKAGE
 UPDATE_PACKAGE
 UPDATE_SYSTEM
+```
 
 Pakettinimet validoidaan ennen pakettityön luomista.
 
@@ -675,57 +693,58 @@ Pakettitoiminnot on tarkoituksella toteutettu paketinhallinnan abstraktion taaks
 Tämä pitää korkeamman tason LUMS-työmallin riippumattomana jakelukohtaisista komennoista.
 
 Esimerkiksi:
-text
 
+```text
 INSTALL_PACKAGE
        │
        ├── Debian / Ubuntu → APT
        │
        └── Arch Linux      → pacman
+```
 
 Sama periaate pätee poistamiseen ja pakettipäivityksiin.
-Debian / Ubuntu
+## Debian / Ubuntu
 
 Debian-perheen järjestelmissä LUMS käyttää natiivia APT/dpkg-työkaluja.
 
 Tyypillisiä vastuita ovat:
 
-    pakettihaku
+* pakettihaku
 
-    pakettimetatietojen haku
+* pakettimetatietojen haku
 
-    paketin asennus
+* paketin asennus
 
-    paketin poisto
+* paketin poisto
 
-    pakettipäivitykset
+* pakettipäivitykset
 
-    järjestelmäpäivitykset
+* järjestelmäpäivitykset
 
-    päivitysten tunnistus
+* päivitysten tunnistus
 
 LUMS-agentti ei korvaa APT:ta.
 
 Se tarjoaa hallitun orkestroinnin sen ympärille.
-Arch Linux
+## Arch Linux
 
 Arch Linux -järjestelmissä LUMS käyttää natiivia pacman-paketinhallintaa.
 
 Tyypillisiä vastuita ovat:
 
-    pakettihaku
+* pakettihaku
 
-    pakettimetatietojen haku
+* pakettimetatietojen haku
 
-    paketin asennus
+* paketin asennus
 
-    paketin poisto
+* paketin poisto
 
-    pakettipäivitykset
+* pakettipäivitykset
 
-    järjestelmäpäivitykset
+* järjestelmäpäivitykset
 
-    päivitysten tunnistus
+* päivitysten tunnistus
 
 Jakelukohtainen käyttäytyminen pysyy paketinhallintakerroksen sisällä.
 Pakettihaku
@@ -733,7 +752,7 @@ Pakettihaku
 Pakettihaku on erillään asennettujen ohjelmistojen luettelosta.
 
 Tämä ero on tärkeä:
-text
+```text
 
 Asennetut ohjelmistot
         │
@@ -741,17 +760,18 @@ Asennetut ohjelmistot
 
 Paketinhallinnan haku
         │
-        └── Minkä paketin asiakas voi tällä hetkellä löytää?
+```
+  * └── Minkä paketin asiakas voi tällä hetkellä löytää?
 
 Hakutulokset voivat sisältää pakettitietoja, kuten:
 
-    paketin nimi
+* paketin nimi
 
-    versio
+* versio
 
-    kuvaus
+* kuvaus
 
-    varastotiedot, jos saatavilla
+* varastotiedot, jos saatavilla
 
 Hakutulokset palautetaan LUMS-palvelimelle ja näytetään Paketinhallinta-käyttöliittymässä.
 Paketinhallinnan oikeudet
@@ -774,17 +794,17 @@ LUMS käsittelee päivitystoiminnon tuloksen jäsenneltynä tilana sen sijaan, e
 
 Olennaiset tiedot voivat sisältää:
 
-    onnistuminen tai epäonnistuminen
+* onnistuminen tai epäonnistuminen
 
-    pakettitason tulos
+* pakettitason tulos
 
-    suoritustila
+* suoritustila
 
-    virhetiedot
+* virhetiedot
 
-    uudelleenkäynnistysvaatimus
+* uudelleenkäynnistysvaatimus
 
-    valmistumisaikaleimat
+* valmistumisaikaleimat
 
 Tämä mahdollistaa palvelimen ylläpitää merkityksellistä päivityshistoriaa.
 Uudelleenkäynnistyksen tunnistus
@@ -800,6 +820,7 @@ Asiakas-API käyttää erillistä todennusmekanismia kuin ylläpitäjän verkkos
 text
 
 Ylläpitäjä
+```text
         │
         ▼
  Verkkotodennus
@@ -813,7 +834,8 @@ Linux-asiakas
  Asiakastunniste
         │
         ▼
-    LUMS-palvelin
+```
+* LUMS-palvelin
 
 Tämä erottelu estää ylläpitäjän selainsessioiden ja asiakastunnisteiden muuttumisen keskenään vaihdettaviksi todennusmekanismeiksi.
 Valvontajälki
@@ -833,6 +855,7 @@ LUMS erottaa tarkoituksella:
 text
 
 Hallinta
+```text
      │
      ▼
 Käytäntö / valtuutus
@@ -844,6 +867,7 @@ Työ
 Asiakkaan suoritus
      │
      ▼
+```
 Natiivi paketinhallinta
 
 Jokaisella kerroksella on määritelty vastuu.
@@ -858,90 +882,91 @@ Tulos kulkee takaisin saman hallitun ketjun kautta.
 Roolipohjainen käyttöoikeushallinta
 
 LUMS käyttää kolmea ylläpitoroolia:
-text
 
+```text
 Administrator
 Operator
 Viewer
+```
 
 Valtuutus valvotaan palvelinpuolella.
 
 Käyttöliittymä mukauttaa lisäksi näkyvää käyttöliittymää käyttäjän oikeuksien mukaan, mutta käyttöliittymän näkyvyyttä ei koskaan pidetä turvarajana.
-Administrator
+### Administrator
 
 Ylläpitäjillä on pääsy:
 
-    tarkastella asiakkaita
+* tarkastella asiakkaita
 
-    tarkastella asennettuja ohjelmistoja
+* tarkastella asennettuja ohjelmistoja
 
-    tarkastella saatavilla olevia päivityksiä
+* tarkastella saatavilla olevia päivityksiä
 
-    luoda ja suorittaa päivitystöitä
+* luoda ja suorittaa päivitystöitä
 
-    tarkastella päivityshistoriaa
+* tarkastella päivityshistoriaa
 
-    käyttää paketinhallintaa
+* käyttää paketinhallintaa
 
-    suorittaa järjestelmän ylläpitoa
+* suorittaa järjestelmän ylläpitoa
 
-    luoda ja poistaa asiakkaita käytöstä
+* luoda ja poistaa asiakkaita käytöstä
 
-    vaihtaa asiakastunnisteita
+* vaihtaa asiakastunnisteita
 
-    luoda ja hallita käyttäjiä
+* luoda ja hallita käyttäjiä
 
-    hallita rooleja ja käyttäjien käyttöoikeuksia
+* hallita rooleja ja käyttäjien käyttöoikeuksia
 
-Operator
+### Operator
 
 Operaattoreilla on pääsy:
 
-    tarkastella asiakkaita
+* tarkastella asiakkaita
 
-    tarkastella asennettuja ohjelmistoja
+* tarkastella asennettuja ohjelmistoja
 
-    tarkastella saatavilla olevia päivityksiä
+* tarkastella saatavilla olevia päivityksiä
 
-    luoda ja suorittaa päivitystöitä
+* luoda ja suorittaa päivitystöitä
 
-    tarkastella päivityshistoriaa
+* tarkastella päivityshistoriaa
 
-    käyttää paketinhallintaa
+* käyttää paketinhallintaa
 
-    suorittaa järjestelmän ylläpitoa
+* suorittaa järjestelmän ylläpitoa
 
 Operaattoreilla ei ole pääsyä:
 
-    käyttäjähallintaan
+* käyttäjähallintaan
 
-    roolien hallintaan
+* roolien hallintaan
 
-    asiakkaiden luomiseen tai poistamiseen käytöstä
+* asiakkaiden luomiseen tai poistamiseen käytöstä
 
-    asiakastunnisteiden vaihtoon
+* asiakastunnisteiden vaihtoon
 
-Viewer
+### Viewer
 
 Viewereillä on vain luku -pääsy:
 
-    asiakkaisiin
+* asiakkaisiin
 
-    asennettuihin ohjelmistoihin
+* asennettuihin ohjelmistoihin
 
 Seuraavat toiminnot eivät ole Viewereiden käytettävissä:
 
-    saatavilla olevien päivitysten hallinta
+* saatavilla olevien päivitysten hallinta
 
-    päivitystyöt
+* päivitystyöt
 
-    päivityshistoria
+* päivityshistoria
 
-    paketinhallinta
+* paketinhallinta
 
-    järjestelmän ylläpito
+* järjestelmän ylläpito
 
-    muut tilaa muuttavat ylläpitotoiminnot
+* muut tilaa muuttavat ylläpitotoiminnot
 
 Palvelin valvoo näitä rajoituksia itsenäisesti.
 Käyttäjähallinta
@@ -956,17 +981,17 @@ Käyttäjien salasanat tallennetaan Argon2-salasanatiivistyksellä eikä selkoki
 
 Käyttäjähallinnan toiminnot on suojattu:
 
-    todennuksella
+* todennuksella
 
-    oikeuspohjaisella valtuutuksella
+* oikeuspohjaisella valtuutuksella
 
-    CSRF-suojauksella
+* CSRF-suojauksella
 
-    syötteen validoinnilla
+* syötteen validoinnilla
 
-    päällekkäisten käyttäjien tarkistuksella
+* päällekkäisten käyttäjien tarkistuksella
 
-    valvontalokituksella
+* valvontalokituksella
 
 Käyttäjähallinnan käyttöliittymää ei paljasteta ilman users.manage-oikeutta.
 Istunnon turvallisuus
@@ -975,17 +1000,17 @@ Ylläpitäjätodennus käyttää palvelinpuolen istunnonhallintaa.
 
 Istunnon turvallisuus sisältää:
 
-    todennettu istuntotila
+* todennettu istuntotila
 
-    istunnon mitätöinti
+* istunnon mitätöinti
 
-    CSRF-suojaus tilaa muuttaville pyynnöille
+* CSRF-suojaus tilaa muuttaville pyynnöille
 
-    kirjautumisen nopeusrajoitus
+* kirjautumisen nopeusrajoitus
 
-    poistettujen tilien valvonta
+* poistettujen tilien valvonta
 
-    roolitarkistukset
+* roolitarkistukset
 
 Istunnon mitätöinti mitätöi vastaavan todennetun tilan sen sijaan, että se vain piilottaisi käyttöliittymän.
 Kirjautumisen nopeusrajoitus
@@ -1019,6 +1044,7 @@ Tämä luo selkeän elinkaaren:
 text
 
 Luo
+```text
   │
   ▼
 Käytä
@@ -1027,6 +1053,7 @@ Käytä
 Vaihda
   │
   ▼
+```
 Vanha tunniste mitätön
 
 API-turvallisuus
@@ -1035,21 +1062,21 @@ LUMS validoi API-syötteen ennen tilaa muuttavia toimintoja.
 
 Turvakontrollit sisältävät:
 
-    todennus
+* todennus
 
-    käyttäjäkohtainen oikeusvaltuutus
+* käyttäjäkohtainen oikeusvaltuutus
 
-    CSRF-suojaus tarvittaessa
+* CSRF-suojaus tarvittaessa
 
-    syötteen validointi
+* syötteen validointi
 
-    pakettinimien validointi
+* pakettinimien validointi
 
-    jäsennellyt työtoiminnot
+* jäsennellyt työtoiminnot
 
-    parametroidut tietokantakyselyt
+* parametroidut tietokantakyselyt
 
-    hallittu virheenkäsittely
+* hallittu virheenkäsittely
 
 Sovellus ei käytä käyttäjän antamia pakettinimiä rajoittamattomina komentotulkkeina.
 SQL-injektiosuojaus
@@ -1060,30 +1087,31 @@ Käyttäjän hallitsemia arvoja ei yhdistetä suoraan SQL-kyselyihin.
 
 Tämä koskee alueita, kuten:
 
-    todennus
+* todennus
 
-    asiakashallinta
+* asiakashallinta
 
-    käyttäjähallinta
+* käyttäjähallinta
 
-    pakettihaut
+* pakettihaut
 
-    päivitystyöt
+* päivitystyöt
 
-    valvontatiedot
+* valvontatiedot
 
-    tulosten raportointi
+* tulosten raportointi
 
 Tavoitteena on pitää data-arvot erillään SQL-ohjeista.
 SQLite-turvallisuusperustaso
 
 Nykyinen tuotannon SQLite-kokoonpano on:
-text
+```text
 
 journal_mode = wal
 busy_timeout = 5000
 synchronous = 2
 foreign_keys = ON
+```
 
 Sovellus ottaa eksplisiittisesti käyttöön viiteavainten valvonnan tietokantayhteyksille.
 
@@ -1102,12 +1130,12 @@ Jos suoritus keskeytyy, palautus voi erottaa:
 text
 
 jo onnistunut
-        │
-        └── älä toista tarpeettomasti
+  * │
+  * └── älä toista tarpeettomasti
 
 ei valmis
-        │
-        └── kelvollinen palautukseen
+  * │
+  * └── kelvollinen palautukseen
 
 Tämä vähentää riskiä toistaa sokeasti suoritettuja pakettitoimintoja keskeytyksen jälkeen.
 Hallittu päivityksen suoritus
@@ -1115,12 +1143,13 @@ Hallittu päivityksen suoritus
 LUMS rajoittaa tarkoituksella toimintoja, joita voidaan pyytää päivitystyö-API:n kautta.
 
 Tuetut toiminnot ovat:
-text
 
+```text
 INSTALL_PACKAGE
 REMOVE_PACKAGE
 UPDATE_PACKAGE
 UPDATE_SYSTEM
+```
 
 Palvelin validoi toiminnon ja asiaankuuluvat pakettitiedot ennen työn luomista.
 
@@ -1152,15 +1181,15 @@ Siksi agentti ei yritä jäljitellä paketinhallinnan käyttäytymistä itse.
 
 Sen sijaan se:
 
-    validoi pyydetyn toiminnon
+* validoi pyydetyn toiminnon
 
-    valitsee asianmukaisen paketinhallintatoteutuksen
+* valitsee asianmukaisen paketinhallintatoteutuksen
 
-    suorittaa hallitun toiminnon
+* suorittaa hallitun toiminnon
 
-    tallentaa tuloksen
+* tallentaa tuloksen
 
-    raportoi tuloksen palvelimelle
+* raportoi tuloksen palvelimelle
 
 Jakelukohtainen käyttäytyminen pysyy eristettynä paketinhallintakerroksen sisällä.
 Uudelleenkäynnistyksen käsittely
@@ -1187,17 +1216,17 @@ LUMS ylläpitää sovelluksen valvontajälkeä tärkeistä ylläpitoon ja turval
 
 Esimerkkejä ovat:
 
-    todennukseen liittyvät tapahtumat
+* todennukseen liittyvät tapahtumat
 
-    asiakashallinta
+* asiakashallinta
 
-    tunnistetoiminnot
+* tunnistetoiminnot
 
-    käyttäjähallinta
+* käyttäjähallinta
 
-    päivitystöiden luonti
+* päivitystöiden luonti
 
-    turvallisuuskriittiset tilamuutokset
+* turvallisuuskriittiset tilamuutokset
 
 Valvontalokitus on erillään tavallisesta diagnostiikkalokituksesta.
 
@@ -1211,26 +1240,27 @@ Kontin koventaminen
 
 Tuotantokontti käyttää:
 
-    ei-root-sovelluksen suoritus
+* ei-root-sovelluksen suoritus
 
-    vain luku -juuritiedostojärjestelmä
+* vain luku -juuritiedostojärjestelmä
 
-    poistetut Linux-kyvykkyydet
+* poistetut Linux-kyvykkyydet
 
-    no-new-privileges
+* no-new-privileges
 
-    rajoitetut väliaikaiset tiedostojärjestelmät
+* rajoitetut väliaikaiset tiedostojärjestelmät
 
-    vain luku -salaisuuden liitos
+* vain luku -salaisuuden liitos
 
-    erillinen pysyvä datataltio
+* erillinen pysyvä datataltio
 
 Verkon koventaminen
 
 Sovelluskontti on sidottu isäntäkoneen loopback-osoitteeseen:
-text
 
+```text
 127.0.0.1:5050
+```
 
 Siksi sovellusporttia ei ole suoraan altistettu LAN-palveluna.
 
@@ -1264,57 +1294,57 @@ Turvallisuustarkastuksen tila
 
 LUMSin turvallisuuskatsaus on kattanut seuraavat alueet:
 
-    SQLite-viiteavainten valvonta
+* SQLite-viiteavainten valvonta
 
-    SQLite-ajonaikainen kokoonpano
+* SQLite-ajonaikainen kokoonpano
 
-    päivityksen aikakatkaisu ja prosessien käsittely
+* päivityksen aikakatkaisu ja prosessien käsittely
 
-    kirjautumisen nopeusrajoitus
+* kirjautumisen nopeusrajoitus
 
-    API-syötteen validointi
+* API-syötteen validointi
 
-    istunnon mitätöinti
+* istunnon mitätöinti
 
-    asiakastunnisteen vaihto
+* asiakastunnisteen vaihto
 
-    offline/IP-käsittely
+* offline/IP-käsittely
 
-    töiden palautus ja tarkistuspisteet
+* töiden palautus ja tarkistuspisteet
 
-    APT-robustisuus
+* APT-robustisuus
 
-    Arch-uudelleenkäynnistyksen tunnistus
+* Arch-uudelleenkäynnistyksen tunnistus
 
-    yksikkö- ja API-tulosten validointi
+* yksikkö- ja API-tulosten validointi
 
-    simulaatiotestaus
+* simulaatiotestaus
 
-    jatkuva integraatio
+* jatkuva integraatio
 
-    sovellus- ja valvontalokitus
+* sovellus- ja valvontalokitus
 
-    versiointi ja julkaisujen käsittely
+* versiointi ja julkaisujen käsittely
 
-    RBAC
+* RBAC
 
-    istunto- ja CSRF-turvallisuus
+* istunto- ja CSRF-turvallisuus
 
-    tunnistetietojen turvallisuus
+* tunnistetietojen turvallisuus
 
-    riippuvuuksien ja koontien turvallisuus
+* riippuvuuksien ja koontien turvallisuus
 
-    Docker-/kontin koventaminen
+* Docker-/kontin koventaminen
 
-    salaisuuksien ja koontikontekstin suojaus
+* salaisuuksien ja koontikontekstin suojaus
 
-    HTTP-/kuljetuksen turvallisuus
+* HTTP-/kuljetuksen turvallisuus
 
-    tiedostojärjestelmän/ajonaikaiset oikeudet
+* tiedostojärjestelmän/ajonaikaiset oikeudet
 
-    verkon altistuminen
+* verkon altistuminen
 
-    arkiston artefaktihygienia
+* arkiston artefaktihygienia
 
 Jäljellä oleva dokumentaation tarkistus käsitellään erikseen osana lopullista julkaisukelpoisuusprosessia.
 Testaus ja CI
@@ -1322,36 +1352,37 @@ Testaus ja CI
 LUMS sisältää automatisoidut testit, jotka kattavat sovelluksen ydin käyttäytymisen ja turvakontrollit.
 
 Suorita täydellinen testisarja arkiston juuresta:
-bash
+```bash
 
 ./.venv-test/bin/pytest -q
+```
 
 Testien määrä muuttuu ajan myötä. Vaadittu tulos on, että koko sarja päättyy onnistuneesti ilman epäonnistumisia. Testisarja kattaa alueita, kuten:
 
-    todennus
+* todennus
 
-    RBAC
+* RBAC
 
-    asiakashallinta
+* asiakashallinta
 
-    käyttäjähallinta
+* käyttäjähallinta
 
-    pakettihaku
+* pakettihaku
 
-    päivitystyöt
+* päivitystyöt
 
-    työtulosten validointi
+* työtulosten validointi
 
-    turvallisuuskäyttäytyminen
+* turvallisuuskäyttäytyminen
 
-    API-käyttäytyminen
+* API-käyttäytyminen
 
 Jatkuva integraatio suorittaa automatisoidun testisarjan ennen kuin muutokset katsotaan valmiiksi.
 
 Onnistunut testiajo vaaditaan, mutta testit ovat vain yksi osa julkaisuprosessia.
 
 Julkaisuprosessi vaatii myös:
-text
+```text
 
 Toteutus
     ↓
@@ -1367,6 +1398,7 @@ Versio
     ↓
 Git-tunniste
     ↓
+```
 GitHub-julkaisu
 
 Kehityksen tila
@@ -1383,68 +1415,70 @@ Siksi dokumentaation johdonmukaisuutta pidetään osana suunnitteluprosessia eik
 Tuetut järjestelmät
 
 LUMS on suunniteltu hallitsemaan Linux-järjestelmiä, jotka käyttävät tuettuja natiiveja paketinhallintoja.
-Debian / Ubuntu
+### Debian / Ubuntu
 
 Tuetut paketinhallintapinot:
-text
 
+```text
 APT
 dpkg
+```
 
 Asiakas käyttää natiiveja Debian-paketinhallintatyökaluja seuraaviin:
 
-    pakettiluettelo
+* pakettiluettelo
 
-    päivitysten tunnistus
+* päivitysten tunnistus
 
-    pakettihaku
+* pakettihaku
 
-    paketin asennus
+* paketin asennus
 
-    paketin poisto
+* paketin poisto
 
-    pakettipäivitykset
+* pakettipäivitykset
 
-    järjestelmäpäivitykset
+* järjestelmäpäivitykset
 
-Arch Linux
+### Arch Linux
 
 Tuetut paketinhallintapinot:
-text
 
+```text
 pacman
+```
 
 Asiakas käyttää natiiveja Arch-paketinhallintatyökaluja seuraaviin:
 
-    pakettiluettelo
+* pakettiluettelo
 
-    päivitysten tunnistus
+* päivitysten tunnistus
 
-    pakettihaku
+* pakettihaku
 
-    paketin asennus
+* paketin asennus
 
-    paketin poisto
+* paketin poisto
 
-    pakettipäivitykset
+* pakettipäivitykset
 
-    järjestelmäpäivitykset
+* järjestelmäpäivitykset
 
 Asiakasvaatimukset
 
 Hallinnoitu Linux-asiakas vaatii:
 
-    tuetun Linux-jakelun
+* tuetun Linux-jakelun
 
-    LUMS-agentin
+* LUMS-agentin
 
-    verkkoyhteyden LUMS-palvelimeen
+* verkkoyhteyden LUMS-palvelimeen
 
-    rekisteröidyn asiakastunnisteen
+* rekisteröidyn asiakastunnisteen
 
-    toimivan natiivin paketinhallinnan
+* toimivan natiivin paketinhallinnan
 
-    systemd:n ajastin-/palvelupohjaisille suorituskomponenteille
+* systemd:n ajastin-/palvelupohjaisille suorituskomponenteille
 
 Asiakas ei vaadi, että LUMS-palvelin pääsee suoraan sen pakettitietokantaan.
 
@@ -1452,59 +1486,59 @@ Asiakas suorittaa paikalliset pakettitoiminnot ja raportoi tulokset palvelimelle
 Teknologiapino
 Palvelin
 
-    Python
+* Python
 
-    Flask
+* Flask
 
-    Gunicorn
+* Gunicorn
 
-    SQLite
+* SQLite
 
-    HTML
+* HTML
 
-    CSS
+* CSS
 
-    JavaScript
+* JavaScript
 
-    Nginx
+* Nginx
 
-    Docker
+* Docker
 
 Todennus ja turvallisuus
 
-    Argon2-salasanatiivistys
+* Argon2-salasanatiivistys
 
-    palvelinpuolen istunnot
+* palvelinpuolen istunnot
 
-    CSRF-suojaus
+* CSRF-suojaus
 
-    roolimallit käyttäjäkohtaisilla oikeuksilla
+* roolimallit käyttäjäkohtaisilla oikeuksilla
 
-    SHA-256-asiakastunnisteiden tiivisteet
+* SHA-256-asiakastunnisteiden tiivisteet
 
-    HTTPS
+* HTTPS
 
-    valvontalokitus
+* valvontalokitus
 
 Asiakas
 
-    Python
+* Python
 
-    systemd
+* systemd
 
-    APT / dpkg
+* APT / dpkg
 
-    pacman
+* pacman
 
-    loginctl, jos lepotilatiedot ovat saatavilla
+* loginctl, jos lepotilatiedot ovat saatavilla
 
 Projektin rakenne
 
 Arkisto on organisoitu erillisiin palvelin-, asiakas-, frontend- ja testikomponentteihin.
 
 Yksinkertaistettu rakenne on:
-text
 
+```text id="1rq7v7"
 LUMS/
 ├── agent/
 │   ├── agent.py
@@ -1528,6 +1562,7 @@ LUMS/
 ├── .dockerignore
 ├── .gitignore
 └── documentation
+```
 
 Arkiston tarkka asettelu voi kehittyä LUMSin kehittyessä.
 
@@ -1538,29 +1573,29 @@ Flask-sovellus tarjoaa keskitetyn LUMS-API:n ja verkkokäyttöliittymän.
 
 Sen vastuisiin kuuluvat:
 
-    todennus
+* todennus
 
-    valtuutus
+* valtuutus
 
-    istunnon käsittely
+* istunnon käsittely
 
-    asiakashallinta
+* asiakashallinta
 
-    käyttäjähallinta
+* käyttäjähallinta
 
-    ohjelmistoluettelo
+* ohjelmistoluettelo
 
-    päivitysluettelo
+* päivitysluettelo
 
-    pakettihaku
+* pakettihaku
 
-    päivitystyöt
+* päivitystyöt
 
-    työtulosten käsittely
+* työtulosten käsittely
 
-    valvontalokitus
+* valvontalokitus
 
-    tietokannan pysyvyys
+* tietokannan pysyvyys
 
 Sovellus tarjoillaan Gunicornilla kontin sisällä.
 
@@ -1570,31 +1605,32 @@ Agentti
 LUMS-agentti asennetaan suoraan hallinnoituihin Linux-asiakkaisiin.
 
 Nykyinen agenttiversio:
-text
 
+```text id="w8p4wz"
 1.7.0
+```
 
 Agentti vastaa LUMSin suoritusketjun asiakaspuolen osasta.
 
 Sen vastuisiin kuuluvat:
 
-    asiakastilan raportointi
+* asiakastilan raportointi
 
-    asennettujen ohjelmistojen kerääminen
+* asennettujen ohjelmistojen kerääminen
 
-    saatavilla olevien päivitysten tunnistus
+* saatavilla olevien päivitysten tunnistus
 
-    pakettien haku
+* pakettien haku
 
-    pakettitoimintojen suoritus
+* pakettitoimintojen suoritus
 
-    työtulosten raportointi
+* työtulosten raportointi
 
-    uudelleenkäynnistysvaatimusten tunnistus
+* uudelleenkäynnistysvaatimusten tunnistus
 
-    lepotilatietojen käsittely
+* lepotilatietojen käsittely
 
-    osallistuminen töiden palautukseen
+* osallistuminen töiden palautukseen
 
 Agentti ei tarjoa rajoittamatonta etäkomentotulkia.
 Paketinhallintakerros
@@ -1605,6 +1641,7 @@ Käsitteellisesti:
 text
 
 Agentti
+```text id="zq8xq3"
   │
   ▼
 Paketinhallintaliittymä
@@ -1614,6 +1651,7 @@ Paketinhallintaliittymä
   │
   └── Arch Linux
          └── pacman
+```
 
 Tämä mahdollistaa korkeamman tason päivitystyöjärjestelmän työskennellä jäsenneltyjen toimintojen kanssa tietämättä jokaista jakelukohtaista komentoa.
 Valvoja
@@ -1621,9 +1659,10 @@ Valvoja
 LUMSin suorituksen valvoja seuraa töitä, joiden odotetaan suoritettavan asiakkaalla.
 
 Nykyinen valvojan versio:
-text
 
+```text id="7k6w3s"
 1.2.1
+```
 
 Valvoja toimii yhdessä agentin ja palvelinpuolen työtilan kanssa.
 
@@ -1634,11 +1673,11 @@ Asiakas käyttää systemd:tä ajastettuun ja hallittuun suoritukseen.
 
 Asiaankuuluvat komponentit sisältävät palvelu- ja ajastinyksiköt seuraaviin:
 
-    asiakasraportointi
+* asiakasraportointi
 
-    päivitysten tunnistus
+* päivitysten tunnistus
 
-    työn suoritus/valvonta
+* työn suoritus/valvonta
 
 Tämä tarjoaa ennustettavan suorituksen ilman, että jokainen säännöllinen toiminto vaatii jatkuvasti käynnissä olevaa taustaprosessia.
 
@@ -1672,6 +1711,7 @@ Päivitystyön täydellinen elinkaari voidaan esittää seuraavasti:
 text
 
 Luo
+```text id="h4d9kv"
   │
   ▼
 Validoi
@@ -1692,7 +1732,8 @@ Suorita
   └──────────────► PALAUTUS
                          │
                          ▼
-                      Suorita
+```
+        * Suorita
 
 Työ tallennetaan ennen suoritusta.
 
@@ -1700,12 +1741,13 @@ Tämä tarkoittaa, että palvelin säilyttää tiedon aiotusta toiminnosta, vaik
 Tyypit
 
 LUMS tukee tällä hetkellä jäsenneltyjä päivitystoimintoja, mukaan lukien:
-text
 
+```text id="v7r1f8"
 INSTALL_PACKAGE
 REMOVE_PACKAGE
 UPDATE_PACKAGE
 UPDATE_SYSTEM
+```
 
 Nämä toiminnot on tarkoituksella rajoitettu.
 
@@ -1737,7 +1779,7 @@ Jos suoritus keskeytyy, palvelin voi määrittää, mikä työ on jo suoritettu 
 
 Aiottu palautusperiaate on:
 
-    Jatka tunnetusta tilasta sen sijaan, että olettaisit, ettei mitään tapahtunut.
+* Jatka tunnetusta tilasta sen sijaan, että olettaisit, ettei mitään tapahtunut.
 
 Tulosten validointi
 
@@ -1747,15 +1789,15 @@ Tämä suojaa työtilaa virheellisiltä tai puutteellisilta tuloslähetyksiltä.
 
 Validointia sovelletaan asiaankuuluviin kenttiin, kuten:
 
-    työn identiteetti
+* työn identiteetti
 
-    suoritustila
+* suoritustila
 
-    pakettituloksen tiedot
+* pakettituloksen tiedot
 
-    virhetiedot
+* virhetiedot
 
-    uudelleenkäynnistystiedot
+* uudelleenkäynnistystiedot
 
 Tulostenkäsittelykerros toimii siksi toisena rajana todennetun asiakkaan ja pysyvän palvelintilan välillä.
 Käyttäjähallinta
@@ -1765,11 +1807,12 @@ Käyttäjähallinta vaatii users.manage-oikeuden.
 Valtuutetut käyttäjät voivat luoda käyttäjiä roolimallista ja mukauttaa kullekin tilille määritettyjä yksittäisiä oikeuksia.
 
 Nykyiset roolit ovat:
-text
 
+```text id="2xqv79"
 Administrator
 Operator
 Viewer
+```
 
 Käyttäjähallinnan toiminnot todennetaan, oikeustarkistetaan, validoidaan, suojataan CSRF:ltä tarvittaessa ja tallennetaan valvontajälkeen.
 Asiakashallinta
@@ -1778,13 +1821,13 @@ Ylläpitäjät voivat hallita rekisteröityjä asiakkaita.
 
 Asiakashallinnan toiminnot sisältävät:
 
-    rekisteröinti
+* rekisteröinti
 
-    käytöstä poisto
+* käytöstä poisto
 
-    tunnisteen vaihto
+* tunnisteen vaihto
 
-    asiakastilan tarkastus
+* asiakastilan tarkastus
 
 Asiakastodennus on riippumaton jokaiselle rekisteröidylle asiakkaalle.
 
@@ -1803,25 +1846,25 @@ Sovelluslokit
 
 Käytetään ensisijaisesti:
 
-    diagnostiikka
+* diagnostiikka
 
-    virheet
+* virheet
 
-    ajonaikainen käyttäytyminen
+* ajonaikainen käyttäytyminen
 
-    vianmääritys
+* vianmääritys
 
 Valvontalokit
 
 Käytetään ensisijaisesti:
 
-    ylläpitotoimenpiteet
+* ylläpitotoimenpiteet
 
-    turvallisuuteen liittyvät tapahtumat
+* turvallisuuteen liittyvät tapahtumat
 
-    tärkeän tilan muutokset
+* tärkeän tilan muutokset
 
-    vastuuvelvollisuus
+* vastuuvelvollisuus
 
 Näiden käsitteiden erottaminen toisistaan helpottaa vianmääritystä ja hallinnollista tarkastelua.
 Testausstrategia
@@ -1830,15 +1873,15 @@ LUMSin testisarja kattaa sovelluksen useita kerroksia.
 Todennus
 
 Testit kattavat todennuskäyttäytymisen, istunnon käsittelyn ja turvakontrollit.
-RBAC
+### RBAC
 
 Testit varmistavat, että:
 
-    Ylläpitäjät voivat suorittaa ylläpitotoimenpiteitä
+* Ylläpitäjät voivat suorittaa ylläpitotoimenpiteitä
 
-    Operaattorit saavat sallitut hallintatoimintonsa
+* Operaattorit saavat sallitut hallintatoimintonsa
 
-    Viewerit pysyvät vain luku -tilassa
+* Viewerit pysyvät vain luku -tilassa
 
 Paketinhallinta
 
@@ -1847,15 +1890,15 @@ Päivitystyöt
 
 Testit kattavat:
 
-    työn luonti
+* työn luonti
 
-    validointi
+* validointi
 
-    tilasiirtymät
+* tilasiirtymät
 
-    tulosten käsittely
+* tulosten käsittely
 
-    palautuskäyttäytyminen
+* palautuskäyttäytyminen
 
 Turvallisuus
 
@@ -1863,9 +1906,10 @@ Testit kattavat turvallisuuskriittisen sovelluskäyttäytymisen ja regressiotapa
 Täydellinen sarja
 
 Suorita täydellinen testisarja arkiston juuresta:
-bash
+```bash
 
 ./.venv-test/bin/pytest -q
+```
 
 Testien määrä muuttuu projektin kehittyessä; luota komennon tulokseen, ei tässä asiakirjassa tulostettuun kiinteään määrään.
 Jatkuva integraatio
@@ -1878,6 +1922,7 @@ Kehitystyönkulku on siksi:
 text
 
 Muutos
+```text id="v3n9k8"
   ↓
 Testi
   ↓
@@ -1887,28 +1932,29 @@ Dokumentaation tarkistus
   ↓
 CI
   ↓
+```
 Julkaisun valmistelu
 
 Onnistunut CI-ajo ei korvaa manuaalista turvallisuus- tai dokumentaatiokatsausta.
 Dokumentaatio
 
 LUMS ylläpitää erillistä dokumentaatiota eri toiminnallisille alueille.
-README.md
+### README.md
 
 Projektin yleiskatsaus, arkkitehtuuri, ominaisuudet, turvallisuusperustaso, kehityksen tila ja projektin suunta.
-install.md
+### install.md
 
 Asennus, käyttöönotto, asiakasasetukset, validointi, päivitys ja poistomenettelyt.
-administration.md
+### administration.md
 
 Rutiininomainen ylläpito, huolto, varmuuskopiot, päivitykset, toimintamenettelyt ja hätätilanteiden hallinta.
-security.md
+### security.md
 
 Turvallisuusarkkitehtuuri, turvakontrollit, tarkastushavainnot, koventaminen ja julkaisuvalmiuden turvallisuustiedot.
-troubleshooting.md
+### troubleshooting.md
 
 Diagnostiikkamenettelyt palvelimen, asiakkaan, töiden, paketinhallinnan, todennuksen, tietokannan, kontin ja verkon ongelmiin.
-LUMS_Optional_Theme_System.md
+### LUMS_Optional_Theme_System.md
 
 Arkkitehtuuri- ja ylläpito-opas valinnaisille LUMS-frontend-teemoille.
 
@@ -1923,13 +1969,15 @@ Aiottu suhde on:
 text
 
 Toteutus
+```text id="0m1m5u"
       │
       ├── Testit
       ├── Turvallisuuskatsaus
       └── Dokumentaatio
                │
                ▼
-          Julkaisuvalmis
+```
+  * Julkaisuvalmis
 
 Tämä on erityisen tärkeää turvallisuuskriittisissä käyttöönotto- ja hallintamenettelyissä.
 Nykyinen tila
@@ -1938,49 +1986,49 @@ LUMS on aktiivisesti kehitetty Linux-päivitysten hallintapalvelin.
 
 Nykyinen toteutus sisältää:
 
-    keskitetty asiakashallinta
+* keskitetty asiakashallinta
 
-    ohjelmistoluettelo
+* ohjelmistoluettelo
 
-    päivitysten tunnistus
+* päivitysten tunnistus
 
-    pakettihaku
+* pakettihaku
 
-    paketin asennus ja poisto
+* paketin asennus ja poisto
 
-    pakettikohtaiset päivitykset
+* pakettikohtaiset päivitykset
 
-    järjestelmäpäivitykset
+* järjestelmäpäivitykset
 
-    pysyvät päivitystyöt
+* pysyvät päivitystyöt
 
-    pakettitason työtila
+* pakettitason työtila
 
-    töiden palautus
+* töiden palautus
 
-    uudelleenkäynnistyksen tunnistus
+* uudelleenkäynnistyksen tunnistus
 
-    lepotilatietoinen suoritus
+* lepotilatietoinen suoritus
 
-    asiakastunnistetodennus
+* asiakastunnistetodennus
 
-    tunnisteen vaihto
+* tunnisteen vaihto
 
-    ylläpitäjätodennus
+* ylläpitäjätodennus
 
-    roolipohjainen käyttöoikeushallinta
+* roolipohjainen käyttöoikeushallinta
 
-    käyttäjähallinta
+* käyttäjähallinta
 
-    valvontalokitus
+* valvontalokitus
 
-    kontin koventaminen
+* kontin koventaminen
 
-    HTTPS-kuljetus
+* HTTPS-kuljetus
 
-    automatisoitu testaus
+* automatisoitu testaus
 
-    jatkuva integraatio
+* jatkuva integraatio
 
 Projekti on tällä hetkellä viimeisessä dokumentaatio- ja julkaisuvalmiusvaiheessa.
 Turvallisuuden tila
@@ -1988,7 +2036,7 @@ Turvallisuuden tila
 Tärkeimmät turvallisuuskatsauksen alueet on toteutettu ja katsastettu.
 
 Nykyinen turvallisuusperustaso sisältää:
-text
+```text
 
 Todennus
     ├── Argon2-salasanatiivistys
@@ -2022,9 +2070,10 @@ Ajonaikainen turvallisuus
 
 Verkon turvallisuus
     ├── HTTPS
-    ├── käänteisvälityspalvelin
-    ├── sovelluksen loopback-sidonta
-    └── palomuurirajoitukset
+```
+* ├── käänteisvälityspalvelin
+* ├── sovelluksen loopback-sidonta
+* └── palomuurirajoitukset
 
 Turvallisuutta pidetään jatkuvana suunnitteluvastuuna eikä kertaluonteisena tarkistuslistana.
 Julkaisun tila
@@ -2033,16 +2082,17 @@ LUMS ei tällä hetkellä väitä olevansa vakaa tuotantojulkaisuversio.
 
 Tällä hetkellä ei ole:
 
-    lopullista semanttista versiota
+* lopullista semanttista versiota
 
-    vakaata julkaisutunnistetta
+* vakaata julkaisutunnistetta
 
-    GitHub-julkaisua
+* GitHub-julkaisua
 
 Projekti noudattaa tarkoituksella julkaisujärjestystä:
 text
 
 Toteutus
+```text id="f3c4y9"
       ↓
 Turvallisuuskatsaus
       ↓
@@ -2056,6 +2106,7 @@ Version määritys
       ↓
 Git-tunniste
       ↓
+```
 GitHub-julkaisu
 
 Ensimmäinen virallinen julkaisu tulisi luoda vasta, kun nykyinen toteutus, turvallisuuskatsaus, dokumentaatio ja regressiotestaus on katsottu valmiiksi.
@@ -2064,60 +2115,60 @@ Tiekartta
 Tiekartta keskittyy tarkoituksella vakauteen ja ylläpidettävyyteen sen sijaan, että lisättäisiin ominaisuuksia ilman olemassa olevan perustan viimeistelyä.
 Nykyinen vaihe
 
-    suorita dokumentaation tarkistus loppuun
+* suorita dokumentaation tarkistus loppuun
 
-    poista jäljellä olevat dokumentaation epäjohdonmukaisuudet
+* poista jäljellä olevat dokumentaation epäjohdonmukaisuudet
 
-    sulje dokumentaation tarkastustyö
+* sulje dokumentaation tarkastustyö
 
-    suorita lopullinen täydellinen testiajo
+* suorita lopullinen täydellinen testiajo
 
-    varmista CI
+* varmista CI
 
-    valmistele julkaisuversio
+* valmistele julkaisuversio
 
-    luo ensimmäinen virallinen Git-tunniste
+* luo ensimmäinen virallinen Git-tunniste
 
-    julkaise ensimmäinen GitHub-julkaisu
+* julkaise ensimmäinen GitHub-julkaisu
 
 Tuleva kehitys
 
 Mahdollinen tuleva työ voi sisältää:
 
-    lisää Linux-jakeluja
+* lisää Linux-jakeluja
 
-    lisää paketinhallinnan taustajärjestelmiä
+* lisää paketinhallinnan taustajärjestelmiä
 
-    käyttöliittymän parannuksia
+* käyttöliittymän parannuksia
 
-    lisää raportointiominaisuuksia
+* lisää raportointiominaisuuksia
 
-    laajennettua toiminnan automatisointia
+* laajennettua toiminnan automatisointia
 
-    lisää turvakontrolleja
+* lisää turvakontrolleja
 
-    lisää testikattavuutta
+* lisää testikattavuutta
 
 Tulevien ominaisuuksien tulisi säilyttää olemassa olevat arkkitehtoniset rajat.
 Mitä LUMS ei ole
 
 LUMS ei ole tarkoituksella suunniteltu:
 
-    yleiskäyttöiseksi etäkomentotulkiksi
+* yleiskäyttöiseksi etäkomentotulkiksi
 
-    APT:n, dpkg:n tai pacmanin korvaajaksi
+* APT:n, dpkg:n tai pacmanin korvaajaksi
 
-    täydelliseksi konfiguraationhallintaympäristöksi
+* täydelliseksi konfiguraationhallintaympäristöksi
 
-    päätepisteiden hallintaratkaisuksi kaikille käyttöjärjestelmille
+* päätepisteiden hallintaratkaisuksi kaikille käyttöjärjestelmille
 
-    vain pilvipalveluksi
+* vain pilvipalveluksi
 
-    hallitsemattomaksi komennon suorituskehykseksi
+* hallitsemattomaksi komennon suorituskehykseksi
 
 LUMS keskittyy kapeampaan ongelmaan:
 
-    Hallittu Linux-ohjelmistojen ja päivitysten hallinta, jossa on pysyvä tila ja valvottavuus.
+* Hallittu Linux-ohjelmistojen ja päivitysten hallinta, jossa on pysyvä tila ja valvottavuus.
 
 Kehitysfilosofia
 
@@ -2125,28 +2176,30 @@ LUMS noudattaa yksinkertaista kehityssykliä:
 text
 
 Rakenna
+```text id="8a0mve"
   ↓
 Testaa
   ↓
 Turvaa
   ↓
+```
 Dokumentoi
 
 Ominaisuutta ei pidetä valmiina vain siksi, että se toimii kehittäjäympäristössä.
 
 Sen tulisi myös olla:
 
-    testattu
+* testattu
 
-    turvallisuuskatsastettu
+* turvallisuuskatsastettu
 
-    dokumentoitu
+* dokumentoitu
 
-    toistettavissa
+* toistettavissa
 
-    ymmärrettävä
+* ymmärrettävä
 
-    palautettavissa tarvittaessa
+* palautettavissa tarvittaessa
 
 Muutosfilosofia
 
@@ -2154,19 +2207,19 @@ Muutokset tulisi tehdä harkitusti.
 
 Tyypillisen muutoksen tulisi vastata:
 
-    Minkä ongelman tämä ratkaisee?
+* Minkä ongelman tämä ratkaisee?
 
-    Minkä komponentin tulisi omistaa muutos?
+* Minkä komponentin tulisi omistaa muutos?
 
-    Vaikuttaako muutos turvallisuuteen?
+* Vaikuttaako muutos turvallisuuteen?
 
-    Vaikuttaako se pysyvään tilaan?
+* Vaikuttaako se pysyvään tilaan?
 
-    Vaikuttaako se asiakkaisiin?
+* Vaikuttaako se asiakkaisiin?
 
-    Vaatiiko se dokumentaatiomuutoksia?
+* Vaatiiko se dokumentaatiomuutoksia?
 
-    Mitkä testit osoittavat, että olemassa oleva toiminnallisuus toimii edelleen?
+* Mitkä testit osoittavat, että olemassa oleva toiminnallisuus toimii edelleen?
 
 Tämä vähentää riskiä korjata järjestelmän yksi osa samalla kun toinen osa rikkoutuu hiljaisesti.
 Kehitystyönkulku
@@ -2175,6 +2228,7 @@ Ensisijainen kehitystyönkulku on:
 text
 
 Ymmärrä
+```text id="r8u6o1"
    ↓
 Toteuta
    ↓
@@ -2186,6 +2240,7 @@ Koveta
    ↓
 Dokumentoi
    ↓
+```
 Regressiotesti
 
 Turvallisuuskriittiset muutokset saavat lisävarmennuksen ennen kuin ne katsotaan valmiiksi.
@@ -2199,14 +2254,15 @@ Arkisto sisältää sovelluksen lähdekoodin, asiakaskomponentit, testit, kontti
 Dokumentaatiosarja
 
 Nykyinen dokumentaatiosarja koostuu:
-text
 
+```text id="0xw7cy"
 README.md
 install.md
 administration.md
 security.md
 troubleshooting.md
 LUMS_Optional_Theme_System.md
+```
 
 Jokaisella asiakirjalla on määritelty tarkoitus.
 
@@ -2234,21 +2290,21 @@ LUMS on avoimen lähdekoodin projekti ja panokset ovat tervetulleita.
 
 Hyödyllisiä panoksia voivat olla:
 
-    virheraportit
+* virheraportit
 
-    turvallisuusraportit
+* turvallisuusraportit
 
-    dokumentaation parannukset
+* dokumentaation parannukset
 
-    testit
+* testit
 
-    paketinhallinnan tuki
+* paketinhallinnan tuki
 
-    frontend-parannukset
+* frontend-parannukset
 
-    backend-parannukset
+* backend-parannukset
 
-    käyttöönoton parannukset
+* käyttöönoton parannukset
 
 Panosten tulisi säilyttää projektin arkkitehtoniset ja turvallisuusperiaatteet.
 Turvallisuusraportit
@@ -2262,7 +2318,7 @@ Projektin identiteetti
 
 LUMS on rakennettu yksinkertaisen idean ympärille:
 
-    Linux-päivitysten hallinta ilman turhaa kohinaa.
+* Linux-päivitysten hallinta ilman turhaa kohinaa.
 
 Projekti ei yritä piilottaa monimutkaisuutta teeskentelemällä, että Linux-paketinhallinta on yksinkertaista.
 
@@ -2270,23 +2326,23 @@ Sen sijaan se tekee olennaisen tilan näkyväksi:
 text
 
 Mitä on asennettu?
-        ↓
+  * ↓
 Mitä voidaan päivittää?
-        ↓
+  * ↓
 Mitä pitäisi muuttaa?
-        ↓
+  * ↓
 Kuka sen pyysi?
-        ↓
+  * ↓
 Mitä todella tapahtui?
-        ↓
+  * ↓
 Mikä tila jää jäljelle?
 
 Nämä tiedot ovat hallitun päivitysten hallinnan perusta.
 Lopullinen arkkitehtuuri
 
 Korkeimmalla tasollaan LUMS voidaan ymmärtää viitenä kerroksena:
-text
 
+```text id="7b4p6n"
 ┌───────────────────────────────────────────────┐
 │                    UI                         │
 │       Ihmisen vuorovaikutus ja näkyvyys       │
@@ -2313,6 +2369,7 @@ text
 │              Natiivit Linux-työkalut          │
 │              APT / dpkg / pacman              │
 └───────────────────────────────────────────────┘
+```
 
 Jokaisella kerroksella on erityinen vastuu.
 
@@ -2329,7 +2386,7 @@ Lopullinen periaate
 
 LUMS on rakennettu yhden keskeisen periaatteen ympärille:
 
-    Havaitse järjestelmä. Hallitse muutosta. Kirjaa tulos.
+* Havaitse järjestelmä. Hallitse muutosta. Kirjaa tulos.
 
 Tämä periaate pätee ohjelmistoarkkitehtuuriin, päivitysten suoritukseen, turvallisuusmalliin, palautusmekanismeihin ja dokumentaatioon.
 

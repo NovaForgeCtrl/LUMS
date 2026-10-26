@@ -482,7 +482,7 @@ Ajoutez ces options à la configuration du conteneur LUMS :
 
 Utilisez un disque séparé ou un stockage distant pour la résilience face à une défaillance de l'hôte. Par exemple, montez d'abord un NAS sur l'hôte Debian, puis utilisez ce chemin monté comme côté gauche du montage de liaison Docker. L'UI de sauvegarde affiche le répertoire de base côté conteneur ; le chemin relatif sélectionné se trouve en dessous. La destination de sauvegarde doit être disponible et inscriptible à l'intérieur du conteneur ; sinon l'interface signale que le stockage de sauvegarde est indisponible.
 
-Pour les étapes de restauration, voir [`server/static/backup-restore.md`](server/static/backup-restore.md).
+Pour les étapes de restauration, voir [`server/static/backup-restore.md`](../../../server/static/backup-restore.md).
 
 ---
 

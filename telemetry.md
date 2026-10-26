@@ -79,6 +79,5 @@ Inspect the timer and service on a managed Linux client with `systemctl status l
 - **Missing history:** Check client-view permissions and the requested time range (1–168 hours).
 
 For the dashboard's status thresholds and the limits of its backup-storage
-indicator, see [health-dashboard.md](health-dashboard.md). For general guidance,
+indicator, see [LUMS_Health_Dashboard.md](LUMS_Health_Dashboard.md). For general guidance,
 see [install.md](install.md) and [troubleshooting.md](troubleshooting.md).
-

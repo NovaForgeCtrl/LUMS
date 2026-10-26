@@ -1,11 +1,11 @@
-LUMS Security Documentation
+# LUMS Security Documentation
 
 LUMS — Linux Update Management Server
 
 This document describes the current security architecture, implemented security controls, security audit results, operational limitations, and security-related design decisions of LUMS.
 
 The document reflects the currently implemented system state. Planned or future improvements are explicitly identified as such.
-Security Principles
+# Security Principles
 
 LUMS follows a defence-in-depth approach for Linux update management.
 
@@ -13,50 +13,50 @@ The security model separates administrative authentication, client authenticatio
 
 The primary security goals are:
 
-    authenticated administrative access
+* authenticated administrative access
 
     role-based authorisation
 
-    authenticated client communication
+* authenticated client communication
 
-    controlled update execution
+* controlled update execution
 
-    protection against concurrent job execution
+* protection against concurrent job execution
 
-    recoverable update jobs
+* recoverable update jobs
 
-    protected secrets
+* protected secrets
 
-    controlled container execution
+* controlled container execution
 
-    auditable security-sensitive operations
+* auditable security-sensitive operations
 
-    predictable failure handling
+* predictable failure handling
 
-    security regression testing
+* security regression testing
 
 LUMS is intended primarily for controlled infrastructure, laboratory, and internal network environments.
 
 It should not be exposed directly to the public Internet without an additional security review and appropriate network controls.
-Security Architecture
+# Security Architecture
 
 LUMS consists of the following security-relevant components:
 
-    Web administration interface
+* Web administration interface
 
-    REST API
+* REST API
 
-    SQLite database
+* SQLite database
 
-    LUMS Agent on managed clients
+* LUMS Agent on managed clients
 
-    APT and pacman package-management backends
+* APT and pacman package-management backends
 
-    Update-job and recovery mechanisms
+* Update-job and recovery mechanisms
 
-    Nginx HTTPS reverse proxy
+* Nginx HTTPS reverse proxy
 
-    Hardened Docker container
+* Hardened Docker container
 
 The basic management flow is:
 
@@ -67,7 +67,7 @@ Authentication and authorisation are deliberately separated.
 A valid authenticated session does not automatically grant access to every administrative operation.
 
 Authorisation is enforced server-side. The web interface additionally hides functions that are not available to the current role, but UI visibility is never treated as a security boundary.
-Administrative Authentication
+## Administrative Authentication
 
 Administrative users authenticate through the LUMS web interface.
 
@@ -75,126 +75,126 @@ Passwords are never stored in plaintext. LUMS uses Argon2-based password hashing
 
 Administrative sessions use:
 
-    authenticated server-side session handling
+* authenticated server-side session handling
 
-    session expiration
+* session expiration
 
-    session regeneration
+* session regeneration
 
-    CSRF protection for state-changing browser requests
+* CSRF protection for state-changing browser requests
 
-    login rate limiting
+* login rate limiting
 
-    session invalidation during logout
+* session invalidation during logout
 
-    server-side role validation
+* server-side role validation
 
 Authentication and authorisation remain separate security controls.
 
 A successfully authenticated user must still possess the required permission for protected operations.
-Role-Based Access Control
+# Role-Based Access Control
 
 LUMS currently supports three web-user roles:
 
-    administrator
+* administrator
 
-    operator
+* operator
 
-    viewer
+* viewer
 
 Role templates are stored in users.role; individual permissions are stored server-side in user_permissions.
 
 The server loads the effective permissions for each authenticated account. Client-side permission information controls presentation only and never replaces server-side authorisation.
-Administrator
+## Administrator
 
 Administrators have full administrative and operational access.
 
 They can:
 
-    view clients
+* view clients
 
-    create clients
+* create clients
 
-    disable clients
+* disable clients
 
-    rotate client tokens
+* rotate client tokens
 
-    view installed packages and available updates
+* view installed packages and available updates
 
-    create update jobs
+* create update jobs
 
-    execute supported update operations
+* execute supported update operations
 
-    view update-job history
+* view update-job history
 
-    use package management
+* use package management
 
-    use system-maintenance functions
+* use system-maintenance functions
 
-    manage users
+* manage users
 
-    manage user roles
+* manage user roles
 
-    access administrative functions
+* access administrative functions
 
-Operator
+## Operator
 
 Operators can perform operational update-management tasks.
 
 They can:
 
-    view clients
+* view clients
 
-    view installed packages and available updates
+* view installed packages and available updates
 
-    create update jobs
+* create update jobs
 
-    execute supported update operations
+* execute supported update operations
 
-    view update-job history
+* view update-job history
 
-    use package management
+* use package management
 
-    use system-maintenance functions
+* use system-maintenance functions
 
 Operators cannot:
 
-    manage users
+* manage users
 
-    change user roles
+* change user roles
 
-    create clients
+* create clients
 
-    disable clients
+* disable clients
 
-    rotate client tokens
+* rotate client tokens
 
-Viewer
+## Viewer
 
 Viewers have restricted read-only access.
 
 They can:
 
-    view clients
+* view clients
 
-    view installed software
+* view installed software
 
 The following management areas are hidden from Viewer accounts:
 
-    Updates
+* Updates
 
-    Update Jobs
+* Update Jobs
 
-    Update History
+* Update History
 
-    Package Management
+* Package Management
 
-    System Maintenance
+* System Maintenance
 
 Viewer accounts cannot perform state-changing update-management operations.
 
 The server independently enforces these restrictions through authentication and per-user permission checks.
-Client Authentication
+# Client Authentication
 
 Every managed LUMS client uses an individual Bearer token.
 
@@ -216,55 +216,56 @@ The security model does not use a source IP address as the sole proof of client 
 
 This allows LUMS to operate in:
 
-    private laboratory networks
+* private laboratory networks
 
-    isolated infrastructure
+* isolated infrastructure
 
-    NAT-based networks
+* NAT-based networks
 
-    offline environments
+* offline environments
 
-    networks where client addresses may change
+* networks where client addresses may change
 
 Client tokens can be rotated by authorised administrators.
 
 A token rotation generates a replacement token, stores only its digest, invalidates the previous token, records the administrative action in the audit log, and presents the replacement token once.
 
 Plaintext client-token values are not written to audit records.
-Security Audit
+# Security Audit
 
 The security audit is performed incrementally.
 
 Each audit area is reviewed against the actual implementation, followed by automated tests, isolated verification, or production verification where applicable.
 
 Current audit areas:
-Audit	Area	Status
-#01	SQLite Foreign Keys	PASS
-#02	SQLite Runtime Configuration	PASS
-#03	Update Timeout Handling	PASS
-#04	Login Rate Limiting	PASS
-#05	API Input Validation	PASS
-#06	Session Revocation	PASS
-#07	Client Token Rotation	PASS
-#08	IP Address Handling / Offline Networks	PASS
-#09	Job Recovery / Checkpointing	PASS
-#10	APT Robustness	PASS
-#11	Arch Reboot Detection	PASS
-#12	Unit Tests / API Result Validation	PASS
-#13	Simulation Tests	PASS
-#14	Continuous Integration	PASS
-#15	Application / Audit Logging	PASS
-#16	Versioning / Releases	REVIEWED — OPEN BY DESIGN
-#17	Role-Based Access Control	PASS
-#18	Documentation Review	IN PROGRESS
+| Audit | Area | Status |
+| --- | --- | --- |
+| #01 | SQLite Foreign Keys | PASS |
+| #02 | SQLite Runtime Configuration | PASS |
+| #03 | Update Timeout Handling | PASS |
+| #04 | Login Rate Limiting | PASS |
+| #05 | API Input Validation | PASS |
+| #06 | Session Revocation | PASS |
+| #07 | Client Token Rotation | PASS |
+| #08 | IP Address Handling / Offline Networks | PASS |
+| #09 | Job Recovery / Checkpointing | PASS |
+| #10 | APT Robustness | PASS |
+| #11 | Arch Reboot Detection | PASS |
+| #12 | Unit Tests / API Result Validation | PASS |
+| #13 | Simulation Tests | PASS |
+| #14 | Continuous Integration | PASS |
+| #15 | Application / Audit Logging | PASS |
+| #16 | Versioning / Releases | REVIEWED — OPEN BY DESIGN |
+| #17 | Role-Based Access Control | PASS |
+| #18 | Documentation Review | IN PROGRESS |
 
 Audit #16 is intentionally different from the technical security controls above.
 
 LUMS currently has no official stable release, no release tag, and no GitHub Release. This is intentional because the project remains under active development.
 
 Audit #18 remains open until the complete documentation set has been reviewed and synchronised with the current implementation.
-Security Audit #01
-SQLite Foreign Keys
+# Security Audit #01
+## SQLite Foreign Keys
 
 SQLite foreign-key enforcement is enabled for application database connections.
 
@@ -276,35 +277,35 @@ This ensures that referential integrity is enforced for relationships between re
 
 The audit verified:
 
-    runtime foreign-key enforcement
+* runtime foreign-key enforcement
 
-    foreign-key integrity
+* foreign-key integrity
 
     client lifecycle behaviour
 
     client disable behaviour
 
-    preservation of historical job information
+* preservation of historical job information
 
-    preservation of audit information
+* preservation of audit information
 
 Client state is handled conservatively.
 
 Where appropriate, clients are disabled rather than removed in a way that would destroy historical operational information.
 
 Status: PASS
-Security Audit #02
-SQLite Runtime Configuration
+# Security Audit #02
+## SQLite Runtime Configuration
 
 The production SQLite database was reviewed for its runtime configuration.
 
 The verified production configuration is:
 
-    journal_mode: wal
+* journal_mode: wal
 
-    busy_timeout: 5000
+* busy_timeout: 5000
 
-    synchronous: 2
+* synchronous: 2
 
 The application explicitly enables:
 
@@ -321,8 +322,8 @@ The application-level foreign-key setting ensures referential integrity for each
 The audit included production verification of the active SQLite configuration.
 
 Status: PASS
-Security Audit #03
-Update Timeout and Process Handling
+# Security Audit #03
+## Update Timeout and Process Handling
 
 Update execution is protected against indefinitely blocking package-manager processes.
 
@@ -350,15 +351,15 @@ The implementation uses controlled subprocess handling so that silent processes 
 
 Timeout handling was tested against:
 
-    silent processes
+* silent processes
 
-    normal process completion
+* normal process completion
 
-    timeout conditions
+* timeout conditions
 
-    processes resistant to normal termination
+* processes resistant to normal termination
 
-    kill fallback
+* kill fallback
 
     integration-level timeout behaviour
 
@@ -371,20 +372,20 @@ The current documented LUMS Agent version is:
 1.7.0
 
 Status: PASS
-Security Audit #04
-Login Rate Limiting
+# Security Audit #04
+## Login Rate Limiting
 
 Administrative login attempts are rate limited.
 
 The current escalation policy is:
 
-    5 failed attempts → 30 seconds
+* 5 failed attempts → 30 seconds
 
-    6 failed attempts → 60 seconds
+* 6 failed attempts → 60 seconds
 
-    7 failed attempts → 120 seconds
+* 7 failed attempts → 120 seconds
 
-    8 or more failed attempts → 300 seconds
+* 8 or more failed attempts → 300 seconds
 
 The rate-limit state is persisted in SQLite.
 
@@ -400,29 +401,30 @@ The audit covered:
 
     isolated rate-limit behaviour
 
-    concurrent authentication failures
+* concurrent authentication failures
 
-    transaction rollback
+* transaction rollback
 
-    database-lock handling
+* database-lock handling
 
     successful-login reset behaviour
 
-    rate-limit audit events
+* rate-limit audit events
 
     production login behaviour
 
 The rate limiter therefore provides a server-side control against repeated authentication attempts rather than relying on client-side behaviour.
 
 Status: PASS
-Audit Status After Part 2
+# Audit Status After Part 2
 
 The first four security audit areas are complete:
-Audit	Area	Status
-#01	SQLite Foreign Keys	PASS
-#02	SQLite Runtime Configuration	PASS
-#03	Update Timeout / Process Handling	PASS
-#04	Login Rate Limiting	PASS
+| Audit | Area | Status |
+| --- | --- | --- |
+| #01 | SQLite Foreign Keys | PASS |
+| #02 | SQLite Runtime Configuration | PASS |
+| #03 | Update Timeout / Process Handling | PASS |
+| #04 | Login Rate Limiting | PASS |
 
 The following audit areas are documented in the subsequent sections:
 
@@ -453,8 +455,8 @@ The following audit areas are documented in the subsequent sections:
     #17 Role-Based Access Control
 
 Audit #18 — Documentation Review — remains open until the complete documentation set has been reviewed and synchronised with the current implementation.
-Security Audit #05
-API Input Validation
+# Security Audit #05
+## API Input Validation
 
 LUMS validates security-sensitive API input on the server side.
 
@@ -462,21 +464,21 @@ Client-supplied values are not trusted simply because they originate from the au
 
 Validation is applied to relevant API parameters, including:
 
-    client identifiers
+* client identifiers
 
-    package names
+* package names
 
-    update-job actions
+* update-job actions
 
-    package lists
+* package lists
 
-    search parameters
+* search parameters
 
-    user-management parameters
+* user-management parameters
 
-    client-token operations
+* client-token operations
 
-    job-result data
+* job-result data
 
 Package names are validated before they are passed to package-management operations.
 
@@ -484,13 +486,13 @@ The update-job API accepts only explicitly supported actions.
 
 The currently supported package-related actions are:
 
-    INSTALL_PACKAGE
+* INSTALL_PACKAGE
 
-    REMOVE_PACKAGE
+* REMOVE_PACKAGE
 
-    UPDATE_PACKAGE
+* UPDATE_PACKAGE
 
-    UPDATE_SYSTEM
+* UPDATE_SYSTEM
 
 Unexpected actions are rejected.
 
@@ -507,24 +509,24 @@ The audit included negative input testing and SQL-injection-oriented test cases.
 The validation controls were also verified through the automated test suite.
 
 Status: PASS
-Security Audit #06
-Session Revocation
+# Security Audit #06
+## Session Revocation
 
 LUMS protects authenticated administrative sessions against continued use after logout.
 
 Session handling includes:
 
-    authenticated server-side sessions
+* authenticated server-side sessions
 
-    session expiration
+* session expiration
 
-    session regeneration
+* session regeneration
 
-    logout invalidation
+* logout invalidation
 
-    server-side authentication checks
+* server-side authentication checks
 
-    server-side role validation
+* server-side role validation
 
 Logging out invalidates the active authenticated session.
 
@@ -536,19 +538,19 @@ State-changing browser requests additionally require CSRF protection.
 
 The audit verified that:
 
-    authenticated access works normally
+* authenticated access works normally
 
-    protected endpoints reject unauthenticated requests
+* protected endpoints reject unauthenticated requests
 
-    logout invalidates the active session
+* logout invalidates the active session
 
-    a previously authenticated session cannot continue using protected functionality after revocation
+* a previously authenticated session cannot continue using protected functionality after revocation
 
-    role information is evaluated server-side
+* role information is evaluated server-side
 
 Status: PASS
-Security Audit #07
-Client Token Rotation
+# Security Audit #07
+## Client Token Rotation
 
 Each managed LUMS client uses an individual authentication token.
 
@@ -566,17 +568,17 @@ Authorised administrators can rotate a client's token.
 
 Token rotation performs the following operations:
 
-    Generate a replacement token.
+1. Generate a replacement token.
 
-    Calculate its SHA-256 digest.
+2. Calculate its SHA-256 digest.
 
-    Replace the stored client-token digest.
+3. Replace the stored client-token digest.
 
-    Invalidate the previous token.
+4. Invalidate the previous token.
 
-    Record the administrative action in the audit log.
+5. Record the administrative action in the audit log.
 
-    Present the replacement token to the administrator.
+6. Present the replacement token to the administrator.
 
 The previous token cannot authenticate after rotation.
 
@@ -584,19 +586,19 @@ Plaintext token values are not written to audit logs.
 
 The audit verified:
 
-    successful token authentication
+* successful token authentication
 
-    token digest storage
+* token digest storage
 
-    token rotation
+* token rotation
 
-    invalidation of the previous token
+* invalidation of the previous token
 
-    authentication with the replacement token
+* authentication with the replacement token
 
     authorisation requirements for token rotation
 
-    audit logging
+* audit logging
 
     protection against unauthorised rotation
 
@@ -605,8 +607,8 @@ Client token rotation is restricted to administrators.
 Operators and viewers cannot rotate client tokens.
 
 Status: PASS
-Security Audit #08
-IP Address Handling and Offline Networks
+# Security Audit #08
+## IP Address Handling and Offline Networks
 
 LUMS does not use a client's source IP address as the sole proof of client identity.
 
@@ -616,17 +618,17 @@ This design is intentional because managed clients may operate in environments w
 
 Supported deployment scenarios include:
 
-    private laboratory networks
+* private laboratory networks
 
-    NAT-based networks
+* NAT-based networks
 
-    isolated infrastructure
+* isolated infrastructure
 
-    dynamically addressed clients
+* dynamically addressed clients
 
-    offline environments
+* offline environments
 
-    controlled internal networks
+* controlled internal networks
 
 The server therefore separates:
 
@@ -647,18 +649,19 @@ This is particularly important for laboratory environments and infrastructure wh
 The audit verified client authentication without relying on a fixed source IP address.
 
 Status: PASS
-Audit Status After Part 3
+# Audit Status After Part 3
 
 The following security audit areas are complete:
-Audit	Area	Status
-#01	SQLite Foreign Keys	PASS
-#02	SQLite Runtime Configuration	PASS
-#03	Update Timeout / Process Handling	PASS
-#04	Login Rate Limiting	PASS
-#05	API Input Validation	PASS
-#06	Session Revocation	PASS
-#07	Client Token Rotation	PASS
-#08	IP Address Handling / Offline Networks	PASS
+| Audit | Area | Status |
+| --- | --- | --- |
+| #01 | SQLite Foreign Keys | PASS |
+| #02 | SQLite Runtime Configuration | PASS |
+| #03 | Update Timeout / Process Handling | PASS |
+| #04 | Login Rate Limiting | PASS |
+| #05 | API Input Validation | PASS |
+| #06 | Session Revocation | PASS |
+| #07 | Client Token Rotation | PASS |
+| #08 | IP Address Handling / Offline Networks | PASS |
 
 The next section covers:
 
@@ -670,8 +673,8 @@ The next section covers:
 
     #12 Unit Tests / API Result Validation
 
-Security Audit #09
-Job Recovery and Checkpointing
+# Security Audit #09
+## Job Recovery and Checkpointing
 
 LUMS update jobs are designed to recover safely from interrupted execution.
 
@@ -689,17 +692,17 @@ Persistent Job State → Determine Completed Work → Skip Completed Items → C
 
 This reduces the risk of unnecessary repeated package operations after:
 
-    agent interruption
+* agent interruption
 
-    process termination
+* process termination
 
-    system restart
+* system restart
 
-    temporary communication failure
+* temporary communication failure
 
-    container restart
+* container restart
 
-    other execution interruptions
+* other execution interruptions
 
 The audit verified interrupted-job recovery and checkpoint behaviour.
 
@@ -708,8 +711,8 @@ Recovery was tested with jobs containing multiple package operations and with pr
 The audit confirmed that completed work is preserved and remaining work can continue without unnecessarily repeating successful operations.
 
 Status: PASS
-Security Audit #10
-APT Robustness
+# Security Audit #10
+## APT Robustness
 
 Debian-based package operations are executed through the LUMS package-management layer.
 
@@ -721,17 +724,17 @@ APT update detection was hardened to avoid relying on a single simplistic comman
 
 The audit included testing of:
 
-    normal APT operations
+* normal APT operations
 
-    available package updates
+* available package updates
 
-    package installation
+* package installation
 
-    package removal
+* package removal
 
-    update-job execution
+* update-job execution
 
-    APT result handling
+* APT result handling
 
     update detection behaviour
 
@@ -742,8 +745,8 @@ c76f331 security: harden apt update detection
 The objective is to ensure that LUMS does not incorrectly report package-management state based solely on incomplete or ambiguous command output.
 
 Status: PASS
-Security Audit #11
-Arch Linux Reboot Detection
+# Security Audit #11
+## Arch Linux Reboot Detection
 
 Arch Linux package operations can result in a system state where a reboot is required or recommended.
 
@@ -755,19 +758,19 @@ The reboot state is reported back to the LUMS server as part of the job result.
 
 This allows the management interface to distinguish between:
 
-    successful package operation
+* successful package operation
 
-    successful operation with reboot requirement
+* successful operation with reboot requirement
 
-    failed operation
+* failed operation
 
 The audit verified Arch Linux reboot detection using the actual package-management execution path.
 
 The implementation was tested against reboot-required conditions and normal completion conditions.
 
 Status: PASS
-Security Audit #12
-Unit Tests and API Result Validation
+# Security Audit #12
+## Unit Tests and API Result Validation
 
 Security-sensitive behaviour is covered by automated tests.
 
@@ -788,22 +791,23 @@ Run the complete automated test suite from the repository root with ./.venv-test
 The relevant security controls were additionally verified through focused test runs during the audit.
 
 Status: PASS
-Audit Status After Part 4
+# Audit Status After Part 4
 
 The following security audit areas are complete:
-Audit	Area	Status
-#01	SQLite Foreign Keys	PASS
-#02	SQLite Runtime Configuration	PASS
-#03	Update Timeout / Process Handling	PASS
-#04	Login Rate Limiting	PASS
-#05	API Input Validation	PASS
-#06	Session Revocation	PASS
-#07	Client Token Rotation	PASS
-#08	IP Address Handling / Offline Networks	PASS
-#09	Job Recovery / Checkpointing	PASS
-#10	APT Robustness	PASS
-#11	Arch Reboot Detection	PASS
-#12	Unit Tests / API Result Validation	PASS
+| Audit | Area | Status |
+| --- | --- | --- |
+| #01 | SQLite Foreign Keys | PASS |
+| #02 | SQLite Runtime Configuration | PASS |
+| #03 | Update Timeout / Process Handling | PASS |
+| #04 | Login Rate Limiting | PASS |
+| #05 | API Input Validation | PASS |
+| #06 | Session Revocation | PASS |
+| #07 | Client Token Rotation | PASS |
+| #08 | IP Address Handling / Offline Networks | PASS |
+| #09 | Job Recovery / Checkpointing | PASS |
+| #10 | APT Robustness | PASS |
+| #11 | Arch Reboot Detection | PASS |
+| #12 | Unit Tests / API Result Validation | PASS |
 
 The next section covers:
 
@@ -815,8 +819,8 @@ The next section covers:
 
     #16 Versioning / Releases
 
-Security Audit #13
-Simulation Tests
+# Security Audit #13
+## Simulation Tests
 
 LUMS provides a simulation mechanism for testing update-management workflows without performing the corresponding package-management operation on the managed system.
 
@@ -828,29 +832,29 @@ This allows update-job behaviour to be tested without intentionally modifying th
 
 The simulation tests cover relevant update-management paths, including:
 
-    package installation
+* package installation
 
-    package removal
+* package removal
 
-    package updates
+* package updates
 
-    system updates
+* system updates
 
-    job execution
+* job execution
 
-    result reporting
+* result reporting
 
-    successful completion
+* successful completion
 
-    failure handling
+* failure handling
 
 The simulation mechanism was used during the security audit to verify job creation, Agent execution, result handling, and server-side state transitions independently from real package modifications.
 
 Simulation mode is a testing mechanism and does not replace the authorisation controls of normal update operations.
 
 Status: PASS
-Security Audit #14
-Continuous Integration
+# Security Audit #14
+## Continuous Integration
 
 LUMS uses automated testing to detect security and functional regressions before changes are considered complete.
 
@@ -860,23 +864,23 @@ The test environment verifies the application and security-sensitive functionali
 
 The CI process includes validation of:
 
-    authentication
+* authentication
 
     authorisation
 
-    RBAC
+* RBAC
 
     API behaviour
 
-    update-job handling
+* update-job handling
 
     package-management behaviour
 
-    client authentication
+* client authentication
 
-    job-result validation
+* job-result validation
 
-    security-sensitive error handling
+* security-sensitive error handling
 
 The CI audit was reviewed after the security hardening changes.
 
@@ -885,8 +889,8 @@ The final verified test suite completed successfully.
 The test count changes as the project evolves. CI provides an automated regression barrier for security-relevant application changes.
 
 Status: PASS
-Security Audit #15
-Application and Audit Logging
+# Security Audit #15
+## Application and Audit Logging
 
 LUMS records security-sensitive administrative and operational events through application-level audit logging.
 
@@ -894,49 +898,49 @@ Audit logging is designed to provide an operational history without storing sens
 
 Relevant security-sensitive actions include events such as:
 
-    authentication-related security events
+* authentication-related security events
 
-    administrative actions
+* administrative actions
 
-    client management
+* client management
 
-    client-token operations
+* client-token operations
 
-    update-job creation
+* update-job creation
 
-    update-job execution
+* update-job execution
 
-    security-relevant failures
+* security-relevant failures
 
 Sensitive credential material is excluded from audit records.
 
 In particular:
 
-    passwords are not logged
+* passwords are not logged
 
-    plaintext client tokens are not logged
+* plaintext client tokens are not logged
 
-    secret values are not intentionally written to audit records
+* secret values are not intentionally written to audit records
 
 Audit records are associated with the relevant administrative or operational context where applicable.
 
 The audit logging implementation was reviewed for:
 
-    security-sensitive event coverage
+* security-sensitive event coverage
 
-    credential exclusion
+* credential exclusion
 
-    administrative traceability
+* administrative traceability
 
-    failure handling
+* failure handling
 
-    persistence of relevant audit information
+* persistence of relevant audit information
 
 The logging system is intended to support both operational troubleshooting and security investigation.
 
 Status: PASS
-Security Audit #16
-Versioning and Releases
+# Security Audit #16
+## Versioning and Releases
 
 Versioning and release management were reviewed as part of the security audit.
 
@@ -944,17 +948,17 @@ LUMS is currently under active development and does not yet have an official sta
 
 The current repository state therefore intentionally has:
 
-    no official stable release version
+* no official stable release version
 
-    no release tag
+* no release tag
 
-    no GitHub Release
+* no GitHub Release
 
 The current component versions include:
 
-    LUMS Agent: 1.7.0
+* LUMS Agent: 1.7.0
 
-    LUMS Watcher: 1.2.1
+* LUMS Watcher: 1.2.1
 
 There is currently no single formal version number representing the complete LUMS application.
 
@@ -962,49 +966,50 @@ This is an intentional project-state decision rather than an accidental omission
 
 The planned release process is:
 
-    Complete implementation work.
+1. Complete implementation work.
 
-    Complete the security review.
+2. Complete the security review.
 
     Review and synchronise the documentation.
 
-    Complete the full automated test suite.
+4. Complete the full automated test suite.
 
-    Verify CI.
+5. Verify CI.
 
-    Define the release version.
+6. Define the release version.
 
-    Create the corresponding Git tag.
+7. Create the corresponding Git tag.
 
-    Publish the GitHub Release.
+8. Publish the GitHub Release.
 
-    Preserve the release as the documented baseline.
+9. Preserve the release as the documented baseline.
 
 No official release is created solely because the security audit reaches a particular audit number.
 
 Release creation will take place only after the remaining implementation and documentation work has been completed.
 
 Status: REVIEWED — OPEN BY DESIGN
-Audit Status After Part 5
+# Audit Status After Part 5
 
 The following security audit areas are complete:
-Audit	Area	Status
-#01	SQLite Foreign Keys	PASS
-#02	SQLite Runtime Configuration	PASS
-#03	Update Timeout / Process Handling	PASS
-#04	Login Rate Limiting	PASS
-#05	API Input Validation	PASS
-#06	Session Revocation	PASS
-#07	Client Token Rotation	PASS
-#08	IP Address Handling / Offline Networks	PASS
-#09	Job Recovery / Checkpointing	PASS
-#10	APT Robustness	PASS
-#11	Arch Reboot Detection	PASS
-#12	Unit Tests / API Result Validation	PASS
-#13	Simulation Tests	PASS
-#14	Continuous Integration	PASS
-#15	Application / Audit Logging	PASS
-#16	Versioning / Releases	REVIEWED — OPEN BY DESIGN
+| Audit | Area | Status |
+| --- | --- | --- |
+| #01 | SQLite Foreign Keys | PASS |
+| #02 | SQLite Runtime Configuration | PASS |
+| #03 | Update Timeout / Process Handling | PASS |
+| #04 | Login Rate Limiting | PASS |
+| #05 | API Input Validation | PASS |
+| #06 | Session Revocation | PASS |
+| #07 | Client Token Rotation | PASS |
+| #08 | IP Address Handling / Offline Networks | PASS |
+| #09 | Job Recovery / Checkpointing | PASS |
+| #10 | APT Robustness | PASS |
+| #11 | Arch Reboot Detection | PASS |
+| #12 | Unit Tests / API Result Validation | PASS |
+| #13 | Simulation Tests | PASS |
+| #14 | Continuous Integration | PASS |
+| #15 | Application / Audit Logging | PASS |
+| #16 | Versioning / Releases | REVIEWED — OPEN BY DESIGN |
 
 The remaining numbered technical audit area is:
 
@@ -1014,27 +1019,29 @@ The documentation review is tracked separately as:
 
     #18 Documentation Review — IN PROGRESS
 
-Security Audit #17
-Role-Based Access Control
+# Security Audit #17
+## Role-Based Access Control
 
 LUMS combines role templates with individually assigned permissions. The supported templates are administrator, operator, and viewer; choosing a template selects its default permissions, which an administrator can customise for each account.
 
 The role remains account metadata. Protected routes authorise against the account's server-stored permission set, not the role label. The interface hides unavailable functions for usability, while the server remains the security boundary.
-RBAC Permission Model
-Permission	Access granted
-clients.view	View clients and system information
-software.view	View installed software
-updates.view	View available updates, jobs, and history
-packages.search	Search package repositories
-jobs.manage	Create package operations and update jobs
-clients.manage	Register/remove clients and rotate client tokens
-users.manage	Create users and manage roles and permissions
+## RBAC Permission Model
+| Permission | Access granted |
+| --- | --- |
+| clients.view | View clients and system information |
+| software.view | View installed software |
+| updates.view | View available updates, jobs, and history |
+| packages.search | Search package repositories |
+| jobs.manage | Create package operations and update jobs |
+| clients.manage | Register/remove clients and rotate client tokens |
+| users.manage | Create users and manage roles and permissions |
 
 The default role templates are:
-Template	Default permissions
-administrator	All permissions
-operator	Client/software/update visibility, package search, and job management
-viewer	Client visibility and installed-software visibility
+| Template | Default permissions |
+| --- | --- |
+| administrator | All permissions |
+| operator | Client/software/update visibility, package search, and job management |
+| viewer | Client visibility and installed-software visibility |
 
 Client-related permissions require clients.view. jobs.manage also requires updates.view. The UI loads permissions for the authenticated account and omits controls the user cannot use; server-side checks independently enforce the same grants.
 Authorisation Enforcement
@@ -1051,48 +1058,48 @@ State-changing operations additionally require CSRF protection where applicable.
 
 Examples of protected administrative operations include:
 
-    update-job creation
+* update-job creation
 
-    package installation
+* package installation
 
-    package removal
+* package removal
 
-    package updates
+* package updates
 
-    system updates
+* system updates
 
-    package-management operations
+* package-management operations
 
-    client creation
+* client creation
 
-    client disabling
+* client disabling
 
-    client-token rotation
+* client-token rotation
 
-    user creation
+* user creation
 
-    user-management functions
+* user-management functions
 
 Protected endpoints explicitly define the permission required for the corresponding operation.
 
 A missing permission is rejected by the server even if the user manually constructs the corresponding HTTP request.
 
 This prevents bypassing the RBAC model by directly calling an API endpoint that is hidden in the web interface.
-Viewer Restrictions
+## Viewer Restrictions
 
 The Viewer template is intentionally restricted by its default permission set.
 
 For accounts without the corresponding grants, the client interface does not expose:
 
-    Updates
+* Updates
 
-    Update Jobs
+* Update Jobs
 
-    Update History
+* Update History
 
-    Package Management
+* Package Management
 
-    System Maintenance
+* System Maintenance
 
 The server additionally prevents accounts without the corresponding grants from performing protected operations.
 
@@ -1101,7 +1108,7 @@ The JavaScript interface does not load update-management data without updates.vi
 This reduces unnecessary exposure of operational information while maintaining server-side authorisation as the actual security control.
 
 Installed software remains available to Viewer accounts as a read-only information function.
-Administrative User Management
+## Administrative User Management
 
 User management requires the users.manage permission.
 
@@ -1111,19 +1118,19 @@ Authorised user managers can save an internal note per account. Notes are limite
 
 User creation includes:
 
-    username validation
+* username validation
 
-    role validation
+* role validation
 
-    password validation
+* password validation
 
-    Argon2 password hashing
+* Argon2 password hashing
 
-    duplicate-user detection
+* duplicate-user detection
 
-    audit logging
+* audit logging
 
-    CSRF protection
+* CSRF protection
 
     server-side authorisation
 
@@ -1132,12 +1139,12 @@ User-management endpoints are not accessible without users.manage.
 The server rejects unknown permissions and invalid dependency combinations. At least one active account must retain users.manage; changes that would remove the last user manager are rejected.
 
 Passwords are never stored in plaintext.
-RBAC Database Migration
+## RBAC Database Migration
 
 Role-template information remains in the user database record. Individual grants are stored in the user_permissions table with a foreign key to the user account. Migration 003-user-permissions creates that table and seeds existing accounts from their current role template, preserving their access during the transition. Migration 004-user-admin-notes adds the private users.admin_note field; existing accounts receive an empty note. Migration 005-backup-permission grants backups.manage to existing Administrator accounts.
 
 Database backup creation requires backups.manage; the Administrator template includes this permission by default. The server writes SQLite online backups only to the server-configured LUMS_BACKUP_DIR; it does not accept filesystem paths from the browser. Backup files are created with owner-only permissions and are integrity-checked before publication.
-RBAC Security Testing
+## RBAC Security Testing
 
 RBAC behaviour is covered by automated tests.
 
@@ -1147,36 +1154,36 @@ The tests include:
 
     Operator authorisation
 
-    Viewer restrictions
+* Viewer restrictions
 
-    protected API access
+* protected API access
 
     unauthorised operations
 
-    client-management restrictions
+* client-management restrictions
 
-    update-job restrictions
+* update-job restrictions
 
-    user-management restrictions
+* user-management restrictions
 
-    client-page visibility
+* client-page visibility
 
     permission-specific interface behaviour
 
 RBAC tests cover role-template defaults, custom permissions, permission dependencies, and server-side authorisation. Production verification should include accounts with customised permissions as well as the default Administrator, Operator, and Viewer templates.
-RBAC Security Result
+## RBAC Security Result
 
 The RBAC implementation provides layered authorisation:
 
-    Authentication establishes the user identity.
+1. Authentication establishes the user identity.
 
-    The server loads the user's permissions.
+2. The server loads the user's permissions.
 
-    Protected routes enforce the required permission.
+3. Protected routes enforce the required permission.
 
-    CSRF protection applies to relevant browser state changes.
+4. CSRF protection applies to relevant browser state changes.
 
-    The web interface hides unavailable functionality.
+5. The web interface hides unavailable functionality.
 
     Automated tests verify authorisation boundaries.
 
@@ -1185,8 +1192,8 @@ The interface therefore does not provide the authorisation mechanism by itself.
 The server remains the authoritative security boundary.
 
 Status: PASS
-Security Audit #18
-Documentation Review
+# Security Audit #18
+## Documentation Review
 
 The security documentation is reviewed against the currently implemented LUMS system.
 
@@ -1194,55 +1201,55 @@ The purpose of this review is to ensure that security documentation describes th
 
 The review covers:
 
-    authentication
+* authentication
 
     authorisation
 
-    RBAC
+* RBAC
 
-    client authentication
+* client authentication
 
-    token handling
+* token handling
 
-    session handling
+* session handling
 
-    CSRF protection
+* CSRF protection
 
-    rate limiting
+* rate limiting
 
-    SQLite configuration
+* SQLite configuration
 
-    update execution
+* update execution
 
-    job recovery
+* job recovery
 
-    package management
+* package management
 
-    container hardening
+* container hardening
 
-    network exposure
+* network exposure
 
-    secrets handling
+* secrets handling
 
-    dependency and build security
+* dependency and build security
 
-    filesystem permissions
+* filesystem permissions
 
-    application and audit logging
+* application and audit logging
 
-    versioning and release handling
+* versioning and release handling
 
-    automated security testing
+* automated security testing
 
 Documentation must distinguish between:
 
-    implemented controls
+* implemented controls
 
     verified production behaviour
 
-    planned improvements
+* planned improvements
 
-    intentionally open project decisions
+* intentionally open project decisions
 
 Historical implementation details must not be presented as current production configuration.
 
@@ -1250,67 +1257,67 @@ In particular, the documentation reflects the current SQLite production configur
 
 The current production runtime is documented as:
 
-    journal_mode = wal
+* journal_mode = wal
 
-    busy_timeout = 5000
+* busy_timeout = 5000
 
-    synchronous = 2
+* synchronous = 2
 
-    application-level PRAGMA foreign_keys = ON
+* application-level PRAGMA foreign_keys = ON
 
 The current Viewer-RBAC behaviour is also documented according to the implemented production interface.
 
 Viewer users have access to:
 
-    client information
+* client information
 
-    installed software
+* installed software
 
 Viewer users do not have access to:
 
-    Updates
+* Updates
 
-    Update Jobs
+* Update Jobs
 
-    Update History
+* Update History
 
-    Package Management
+* Package Management
 
-    System Maintenance
+* System Maintenance
 
 The documentation review also removes or replaces outdated references to earlier test counts, migration states, deployment configurations, and development-only behaviour.
 
 Status: IN PROGRESS
-Additional Security Hardening
+# Additional Security Hardening
 
 The numbered security audit covers the primary application security controls.
 
 Additional hardening was performed after the original audit sequence and is part of the current security baseline.
 
 These controls are documented here because they represent important security properties of the current deployment.
-Container Hardening
+## Container Hardening
 
 The production LUMS container runs with a hardened Docker configuration.
 
 The production container uses:
 
-    non-root application user
+* non-root application user
 
-    read-only root filesystem
+* read-only root filesystem
 
-    dropped Linux capabilities
+* dropped Linux capabilities
 
-    no-new-privileges
+* no-new-privileges
 
-    restricted temporary filesystems
+* restricted temporary filesystems
 
-    read-only secret mount
+* read-only secret mount
 
-    dedicated persistent application-data volume
+* dedicated persistent application-data volume
 
-    restart policy
+* restart policy
 
-    loopback-only host publication of the application port
+* loopback-only host publication of the application port
 
 The application root filesystem is therefore not writable during normal operation.
 
@@ -1320,17 +1327,17 @@ The production container was independently inspected to verify the effective run
 
 The hardened runtime was also tested by verifying that:
 
-    application filesystem writes fail
+* application filesystem writes fail
 
-    /tmp remains available where required
+* /tmp remains available where required
 
-    /var/lib/lums remains writable
+* /var/lib/lums remains writable
 
-    the secret file remains read-only
+* the secret file remains read-only
 
-    the application remains operational
+* the application remains operational
 
-Network Exposure
+## Network Exposure
 
 The LUMS application port is not directly exposed to the LAN.
 
@@ -1348,16 +1355,16 @@ The firewall uses a default-deny model for incoming and routed traffic.
 
 The intended externally reachable services are:
 
-    SSH
+* SSH
 
-    HTTP
+* HTTP
 
-    HTTPS
+* HTTPS
 
 HTTP requests are redirected to HTTPS by the web server.
 
 The default Nginx site was removed so that unrelated default content is not exposed.
-Transport Security
+## Transport Security
 
 Administrative web access is provided through HTTPS.
 
@@ -1372,7 +1379,7 @@ The internal Gunicorn application port is therefore not intended to be a public 
 The current deployment is intended for controlled internal infrastructure.
 
 A future deployment with direct public-Internet exposure would require an additional security review.
-Secrets and Configuration
+## Secrets and Configuration
 
 Production secrets are not stored in the application source tree.
 
@@ -1388,22 +1395,22 @@ The application reads the secret through the configured secret-file mechanism.
 
 Repository and Docker build-context handling was reviewed to prevent accidental inclusion of:
 
-    database files
+* database files
 
-    backup files
+* backup files
 
-    secret files
+* secret files
 
-    private keys
+* private keys
 
-    certificates
+* certificates
 
-    runtime logs
+* runtime logs
 
     local backup artefacts
 
 The repository also ignores common temporary backup patterns used during development.
-Dependency and Build Security
+## Dependency and Build Security
 
 The production Docker image uses a pinned Python base-image digest.
 
@@ -1411,11 +1418,11 @@ The production runtime dependencies are explicitly version-pinned.
 
 The current production dependency set includes:
 
-    Flask 3.1.3
+* Flask 3.1.3
 
-    argon2-cffi 25.1.0
+* argon2-cffi 25.1.0
 
-    Gunicorn 23.0.0
+* Gunicorn 23.0.0
 
 The Docker build context is restricted through .dockerignore.
 
@@ -1424,7 +1431,7 @@ Repeated production builds were compared during the audit.
 The relevant dependency and package metadata remained consistent between repeated builds, apart from expected generated Python bytecode differences.
 
 This provides a reproducible baseline for the production image while keeping the build context limited.
-Filesystem and Runtime Permissions
+## Filesystem and Runtime Permissions
 
 The production application runs as the dedicated lums user rather than root.
 
@@ -1437,78 +1444,79 @@ Runtime write access is restricted to explicitly required locations.
 The production runtime was verified to reject unauthorised writes to the application filesystem.
 
 This reduces the impact of accidental or malicious file modification inside the application container.
-Security Audit Conclusion
+# Security Audit Conclusion
 
 The current LUMS implementation has undergone a broad security review covering:
 
-    authentication
+* authentication
 
     authorisation
 
-    RBAC
+* RBAC
 
-    session security
+* session security
 
-    CSRF protection
+* CSRF protection
 
-    login rate limiting
+* login rate limiting
 
-    client-token security
+* client-token security
 
-    API validation
+* API validation
 
-    SQL injection resistance
+* SQL injection resistance
 
-    SQLite integrity
+* SQLite integrity
 
-    update execution
+* update execution
 
-    timeout handling
+* timeout handling
 
-    job recovery
+* job recovery
 
-    package-management robustness
+* package-management robustness
 
-    result validation
+* result validation
 
-    simulation
+* simulation
 
-    continuous integration
+* continuous integration
 
-    audit logging
+* audit logging
 
-    container hardening
+* container hardening
 
-    network exposure
+* network exposure
 
-    transport security
+* transport security
 
-    secrets handling
+* secrets handling
 
-    filesystem permissions
+* filesystem permissions
 
-    dependency and build security
+* dependency and build security
 
 The numbered audit results are:
-Audit	Area	Status
-#01	SQLite Foreign Keys	PASS
-#02	SQLite Runtime Configuration	PASS
-#03	Update Timeout / Process Handling	PASS
-#04	Login Rate Limiting	PASS
-#05	API Input Validation	PASS
-#06	Session Revocation	PASS
-#07	Client Token Rotation	PASS
-#08	IP Address Handling / Offline Networks	PASS
-#09	Job Recovery / Checkpointing	PASS
-#10	APT Robustness	PASS
-#11	Arch Reboot Detection	PASS
-#12	Unit Tests / API Result Validation	PASS
-#13	Simulation Tests	PASS
-#14	Continuous Integration	PASS
-#15	Application / Audit Logging	PASS
-#16	Versioning / Releases	REVIEWED — OPEN BY DESIGN
-#17	Role-Based Access Control	PASS
-#18	Documentation Review	IN PROGRESS
+| Audit | Area | Status |
+| --- | --- | --- |
+| #01 | SQLite Foreign Keys | PASS |
+| #02 | SQLite Runtime Configuration | PASS |
+| #03 | Update Timeout / Process Handling | PASS |
+| #04 | Login Rate Limiting | PASS |
+| #05 | API Input Validation | PASS |
+| #06 | Session Revocation | PASS |
+| #07 | Client Token Rotation | PASS |
+| #08 | IP Address Handling / Offline Networks | PASS |
+| #09 | Job Recovery / Checkpointing | PASS |
+| #10 | APT Robustness | PASS |
+| #11 | Arch Reboot Detection | PASS |
+| #12 | Unit Tests / API Result Validation | PASS |
+| #13 | Simulation Tests | PASS |
+| #14 | Continuous Integration | PASS |
+| #15 | Application / Audit Logging | PASS |
+| #16 | Versioning / Releases | REVIEWED — OPEN BY DESIGN |
+| #17 | Role-Based Access Control | PASS |
+| #18 | Documentation Review | IN PROGRESS |
 
 The technical security controls reviewed in audits #01–#15 and #17 have passed.
 
@@ -1521,108 +1529,108 @@ No security audit result should be interpreted as a guarantee that LUMS is free 
 Security is an ongoing process.
 
 Changes to the application, Agent, dependencies, container configuration, network exposure, authentication model, or deployment architecture should trigger another security review of the affected controls.
-Security Baseline
+# Security Baseline
 
 The current security baseline is based on the verified implementation and production deployment state.
 
 The baseline includes:
 
-    server-side authentication
+* server-side authentication
 
-    server-side RBAC
+* server-side RBAC
 
-    Argon2 password hashing
+* Argon2 password hashing
 
-    SHA-256 client-token digests
+* SHA-256 client-token digests
 
-    CSRF protection
+* CSRF protection
 
-    login rate limiting
+* login rate limiting
 
     parameterised SQL
 
-    validated API input
+* validated API input
 
-    controlled package-manager execution
+* controlled package-manager execution
 
-    update-job recovery
+* update-job recovery
 
-    audit logging
+* audit logging
 
-    hardened Docker runtime
+* hardened Docker runtime
 
-    HTTPS through Nginx
+* HTTPS through Nginx
 
-    loopback-only application-port exposure
+* loopback-only application-port exposure
 
-    firewall restrictions
+* firewall restrictions
 
-    protected production secrets
+* protected production secrets
 
-    pinned production dependencies
+* pinned production dependencies
 
-    restricted filesystem permissions
+* restricted filesystem permissions
 
-    automated security testing
+* automated security testing
 
 Future changes should preserve these properties unless a deliberate architectural change replaces them with an equivalent or stronger control.
-Security Maintenance
+# Security Maintenance
 
 Security controls should be revalidated when significant changes are introduced.
 
 Examples include:
 
-    authentication changes
+* authentication changes
 
-    new user roles
+* new user roles
 
-    new API endpoints
+* new API endpoints
 
-    package-management changes
+* package-management changes
 
-    Agent execution changes
+* Agent execution changes
 
-    database migrations
+* database migrations
 
-    dependency updates
+* dependency updates
 
-    Dockerfile changes
+* Dockerfile changes
 
-    container-runtime changes
+* container-runtime changes
 
-    reverse-proxy changes
+* reverse-proxy changes
 
-    firewall changes
+* firewall changes
 
-    secret-management changes
+* secret-management changes
 
-    release preparation
+* release preparation
 
 Security testing should be performed before publishing an official release.
 
 The security documentation should be updated whenever the verified security baseline changes.
-Release Readiness
+# Release Readiness
 
 The first official LUMS release will be created only after:
 
-    implementation work is complete
+1. implementation work is complete
 
-    security review is complete
+2. security review is complete
 
-    documentation review is complete
+3. documentation review is complete
 
-    the full automated test suite passes
+4. the full automated test suite passes
 
-    CI passes
+5. CI passes
 
-    the final version is defined
+6. the final version is defined
 
-    the Git tag is created
+7. the Git tag is created
 
-    the GitHub Release is published
+8. the GitHub Release is published
 
 Until then, LUMS remains an actively developed project.
-Final Statement
+# Final Statement
 
 LUMS is designed as a controlled Linux update-management platform with security as a core architectural concern.
 

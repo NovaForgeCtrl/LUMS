@@ -42,3 +42,12 @@ cd ~/LUMS
 python3 -m venv .venv-test
 ./.venv-test/bin/python -m pip install -r server/requirements.txt -r requirements-dev.txt
 ./.venv-test/bin/pytest -q
+```
+
+Dette er bare en lokal test av kildekoden; kommandoene installerer ikke en
+produksjonsserver eller en agent på en klient. Den fullstendige
+installasjonsveiledningen og oppgraderingsprosedyren vedlikeholdes foreløpig
+på engelsk: [installasjon](../../../install.md) og
+[administrasjon og oppgraderinger](../../../administration.md). Ved feil, se
+[feilsøkingsveiledningen](../../../troubleshooting.md). Ikke bruk disse
+testkommandoene som en produksjonsinstallasjon.
