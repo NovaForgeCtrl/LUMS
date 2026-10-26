@@ -1,8 +1,11 @@
 # Inicio rápido de LUMS — Español
 
-Esta guía breve está pensada para quienes empiezan con LUMS o Linux. No es una
-traducción completa de todos los manuales técnicos, que se mantienen en inglés.
-[Índice de idiomas](../../README.md).
+Esta guía breve está pensada para quienes empiezan con LUMS o Linux. Muchos
+documentos relevantes para usuarios y administradores también están traducidos
+a otros idiomas; consulta la [documentación organizada por idioma](../../README.md)
+para ver toda la cobertura disponible. Los originales en inglés siguen siendo
+la fuente de referencia y pueden ser más completos o estar más actualizados
+que las traducciones.
 
 ## ¿Qué es LUMS?
 

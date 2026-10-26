@@ -9,8 +9,6 @@ selected LUMS and fleet state:
 - total, online, unknown, and offline client counts;
 - recent CPU, memory and network telemetry for an enabled client, when
   telemetry is installed and samples exist;
-- recent CPU, memory and network telemetry for enabled clients, when
-  telemetry is installed and samples exist;
 - alert history and detected telemetry interruptions;
 - whether the configured backup directory can be inspected and the latest
   backup file that the application recognizes, and the last successful backup

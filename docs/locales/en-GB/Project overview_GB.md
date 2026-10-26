@@ -15,11 +15,13 @@ your account may not have permission to use it. Ask your administrator for
 help; do not share accounts or use a client token as a web password.
 
 **Installing or operating LUMS?** Start with the
-[installation guide](../../../install.md), then read the
-[administration guide](../../../administration.md). If something goes wrong, use the
-[troubleshooting guide](../../../troubleshooting.md). Translated guides are also
-available, but their coverage may differ from the English technical sources.
-The [documentation index](../../README.md) lists the available language versions.
+[installation guide](Installation%20and%20upgrades_GB.md), then read the
+[administration guide](Administration%20and%20backups_GB.md). If something goes
+wrong, use the [troubleshooting guide](Troubleshooting_GB.md). The
+[documentation index](../../README.md) lists translated user and administrator
+guides by language. Translation coverage may vary; the English documents at
+the repository root remain the technical source of truth. Consult the English
+source if a translated procedure is incomplete or differs.
 
 A test run or a successfully built Docker image is **not** a production
 installation. A production deployment also needs HTTPS, a protected application
@@ -2312,6 +2314,18 @@ The security guide documents the security architecture and audit state.
 The troubleshooting guide provides diagnostic procedures.
 
 The optional theme document covers frontend theme architecture.
+
+### Additional English (UK) user and administrator guides
+
+* [Telemetry](Telemetry_GB.md)
+* [Health dashboard](LUMS%20Health%20Dashboard_GB.md)
+* [Infrastructure topology](LUMS%20Infrastructure%20Topology_GB.md)
+* [Database backup and restore](Backup%20and%20restore_GB.md)
+* [Update-tools package](Update%20tools%20package_GB.md)
+
+For the complete list of translated documents, see the
+[documentation index](../../README.md). The English root-level guides remain
+the technical source of truth.
 ## License
 
 LUMS is released under the MIT License.

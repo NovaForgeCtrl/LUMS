@@ -1,8 +1,11 @@
 # Kom igång med LUMS — svenska
 
-Den här korta guiden är för dig som är ny på LUMS eller Linux. Den är inte en
-fullständig översättning av alla tekniska handböcker; projektets detaljerade
-dokumentation underhålls på engelska. [Språkindex](../../README.md).
+Den här korta guiden är för dig som är ny på LUMS eller Linux. I
+[dokumentationsindexet](../../README.md) finns en fullständig översikt över
+tillgängliga översättningar för användare och administratörer. Alla tekniska
+källdokument är inte fullständigt översatta; de engelska källorna är
+fortfarande auktoritativa. Använd dem om en översättning är ofullständig eller
+avviker från källan, särskilt innan du gör ändringar i ett produktionssystem.
 
 ## Vad är LUMS?
 

@@ -17,10 +17,10 @@ help; do not share accounts or use a client token as a web password.
 **Installing or operating LUMS?** Start with the
 [installation guide](install.md), then read the
 [administration guide](administration.md). If something goes wrong, use the
-[troubleshooting guide](troubleshooting.md). These detailed technical guides
-are maintained in English; translated guides are listed in
-[`docs/README.md`](docs/README.md). Translation coverage can vary, so use the
-English source when a localized procedure is incomplete or differs.
+[troubleshooting guide](troubleshooting.md). Localized user and administrator
+guides are listed in [`docs/README.md`](docs/README.md). English root guides
+remain the technical source of truth; if a translated procedure appears
+incomplete or differs, follow the English source.
 
 A test run or a successfully built Docker image is **not** a production
 installation. A production deployment also needs HTTPS, a protected application
@@ -37,7 +37,8 @@ choose one, LUMS tries to use the browser language; after sign-in, a language
 saved to your account takes precedence. Some technical or dynamic text may
 remain in its original language when a translation is not available. Markdown
 guides are separate from the web interface and are not translated
-automatically.
+automatically. Translated Markdown guides are maintained separately; use the
+documentation index to find the available coverage by language.
 
 ---
 
@@ -1232,7 +1233,7 @@ A validated package name is passed to the package-manager abstraction for remova
 
 A specific package can be updated when the client reports it as an available update.
 
-### System Update
+### Client System Update
 
 The system update operation delegates the update process to the native package manager.
 
@@ -1998,7 +1999,8 @@ Security architecture, security controls, audit findings, hardening, and release
 
 ### `telemetry.md`
 
-Optional CPU and memory telemetry, agent configuration, data retention, security, and troubleshooting.
+Optional CPU, memory, disk, network, host and operational telemetry, agent
+configuration, data retention, security, and troubleshooting.
 
 ### `LUMS_Health_Dashboard.md`
 
@@ -2007,6 +2009,16 @@ What the authenticated health dashboard reports, how client status is classified
 ### `LUMS_Infrastructure_Topology.md`
 
 How LUMS imports registered clients, manages infrastructure and dependencies, protects topology edits, and identifies potential shared failure points.
+
+### `server/static/backup-restore.md`
+
+Careful Docker-based recovery of a verified SQLite backup, including integrity
+checks and a fallback copy of the active database.
+
+### `docs/update-tools-package.md`
+
+What the downloadable updater-tools artifact contains, how CI publishes it,
+and the checks required before production use.
 
 ### `troubleshooting.md`
 
@@ -2294,6 +2306,10 @@ administration.md
 security.md
 troubleshooting.md
 telemetry.md
+LUMS_Health_Dashboard.md
+LUMS_Infrastructure_Topology.md
+server/static/backup-restore.md
+docs/update-tools-package.md
 LUMS_Optional_Theme_System.md
 ```
 

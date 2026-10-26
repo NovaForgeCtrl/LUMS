@@ -25,15 +25,15 @@ Den här guiden täcker en komplett serverinstallation, inklusive avancerade und
 
 * **LUMS Agent och Watcher:** installeras separat på hanterade Linux-klienter. En fungerande server uppdaterar inte några klienter själv.
 
-| Term | Betydelse | 
-| ----- | ----- | 
-| **Terminal / skal** | Ett textfönster där du anger Linux-kommandon. | 
-| **sudo** | Kör kommandot som följer med administratörsrättigheter. Linux kan fråga efter ditt lösenord. | 
-| **Värd** | Linux-datorn som kör Docker och LUMS-servern. | 
-| **Container** | En isolerad process som kör LUMS-webbapplikationen. | 
-| **Avbildning** | En förberedd mall som Docker använder för att starta en container. | 
-| **Volym** | Beständig Docker-lagring som finns kvar när en container byts ut. | 
-| **Platshållare** | Text som `LUMS-SERVER` som måste ersättas med ditt faktiska värde. | 
+| Term | Betydelse |
+| ----- | ----- |
+| **Terminal / skal** | Ett textfönster där du anger Linux-kommandon. |
+| **sudo** | Kör kommandot som följer med administratörsrättigheter. Linux kan fråga efter ditt lösenord. |
+| **Värd** | Linux-datorn som kör Docker och LUMS-servern. |
+| **Container** | En isolerad process som kör LUMS-webbapplikationen. |
+| **Avbildning** | En förberedd mall som Docker använder för att starta en container. |
+| **Volym** | Beständig Docker-lagring som finns kvar när en container byts ut. |
+| **Platshållare** | Text som `LUMS-SERVER` som måste ersättas med ditt faktiska värde. |
 
 ### Kör endast tester (detta installerar ingen server)
 
@@ -3599,19 +3599,19 @@ Det viktiga kravet är: **alla tester godkänns**. Ignorera inte misslyckade tes
 
 Den nuvarande rollmodellen är:
 
-| Funktion | Administratör | Operator | Viewer | 
-| ----- | ----- | ----- | ----- | 
-| **Visa klienter** | Ja | Ja | Ja | 
-| **Installerad programvara** | Ja | Ja | Ja | 
-| **Tillgängliga uppdateringar** | Ja | Ja | Nej | 
-| **Skapa/köra jobb** | Ja | Ja | Nej | 
-| **Uppdateringshistorik** | Ja | Ja | Nej | 
-| **Pakethantering** | Ja | Ja | Nej | 
-| **Systemunderhåll** | Ja | Ja | Nej | 
-| **Skapa/inaktivera klienter** | Ja | Nej | Nej | 
-| **Rotera klienttoken** | Ja | Nej | Nej | 
-| **Användarhantering** | Ja | Nej | Nej | 
-| **Rollhantering** | Ja | Nej | Nej | 
+| Funktion | Administratör | Operator | Viewer |
+| ----- | ----- | ----- | ----- |
+| **Visa klienter** | Ja | Ja | Ja |
+| **Installerad programvara** | Ja | Ja | Ja |
+| **Tillgängliga uppdateringar** | Ja | Ja | Nej |
+| **Skapa/köra jobb** | Ja | Ja | Nej |
+| **Uppdateringshistorik** | Ja | Ja | Nej |
+| **Pakethantering** | Ja | Ja | Nej |
+| **Systemunderhåll** | Ja | Ja | Nej |
+| **Skapa/inaktivera klienter** | Ja | Nej | Nej |
+| **Rotera klienttoken** | Ja | Nej | Nej |
+| **Användarhantering** | Ja | Nej | Nej |
+| **Rollhantering** | Ja | Nej | Nej |
 
 Gränssnittet bör återspegla dessa behörigheter. Ännu viktigare, API:et måste upprätthålla dem oberoende.
 
@@ -4991,3 +4991,296 @@ Ta bort klientkonfigurationen:
 sudo rm -f /etc/default/lums-agent
 
 ```
+
+# 166. Slutlig checklista för serverinstallationen
+
+En slutförd LUMS-installation ska uppfylla allt följande:
+
+```text
+SERVER
+[ ] Debian/Linux-värd förberedd
+[ ] Docker installerat
+[ ] Nginx installerat
+[ ] Repository driftsatt
+[ ] Applikationshemlighet skapad
+[ ] TLS-material installerat
+[ ] LUMS-image byggd
+[ ] Beständig volym skapad
+[ ] Härdad container driftsatt
+[ ] Containern körs som icke-root
+[ ] Rotfilsystemet är skrivskyddat
+[ ] Linux-funktioner har tagits bort
+[ ] no-new-privileges aktiverat
+[ ] Hemligheten monterad skrivskyddat
+[ ] Beständig datavolym monterad
+[ ] Applikationen bunden till 127.0.0.1:5050
+[ ] Nginx HTTPS konfigurerat
+[ ] HTTP omdirigeras till HTTPS
+[ ] TLS verifierat
+[ ] Databas initierad
+[ ] SQLite-integritetskontroll godkänd
+[ ] Migreringar slutförda
+```
+
+# 167. Slutlig checklista för klientinstallationen
+
+```text
+CLIENT
+[ ] Linuxdistribution stöds
+[ ] systemd tillgängligt
+[ ] Agent installerad
+[ ] Agentversion verifierad
+[ ] Watcher installerad
+[ ] Watcher-version verifierad
+[ ] Klientkonfiguration skyddad
+[ ] Unik klienttoken konfigurerad
+[ ] TLS-förtroende konfigurerat
+[ ] Manuell agentkörning lyckas
+[ ] Initial rapport godkänd
+[ ] Klienten synlig i LUMS
+[ ] Rapporteringstimern aktiverad
+[ ] Watcher-timern aktiverad
+[ ] Inaktivitetsdetektering verifierad
+[ ] Programvaruinventering verifierad
+[ ] Uppdateringsdetektering verifierad
+```
+
+# 168. Slutlig funktionschecklista
+
+```text
+FUNCTIONALITY
+[ ] Administratörsinloggning fungerar
+[ ] Operatörsinloggning fungerar
+[ ] Viewer-inloggning fungerar
+[ ] Administratörens RBAC verifierad
+[ ] Operatörens RBAC verifierad
+[ ] Viewers RBAC verifierad
+[ ] Klientautentisering verifierad
+[ ] Tokenrotation verifierad
+[ ] Paketsökning verifierad
+[ ] Paketinstallation verifierad
+[ ] Paketborttagning verifierad
+[ ] Paketuppdatering verifierad
+[ ] Sökväg för systemuppdatering verifierad
+[ ] Uppdateringsjobb verifierade
+[ ] Validering av jobbresultat verifierad
+[ ] Jobbåterställning verifierad
+[ ] Omstartsdetektering verifierad
+[ ] Revisionsloggning verifierad
+[ ] Loggar innehåller inga hemligheter
+[ ] Rapportering från början till slut verifierad
+[ ] Uppdateringskörning från början till slut verifierad
+```
+
+# 169. Slutlig säkerhetschecklista
+
+```text
+SECURITY
+[ ] HTTPS tvingas
+[ ] Klientautentisering aktiverad
+[ ] RBAC tillämpas på serversidan
+[ ] CSRF-skydd aktiverat
+[ ] Sessionsskydd aktiverat
+[ ] Hastighetsbegränsning för inloggning aktiverad
+[ ] Lösenordshashning aktiverad
+[ ] Hashning av klienttoken aktiverad
+[ ] Rotation av klienttoken tillgänglig
+[ ] Granskningsloggning aktiverad
+[ ] Hemligheter utanför Git
+[ ] Hemligheter utanför Docker-imagen
+[ ] TLS-privatnyckel skyddad
+[ ] Docker-rotfilsystem skrivskyddat
+[ ] Linux-funktioner borttagna
+[ ] no-new-privileges aktiverat
+[ ] Containern körs som icke-root
+[ ] Beständiga data isolerade i volym
+[ ] Applikationsporten endast tillgänglig lokalt
+[ ] Brandvägg granskad
+[ ] Nginx standardwebbplats borttagen eller kontrollerad
+[ ] Säkerhetskopieringsprocedur definierad
+[ ] Återställningsprocedur testad
+```
+
+# 170. Slutlig testchecklista
+
+Kör hela den automatiserade testsviten:
+
+```bash
+cd /opt/lums-public
+
+./.venv-test/bin/pytest -q
+```
+
+Installationen ska betraktas som slutförd först när hela testsviten har godkänts.
+
+Verifiera sedan produktionsmiljön manuellt:
+
+```bash
+sudo docker ps \
+    --filter name=lums
+```
+
+```bash
+sudo docker logs \
+    --tail 100 \
+    lums
+```
+
+```bash
+curl -I \
+    https://LUMS-SERVER/
+```
+
+```bash
+sudo ss -lntp
+```
+
+# 171. Slutlig dokumentationskontroll
+
+Innan installationen förklaras slutförd kontrollerar du att dokumentationen motsvarar den faktiska driftsättningen.
+
+Granska minst:
+
+```text
+install.md
+security.md
+troubleshooting.md
+administration.md
+docs/README.md
+```
+
+De tekniska guiderna i roten underhålls på engelska och är den auktoritativa källan. Lokaliserade handböcker och snabbguider listas i [`docs/README.md`](../../README.md); översättningarnas täckning kan variera, så använd den engelska källan om en lokaliserad instruktion är ofullständig eller avviker.
+
+Dokumentationen får inte innehålla:
+
+```text
+old container commands
+obsolete image names
+obsolete RBAC rules
+obsolete test counts
+obsolete service paths
+obsolete authentication mechanisms
+real secrets
+real client tokens
+private keys
+```
+
+Om driftsättningen ändras ska dokumentationen uppdateras tillsammans med implementationen.
+
+# 172. Releaseberedskap
+
+En lyckad installation innebär inte automatiskt att LUMS har en officiell release.
+
+Projektets aktuella tillstånd skiljer avsiktligt mellan:
+
+```text
+Working implementation
+Security audit
+Documentation review
+Release preparation
+Versioning
+Git tag
+GitHub Release
+```
+
+En officiell LUMS-release bör skapas först när hela implementationen, säkerhetsgranskningen, dokumentationsgranskningen och den slutliga valideringen är slutförda.
+
+Fram till dess ska repositoryt betraktas som ett aktivt utvecklingsprojekt.
+
+# 173. Operativ baslinje
+
+Den aktuella dokumenterade baslinjen är:
+
+```text
+LUMS Server
+    Docker
+    Nginx
+    HTTPS
+    SQLite
+    RBAC
+    CSRF
+    Revisionsloggning
+    Härdad container
+
+LUMS Agent
+    Version 1.7.0
+
+LUMS Watcher
+    Version 1.2.1
+
+Databas
+    journal_mode=wal
+    busy_timeout=5000
+    synchronous=2
+    foreign_keys=ON (application connections)
+
+Container
+    icke-root-användare
+    skrivskyddat rotfilsystem
+    CapDrop=ALL
+    no-new-privileges
+    applikationsport endast på localhost
+
+Roles
+    Administrator
+    Operator
+    Viewer
+```
+
+Använd den här baslinjen som referenstillstånd vid felsökning och framtida underhåll.
+
+# 174. Installationen är slutförd
+
+Installationen är slutförd när:
+
+```text
+Server
+  │
+  ├── HTTPS fungerar
+  ├── Autentisering fungerar
+  ├── RBAC fungerar
+  ├── Databasen är i gott skick
+  ├── Containern är härdad
+  └── Beständig lagring är verifierad
+       │
+       ▼
+Klient
+  │
+  ├── Agenten rapporterar
+  ├── Watcher körs
+  ├── Pakethanteraren fungerar
+  ├── Jobb slutförs
+  ├── Resultat valideras
+  └── Återställning fungerar
+       │
+       ▼
+Drift
+  │
+  ├── Säkerhetskopia finns
+  ├── Återställningsrutinen är känd
+  ├── Felsökningsdokumentation finns
+  └── Säkerhetsbaslinjen upprätthålls
+```
+
+LUMS grundläggande driftsprincip är:
+
+```text
+Observera först.
+Ändra sedan.
+Verifiera därefter.
+Dokumentera sist.
+```
+
+För produktionsändringar kompletterar du med:
+
+```text
+Säkerhetskopiera
+   ↓
+Ändra
+   ↓
+Verifiera
+   ↓
+Dokumentera
+```
+
+En LUMS-installation ska alltid gå att återskapa, granska och återställa.
