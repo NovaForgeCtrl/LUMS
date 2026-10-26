@@ -5895,6 +5895,8 @@ A LUMS installation should always remain reproducible, auditable and recoverable
 
 ## Optional CPU and memory telemetry agent
 
+For an overview of telemetry measurements, security, data retention, and troubleshooting, see [telemetry.md](telemetry.md).
+
 The telemetry agent is separate from the existing reporting Agent and Watcher.
 It sends CPU and memory measurements to the authenticated
 `POST /api/telemetry` endpoint. The dashboard reads the measurements through
