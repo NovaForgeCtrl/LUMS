@@ -2877,3 +2877,4 @@ The fundamental rule remains:
 A theme may change the atmosphere of LUMS.
 
 It must never change what LUMS actually is allowed to do.
+
