@@ -4,6 +4,8 @@ from pathlib import Path
 
 import pytest
 
+import server.database_backup as database_backup
+
 from server.database_backup import (
     BackupPathError,
     BackupStorageError,
@@ -378,3 +380,129 @@ def test_restore_rejects_valid_empty_sqlite_database_without_replacing_target(
         assert connection.execute(
             "SELECT value FROM keep"
         ).fetchone()[0] == "original"
+
+
+def test_restore_rejects_foreign_key_violation_without_replacing_target(
+    tmp_path,
+):
+    backup_directory = tmp_path / "backups"
+    backup_directory.mkdir()
+    source = tmp_path / "source-invalid-fk.db"
+
+    with sqlite3.connect(source) as connection:
+        connection.execute("PRAGMA foreign_keys = OFF")
+        connection.executescript("""
+            CREATE TABLE parent (
+                id INTEGER PRIMARY KEY
+            );
+            CREATE TABLE child (
+                id INTEGER PRIMARY KEY,
+                parent_id INTEGER NOT NULL,
+                FOREIGN KEY (parent_id) REFERENCES parent(id)
+            );
+            INSERT INTO child (id, parent_id) VALUES (1, 999);
+        """)
+
+    # Das ungültige Backup direkt erzeugen: Die reguläre Backup-Funktion
+    # muss solche Datenbanken inzwischen korrekt ablehnen.
+    filename = (
+        "lums-backup-20261026T120000.000000Z-0123456789abcdef.db"
+    )
+    backup_path = backup_directory / filename
+    backup_path.write_bytes(source.read_bytes())
+
+    target = tmp_path / "target.db"
+    with sqlite3.connect(target) as connection:
+        connection.execute(
+            "CREATE TABLE sentinel (value TEXT NOT NULL)"
+        )
+        connection.execute(
+            "INSERT INTO sentinel VALUES ('original-target')"
+        )
+
+    with pytest.raises(BackupStorageError, match="Fremdschlüssel"):
+        restore_database_backup(
+            backup_directory,
+            filename,
+            target,
+        )
+
+    # Der fehlgeschlagene Restore darf das vorhandene Ziel nicht ersetzen.
+    with sqlite3.connect(target) as connection:
+        assert connection.execute(
+            "SELECT value FROM sentinel"
+        ).fetchone()[0] == "original-target"
+        assert connection.execute(
+            "SELECT name FROM sqlite_master "
+            "WHERE type = 'table' AND name = 'child'"
+        ).fetchone() is None
+
+
+@pytest.mark.parametrize("backup_format", ["db", "db.gz"])
+def test_backup_creation_rejects_foreign_key_violations(
+    tmp_path,
+    backup_format,
+):
+    backup_directory = tmp_path / "backups"
+    backup_directory.mkdir()
+    source = tmp_path / "invalid-fk.db"
+
+    with sqlite3.connect(source) as connection:
+        connection.execute("PRAGMA foreign_keys = OFF")
+        connection.executescript("""
+            CREATE TABLE parent (
+                id INTEGER PRIMARY KEY
+            );
+            CREATE TABLE child (
+                id INTEGER PRIMARY KEY,
+                parent_id INTEGER NOT NULL,
+                FOREIGN KEY (parent_id) REFERENCES parent(id)
+            );
+            INSERT INTO child (id, parent_id) VALUES (1, 999);
+        """)
+
+    with pytest.raises(BackupStorageError):
+        create_database_backup(
+            source,
+            backup_directory,
+            backup_format,
+        )
+
+    # Kein unvollständiges oder ungültiges Backup darf veröffentlicht bleiben.
+    assert list(backup_directory.iterdir()) == []
+
+
+def test_restore_replace_failure_preserves_target_and_cleans_temp(
+    tmp_path, source_database, monkeypatch
+):
+    backup_directory = tmp_path / "backups"
+    backup_directory.mkdir()
+    backup = create_database_backup(
+        source_database,
+        backup_directory,
+        "db",
+    )
+
+    target = tmp_path / "target.db"
+    with sqlite3.connect(target) as connection:
+        connection.execute("CREATE TABLE sentinel (value TEXT)")
+        connection.execute("INSERT INTO sentinel VALUES ('original-target')")
+
+    def fail_replace(source, destination):
+        raise OSError("simulated atomic replacement failure")
+
+    monkeypatch.setattr(database_backup.os, "replace", fail_replace)
+
+    with pytest.raises(BackupStorageError, match="beschädigt|validiert"):
+        restore_database_backup(
+            backup_directory,
+            backup["filename"],
+            target,
+        )
+
+    with sqlite3.connect(target) as connection:
+        assert connection.execute(
+            "SELECT value FROM sentinel"
+        ).fetchone()[0] == "original-target"
+
+    assert list(tmp_path.glob(".lums-restore-*.db.tmp")) == []

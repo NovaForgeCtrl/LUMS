@@ -1,5 +1,11 @@
 import sqlite3
 
+import pytest
+from server.database_backup import (
+    create_database_backup,
+    restore_database_backup,
+)
+
 from server import security_migration as migration
 
 
@@ -416,3 +422,60 @@ def test_create_admin_rejects_existing_disabled_account(tmp_path):
             migration.create_admin(connection, "disabled-admin")
     finally:
         connection.close()
+
+
+def test_failed_migration_restores_pre_migration_backup(
+    tmp_path, monkeypatch
+):
+    """A committed migration can be undone by restoring a verified backup."""
+    db_path = tmp_path / "lums-rollback-integration.sqlite"
+    backup_dir = tmp_path / "backups"
+    backup_dir.mkdir()
+
+    create_legacy_database(db_path)
+    backup = create_database_backup(db_path, backup_dir, "db")
+
+    def fail_rbac_migration(connection):
+        raise RuntimeError("simulated RBAC migration failure")
+
+    monkeypatch.setattr(migration, "migrate_rbac", fail_rbac_migration)
+
+    with pytest.raises(
+        RuntimeError, match="simulated RBAC migration failure"
+    ):
+        migration.run_migration(
+            db_path=str(db_path),
+            admin_username="rollback-test-admin",
+            skip_admin=True,
+        )
+
+    # The first migration was committed before the simulated failure.
+    with sqlite3.connect(db_path) as connection:
+        versions = {
+            row[0]
+            for row in connection.execute(
+                "SELECT version FROM schema_migrations"
+            )
+        }
+        assert migration.MIGRATION_VERSION in versions
+
+    # The migration connection has closed, so restoring is safe here.
+    restore_database_backup(
+        backup_dir,
+        backup["filename"],
+        db_path,
+    )
+
+    with sqlite3.connect(db_path) as connection:
+        tables = {
+            row[0]
+            for row in connection.execute(
+                "SELECT name FROM sqlite_master WHERE type = 'table'"
+            )
+        }
+        assert "clients" in tables
+        assert "schema_migrations" not in tables
+        client = connection.execute(
+            "SELECT hostname, ip FROM clients"
+        ).fetchone()
+        assert client == ("integration-client", "192.0.2.10")

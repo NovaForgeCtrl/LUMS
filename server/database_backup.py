@@ -203,8 +203,18 @@ def create_database_backup(
                 ).fetchone()
 
         if integrity is None or integrity[0] != "ok":
-            raise sqlite3.DatabaseError(
-                "Database backup failed its integrity check."
+            raise BackupStorageError(
+                "Backup hat die SQLite-Integritätsprüfung nicht bestanden."
+            )
+
+        with closing(sqlite3.connect(temporary_db, timeout=10)) as check_db:
+            foreign_key_violations = check_db.execute(
+                "PRAGMA foreign_key_check"
+            ).fetchall()
+
+        if foreign_key_violations:
+            raise BackupStorageError(
+                "Backup enthält Fremdschlüsselverletzungen."
             )
 
         if backup_format == "db":
@@ -346,6 +356,16 @@ def restore_database_backup(
                 if integrity is None or integrity[0] != "ok":
                     raise BackupStorageError(
                         "Backup hat die SQLite-Integritätsprüfung nicht bestanden."
+                    )
+
+                foreign_key_violations = restored.execute(
+                    "PRAGMA foreign_key_check"
+                ).fetchall()
+
+                if foreign_key_violations:
+                    raise BackupStorageError(
+                        "Backup enthält Fremdschlüsselverletzungen "
+                        "und kann nicht wiederhergestellt werden."
                     )
 
                 application_tables = restored.execute(

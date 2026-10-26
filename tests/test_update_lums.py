@@ -230,3 +230,67 @@ def test_mount_matches_bind_mount_by_source():
         source="/wrong/path",
         rw=False,
     )
+
+
+def test_check_application_accepts_http_200(monkeypatch):
+    class Response:
+        status = 200
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            return False
+
+    class Opener:
+        def open(self, *args, **kwargs):
+            return Response()
+
+    monkeypatch.setattr(
+        update_lums,
+        "build_opener",
+        lambda *args, **kwargs: Opener(),
+    )
+
+    update_lums.check_application()
+
+
+def test_check_application_rejects_repeated_http_503(monkeypatch):
+    from urllib.error import HTTPError
+
+    class Opener:
+        def __init__(self):
+            self.calls = 0
+
+        def open(self, *args, **kwargs):
+            self.calls += 1
+            raise HTTPError(
+                url="http://127.0.0.1:5050/login",
+                code=503,
+                msg="Service Unavailable",
+                hdrs=None,
+                fp=None,
+            )
+
+    opener = Opener()
+    sleeps = []
+
+    monkeypatch.setattr(
+        update_lums,
+        "build_opener",
+        lambda *args, **kwargs: opener,
+    )
+    monkeypatch.setattr(
+        update_lums.time,
+        "sleep",
+        lambda seconds: sleeps.append(seconds),
+    )
+
+    with pytest.raises(
+        update_lums.UpdateError,
+        match="did not pass the local /login check",
+    ):
+        update_lums.check_application()
+
+    assert opener.calls == 30
+    assert sleeps == [2] * 29
