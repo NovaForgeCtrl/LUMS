@@ -139,29 +139,40 @@ def test_validate_container_preserves_optional_backup_mount(
     assert "LUMS_BACKUP_DIR=/var/backups/lums" in args
 
 
-def test_failed_health_check_restores_previous_container(
+def test_replace_container_is_disabled_by_default(
     documented_container, monkeypatch,
 ):
     configuration = update_lums.validate_container(documented_container)
     commands = []
+    monkeypatch.setattr(
+        update_lums, "sudo",
+        lambda command, **kwargs: commands.append(command),
+    )
 
-    def record_sudo(command, **_kwargs):
-        commands.append(command)
+    with pytest.raises(update_lums.UpdateError, match="Container replacement is disabled"):
+        update_lums.replace_container(
+            configuration, "lums:update-test", "test-timestamp"
+        )
 
-    def fail_health_check():
-        raise update_lums.UpdateError("health check failed")
+    assert commands == []
 
-    monkeypatch.setattr(update_lums, "sudo", record_sudo)
-    monkeypatch.setattr(update_lums, "check_application", fail_health_check)
 
-    with pytest.raises(update_lums.UpdateError, match="health check failed"):
+def test_replace_container_cannot_be_enabled_by_flag(
+    documented_container, monkeypatch,
+):
+    configuration = update_lums.validate_container(documented_container)
+    commands = []
+    monkeypatch.setattr(
+        update_lums, "sudo",
+        lambda command, **kwargs: commands.append(command),
+    )
+
+    with pytest.raises(update_lums.UpdateError, match="Container replacement is disabled"):
         update_lums.replace_container(
             configuration,
             "lums:update-test",
-            "20261026T111213123456Z",
+            "test-timestamp",
+            allow_replace=True,
         )
 
-    assert ["docker", "rename", "lums", "lums-before-upgrade-20261026T111213123456Z"] in commands
-    assert ["docker", "rm", "-f", "lums"] in commands
-    assert ["docker", "rename", "lums-before-upgrade-20261026T111213123456Z", "lums"] in commands
-    assert ["docker", "start", "lums"] in commands
+    assert commands == []

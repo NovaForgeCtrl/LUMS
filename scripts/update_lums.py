@@ -14,7 +14,10 @@ import json
 import os
 import subprocess
 import sys
+import time
 from pathlib import Path
+from urllib.error import URLError
+from urllib.request import ProxyHandler, build_opener
 from typing import Any
 
 CONTAINER_NAME = "lums"
@@ -24,12 +27,230 @@ SECRET_DESTINATION = "/run/secrets/lums_secret"
 DATABASE_DESTINATION = "/var/lib/lums"
 BACKUP_SOURCE = "/var/backups/lums"
 BACKUP_DESTINATION = "/var/backups/lums"
+TMPFS = {"/tmp", "/run"}
+PORT_BINDINGS = {
+    "5000/tcp": [{"HostIp": "127.0.0.1", "HostPort": "5050"}]
+}
 EXPECTED_PORT_BINDING = "127.0.0.1:5050"
 EXPECTED_CONTAINER_PORT = "5000/tcp"
 
 
 class UpdateError(RuntimeError):
     """Expected, actionable updater error."""
+
+
+def sudo(command, *, capture=False, check=True):
+    """Run a command through sudo; callers decide when this is appropriate."""
+    return run(["sudo", *command], check=check, capture=capture)
+
+
+def validate_container(container: dict[str, Any]) -> dict[str, Any]:
+    """Validate the documented deployment before any replacement is attempted."""
+    config = container.get("Config") or {}
+    host = container.get("HostConfig") or {}
+    state = container.get("State") or {}
+
+    if not state.get("Running"):
+        raise UpdateError("The 'lums' container is not running.")
+    if config.get("User") not in ("lums", "10001", "10001:10001"):
+        raise UpdateError("The container does not use the documented LUMS user.")
+    if host.get("NetworkMode") not in ("bridge", "default"):
+        raise UpdateError("Only the documented Docker bridge network is supported.")
+    if host.get("PortBindings") != PORT_BINDINGS:
+        raise UpdateError(
+            "The container port binding differs from the documented "
+            "127.0.0.1:5050 -> 5000/tcp binding."
+        )
+    if not host.get("ReadonlyRootfs"):
+        raise UpdateError("The container root filesystem is not read-only.")
+    if sorted(host.get("CapDrop") or []) != ["ALL"]:
+        raise UpdateError("The container must drop all Linux capabilities.")
+    if host.get("CapAdd"):
+        raise UpdateError("Additional Linux capabilities are not supported.")
+    if "no-new-privileges:true" not in (host.get("SecurityOpt") or []):
+        raise UpdateError("The container is missing no-new-privileges.")
+    if set(host.get("Tmpfs") or {}) != TMPFS:
+        raise UpdateError("The container /tmp and /run tmpfs settings are unsupported.")
+    if host.get("RestartPolicy", {}).get("Name") != "unless-stopped":
+        raise UpdateError("The container restart policy is not 'unless-stopped'.")
+    if host.get("Privileged"):
+        raise UpdateError("The container is privileged; refusing replacement.")
+    if host.get("Init") or host.get("ExtraHosts"):
+        raise UpdateError("Unsupported custom runtime settings are configured.")
+
+    for key in (
+        "Dns", "DnsOptions", "DnsSearch", "Links", "Devices",
+        "DeviceRequests", "Sysctls", "Ulimits",
+    ):
+        if host.get(key):
+            raise UpdateError(f"Unsupported custom Docker setting: {key}.")
+
+    for key in (
+        "Memory", "MemorySwap", "NanoCpus", "CpuShares",
+        "CpuQuota", "CpuPeriod", "PidsLimit",
+    ):
+        if host.get(key) not in (None, 0, False):
+            raise UpdateError(f"Custom resource limit is not supported: {key}.")
+
+    if config.get("Healthcheck") or config.get("Entrypoint") != [
+        "/app/docker-entrypoint.sh"
+    ]:
+        raise UpdateError("The container entrypoint or health check is nonstandard.")
+
+    mounts: dict[str, dict[str, Any]] = {}
+    for mount in container.get("Mounts", []):
+        destination = mount.get("Destination")
+        if not destination or destination in mounts:
+            raise UpdateError(f"Missing or duplicate mount destination: {destination}.")
+        mounts[destination] = mount
+
+    allowed_mounts = {
+        frozenset({DATABASE_DESTINATION, SECRET_DESTINATION}),
+        frozenset({DATABASE_DESTINATION, SECRET_DESTINATION, BACKUP_DESTINATION}),
+    }
+    if frozenset(mounts) not in allowed_mounts:
+        raise UpdateError("The data, secret, or optional backup mounts are nonstandard.")
+
+    data_mount = mounts[DATABASE_DESTINATION]
+    if (
+        data_mount.get("Type") != "volume"
+        or data_mount.get("Name") != DATA_VOLUME
+        or not data_mount.get("RW")
+    ):
+        raise UpdateError("The database is not mounted from the expected 'lums-data' volume.")
+
+    secret_mount = mounts[SECRET_DESTINATION]
+    secret_source = secret_mount.get("Source")
+    if (
+        secret_mount.get("Type") != "bind"
+        or secret_mount.get("RW")
+        or not secret_source
+        or not Path(secret_source).is_file()
+    ):
+        raise UpdateError("The read-only application-secret mount is missing or invalid.")
+
+    backup_source = None
+    if BACKUP_DESTINATION in mounts:
+        backup_mount = mounts[BACKUP_DESTINATION]
+        backup_source = backup_mount.get("Source")
+        if (
+            backup_mount.get("Type") != "bind"
+            or not backup_mount.get("RW")
+            or not backup_source
+            or "," in backup_source
+        ):
+            raise UpdateError("The optional backup mount is invalid.")
+
+    environment: dict[str, str] = {}
+    for entry in config.get("Env") or []:
+        if "\n" in entry or "\r" in entry:
+            raise UpdateError("Multiline environment entries are unsupported.")
+        key, separator, value = entry.partition("=")
+        if separator and key.startswith("LUMS_"):
+            environment[key] = value
+
+    unexpected = set(environment) - {"LUMS_SECRET_KEY_FILE", "LUMS_BACKUP_DIR"}
+    if unexpected:
+        raise UpdateError(
+            "Unsupported custom LUMS environment variable(s): "
+            + ", ".join(sorted(unexpected))
+        )
+    if environment.get("LUMS_SECRET_KEY_FILE") != SECRET_DESTINATION:
+        raise UpdateError("The secret-file environment setting is nonstandard.")
+    if (backup_source is not None) != ("LUMS_BACKUP_DIR" in environment):
+        raise UpdateError("The backup mount and LUMS_BACKUP_DIR setting do not match.")
+    if backup_source is not None and environment["LUMS_BACKUP_DIR"] != BACKUP_DESTINATION:
+        raise UpdateError("The backup directory environment setting is nonstandard.")
+
+    return {
+        "secret_source": secret_source,
+        "backup_source": backup_source,
+        "tmpfs": host["Tmpfs"],
+        "user": config["User"],
+        "environment": config.get("Env") or [],
+        "labels": config.get("Labels") or {},
+        "security_options": host.get("SecurityOpt") or [],
+    }
+
+
+def docker_run_arguments(configuration: dict[str, Any], image: str) -> list[str]:
+    """Build the replacement command while retaining validated runtime settings."""
+    args = [
+        "docker", "run", "-d",
+        "--name", CONTAINER_NAME,
+        "--restart", "unless-stopped",
+        "--read-only",
+        "--cap-drop=ALL",
+        "--security-opt=no-new-privileges:true",
+        "--user", configuration["user"],
+        "--tmpfs", f"/tmp:{configuration['tmpfs']['/tmp']}",
+        "--tmpfs", f"/run:{configuration['tmpfs']['/run']}",
+        "-p", "127.0.0.1:5050:5000",
+        "--mount",
+        f"type=bind,src={configuration['secret_source']},dst={SECRET_DESTINATION},readonly",
+        "--mount",
+        f"type=volume,src={DATA_VOLUME},dst={DATABASE_DESTINATION}",
+    ]
+
+    environment_file = configuration.get("environment_file")
+    if environment_file:
+        args.extend(["--env-file", str(environment_file)])
+    else:
+        for entry in configuration.get("environment", []):
+            key, separator, value = entry.partition("=")
+            if separator:
+                args.extend(["-e", f"{key}={value}"])
+
+    if configuration.get("backup_source"):
+        args.extend([
+            "--mount",
+            f"type=bind,src={configuration['backup_source']},dst={BACKUP_DESTINATION}",
+            "-e", f"LUMS_BACKUP_DIR={BACKUP_DESTINATION}",
+        ])
+
+    for option in configuration.get("security_options", []):
+        if option != "no-new-privileges:true":
+            args.extend(["--security-opt", option])
+
+    for key, value in configuration.get("labels", {}).items():
+        args.extend(["--label", f"{key}={value}"])
+
+    args.append(image)
+    return args
+
+
+def check_application() -> None:
+    """Wait for the local login endpoint; this does not prove DB rollback safety."""
+    opener = build_opener(ProxyHandler({}))
+    for attempt in range(30):
+        try:
+            with opener.open("http://127.0.0.1:5050/login", timeout=3) as response:
+                if response.status == 200:
+                    return
+        except (OSError, URLError):
+            if attempt < 29:
+                time.sleep(2)
+    raise UpdateError("The new LUMS container did not pass the local /login check.")
+
+
+def replace_container(
+    configuration: dict[str, Any],
+    image: str,
+    timestamp: str,
+    *,
+    allow_replace: bool = False,
+) -> None:
+    """Fail closed until database backup and restore are implemented.
+
+    This function deliberately never replaces a container. The keyword
+    argument is retained temporarily for compatibility with existing callers,
+    but cannot enable replacement.
+    """
+    raise UpdateError(
+        "Container replacement is disabled. Database backup, migration "
+        "safety, and tested database restoration are required before "
+        "container replacement can be implemented."
+    )
 
 
 def run(

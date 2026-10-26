@@ -1,5 +1,6 @@
 import gzip
 import sqlite3
+from pathlib import Path
 
 import pytest
 
@@ -9,6 +10,7 @@ from server.database_backup import (
     create_database_backup,
     delete_database_backup,
     list_database_backups,
+    restore_database_backup,
 )
 
 
@@ -185,3 +187,194 @@ def test_backup_requires_a_configured_writable_directory(
             missing_directory,
             "db",
         )
+def test_backup_restore_round_trip_preserves_source_and_data(
+    tmp_path,
+    source_database,
+):
+    backup_directory = tmp_path / "backups"
+    backup_directory.mkdir()
+
+    result = create_database_backup(
+        source_database,
+        backup_directory,
+        "db",
+    )
+    backup_path = backup_directory / result["filename"]
+    restored_path = tmp_path / "restored.db"
+
+    # Restore only into a new temporary file. Never overwrite the source.
+    restored_path.write_bytes(backup_path.read_bytes())
+
+    with sqlite3.connect(restored_path) as restored:
+        assert restored.execute(
+            "PRAGMA integrity_check"
+        ).fetchone()[0] == "ok"
+        assert restored.execute(
+            "SELECT value FROM sample"
+        ).fetchone()[0] == "backup data"
+
+    with sqlite3.connect(source_database) as source:
+        assert source.execute(
+            "PRAGMA integrity_check"
+        ).fetchone()[0] == "ok"
+        assert source.execute(
+            "SELECT value FROM sample"
+        ).fetchone()[0] == "backup data"
+
+
+@pytest.mark.parametrize("backup_format", ["db", "db.gz"])
+def test_restore_database_backup_restores_valid_backup(
+    tmp_path,
+    source_database,
+    backup_format,
+):
+    backup_directory = tmp_path / "backups"
+    backup_directory.mkdir()
+    created = create_database_backup(
+        source_database,
+        backup_directory,
+        backup_format,
+    )
+    target = tmp_path / "target.db"
+    with sqlite3.connect(target) as connection:
+        connection.execute("CREATE TABLE old_data (value TEXT)")
+        connection.execute("INSERT INTO old_data VALUES ('keep until valid')")
+
+    result = restore_database_backup(
+        backup_directory,
+        created["filename"],
+        target,
+    )
+
+    assert result["filename"] == created["filename"]
+    assert result["database_path"] == str(target)
+    with sqlite3.connect(target) as connection:
+        assert connection.execute("PRAGMA integrity_check").fetchone()[0] == "ok"
+        assert connection.execute(
+            "SELECT value FROM sample"
+        ).fetchone()[0] == "backup data"
+        with pytest.raises(sqlite3.DatabaseError):
+            connection.execute("SELECT value FROM old_data")
+
+
+def test_restore_rejects_corrupt_backup_without_replacing_target(
+    tmp_path,
+):
+    backup_directory = tmp_path / "backups"
+    backup_directory.mkdir()
+    filename = "lums-backup-20261026T120000.000000Z-0123456789abcdef.db"
+    (backup_directory / filename).write_bytes(b"not a sqlite database")
+    target = tmp_path / "target.db"
+    with sqlite3.connect(target) as connection:
+        connection.execute("CREATE TABLE keep (value TEXT)")
+        connection.execute("INSERT INTO keep VALUES ('original')")
+
+    with pytest.raises(BackupStorageError):
+        restore_database_backup(backup_directory, filename, target)
+
+    with sqlite3.connect(target) as connection:
+        assert connection.execute(
+            "SELECT value FROM keep"
+        ).fetchone()[0] == "original"
+
+
+def test_restore_rejects_wal_sidecar(tmp_path, source_database):
+    backup_directory = tmp_path / "backups"
+    backup_directory.mkdir()
+    created = create_database_backup(
+        source_database,
+        backup_directory,
+        "db",
+    )
+    target = tmp_path / "target.db"
+    Path(str(target) + "-wal").write_bytes(b"")
+    with pytest.raises(BackupStorageError, match="WAL/SHM"):
+        restore_database_backup(
+            backup_directory,
+            created["filename"],
+            target,
+        )
+
+
+def test_restore_rejects_symlink_target(
+    tmp_path,
+    source_database,
+):
+    backup_directory = tmp_path / "backups"
+    backup_directory.mkdir()
+    created = create_database_backup(
+        source_database,
+        backup_directory,
+        "db",
+    )
+    actual = tmp_path / "actual.db"
+    actual.write_bytes(b"preserve")
+    target = tmp_path / "linked.db"
+    target.symlink_to(actual)
+
+    with pytest.raises(BackupPathError):
+        restore_database_backup(
+            backup_directory,
+            created["filename"],
+            target,
+        )
+    assert actual.read_bytes() == b"preserve"
+
+
+@pytest.mark.parametrize("backup_format", ["db", "db.gz"])
+def test_restore_rejects_empty_backup_without_replacing_target(
+    tmp_path,
+    backup_format,
+):
+    backup_directory = tmp_path / "backups"
+    backup_directory.mkdir()
+    filename = "lums-backup-20261026T120000.000000Z-0123456789abcdef.db"
+    backup_path = backup_directory / filename
+
+    if backup_format == "db.gz":
+        filename += ".gz"
+        backup_path = backup_directory / filename
+        with gzip.open(backup_path, "wb"):
+            pass
+    else:
+        backup_path.write_bytes(b"")
+
+    target = tmp_path / "target.db"
+    with sqlite3.connect(target) as connection:
+        connection.execute("CREATE TABLE keep (value TEXT)")
+        connection.execute("INSERT INTO keep VALUES ('original')")
+
+    with pytest.raises(BackupStorageError):
+        restore_database_backup(backup_directory, filename, target)
+
+    with sqlite3.connect(target) as connection:
+        assert connection.execute(
+            "SELECT value FROM keep"
+        ).fetchone()[0] == "original"
+
+
+def test_restore_rejects_valid_empty_sqlite_database_without_replacing_target(
+    tmp_path,
+):
+    backup_directory = tmp_path / "backups"
+    backup_directory.mkdir()
+    filename = "lums-backup-20261026T120000.000000Z-0123456789abcdef.db"
+    empty_database = tmp_path / "empty.db"
+
+    with sqlite3.connect(empty_database):
+        pass
+
+    (backup_directory / filename).write_bytes(empty_database.read_bytes())
+
+    target = tmp_path / "target.db"
+    with sqlite3.connect(target) as connection:
+        connection.execute("CREATE TABLE keep (value TEXT)")
+        connection.execute("INSERT INTO keep VALUES ('original')")
+
+    with pytest.raises(BackupStorageError):
+        restore_database_backup(backup_directory, filename, target)
+
+    with sqlite3.connect(target) as connection:
+        assert connection.execute(
+            "SELECT value FROM keep"
+        ).fetchone()[0] == "original"
