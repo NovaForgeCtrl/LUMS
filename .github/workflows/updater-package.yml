@@ -70,6 +70,7 @@ jobs:
         env:
           RELEASE_TAG: ${{ github.event.release.tag_name }}
         run: |
+          bash scripts/package-release-source.sh "$RELEASE_TAG"
           commit="$(git rev-parse HEAD)"
           bash scripts/package-update-tools.sh "$RELEASE_TAG" "$commit"
 

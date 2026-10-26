@@ -6,11 +6,13 @@ Download it from that successful workflow run's **Artifacts** section; build
 artifacts are retained for 90 days.
 
 When a GitHub Release is published, the workflow runs the test suite against
-the released tag before attaching a versioned `.tar.gz` archive and checksum
-to the release. The archive contains the updater scripts and, when present in
-that revision, the volume snapshot helper.
+the released tag before attaching the updater archive and a deterministic
+source archive. The source archive includes its SHA-256 checksum and the
+tested commit identifier; the Update Center only lists releases after all
+three source-verification assets are present.
 
-This bundle only makes the helper files convenient to download. It is not a
-Debian package and does not deploy LUMS. The production updater must pass its
-deployment checks and have a verified backup and tested database rollback
-before it can replace a running production container.
+The updater-tools bundle is a convenience download, not a Debian package.
+The source archive is not installed directly by the web container. Do not use
+it to update production until a separately installed host updater has passed
+deployment checks and verified both the database backup and rollback behavior
+for that exact deployment.

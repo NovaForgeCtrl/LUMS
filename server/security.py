@@ -49,6 +49,7 @@ PERMISSIONS = {
     "users.manage": "Benutzerkonten verwalten",
     "permissions.manage": "Berechtigungen zuweisen und ändern",
     "backups.manage": "Datenbank-Backups erstellen und einsehen",
+    "system.update": "LUMS-Systemupdates prüfen und starten",
 }
 
 ROLE_DEFAULT_PERMISSIONS = {
@@ -91,6 +92,7 @@ PERMISSION_DEPENDENCIES = {
     "jobs.manage": {"clients.view", "updates.view"},
     "clients.manage": {"clients.view"},
     "permissions.manage": {"users.manage", "clients.view"},
+    "system.update": {"users.manage", "clients.view"},
 }
 
 SAFE_METHODS = {"GET", "HEAD", "OPTIONS"}

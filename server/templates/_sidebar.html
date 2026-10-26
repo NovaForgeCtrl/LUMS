@@ -35,6 +35,12 @@
             <span class="lums-sidebar-label">{{ tr("Database backups") }}</span>
         </a>
         {% endif %}
+        {% if user_role == "administrator" and "system.update" in user_permissions %}
+        <a href="/updates" data-nav-id="system-updates" class="lums-sidebar-link{% if request.path == '/updates' %} is-active{% endif %}" {% if request.path == '/updates' %}aria-current="page"{% endif %}>
+            <span class="lums-sidebar-icon" aria-hidden="true">↻</span>
+            <span class="lums-sidebar-label">{{ tr("Update system") }}</span>
+        </a>
+        {% endif %}
     </nav>
 
     <div class="lums-sidebar-customizer" id="lums-sidebar-customizer"
