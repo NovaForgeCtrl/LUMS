@@ -3,11 +3,27 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="csrf-token" content="{{ csrf_token }}">
     <title>LUMS — {{ tr('Live system monitoring') if monitoring_only else tr('Health Dashboard') }}</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body class="lums-sidebar-layout{% if monitoring_only %} monitoring-only{% endif %}">
     {% include "_sidebar.html" %}
+    <header class="lums-pagebar">
+        <button type="button" class="lums-sidebar-toggle" id="lums-sidebar-toggle"
+            aria-label="{{ tr('Toggle navigation') }}" aria-controls="lums-sidebar"
+            aria-expanded="true">
+            <span aria-hidden="true">&#9776;</span>
+        </button>
+        <div class="lums-pagebar-brand">
+            <strong>LUMS</strong>
+            <span>{{ tr("Live system monitoring") if monitoring_only else tr("Health Dashboard") }}</span>
+        </div>
+        <div class="lums-pagebar-status">
+            <span class="status-dot" aria-hidden="true"></span>
+            {{ tr("API Online") }}
+        </div>
+    </header>
     <main class="container">
         <header class="panel-header">
             <div>
@@ -22,94 +38,9 @@
             </div>
         </header>
 
-        <section class="panel dashboard-customizer" id="dashboard-customizer"
-            data-csrf-token="{{ csrf_token }}"
-            data-settings-url="{{ url_for('telemetry_dashboard_settings') }}"
-            data-settings-load-error="{{ tr('Dashboard preferences could not be loaded.') }}"
-            data-settings-save-error="{{ tr('Dashboard preferences could not be saved.') }}"
-            data-settings-saved="{{ tr('Dashboard preferences saved.') }}"
-            data-edit="{{ tr('Customize dashboard') }}"
-            data-done="{{ tr('Finish customization') }}"
-            data-save="{{ tr('Save layout') }}"
-            data-reset="{{ tr('Restore default layout') }}"
-            data-hide-widget="{{ tr('Hide section') }}"
-            data-show-widget="{{ tr('Show section') }}"
-            data-move-up="{{ tr('Move section up') }}"
-            data-move-down="{{ tr('Move section down') }}"
-            data-drag="{{ tr('Drag to reorder') }}"
-            data-width="{{ tr('Section width') }}"
-            data-widgets="{{ tr('Visible sections') }}"
-            data-thresholds="{{ tr('Alert thresholds (%)') }}"
-            data-cpu-threshold="{{ tr('CPU') }}"
-            data-memory-threshold="{{ tr('RAM') }}"
-            data-disk-threshold="{{ tr('Disk') }}"
-            data-integrations="{{ tr('Optional integrations') }}"
-            data-wazuh="{{ tr('Wazuh') }}"
-            data-suricata="{{ tr('Suricata') }}"
-            data-integration-help="{{ tr('To enable status reporting, add the installed service unit to LUMS_MONITORED_SERVICES on the telemetry agent.') }}"
-            data-width-small="{{ tr('One third') }}"
-            data-width-medium="{{ tr('Half') }}"
-            data-width-large="{{ tr('Two thirds') }}"
-            data-width-full="{{ tr('Full width') }}"
-            data-history-csv="{{ tr('Export history CSV') }}"
-            data-history-json="{{ tr('Export history JSON') }}"
-            data-events-csv="{{ tr('Export events CSV') }}"
-            data-events-json="{{ tr('Export events JSON') }}"
-            data-events-title="{{ tr('Alert and outage history') }}"
-            data-events-empty="{{ tr('No alerts or outages in this period.') }}"
-            data-time="{{ tr('Time') }}"
-            data-client="{{ tr('Client') }}"
-            data-event="{{ tr('Event') }}"
-            data-metric="{{ tr('Metric') }}"
-            data-value="{{ tr('Value') }}"
-            data-threshold="{{ tr('Threshold') }}"
-            data-cpu-high="{{ tr('CPU threshold exceeded') }}"
-            data-cpu-recovered="{{ tr('CPU returned below threshold') }}"
-            data-memory-high="{{ tr('RAM threshold exceeded') }}"
-            data-memory-recovered="{{ tr('RAM returned below threshold') }}"
-            data-disk-high="{{ tr('Disk threshold exceeded') }}"
-            data-disk-recovered="{{ tr('Disk returned below threshold') }}"
-            data-telemetry-lost="{{ tr('Telemetry interrupted') }}"
-            data-telemetry-restored="{{ tr('Telemetry resumed') }}"
-            data-ssh-failure="{{ tr('Failed SSH login') }}"
-            data-service-failure="{{ tr('Service failure') }}"
-            data-service-recovered="{{ tr('Service recovered') }}"
-            data-ssh-metric="{{ tr('SSH') }}"
-            data-service-metric="{{ tr('Service') }}"
-            data-not-configured="{{ tr('Not monitored on this client') }}"
-            data-active="{{ tr('Active') }}"
-            data-inactive="{{ tr('Inactive') }}">
-            <div class="dashboard-customizer-controls">
-                <button type="button" id="dashboard-edit-button">{{ tr("Customize dashboard") }}</button>
-                <button type="button" id="dashboard-save-button" hidden>{{ tr("Save layout") }}</button>
-                <button type="button" id="dashboard-reset-button" hidden>{{ tr("Restore default layout") }}</button>
-                <span id="dashboard-settings-status" role="status" aria-live="polite"></span>
-            </div>
-            <div class="dashboard-customizer-options" id="dashboard-customizer-options" hidden>
-                <fieldset>
-                    <legend>{{ tr("Visible sections") }}</legend>
-                    <div id="dashboard-widget-toggles"></div>
-                </fieldset>
-                <fieldset>
-                    <legend>{{ tr("Alert thresholds (%)") }}</legend>
-                    <label for="threshold-cpu">{{ tr("CPU") }}</label>
-                    <input id="threshold-cpu" type="number" min="50" max="99" step="1">
-                    <label for="threshold-memory">{{ tr("RAM") }}</label>
-                    <input id="threshold-memory" type="number" min="50" max="99" step="1">
-                    <label for="threshold-disk">{{ tr("Disk") }}</label>
-                    <input id="threshold-disk" type="number" min="50" max="99" step="1">
-                </fieldset>
-                <fieldset>
-                    <legend>{{ tr("Optional integrations") }}</legend>
-                    <label><input type="checkbox" id="integration-wazuh"> {{ tr("Wazuh") }}</label>
-                    <label><input type="checkbox" id="integration-suricata"> {{ tr("Suricata") }}</label>
-                    <p>{{ tr("To enable status reporting, add the installed service unit to LUMS_MONITORED_SERVICES on the telemetry agent.") }}</p>
-                </fieldset>
-            </div>
-        </section>
-
         <div class="health-dashboard-grid" id="health-dashboard-grid">
-        <section class="cards dashboard-widget" data-widget-id="summary" data-widget-label="{{ tr('Current service, client and backup-storage status.') }}" aria-label="{{ tr('Current service, client and backup-storage status.') }}">
+        {% if not monitoring_only %}
+        <section class="cards" aria-label="{{ tr('Current service, client and backup-storage status.') }}">
             <article class="card">
                 <div class="card-title">{{ tr("Database") }}</div>
                 <div class="card-value">{{ tr(database_status|capitalize) }}</div>
@@ -124,7 +55,7 @@
             </article>
         </section>
 
-        <section class="panel dashboard-widget" data-widget-id="clients" data-widget-label="{{ tr('Client status') }}">
+        <section class="panel">
             <div class="panel-header">
                 <div>
                     <h2>{{ tr("Client status") }}</h2>
@@ -144,8 +75,10 @@
                 </table>
             </div>
         </section>
+        {% endif %}
 
-        <section class="panel telemetry-panel dashboard-widget" id="telemetry-dashboard" data-widget-id="history" data-widget-label="{{ tr('System telemetry') }}"
+        <section class="panel telemetry-panel" id="telemetry-dashboard"
+            data-settings-url="{{ url_for('telemetry_dashboard_settings') }}"
             data-loading="{{ tr('Loading telemetry…') }}"
             data-no-clients="{{ tr('No enabled clients found.') }}"
             data-no-samples="{{ tr('No telemetry samples available yet.') }}"
@@ -436,7 +369,8 @@ sudo journalctl -u lums-telemetry.service -n 30 --no-pager</code></pre>
             </section>
         </section>
         {% endif %}
-        <section class="panel dashboard-widget" data-widget-id="events" data-widget-label="{{ tr('Alert and outage history') }}">
+        {% if not monitoring_only %}
+        <section class="panel">
             <div class="panel-header">
                 <div>
                     <h2>{{ tr("Alert and outage history") }}</h2>
@@ -454,7 +388,7 @@ sudo journalctl -u lums-telemetry.service -n 30 --no-pager</code></pre>
                 </table>
             </div>
         </section>
-        <section class="panel dashboard-widget" data-widget-id="backup" data-widget-label="{{ tr('Backup storage') }}">
+        <section class="panel">
             <div class="panel-header">
                 <div>
                     <h2>{{ tr("Backup storage") }}</h2>
@@ -474,8 +408,15 @@ sudo journalctl -u lums-telemetry.service -n 30 --no-pager</code></pre>
                 </div>
             </div>
         </section>
+        {% endif %}
         </div>
     </main>
+    <script type="application/json" id="lums-config">{{ {
+        "lumsT": translations,
+        "lumsLocale": language_locale
+    } | tojson }}</script>
+    <script src="{{ url_for('static', filename='config.js') }}" defer></script>
+    <script src="{{ url_for('static', filename='theme.js') }}" defer></script>
     <script src="{{ url_for('static', filename='sidebar.js') }}" defer></script>
     <script src="{{ url_for('static', filename='telemetry.js') }}" defer></script>
 </body>

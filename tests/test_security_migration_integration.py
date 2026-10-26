@@ -79,6 +79,13 @@ def test_full_security_migration_is_repeatable(tmp_path, monkeypatch):
         assert migration.TELEMETRY_DASHBOARD_MIGRATION_VERSION in versions
         assert migration.TELEMETRY_EVENT_HISTORY_MIGRATION_VERSION in versions
         assert migration.SYSTEM_UPDATE_PERMISSION_MIGRATION_VERSION in versions
+        assert migration.INFRASTRUCTURE_TOPOLOGY_MIGRATION_VERSION in versions
+        assert connection.execute(
+            "SELECT COUNT(*) FROM infrastructure_nodes"
+        ).fetchone()[0] == 0
+        assert connection.execute(
+            "SELECT COUNT(*) FROM infrastructure_relations"
+        ).fetchone()[0] == 0
 
         telemetry_columns = {
             row[1]

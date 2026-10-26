@@ -9,6 +9,10 @@
 
     <nav class="lums-sidebar-nav" id="lums-sidebar-nav"
         data-user-id="{{ session.get('user_id', 'anonymous') }}">
+        <a href="/" data-nav-id="dashboard" class="lums-sidebar-link{% if request.path == '/' %} is-active{% endif %}" {% if request.path == '/' %}aria-current="page"{% endif %}>
+            <span class="lums-sidebar-icon" aria-hidden="true">⌂</span>
+            <span class="lums-sidebar-label">{{ tr("Dashboard") }}</span>
+        </a>
 {% if "clients.view" in user_permissions %}
 <a href="/health" data-nav-id="health" class="lums-sidebar-link{% if request.path == '/health' %} is-active{% endif %}" {% if request.path == '/health' %}aria-current="page"{% endif %}>
     <span class="lums-sidebar-icon" aria-hidden="true">◈</span>
@@ -18,11 +22,11 @@
     <span class="lums-sidebar-icon" aria-hidden="true">⌁</span>
     <span class="lums-sidebar-label">{{ tr("Live monitoring") }}</span>
 </a>
+<a href="/infrastructure" data-nav-id="infrastructure" class="lums-sidebar-link{% if request.path == '/infrastructure' %} is-active{% endif %}" {% if request.path == '/infrastructure' %}aria-current="page"{% endif %}>
+    <span class="lums-sidebar-icon" aria-hidden="true">⌘</span>
+    <span class="lums-sidebar-label">{{ tr("Infrastructure topology") }}</span>
+</a>
 {% endif %}
-        <a href="/" data-nav-id="dashboard" class="lums-sidebar-link{% if request.path == '/' %} is-active{% endif %}" {% if request.path == '/' %}aria-current="page"{% endif %}>
-            <span class="lums-sidebar-icon" aria-hidden="true">⌂</span>
-            <span class="lums-sidebar-label">{{ tr("Dashboard") }}</span>
-        </a>
         {% if "users.manage" in user_permissions %}
         <a href="/users" data-nav-id="users" class="lums-sidebar-link{% if request.path == '/users' %} is-active{% endif %}" {% if request.path == '/users' %}aria-current="page"{% endif %}>
             <span class="lums-sidebar-icon" aria-hidden="true">♙</span>

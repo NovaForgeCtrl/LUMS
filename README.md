@@ -2004,6 +2004,10 @@ Optional CPU and memory telemetry, agent configuration, data retention, security
 
 What the authenticated health dashboard reports, how client status is classified, telemetry limits, backup-storage interpretation, and operational checks.
 
+### `LUMS_Infrastructure_Topology.md`
+
+How LUMS imports registered clients, manages infrastructure and dependencies, protects topology edits, and identifies potential shared failure points.
+
 ### `troubleshooting.md`
 
 Diagnostic procedures for server, client, jobs, package management, authentication, database, container, and network problems.

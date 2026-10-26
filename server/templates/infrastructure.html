@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<!-- Visual contract: Operate surface; retain the selected LUMS theme and make system relationships scannable before inventory detail. -->
+<html lang="{{ language }}" data-locale="{{ language_locale }}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="csrf-token" content="{{ csrf_token }}">
+    <title>{{ tr("Infrastructure topology") }} – LUMS</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body class="lums-sidebar-layout">
+    {% include "_sidebar.html" %}
+    <header class="lums-pagebar">
+        <button type="button" class="lums-sidebar-toggle" id="lums-sidebar-toggle"
+            aria-label="{{ tr('Toggle navigation') }}" aria-controls="lums-sidebar"
+            aria-expanded="true">
+            <span aria-hidden="true">&#9776;</span>
+        </button>
+        <div class="lums-pagebar-brand">
+            <strong>LUMS</strong>
+            <span>{{ tr("Infrastructure topology") }}</span>
+        </div>
+        <div class="lums-pagebar-status">
+            <span class="status-dot" aria-hidden="true"></span>
+            {{ tr("API Online") }}
+        </div>
+    </header>
+
+    <main class="container infrastructure-page">
+        <header class="infrastructure-heading">
+            <h1>{{ tr("Infrastructure topology") }}</h1>
+            <p>{{ tr("See registered LUMS clients, infrastructure and their dependencies in one place.") }}</p>
+        </header>
+
+        <div id="infrastructure-topology"
+            data-api-url="{{ url_for('infrastructure_topology') }}"
+            data-nodes-url="{{ url_for('create_infrastructure_node') }}"
+            data-relations-url="{{ url_for('create_infrastructure_relation') }}"
+            data-csrf-token="{{ csrf_token }}"
+            data-can-edit="{{ 'true' if can_manage else 'false' }}">
+            <section class="panel topology-overview" aria-labelledby="topology-overview-heading">
+                <div class="panel-header">
+                    <div>
+                        <h2 id="topology-overview-heading">{{ tr("Infrastructure map") }}</h2>
+                        <p>{{ tr("LUMS clients are imported automatically. Other systems and links are maintained here.") }}</p>
+                    </div>
+                    <button type="button" id="topology-refresh">{{ tr("Refresh") }}</button>
+                </div>
+                <p id="topology-status" role="status" aria-live="polite">{{ tr("Loading infrastructure data…") }}</p>
+                <div class="topology-summary" aria-label="{{ tr('Topology summary') }}">
+                    <span><strong id="topology-client-count">—</strong>{{ tr("Registered clients") }}</span>
+                    <span><strong id="topology-node-count">—</strong>{{ tr("Infrastructure items") }}</span>
+                    <span><strong id="topology-relation-count">—</strong>{{ tr("Relationships") }}</span>
+                    <span><strong id="topology-central-count">—</strong>{{ tr("Shared dependencies") }}</span>
+                </div>
+                <div class="topology-map-scroll">
+                    <svg id="topology-map" class="topology-map" role="img"
+                        aria-labelledby="topology-map-title topology-map-description"
+                        viewBox="0 0 1000 280">
+                        <title id="topology-map-title">{{ tr("Infrastructure map") }}</title>
+                        <desc id="topology-map-description">{{ tr("Registered clients and manually managed infrastructure connected by their relationships.") }}</desc>
+                    </svg>
+                </div>
+                <p class="topology-legend">
+                    <span><i class="topology-legend-client"></i>{{ tr("LUMS client") }}</span>
+                    <span><i class="topology-legend-manual"></i>{{ tr("Managed item") }}</span>
+                    <span><i class="topology-legend-link"></i>{{ tr("Relationship") }}</span>
+                    <span><i class="topology-legend-central"></i>{{ tr("Shared dependency") }}</span>
+                </p>
+            </section>
+
+            <section class="panel topology-inventory" aria-labelledby="topology-inventory-heading">
+                <div class="panel-header">
+                    <div>
+                        <h2 id="topology-inventory-heading">{{ tr("Inventory") }}</h2>
+                        <p>{{ tr("Hostname, IP address, role and location for each system.") }}</p>
+                    </div>
+                </div>
+                {% if can_manage %}
+                <form id="topology-node-form" class="topology-form">
+                    <h3 id="topology-node-form-heading">{{ tr("Add infrastructure item") }}</h3>
+                    <input type="hidden" id="topology-node-id">
+                    <label>{{ tr("Name") }}<input id="topology-node-name" name="name" required maxlength="120"></label>
+                    <label>{{ tr("Type") }}
+                        <select id="topology-node-type" name="node_type" required>
+                            <option value="server">{{ tr("Server") }}</option>
+                            <option value="vm">{{ tr("Virtual machine") }}</option>
+                            <option value="container">{{ tr("Container") }}</option>
+                            <option value="network_device">{{ tr("Network device") }}</option>
+                            <option value="service">{{ tr("Service") }}</option>
+                            <option value="storage">{{ tr("Storage") }}</option>
+                        </select>
+                    </label>
+                    <label>{{ tr("Hostname") }}<input id="topology-node-hostname" name="hostname" maxlength="253"></label>
+                    <label>{{ tr("IP address") }}<input id="topology-node-ip" name="ip_address" maxlength="45" placeholder="192.0.2.10"></label>
+                    <label>{{ tr("Role") }}<input id="topology-node-role" name="role" maxlength="120"></label>
+                    <label>{{ tr("Location") }}<input id="topology-node-location" name="location" maxlength="120"></label>
+                    <label class="topology-form-wide">{{ tr("Notes") }}<textarea id="topology-node-notes" name="notes" maxlength="1000" rows="2"></textarea></label>
+                    <div class="topology-form-actions topology-form-wide">
+                        <button type="submit" id="topology-node-submit">{{ tr("Add item") }}</button>
+                        <button type="button" id="topology-node-cancel" hidden>{{ tr("Cancel") }}</button>
+                    </div>
+                </form>
+                {% endif %}
+                <div class="table-container">
+                    <table class="topology-table">
+                        <thead>
+                            <tr>
+                                <th>{{ tr("Name") }}</th><th>{{ tr("Type") }}</th>
+                                <th>{{ tr("Hostname / IP address") }}</th>
+                                <th>{{ tr("Role / location") }}</th><th>{{ tr("Status") }}</th>
+                                <th>{{ tr("Source") }}</th>
+                                {% if can_manage %}<th>{{ tr("Actions") }}</th>{% endif %}
+                            </tr>
+                        </thead>
+                        <tbody id="topology-inventory-body"></tbody>
+                    </table>
+                </div>
+            </section>
+
+            <section class="panel topology-relationships" aria-labelledby="topology-relations-heading">
+                <div class="panel-header">
+                    <div>
+                        <h2 id="topology-relations-heading">{{ tr("Relationships and dependencies") }}</h2>
+                        <p>{{ tr("Record what depends on, hosts, connects to or runs on another system.") }}</p>
+                    </div>
+                </div>
+                {% if can_manage %}
+                <form id="topology-relation-form" class="topology-form topology-relation-form">
+                    <label>{{ tr("From") }}<select id="topology-relation-source" required></select></label>
+                    <label>{{ tr("Relationship") }}
+                        <select id="topology-relation-type" required>
+                            <option value="depends_on">{{ tr("Depends on") }}</option>
+                            <option value="hosts">{{ tr("Hosts") }}</option>
+                            <option value="connects_to">{{ tr("Connects to") }}</option>
+                            <option value="runs_on">{{ tr("Runs on") }}</option>
+                        </select>
+                    </label>
+                    <label>{{ tr("To") }}<select id="topology-relation-target" required></select></label>
+                    <label>{{ tr("Details") }}<input id="topology-relation-details" maxlength="500"></label>
+                    <div class="topology-form-actions"><button type="submit">{{ tr("Add relationship") }}</button></div>
+                </form>
+                {% endif %}
+                <div class="table-container">
+                    <table class="topology-table">
+                        <thead><tr><th>{{ tr("From") }}</th><th>{{ tr("Relationship") }}</th><th>{{ tr("To") }}</th><th>{{ tr("Details") }}</th>{% if can_manage %}<th>{{ tr("Actions") }}</th>{% endif %}</tr></thead>
+                        <tbody id="topology-relations-body"></tbody>
+                    </table>
+                </div>
+            </section>
+        </div>
+    </main>
+
+    <script type="application/json" id="lums-config">{{ {
+        "lumsT": translations,
+        "lumsLocale": language_locale
+    } | tojson }}</script>
+    <script src="{{ url_for('static', filename='config.js') }}" defer></script>
+    <script src="{{ url_for('static', filename='theme.js') }}" defer></script>
+    <script src="{{ url_for('static', filename='sidebar.js') }}" defer></script>
+    <script src="{{ url_for('static', filename='infrastructure.js') }}" defer></script>
+</body>
+</html>

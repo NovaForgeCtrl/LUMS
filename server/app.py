@@ -873,6 +873,410 @@ def index():
     )
 
 
+INFRASTRUCTURE_NODE_TYPES = {
+    "server", "vm", "container", "network_device", "service", "storage",
+}
+INFRASTRUCTURE_RELATION_TYPES = {
+    "depends_on", "hosts", "connects_to", "runs_on",
+}
+TOPOLOGY_FIELD_LIMITS = {
+    "name": 120,
+    "hostname": 253,
+    "ip_address": 45,
+    "role": 120,
+    "location": 120,
+    "notes": 1000,
+    "details": 500,
+}
+
+
+def topology_node_input(payload):
+    if not isinstance(payload, dict):
+        return None, "invalid_node"
+
+    values = {}
+    for key, maximum in TOPOLOGY_FIELD_LIMITS.items():
+        if key == "details":
+            continue
+        value = payload.get(key, "")
+        if not isinstance(value, str):
+            return None, "invalid_node"
+        value = value.strip()
+        if len(value) > maximum:
+            return None, "field_too_long"
+        values[key] = value
+
+    node_type = payload.get("node_type")
+    if (
+        not isinstance(node_type, str)
+        or node_type not in INFRASTRUCTURE_NODE_TYPES
+    ):
+        return None, "invalid_node_type"
+    if not values["name"]:
+        return None, "name_required"
+    if values["ip_address"]:
+        try:
+            ipaddress.ip_address(values["ip_address"])
+        except ValueError:
+            return None, "invalid_ip_address"
+
+    values["node_type"] = node_type
+    return values, None
+
+
+def topology_endpoint_input(payload, prefix):
+    kind = payload.get(f"{prefix}_type")
+    raw_id = payload.get(f"{prefix}_id")
+    if not isinstance(kind, str) or kind not in {"client", "node"}:
+        return None
+    try:
+        entity_id = int(raw_id)
+    except (TypeError, ValueError):
+        return None
+    if entity_id < 1:
+        return None
+    return kind, entity_id
+
+
+@app.route("/infrastructure")
+@login_required
+@role_required(
+    ROLE_ADMINISTRATOR,
+    ROLE_OPERATOR,
+    ROLE_VIEWER,
+    permission="clients.view",
+)
+def infrastructure_page():
+    return render_template(
+        "infrastructure.html",
+        csrf_token=get_csrf_token(),
+        user_role=current_user_role(),
+        can_manage=(
+            current_user_role() == ROLE_ADMINISTRATOR
+            and "infrastructure.manage" in current_user_permissions()
+        ),
+        **permission_ui_context(),
+    )
+
+
+@app.route("/api/infrastructure/topology")
+@login_required
+@role_required(
+    ROLE_ADMINISTRATOR,
+    ROLE_OPERATOR,
+    ROLE_VIEWER,
+    permission="clients.view",
+)
+def infrastructure_topology():
+    connection = get_connection()
+    try:
+        clients = connection.execute(
+            """
+            SELECT id, hostname, ip, os, last_seen, enabled
+            FROM clients
+            ORDER BY hostname COLLATE NOCASE
+            """
+        ).fetchall()
+        manual_nodes = connection.execute(
+            """
+            SELECT id, name, node_type, hostname, ip_address, role,
+                   location, notes, created_at, updated_at
+            FROM infrastructure_nodes
+            ORDER BY name COLLATE NOCASE
+            """
+        ).fetchall()
+        relation_rows = connection.execute(
+            """
+            SELECT id, source_node_id, source_client_id,
+                   target_node_id, target_client_id, relation_type, details
+            FROM infrastructure_relations
+            ORDER BY id
+            """
+        ).fetchall()
+
+        nodes = [
+            {
+                "id": f"client:{row['id']}",
+                "entity_type": "client",
+                "entity_id": row["id"],
+                "name": row["hostname"],
+                "node_type": "client",
+                "hostname": row["hostname"],
+                "ip_address": row["ip"] or "",
+                "role": row["os"] or "",
+                "location": "",
+                "status": (
+                    classify_health_client(row["last_seen"])
+                    if row["enabled"] else "disabled"
+                ),
+                "editable": False,
+            }
+            for row in clients
+        ]
+        nodes.extend(
+            {
+                "id": f"node:{row['id']}",
+                "entity_type": "node",
+                "entity_id": row["id"],
+                "name": row["name"],
+                "node_type": row["node_type"],
+                "hostname": row["hostname"],
+                "ip_address": row["ip_address"],
+                "role": row["role"],
+                "location": row["location"],
+                "notes": row["notes"],
+                "updated_at": row["updated_at"],
+                "status": "unknown",
+                "editable": True,
+            }
+            for row in manual_nodes
+        )
+        relations = [
+            {
+                "id": row["id"],
+                "source": {
+                    "type": "node" if row["source_node_id"] else "client",
+                    "id": row["source_node_id"] or row["source_client_id"],
+                },
+                "target": {
+                    "type": "node" if row["target_node_id"] else "client",
+                    "id": row["target_node_id"] or row["target_client_id"],
+                },
+                "relation_type": row["relation_type"],
+                "details": row["details"],
+            }
+            for row in relation_rows
+        ]
+        return jsonify({"nodes": nodes, "relations": relations})
+    except sqlite3.Error:
+        logger.exception("Unable to load infrastructure topology.")
+        return jsonify({"error": "topology_load_failed"}), 500
+    finally:
+        connection.close()
+
+
+@app.route("/api/infrastructure/nodes", methods=["POST"])
+@login_required
+@role_required(ROLE_ADMINISTRATOR)
+@role_required(permission="infrastructure.manage")
+@csrf_required
+def create_infrastructure_node():
+    values, error = topology_node_input(request.get_json(silent=True))
+    if error:
+        return jsonify({"error": error}), 400
+
+    now = datetime.now(timezone.utc).isoformat()
+    connection = get_connection()
+    try:
+        cursor = connection.execute(
+            """
+            INSERT INTO infrastructure_nodes (
+                name, node_type, hostname, ip_address, role, location,
+                notes, created_at, updated_at, created_by
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                values["name"], values["node_type"], values["hostname"],
+                values["ip_address"], values["role"], values["location"],
+                values["notes"], now, now, current_user_id(),
+            ),
+        )
+        node_id = cursor.lastrowid
+        audit_log(
+            connection, "user", current_user_id(),
+            "infrastructure.node.create", str(node_id),
+        )
+        connection.commit()
+        return jsonify({"id": node_id}), 201
+    except sqlite3.Error:
+        connection.rollback()
+        logger.exception("Unable to create infrastructure node.")
+        return jsonify({"error": "topology_save_failed"}), 500
+    finally:
+        connection.close()
+
+
+@app.route("/api/infrastructure/nodes/<int:node_id>", methods=["PUT", "DELETE"])
+@login_required
+@role_required(ROLE_ADMINISTRATOR)
+@role_required(permission="infrastructure.manage")
+@csrf_required
+def update_or_delete_infrastructure_node(node_id):
+    connection = get_connection()
+    try:
+        existing = connection.execute(
+            "SELECT id FROM infrastructure_nodes WHERE id = ?",
+            (node_id,),
+        ).fetchone()
+        if existing is None:
+            return jsonify({"error": "node_not_found"}), 404
+
+        if request.method == "DELETE":
+            connection.execute(
+                """
+                DELETE FROM infrastructure_relations
+                WHERE source_node_id = ? OR target_node_id = ?
+                """,
+                (node_id, node_id),
+            )
+            connection.execute(
+                "DELETE FROM infrastructure_nodes WHERE id = ?",
+                (node_id,),
+            )
+            audit_log(
+                connection, "user", current_user_id(),
+                "infrastructure.node.delete", str(node_id),
+            )
+        else:
+            values, error = topology_node_input(request.get_json(silent=True))
+            if error:
+                return jsonify({"error": error}), 400
+            connection.execute(
+                """
+                UPDATE infrastructure_nodes
+                SET name = ?, node_type = ?, hostname = ?, ip_address = ?,
+                    role = ?, location = ?, notes = ?, updated_at = ?
+                WHERE id = ?
+                """,
+                (
+                    values["name"], values["node_type"], values["hostname"],
+                    values["ip_address"], values["role"], values["location"],
+                    values["notes"], datetime.now(timezone.utc).isoformat(),
+                    node_id,
+                ),
+            )
+            audit_log(
+                connection, "user", current_user_id(),
+                "infrastructure.node.update", str(node_id),
+            )
+        connection.commit()
+        return jsonify({"status": "saved"})
+    except sqlite3.Error:
+        connection.rollback()
+        logger.exception(
+            "Unable to change infrastructure node %s.", node_id
+        )
+        return jsonify({"error": "topology_save_failed"}), 500
+    finally:
+        connection.close()
+
+
+@app.route("/api/infrastructure/relations", methods=["POST"])
+@login_required
+@role_required(ROLE_ADMINISTRATOR)
+@role_required(permission="infrastructure.manage")
+@csrf_required
+def create_infrastructure_relation():
+    payload = request.get_json(silent=True)
+    if not isinstance(payload, dict):
+        return jsonify({"error": "invalid_relation"}), 400
+    source = topology_endpoint_input(payload, "source")
+    target = topology_endpoint_input(payload, "target")
+    relation_type = payload.get("relation_type")
+    details = payload.get("details", "")
+    if (
+        source is None
+        or target is None
+        or source == target
+        or not isinstance(relation_type, str)
+        or relation_type not in INFRASTRUCTURE_RELATION_TYPES
+        or not isinstance(details, str)
+        or len(details.strip()) > TOPOLOGY_FIELD_LIMITS["details"]
+    ):
+        return jsonify({"error": "invalid_relation"}), 400
+
+    connection = get_connection()
+    try:
+        for kind, entity_id in (source, target):
+            table = "clients" if kind == "client" else "infrastructure_nodes"
+            exists = connection.execute(
+                f"SELECT id FROM {table} WHERE id = ?",
+                (entity_id,),
+            ).fetchone()
+            if exists is None:
+                return jsonify({"error": "topology_endpoint_not_found"}), 404
+
+        source_node_id = source[1] if source[0] == "node" else None
+        source_client_id = source[1] if source[0] == "client" else None
+        target_node_id = target[1] if target[0] == "node" else None
+        target_client_id = target[1] if target[0] == "client" else None
+        duplicate = connection.execute(
+            """
+            SELECT id FROM infrastructure_relations
+            WHERE COALESCE(source_node_id, 0) = ?
+              AND COALESCE(source_client_id, 0) = ?
+              AND COALESCE(target_node_id, 0) = ?
+              AND COALESCE(target_client_id, 0) = ?
+              AND relation_type = ?
+            """,
+            (
+                source_node_id or 0, source_client_id or 0,
+                target_node_id or 0, target_client_id or 0,
+                relation_type,
+            ),
+        ).fetchone()
+        if duplicate is not None:
+            return jsonify({"error": "relation_exists"}), 409
+
+        cursor = connection.execute(
+            """
+            INSERT INTO infrastructure_relations (
+                source_node_id, source_client_id, target_node_id,
+                target_client_id, relation_type, details, created_at,
+                created_by
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                source_node_id, source_client_id, target_node_id,
+                target_client_id, relation_type, details.strip(),
+                datetime.now(timezone.utc).isoformat(), current_user_id(),
+            ),
+        )
+        audit_log(
+            connection, "user", current_user_id(),
+            "infrastructure.relation.create", str(cursor.lastrowid),
+        )
+        connection.commit()
+        return jsonify({"id": cursor.lastrowid}), 201
+    except sqlite3.Error:
+        connection.rollback()
+        logger.exception("Unable to create infrastructure relation.")
+        return jsonify({"error": "topology_save_failed"}), 500
+    finally:
+        connection.close()
+
+
+@app.route("/api/infrastructure/relations/<int:relation_id>", methods=["DELETE"])
+@login_required
+@role_required(ROLE_ADMINISTRATOR)
+@role_required(permission="infrastructure.manage")
+@csrf_required
+def delete_infrastructure_relation(relation_id):
+    connection = get_connection()
+    try:
+        cursor = connection.execute(
+            "DELETE FROM infrastructure_relations WHERE id = ?",
+            (relation_id,),
+        )
+        if cursor.rowcount != 1:
+            connection.rollback()
+            return jsonify({"error": "relation_not_found"}), 404
+        audit_log(
+            connection, "user", current_user_id(),
+            "infrastructure.relation.delete", str(relation_id),
+        )
+        connection.commit()
+        return jsonify({"status": "saved"})
+    except sqlite3.Error:
+        connection.rollback()
+        logger.exception(
+            "Unable to delete infrastructure relation %s.", relation_id
+        )
+        return jsonify({"error": "topology_save_failed"}), 500
+    finally:
+        connection.close()
+
+
 @app.route("/health")
 @login_required
 @role_required(
