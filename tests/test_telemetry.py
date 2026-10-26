@@ -222,7 +222,13 @@ def system_snapshot(**overrides):
         "fans": [{"name": "fan1", "rpm": 1200}],
         "services": {
             "available": True,
-            "items": [{"name": "ssh.service", "state": "active"}],
+            "items": [{
+                "name": "ssh.service",
+                "state": "active",
+                "substate": "running",
+                "restarts": 1,
+                "runtime_seconds": 3600,
+            }],
         },
         "containers": {
             "available": True,
@@ -230,9 +236,29 @@ def system_snapshot(**overrides):
                 {
                     "runtime": "docker",
                     "name": "lums",
-                    "state": "running",
+                    "state": "up",
                 }
             ],
+        },
+        "security_events": {
+            "ssh_available": True,
+            "ssh_failed_24h": 2,
+            "ssh_last_failed_at": "2026-10-26T10:00:00+00:00",
+            "journal_available": True,
+            "journal_errors_1h": 1,
+            "journal_warnings_1h": 3,
+            "login_history_available": True,
+            "login_events": [
+                {
+                    "timestamp": "2026-10-26T10:15:00+00:00",
+                    "action": "login",
+                }
+            ],
+            "boot_history_available": True,
+            "boot_history": [{
+                "started_at": "2026-10-26T08:00:00+00:00",
+                "ended_at": "2026-10-26T10:30:00+00:00",
+            }],
         },
     }
     snapshot.update(overrides)
@@ -697,8 +723,12 @@ def test_system_snapshot_is_validated_stored_and_exposed_with_rates(
     assert interface["name"] == "eth0"
     assert interface["rx_bytes_per_second"] > 0
     assert interface["tx_bytes_per_second"] > 0
-    assert entry["system"]["services"]["items"][0]["state"] == "active"
+    service = entry["system"]["services"]["items"][0]
+    assert service["state"] == "active"
+    assert service["restarts"] == 1
+    assert service["runtime_seconds"] == 3600
     assert entry["system"]["containers"]["items"][0]["name"] == "lums"
+    assert entry["system"]["security_events"]["ssh_failed_24h"] == 2
     assert entry["system_age_seconds"] is not None
 
 
@@ -731,6 +761,19 @@ def test_telemetry_rejects_invalid_system_snapshots(telemetry_env, system):
         ).fetchone()[0] == 0
     finally:
         connection.close()
+
+
+def test_telemetry_accepts_legacy_system_snapshot(telemetry_env):
+    system = system_snapshot()
+    system.pop("security_events")
+    system["services"]["items"] = [
+        {"name": "ssh.service", "state": "active"}
+    ]
+    system["containers"]["items"][0]["state"] = "running"
+
+    response = post_sample(telemetry_env["app"].test_client(), system=system)
+
+    assert response.status_code == 200
 
 
 def test_overview_requires_clients_view_permission(telemetry_env):

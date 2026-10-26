@@ -181,6 +181,27 @@
             data-reachable="{{ tr('Reachable') }}"
             data-unreachable="{{ tr('Unreachable') }}"
             data-unknown="{{ tr('Unknown') }}"
+            data-container-up="{{ tr('Container up') }}"
+            data-container-stopped="{{ tr('Container stopped') }}"
+            data-container-unhealthy="{{ tr('Container unhealthy') }}"
+            data-container-unknown="{{ tr('Container state unknown') }}"
+            data-journal-unavailable="{{ tr('Journal access is unavailable. Grant the telemetry service read access to the system journal to enable event summaries.') }}"
+            data-ssh-unavailable="{{ tr('SSH event data is unavailable.') }}"
+            data-login-unavailable="{{ tr('Login history is unavailable.') }}"
+            data-boot-unavailable="{{ tr('Reboot history is unavailable.') }}"
+            data-security-no-data="{{ tr('Update the telemetry agent to enable security and event summaries.') }}"
+            data-resource-high="{{ tr('CPU or RAM utilization is at least 90%.') }}"
+            data-resource-ok="{{ tr('No high resource usage detected.') }}"
+            data-cpu-label="{{ tr('CPU utilization') }}"
+            data-memory-label="{{ tr('Memory utilization') }}"
+            data-time-label="{{ tr('Time') }}"
+            data-event-label="{{ tr('Event') }}"
+            data-login-label="{{ tr('Login') }}"
+            data-logout-label="{{ tr('Logout') }}"
+            data-boot-started-label="{{ tr('Boot started') }}"
+            data-last-entry-label="{{ tr('Last journal entry') }}"
+            data-no-login-events="{{ tr('No login events reported.') }}"
+            data-no-boot-history="{{ tr('No reboot history reported.') }}"
             data-services="{{ tr('Services') }}"
             data-containers="{{ tr('Containers') }}"
             data-runtime="{{ tr('Runtime') }}"
@@ -243,9 +264,9 @@
                 <h3 id="services-monitor-heading">{{ tr("Services and containers") }}</h3>
                 <div class="services-monitor-grid">
                     <div class="table-container">
-                        <h4>{{ tr("Services") }}</h4>
+                        <h4>{{ tr("Selected services") }}</h4>
                         <table class="monitor-table">
-                            <thead><tr><th>{{ tr("Name") }}</th><th>{{ tr("State") }}</th></tr></thead>
+                                <thead><tr><th>{{ tr("Name") }}</th><th>{{ tr("State") }}</th><th>{{ tr("Runtime") }}</th><th>{{ tr("Restarts") }}</th></tr></thead>
                             <tbody id="system-service-body"></tbody>
                         </table>
                     </div>
@@ -258,12 +279,45 @@
                     </div>
                 </div>
             </section>
+
+            <section class="monitor-section" aria-labelledby="security-monitor-heading">
+                <h3 id="security-monitor-heading">{{ tr("Security and events") }}</h3>
+                <div class="resource-alert" id="resource-alert" role="status" aria-live="polite"></div>
+                <p id="security-monitor-status" role="status" aria-live="polite"></p>
+                <dl class="security-summary-grid">
+                    <div><dt>{{ tr("Failed SSH logins (24 h, max 500 records)") }}</dt><dd id="security-ssh-failures">…</dd></div>
+                    <div><dt>{{ tr("Last failed SSH login") }}</dt><dd id="security-ssh-last">…</dd></div>
+                    <div><dt>{{ tr("Journal errors (1 h, max 500 records)") }}</dt><dd id="security-journal-errors">…</dd></div>
+                    <div><dt>{{ tr("Journal warnings (1 h, max 500 records)") }}</dt><dd id="security-journal-warnings">…</dd></div>
+                </dl>
+                <div class="services-monitor-grid event-history-grid">
+                    <div class="table-container">
+                        <h4>{{ tr("Recent login history") }}</h4>
+                        <table class="monitor-table">
+                            <thead><tr><th>{{ tr("Time") }}</th><th>{{ tr("Event") }}</th></tr></thead>
+                            <tbody id="security-login-body"></tbody>
+                        </table>
+                    </div>
+                    <div class="table-container">
+                        <h4>{{ tr("Recent reboot history") }}</h4>
+                        <table class="monitor-table">
+                            <thead><tr><th>{{ tr("Boot started") }}</th><th>{{ tr("Last journal entry") }}</th></tr></thead>
+                            <tbody id="security-boot-body"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
         </section>
         <section class="panel" style="margin-top: 24px;">
             <div class="panel-header">
                 <div>
                     <h2>{{ tr("Backup storage") }}</h2>
                     <p>{{ tr("Status:") }} {{ tr(backup_status|capitalize) }}</p>
+                    {% if latest_backup_run %}
+                    <p>{{ tr("Last successful backup run:") }} {{ latest_backup_run }}</p>
+                    {% else %}
+                    <p>{{ tr("No successful backup run is recorded.") }}</p>
+                    {% endif %}
                     {% if latest_backup %}
                     <p>{{ tr("Latest backup:") }} {{ latest_backup.created_at }} · {{ latest_backup.size_bytes }} {{ tr("bytes") }}</p>
                     {% elif backup_status == "empty" %}

@@ -7587,7 +7587,8 @@ html[data-theme="admin"] .theme-symbol::before {
 }
 
 .system-metric-grid,
-.connectivity-grid {
+.connectivity-grid,
+.security-summary-grid {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 0 22px;
@@ -7595,14 +7596,16 @@ html[data-theme="admin"] .theme-symbol::before {
 }
 
 .system-metric-grid > div,
-.connectivity-grid > div {
+.connectivity-grid > div,
+.security-summary-grid > div {
     min-width: 0;
     padding: 10px 0;
     border-bottom: 1px solid var(--border-color, rgba(127, 127, 127, 0.25));
 }
 
 .system-metric-grid dt,
-.connectivity-grid dt {
+.connectivity-grid dt,
+.security-summary-grid dt {
     margin-bottom: 4px;
     color: inherit;
     font-size: 0.88rem;
@@ -7610,7 +7613,8 @@ html[data-theme="admin"] .theme-symbol::before {
 }
 
 .system-metric-grid dd,
-.connectivity-grid dd {
+.connectivity-grid dd,
+.security-summary-grid dd {
     margin: 0;
     font-weight: 650;
     font-variant-numeric: tabular-nums;
@@ -7656,6 +7660,24 @@ html[data-theme="admin"] .theme-symbol::before {
     min-width: 0;
 }
 
+.resource-alert {
+    margin: 12px 0;
+    padding: 10px 12px;
+    border: 1px solid var(--border-color, rgba(127, 127, 127, 0.35));
+    border-radius: 6px;
+    color: var(--success-color, #176b32);
+    font-weight: 650;
+}
+
+.resource-alert.is-high {
+    border-color: var(--danger-color, #b42318);
+    color: var(--danger-color, #b42318);
+}
+
+.resource-alert:empty {
+    display: none;
+}
+
 #system-monitor-status:empty {
     display: none;
 }
@@ -7663,6 +7685,7 @@ html[data-theme="admin"] .theme-symbol::before {
 @media (max-width: 760px) {
     .system-metric-grid,
     .connectivity-grid,
+    .security-summary-grid,
     .services-monitor-grid {
         grid-template-columns: minmax(0, 1fr);
     }

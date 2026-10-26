@@ -879,6 +879,7 @@ def index():
 def health_page():
     database_status = "unavailable"
     client_counts = {"total": 0, "online": 0, "unknown": 0, "offline": 0}
+    latest_backup_run = None
 
     connection = None
     try:
@@ -890,6 +891,24 @@ def health_page():
             status = classify_health_client(row["last_seen"])
             client_counts["total"] += 1
             client_counts[status] += 1
+
+        try:
+            backup_run = connection.execute(
+                """
+                SELECT timestamp
+                FROM audit_log
+                WHERE action = 'database.backup.create'
+                    AND result = 'success'
+                ORDER BY timestamp DESC
+                LIMIT 1
+                """
+            ).fetchone()
+            if backup_run is not None:
+                latest_backup_run = backup_run["timestamp"]
+        except sqlite3.Error:
+            logger.warning(
+                "Health dashboard could not query successful backup history."
+            )
 
         database_status = "ok"
     except (sqlite3.Error, OSError, RuntimeError):
@@ -924,6 +943,7 @@ def health_page():
         client_counts=client_counts,
         backup_status=backup_status,
         latest_backup=latest_backup,
+        latest_backup_run=latest_backup_run,
         **permission_ui_context(),
     )
 
@@ -2192,7 +2212,9 @@ def validate_system_snapshot(system):
         "dns_reachable", "internet_reachable", "temperatures", "fans",
         "services", "containers",
     }
-    if not isinstance(system, dict) or set(system) != required:
+    if not isinstance(system, dict) or set(system) not in (
+        required, required | {"security_events"}
+    ):
         return False
 
     loads = system["load_average"]
@@ -2308,7 +2330,11 @@ def validate_system_snapshot(system):
         ):
             return False
 
-    for key, max_items in (("services", 60), ("containers", 60)):
+    legacy_snapshot = "security_events" not in system
+    for key, max_items in (
+        ("services", 60 if legacy_snapshot else 20),
+        ("containers", 60),
+    ):
         collection = system[key]
         if (
             not isinstance(collection, dict)
@@ -2320,11 +2346,28 @@ def validate_system_snapshot(system):
             return False
         for item in collection["items"]:
             if key == "services":
-                if (
-                    not isinstance(item, dict)
-                    or set(item) != {"name", "state"}
-                    or not is_text(item["name"], 128)
-                    or item["state"] not in ("active", "failed", "inactive")
+                if not isinstance(item, dict) or not is_text(item.get("name"), 128):
+                    return False
+                if set(item) == {"name", "state"}:
+                    if item["state"] not in ("active", "failed", "inactive"):
+                        return False
+                elif (
+                    set(item) != {
+                        "name", "state", "substate", "restarts",
+                        "runtime_seconds",
+                    }
+                    or item["state"] not in (
+                        "active", "failed", "inactive", "unknown"
+                    )
+                    or not is_text(item["substate"], 64)
+                    or (
+                        item["restarts"] is not None
+                        and not is_counter(item["restarts"])
+                    )
+                    or (
+                        item["runtime_seconds"] is not None
+                        and not is_counter(item["runtime_seconds"])
+                    )
                 ):
                     return False
             elif (
@@ -2333,8 +2376,68 @@ def validate_system_snapshot(system):
                 or item["runtime"] not in ("docker", "podman")
                 or not is_text(item["name"], 128)
                 or not is_text(item["state"], 64)
+                or (
+                    not legacy_snapshot
+                    and item["state"] not in (
+                        "up", "stopped", "unhealthy", "unknown"
+                    )
+                )
             ):
                 return False
+
+    if legacy_snapshot:
+        try:
+            return len(json.dumps(system, allow_nan=False).encode("utf-8")) <= 32768
+        except (TypeError, ValueError):
+            return False
+
+    events = system["security_events"]
+    if not isinstance(events, dict) or set(events) != {
+        "ssh_available", "ssh_failed_24h", "ssh_last_failed_at",
+        "journal_available", "journal_errors_1h", "journal_warnings_1h",
+        "login_history_available", "login_events",
+        "boot_history_available", "boot_history",
+    }:
+        return False
+    for key in (
+        "ssh_available", "journal_available",
+        "login_history_available", "boot_history_available",
+    ):
+        if not isinstance(events[key], bool):
+            return False
+    for key in (
+        "ssh_failed_24h", "journal_errors_1h", "journal_warnings_1h",
+    ):
+        if not is_counter(events[key]):
+            return False
+    last_ssh = events["ssh_last_failed_at"]
+    if last_ssh is not None and (
+        not is_text(last_ssh, 64) or parse_telemetry_time(last_ssh) is None
+    ):
+        return False
+    login_events = events["login_events"]
+    if not isinstance(login_events, list) or len(login_events) > 20:
+        return False
+    for event in login_events:
+        if (
+            not isinstance(event, dict)
+            or set(event) != {"timestamp", "action"}
+            or not is_text(event["timestamp"], 64)
+            or parse_telemetry_time(event["timestamp"]) is None
+            or event["action"] not in ("login", "logout")
+        ):
+            return False
+    boot_history = events["boot_history"]
+    if not isinstance(boot_history, list) or len(boot_history) > 10:
+        return False
+    for boot in boot_history:
+        if (
+            not isinstance(boot, dict)
+            or set(boot) != {"started_at", "ended_at"}
+            or not is_text(boot["started_at"], 64)
+            or not is_text(boot["ended_at"], 64)
+        ):
+            return False
 
     try:
         return len(json.dumps(system, allow_nan=False).encode("utf-8")) <= 32768

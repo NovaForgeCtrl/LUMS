@@ -5918,7 +5918,10 @@ by the service account. Install the service and timer as
 `/etc/systemd/system/lums-telemetry.service` and
 `/etc/systemd/system/lums-telemetry.timer`.
 
-The service uses `DynamicUser=yes` and runs with restricted privileges.
+The service uses `DynamicUser=yes`, runs with restricted privileges, and is
+added to the `systemd-journal` group for read-only access to system event
+logs. This enables the dashboard's bounded security and login summaries; raw
+log messages are not sent to the server.
 It is a one-shot service scheduled by a separate timer; it does not replace
 the existing LUMS Agent or Watcher.
 
@@ -5937,6 +5940,15 @@ Replace the example URL and token with the actual values for the environment.
 Protect the configuration file so only root can read it, for example with
 mode `0600`. Never commit a real token to source control or share it between
 clients.
+
+Optionally, select systemd service units to report with a comma-separated
+allowlist:
+
+```sh
+LUMS_MONITORED_SERVICES=lums-agent.service,lums-telemetry.service,ssh.service
+```
+
+If unset, the agent uses its built-in list of LUMS, Docker, and SSH services.
 
 If a private certificate authority is required, install its certificate at
 a path readable by the service process, such as

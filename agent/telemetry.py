@@ -6,6 +6,7 @@ import ipaddress
 import math
 import os
 import platform
+import re
 import shutil
 import socket
 import ssl
@@ -15,15 +16,27 @@ import sys
 import time
 import urllib.error
 import urllib.request
+from datetime import datetime, timezone
 from glob import glob
 from pathlib import Path
 from urllib.parse import urlsplit
 
-AGENT_VERSION = "1.2.0"
+AGENT_VERSION = "1.3.0"
 TIMEOUT_SECONDS = 10
 CPU_SAMPLE_INTERVAL = 0.2
 COMMAND_TIMEOUT_SECONDS = 1
 MAX_SYSTEM_PAYLOAD_BYTES = 32768
+MAX_MONITORED_SERVICES = 20
+DEFAULT_MONITORED_SERVICES = (
+    "lums-agent.service",
+    "lums-telemetry.service",
+    "docker.service",
+    "ssh.service",
+    "sshd.service",
+)
+SSH_FAILURE_PATTERN = re.compile(
+    r"(?:failed password|invalid user|authentication failure)", re.IGNORECASE
+)
 
 
 def read_cpu_counters(path="/proc/stat"):
@@ -262,29 +275,101 @@ def run_read_only_command(arguments):
     return result.stdout
 
 
-def read_service_status():
+def configured_service_names(value=None):
+    configured = (
+        os.environ.get("LUMS_MONITORED_SERVICES")
+        if value is None else value
+    )
+    if configured is None:
+        candidates = DEFAULT_MONITORED_SERVICES
+    else:
+        candidates = configured.split(",")
+
+    services = []
+    for candidate in candidates:
+        name = candidate.strip()
+        if (
+            name.endswith(".service")
+            and re.fullmatch(r"[A-Za-z0-9_][A-Za-z0-9_.@:-]{0,119}\.service", name)
+            and name not in services
+        ):
+            services.append(name)
+        if len(services) >= MAX_MONITORED_SERVICES:
+            break
+    return services
+
+
+def read_service_status(uptime_seconds=None):
+    service_names = configured_service_names()
+    if not service_names:
+        return {"available": True, "items": []}
+
     output = run_read_only_command([
-        "systemctl", "list-units", "--type=service", "--all",
-        "--no-legend", "--no-pager",
+        "systemctl", "show", "--no-pager",
+        "--property=Id,ActiveState,SubState,NRestarts,ActiveEnterTimestampMonotonic",
+        *service_names,
     ])
     if output is None:
         return {"available": False, "items": []}
 
     services = []
-    for line in output.splitlines():
-        fields = line.split(maxsplit=4)
-        if len(fields) < 4:
-            continue
-        state = fields[2]
+    fields = {}
+
+    def append_service():
+        if not fields:
+            return
+        name = fields.get("Id")
+        if not name:
+            return
+        state = fields.get("ActiveState", "unknown")
         if state not in ("active", "failed", "inactive"):
-            continue
+            state = "unknown"
+        restarts = None
+        try:
+            restarts = max(0, int(fields["NRestarts"]))
+        except (KeyError, ValueError):
+            pass
+        runtime_seconds = None
+        try:
+            active_since = int(fields["ActiveEnterTimestampMonotonic"]) / 1_000_000
+            if state == "active" and uptime_seconds is not None:
+                runtime_seconds = max(0, int(uptime_seconds - active_since))
+        except (KeyError, TypeError, ValueError):
+            pass
         services.append({
-            "name": fields[0][:128],
+            "name": name[:128],
             "state": state,
+            "substate": fields.get("SubState", "unknown")[:64],
+            "restarts": restarts,
+            "runtime_seconds": runtime_seconds,
         })
-        if len(services) >= 60:
-            break
-    return {"available": True, "items": services}
+
+    for line in output.splitlines():
+        key, separator, value = line.partition("=")
+        if not separator:
+            append_service()
+            fields = {}
+            continue
+        if key == "Id" and "Id" in fields:
+            append_service()
+            fields = {}
+        fields[key] = value
+    append_service()
+
+    by_name = {service["name"]: service for service in services}
+    return {
+        "available": True,
+        "items": [
+            by_name.get(name, {
+                "name": name,
+                "state": "unknown",
+                "substate": "unknown",
+                "restarts": None,
+                "runtime_seconds": None,
+            })
+            for name in service_names
+        ],
+    }
 
 
 def read_container_status():
@@ -292,19 +377,27 @@ def read_container_status():
     available = False
     for runtime in ("docker", "podman"):
         output = run_read_only_command([
-            runtime, "ps", "--all", "--format", "{{.Names}}\t{{.State}}",
+            runtime, "ps", "--all",
+            "--format", "{{.Names}}\t{{.State}}\t{{.Status}}",
         ])
         if output is None:
             continue
         available = True
         for line in output.splitlines():
-            name, separator, state = line.partition("\t")
-            if not separator or not name.strip():
+            fields = line.split("\t", 2)
+            if len(fields) != 3 or not fields[0].strip():
                 continue
+            name, runtime_state, status = fields
+            if "unhealthy" in status.lower():
+                state = "unhealthy"
+            elif runtime_state.strip().lower() == "running":
+                state = "up"
+            else:
+                state = "stopped"
             containers.append({
                 "runtime": runtime,
                 "name": name.strip()[:128],
-                "state": state.strip()[:64],
+                "state": state,
             })
             if len(containers) >= 60:
                 break
@@ -337,6 +430,124 @@ def read_network_reachability(gateway, dns_servers):
         "gateway_reachable": gateway_reachable,
         "dns_reachable": dns_reachable,
         "internet_reachable": internet_reachable,
+    }
+
+
+def read_journal_entries(arguments):
+    output = run_read_only_command(arguments)
+    if output is None:
+        return None
+    entries = []
+    for line in output.splitlines():
+        try:
+            entry = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        if isinstance(entry, dict):
+            entries.append(entry)
+    return entries
+
+
+def journal_timestamp(entry):
+    try:
+        value = int(entry["__REALTIME_TIMESTAMP"]) / 1_000_000
+        return datetime.fromtimestamp(value, timezone.utc).isoformat()
+    except (KeyError, TypeError, ValueError, OSError, OverflowError):
+        return None
+
+
+def parse_boot_timestamp(value):
+    match = re.search(r"\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}", value)
+    if not match:
+        return None
+    try:
+        parsed = datetime.strptime(match.group(), "%Y-%m-%d %H:%M:%S")
+    except ValueError:
+        return None
+    return parsed.replace(tzinfo=timezone.utc).isoformat()
+
+
+def read_security_events():
+    ssh_entries = read_journal_entries([
+        "journalctl", "--since=24 hours ago", "--no-pager", "--output=json",
+        "--lines=500", "_COMM=sshd",
+    ])
+    failed_ssh = []
+    for entry in ssh_entries or []:
+        message = entry.get("MESSAGE")
+        if isinstance(message, str) and SSH_FAILURE_PATTERN.search(message):
+            timestamp = journal_timestamp(entry)
+            if timestamp:
+                failed_ssh.append(timestamp)
+
+    journal_entries = read_journal_entries([
+        "journalctl", "--since=1 hour ago", "--no-pager", "--output=json",
+        "--lines=500", "PRIORITY=0..4",
+    ])
+    error_count = 0
+    warning_count = 0
+    for entry in journal_entries or []:
+        try:
+            priority = int(entry.get("PRIORITY"))
+        except (TypeError, ValueError):
+            continue
+        if 0 <= priority <= 3:
+            error_count += 1
+        elif priority == 4:
+            warning_count += 1
+
+    login_entries = read_journal_entries([
+        "journalctl", "--since=24 hours ago", "--no-pager", "--output=json",
+        "--lines=500", "-u", "systemd-logind",
+    ])
+    logins = []
+    for entry in login_entries or []:
+        message = entry.get("MESSAGE")
+        if not isinstance(message, str):
+            continue
+        if message.startswith("New session "):
+            action = "login"
+        elif message.startswith("Removed session "):
+            action = "logout"
+        else:
+            continue
+        timestamp = journal_timestamp(entry)
+        if timestamp:
+            logins.append({"timestamp": timestamp, "action": action})
+    logins = logins[-20:]
+
+    boot_output = run_read_only_command([
+        "journalctl", "--list-boots", "--no-pager", "--utc",
+    ])
+    boots = []
+    for line in (boot_output or "").splitlines():
+        columns = re.match(
+            r"^\s*[+-]?\d+\s+[0-9a-fA-F-]{8,}\s+"
+            r"(.+?\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\s+\S+)\s+"
+            r"(.+?\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\s+\S+)\s*$",
+            line,
+        )
+        if not columns:
+            continue
+        started = parse_boot_timestamp(columns.group(1))
+        ended = parse_boot_timestamp(columns.group(2))
+        if started and ended:
+            boots.append({
+                "started_at": started,
+                "ended_at": ended,
+            })
+
+    return {
+        "ssh_available": ssh_entries is not None,
+        "ssh_failed_24h": len(failed_ssh),
+        "ssh_last_failed_at": failed_ssh[-1] if failed_ssh else None,
+        "journal_available": journal_entries is not None,
+        "journal_errors_1h": error_count,
+        "journal_warnings_1h": warning_count,
+        "login_history_available": login_entries is not None,
+        "login_events": logins,
+        "boot_history_available": boot_output is not None,
+        "boot_history": boots[-10:],
     }
 
 
@@ -396,8 +607,9 @@ def read_system_snapshot():
         **read_network_reachability(gateway, dns_servers),
         "temperatures": temperatures,
         "fans": fans,
-        "services": read_service_status(),
+        "services": read_service_status(uptime_seconds),
         "containers": read_container_status(),
+        "security_events": read_security_events(),
     }
 
 

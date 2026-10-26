@@ -77,6 +77,32 @@ def test_health_dashboard_allows_authenticated_user_with_permission(
         )
         """
     )
+    connection.execute(
+        """
+        CREATE TABLE audit_log (
+            id INTEGER PRIMARY KEY,
+            timestamp TEXT NOT NULL,
+            actor_type TEXT NOT NULL,
+            actor_id TEXT,
+            action TEXT NOT NULL,
+            target TEXT,
+            result TEXT NOT NULL,
+            details TEXT
+        )
+        """
+    )
+    connection.executemany(
+        """
+        INSERT INTO audit_log (
+            timestamp, actor_type, actor_id, action, target, result
+        ) VALUES (?, 'system', NULL, 'database.backup.create', 'backup.db', ?)
+        """,
+        [
+            ("2026-10-26T10:00:00+00:00", "success"),
+            ("2026-10-26T11:00:00+00:00", "failed"),
+            ("2026-10-26T10:30:00+00:00", "success"),
+        ],
+    )
     connection.commit()
     connection.close()
 
@@ -104,6 +130,7 @@ def test_health_dashboard_allows_authenticated_user_with_permission(
     assert b'lums-sidebar-link is-active' in response.data
     assert b'aria-current="page"' in response.data
     assert b'Systemstatus' in response.data or b'Health' in response.data
+    assert b"2026-10-26T10:30:00+00:00" in response.data
 
 
 def test_health_dashboard_denies_authenticated_user_without_permission(

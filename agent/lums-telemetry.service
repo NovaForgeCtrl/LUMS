@@ -8,6 +8,7 @@ Type=oneshot
 EnvironmentFile=-/etc/default/lums-agent
 ExecStart=/usr/bin/python3 /usr/local/lib/lums-telemetry/telemetry.py
 DynamicUser=yes
+SupplementaryGroups=systemd-journal
 NoNewPrivileges=yes
 PrivateTmp=yes
 ProtectSystem=strict

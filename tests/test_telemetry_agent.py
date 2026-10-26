@@ -2,6 +2,7 @@ import importlib.util
 import json
 import ssl
 import tempfile
+import time
 from pathlib import Path
 from unittest.mock import patch
 
@@ -232,6 +233,142 @@ class TelemetryAgentTests(unittest.TestCase):
             )
             self.assertEqual(agent.read_default_gateway(str(route)), "192.168.1.1")
             self.assertEqual(agent.read_dns_servers(str(resolv)), ["192.0.2.53"])
+
+    def test_service_status_is_limited_to_configured_units(self):
+        output = (
+            "Id=ssh.service\n"
+            "ActiveState=active\n"
+            "SubState=running\n"
+            "NRestarts=2\n"
+            "ActiveEnterTimestampMonotonic=2000000\n"
+            "Id=docker.service\n"
+            "ActiveState=failed\n"
+            "SubState=failed\n"
+            "NRestarts=4\n"
+            "ActiveEnterTimestampMonotonic=0\n"
+        )
+        with (
+            patch.object(
+                agent, "configured_service_names",
+                return_value=["ssh.service", "docker.service"],
+            ),
+            patch.object(agent, "run_read_only_command", return_value=output),
+        ):
+            status = agent.read_service_status(uptime_seconds=3600)
+
+        self.assertEqual(
+            status["items"],
+            [
+                {
+                    "name": "ssh.service",
+                    "state": "active",
+                    "substate": "running",
+                    "restarts": 2,
+                    "runtime_seconds": 3598,
+                },
+                {
+                    "name": "docker.service",
+                    "state": "failed",
+                    "substate": "failed",
+                    "restarts": 4,
+                    "runtime_seconds": None,
+                },
+            ],
+        )
+
+    def test_service_configuration_rejects_unit_options(self):
+        self.assertEqual(
+            agent.configured_service_names(
+                "ssh.service, --all.service, /tmp/evil.service, ssh.service"
+            ),
+            ["ssh.service"],
+        )
+
+    def test_container_status_normalizes_up_stopped_and_unhealthy(self):
+        outputs = iter([
+            (
+                "healthy\t running \tUp 2 minutes (healthy)\n"
+                "bad\trunning\tUp 1 minute (unhealthy)\n"
+                "stopped\texited\tExited (0) 2 hours ago\n"
+            ),
+            None,
+        ])
+        with patch.object(
+            agent, "run_read_only_command", side_effect=lambda _args: next(outputs)
+        ):
+            status = agent.read_container_status()
+
+        self.assertEqual(
+            [item["state"] for item in status["items"]],
+            ["up", "unhealthy", "stopped"],
+        )
+
+    def test_security_events_expose_aggregates_not_log_contents(self):
+        now_micros = int(time.time() * 1_000_000)
+        entries = [
+            {
+                "__REALTIME_TIMESTAMP": str(now_micros),
+                "_COMM": "sshd",
+                "MESSAGE": "Failed password for private-user from 192.0.2.8",
+                "PRIORITY": "3",
+            },
+            {
+                "__REALTIME_TIMESTAMP": str(now_micros),
+                "_SYSTEMD_UNIT": "systemd-logind.service",
+                "MESSAGE": "New session 42 of user private-user.",
+                "PRIORITY": "6",
+            },
+            {
+                "__REALTIME_TIMESTAMP": str(now_micros),
+                "MESSAGE": "A warning",
+                "PRIORITY": "4",
+            },
+        ]
+        output = "\n".join(json.dumps(entry) for entry in entries)
+        boots = (
+            "IDX BOOT ID                          FIRST ENTRY                 LAST ENTRY\n"
+            " -1 abcdef0123456789 Mon 2026-10-25 08:00:00 UTC  Mon 2026-10-25 09:00:00 UTC\n"
+            "  0 fedcba9876543210 Mon 2026-10-26 08:00:00 UTC  Mon 2026-10-26 10:00:00 UTC\n"
+        )
+
+        def command_result(arguments):
+            if "--list-boots" in arguments:
+                return boots
+            if "_COMM=sshd" in arguments:
+                return "\n".join(
+                    json.dumps(entry)
+                    for entry in entries if entry.get("_COMM") == "sshd"
+                )
+            if "PRIORITY=0..4" in arguments:
+                return "\n".join(
+                    json.dumps(entry)
+                    for entry in entries
+                    if int(entry.get("PRIORITY", 7)) <= 4
+                )
+            if "-u" in arguments:
+                return "\n".join(
+                    json.dumps(entry)
+                    for entry in entries
+                    if entry.get("_SYSTEMD_UNIT") == "systemd-logind.service"
+                )
+            return output
+
+        with patch.object(
+            agent, "run_read_only_command", side_effect=command_result
+        ):
+            events = agent.read_security_events()
+
+        self.assertEqual(events["ssh_failed_24h"], 1)
+        self.assertEqual(events["journal_errors_1h"], 1)
+        self.assertEqual(events["journal_warnings_1h"], 1)
+        self.assertEqual(events["login_events"][0]["action"], "login")
+        self.assertEqual(len(events["boot_history"]), 2)
+        self.assertEqual(
+            events["boot_history"][-1]["ended_at"],
+            "2026-10-26T10:00:00+00:00",
+        )
+        self.assertNotIn("private-user", json.dumps(events))
+        self.assertNotIn("192.0.2.8", json.dumps(events))
 
     def test_build_sample_includes_valid_network_counters(self):
         memory = {
