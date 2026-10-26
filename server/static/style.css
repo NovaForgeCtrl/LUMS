@@ -827,7 +827,6 @@ tr:hover {
         width: 100%;
     }
 
-
     .stats-grid {
 
         grid-template-columns: 1fr;
@@ -7855,5 +7854,143 @@ html[data-theme="admin"] .theme-symbol::before {
 
     .integration-status-grid {
         grid-template-columns: minmax(0, 1fr);
+    }
+}
+
+.lums-sidebar-editor {
+    margin: 8px 4px 0;
+    padding: 14px 12px;
+    border: 1px solid var(--lums-sidebar-border);
+    border-radius: 10px;
+    background: rgba(255, 255, 255, .05);
+}
+.lums-sidebar-editor[hidden],
+.system-monitor-diagnostics[hidden] {
+    display: none !important;
+}
+.lums-sidebar-editor h2 {
+    margin: 0 0 10px;
+    color: var(--lums-sidebar-muted);
+    font-size: 12px;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+}
+.lums-sidebar-editor ol {
+    display: grid;
+    gap: 8px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+.lums-sidebar-editor li,
+.lums-sidebar-editor li label,
+.lums-sidebar-order-controls {
+    display: flex;
+    align-items: center;
+}
+.lums-sidebar-editor li {
+    justify-content: space-between;
+    gap: 8px;
+    color: var(--lums-sidebar-text);
+    font-size: 13px;
+}
+.lums-sidebar-editor li label {
+    gap: 8px;
+    min-width: 0;
+}
+.lums-sidebar-order-controls {
+    gap: 4px;
+}
+.lums-sidebar-order-controls button,
+.lums-sidebar-editor-actions button {
+    min-width: 30px;
+    min-height: 30px;
+    border: 1px solid var(--lums-sidebar-border);
+    border-radius: 6px;
+    color: var(--lums-sidebar-text);
+    background: rgba(255, 255, 255, .07);
+    cursor: pointer;
+}
+.lums-sidebar-order-controls button:disabled {
+    opacity: .45;
+    cursor: not-allowed;
+}
+.lums-sidebar-editor-actions {
+    display: grid;
+    gap: 7px;
+    margin-top: 12px;
+}
+.lums-sidebar-editor-actions button {
+    width: 100%;
+    padding: 5px 7px;
+    font: inherit;
+    font-size: 12px;
+}
+.lums-sidebar-editor-actions p {
+    margin: 0;
+    color: var(--lums-sidebar-muted);
+    font-size: 12px;
+}
+.monitoring-only #telemetry-dashboard,
+.monitoring-only #dashboard-customizer {
+    display: none;
+}
+.monitoring-only #health-dashboard-grid > :not(#system-monitor):not(.monitoring-client-picker) {
+    display: none;
+}
+.monitoring-client-picker {
+    grid-column: 1 / -1;
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px 14px;
+    margin-bottom: 18px;
+}
+.monitoring-client-picker label {
+    font-weight: 650;
+}
+.monitoring-client-picker select {
+    min-width: min(100%, 280px);
+    padding: 9px 12px;
+    border: 1px solid var(--border-color, rgba(127, 127, 127, .35));
+    border-radius: 8px;
+    color: inherit;
+    background: var(--surface-color, Canvas);
+    font: inherit;
+}
+.monitoring-client-picker p {
+    flex-basis: 100%;
+    margin: 0;
+    opacity: .75;
+    font-size: .9rem;
+}
+.system-monitor-diagnostics {
+    margin: 14px 0;
+    padding: 14px 16px;
+    border: 1px solid var(--border-color, rgba(127, 127, 127, .35));
+    border-top: 3px solid var(--accent-color, #5262a4);
+    border-radius: 8px;
+    background: rgba(127, 127, 127, .07);
+}
+.system-monitor-diagnostics p {
+    margin: 0 0 9px;
+}
+.system-monitor-diagnostics pre {
+    overflow-x: auto;
+    margin: 8px 0 12px;
+    padding: 10px 12px;
+    border-radius: 6px;
+    background: rgba(0, 0, 0, .08);
+}
+.system-monitor-diagnostics code {
+    font-size: .88em;
+}
+@media (max-width: 760px) {
+    .monitoring-client-picker {
+        align-items: stretch;
+        flex-direction: column;
+    }
+    .monitoring-client-picker select {
+        width: 100%;
     }
 }

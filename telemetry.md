@@ -171,7 +171,11 @@ The telemetry agent uses `LUMS_BASE`, `LUMS_TOKEN` and the optional `LUMS_CA_FIL
 
 ## Installation and operation
 
-Inspect the timer and service on a managed Linux client with `systemctl status lums-telemetry.timer` and `systemctl status lums-telemetry.service`. Review recent service logs with `journalctl -u lums-telemetry.service`. An inactive one-shot service between scheduled runs is not necessarily an error; check the timer and recent logs as well.
+The telemetry service is separate from the normal LUMS client. On Debian, first update the LUMS repository checkout on the client and run `sudo bash scripts/install-telemetry-agent.sh` from its root. The installer checks that `/etc/default/lums-agent` defines `LUMS_BASE` and `LUMS_TOKEN`, installs the current collector and systemd units, enables the timer, and sends a test sample. It never prints the token.
+
+Inspect the timer and service with `systemctl status lums-telemetry.timer` and `systemctl status lums-telemetry.service`. Review recent service logs with `journalctl -u lums-telemetry.service -n 30 --no-pager`. An inactive one-shot service between scheduled runs is not necessarily an error; check the timer and recent logs as well.
+
+The `/monitoring` page distinguishes between no samples, basic telemetry without detailed snapshots, and an outdated snapshot, and shows these client-side checks. Do not paste or share the token when troubleshooting.
 
 ## Troubleshooting
 

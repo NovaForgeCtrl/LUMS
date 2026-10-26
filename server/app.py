@@ -880,6 +880,22 @@ def index():
     permission="clients.view",
 )
 def health_page():
+    return render_health_page(monitoring_only=False)
+
+
+@app.route("/monitoring")
+@login_required
+@role_required(
+    ROLE_ADMINISTRATOR,
+    ROLE_OPERATOR,
+    ROLE_VIEWER,
+    permission="clients.view",
+)
+def monitoring_page():
+    return render_health_page(monitoring_only=True)
+
+
+def render_health_page(monitoring_only):
     database_status = "unavailable"
     client_counts = {"total": 0, "online": 0, "unknown": 0, "offline": 0}
     latest_backup_run = None
@@ -942,6 +958,7 @@ def health_page():
         "health.html",
         csrf_token=get_csrf_token(),
         user_role=current_user_role(),
+        monitoring_only=monitoring_only,
         database_status=database_status,
         client_counts=client_counts,
         backup_status=backup_status,

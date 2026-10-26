@@ -3,16 +3,22 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>LUMS — {{ tr('Health Dashboard') }}</title>
+    <title>LUMS — {{ tr('Live system monitoring') if monitoring_only else tr('Health Dashboard') }}</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
-<body class="lums-sidebar-layout">
+<body class="lums-sidebar-layout{% if monitoring_only %} monitoring-only{% endif %}">
     {% include "_sidebar.html" %}
     <main class="container">
         <header class="panel-header">
             <div>
+                {% if monitoring_only %}
+                <h1>{{ tr("Live system monitoring") }}</h1>
+                <p>{{ tr("Live host metrics, network interfaces and service states for the selected client.") }}</p>
+                {% else %}
                 <h1>{{ tr("Health Dashboard") }}</h1>
                 <p>{{ tr("Live system, network and service monitoring for the LUMS host and managed clients.") }}</p>
+                <a class="button-link" href="{{ url_for('monitoring_page') }}">{{ tr("Open live monitoring") }}</a>
+                {% endif %}
             </div>
         </header>
 
@@ -248,9 +254,21 @@
                 </article>
             </div>
         </section>
+        {% if monitoring_only %}
+        <section class="panel monitoring-client-picker">
+            <label for="monitor-client">{{ tr("Client") }}</label>
+            <select id="monitor-client" aria-describedby="system-monitor-client-help"></select>
+            <p id="system-monitor-client-help">{{ tr("Details follow the selected client and refresh every five seconds.") }}</p>
+        </section>
+        {% endif %}
         <section class="panel system-monitor-panel dashboard-widget" id="system-monitor" data-widget-id="system" data-widget-label="{{ tr('Live system monitoring') }}"
             data-no-data="{{ tr('No detailed system data is available for this client.') }}"
+            data-no-samples="{{ tr('No telemetry samples have been received from this client yet.') }}"
+            data-no-samples-help="{{ tr('The standard client agent may be online, but the separate telemetry service is not reporting.') }}"
+            data-snapshot-missing="{{ tr('Basic telemetry is arriving, but this client is not sending detailed system snapshots.') }}"
+            data-snapshot-help="{{ tr('Update the telemetry agent on the Debian client; the detailed snapshot feature may be missing from its installed copy.') }}"
             data-stale="{{ tr('System data is stale. Check whether the telemetry agent is running.') }}"
+            data-stale-help="{{ tr('The last detailed system snapshot is older than two minutes. Check the telemetry timer and its latest service log.') }}"
             data-loading="{{ tr('Waiting for system telemetry.') }}"
             data-cpu="{{ tr('CPU utilization') }}"
             data-memory="{{ tr('Memory utilization') }}"
@@ -312,10 +330,22 @@
             <div class="panel-header">
                 <div>
                     <h2 class="theme-accent-heading">{{ tr("Live system monitoring") }}<span class="theme-symbol" aria-hidden="true"></span></h2>
+                    {% if not monitoring_only %}
                     <p>{{ tr("Details follow the client selected above and refresh every five seconds.") }}</p>
+                    {% endif %}
                 </div>
             </div>
             <p id="system-monitor-status" role="status" aria-live="polite">{{ tr("Waiting for system telemetry.") }}</p>
+            <aside class="system-monitor-diagnostics" id="system-monitor-diagnostics" hidden>
+                <p id="system-monitor-diagnostic-message"></p>
+                <p>{{ tr("On the Debian client, run these checks without displaying its token:") }}</p>
+                <pre><code>sudo systemctl status lums-telemetry.timer
+sudo systemctl start lums-telemetry.service
+sudo journalctl -u lums-telemetry.service -n 30 --no-pager</code></pre>
+                <p>{{ tr("To install or update the collector, run this from the LUMS repository checkout on that client:") }}</p>
+                <pre><code>sudo bash scripts/install-telemetry-agent.sh</code></pre>
+                <p>{{ tr("Confirm that /etc/default/lums-agent contains LUMS_BASE and LUMS_TOKEN. Do not paste or share the token.") }}</p>
+            </aside>
 
             <section class="monitor-section" aria-labelledby="system-summary-heading">
                 <h3 id="system-summary-heading">{{ tr("System overview") }}</h3>
@@ -448,6 +478,7 @@
         </section>
         </div>
     </main>
+    <script src="{{ url_for('static', filename='sidebar.js') }}" defer></script>
     <script src="{{ url_for('static', filename='telemetry.js') }}" defer></script>
 </body>
 </html>
