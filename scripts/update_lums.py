@@ -432,6 +432,50 @@ def check_git(root: Path) -> None:
             f"Expected upstream origin/main, got '{upstream}'."
         )
 
+    check_main_matches_origin(root)
+
+
+def check_main_matches_origin(root: Path) -> None:
+    """Fetch origin/main and require HEAD to match the refreshed remote commit."""
+    run(["git", "-C", str(root), "fetch", "--no-tags", "origin", "main"])
+
+    local_commit = run(
+        ["git", "-C", str(root), "rev-parse", "--verify", "HEAD^{commit}"]
+    ).stdout.strip()
+    remote_commit = run(
+        ["git", "-C", str(root), "rev-parse", "--verify", "origin/main^{commit}"]
+    ).stdout.strip()
+
+    if not local_commit or not remote_commit or local_commit != remote_commit:
+        raise UpdateError(
+            "Local main does not match the freshly fetched origin/main. "
+            "No deployment changes were made."
+        )
+
+
+def check_repository_freshness(root: Path) -> None:
+    """Check branch/upstream and repository freshness without requiring a clean tree."""
+    branch = run(
+        ["git", "-C", str(root), "branch", "--show-current"]
+    ).stdout.strip()
+    if branch != "main":
+        raise UpdateError(
+            f"Expected branch main for repository freshness check, got '{branch}'."
+        )
+
+    upstream = run(
+        [
+            "git", "-C", str(root), "rev-parse",
+            "--abbrev-ref", "--symbolic-full-name", "@{upstream}",
+        ]
+    ).stdout.strip()
+    if upstream != "origin/main":
+        raise UpdateError(
+            f"Expected upstream origin/main, got '{upstream}'."
+        )
+
+    check_main_matches_origin(root)
+
 
 def check_tools() -> None:
     for tool in ("git", "python3", "sudo"):
@@ -474,6 +518,11 @@ def main() -> int:
         action="store_true",
         help="check repository and deployment without changing anything",
     )
+    parser.add_argument(
+        "--check-repository",
+        action="store_true",
+        help="fetch origin/main and compare commits without requiring a clean tree",
+    )
     args = parser.parse_args()
 
     if os.geteuid() == 0:
@@ -486,6 +535,12 @@ def main() -> int:
     try:
         check_tools()
         root = repository_root()
+
+        if args.check_repository:
+            check_repository_freshness(root)
+            print("Repository freshness check passed. No working files were changed.")
+            return 0
+
         check_git(root)
 
         data = inspect_container()

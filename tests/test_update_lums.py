@@ -294,3 +294,168 @@ def test_check_application_rejects_repeated_http_503(monkeypatch):
 
     assert opener.calls == 30
     assert sleeps == [2] * 29
+
+
+def test_check_git_fetches_origin_main_and_accepts_matching_commit(
+    monkeypatch, tmp_path,
+):
+    calls = []
+    commit = "a1" * 20
+
+    def fake_run(command, **kwargs):
+        calls.append(command)
+        if command[-1] == "--porcelain":
+            return type("Result", (), {"stdout": ""})()
+        if "--show-current" in command:
+            return type("Result", (), {"stdout": "main\n"})()
+        if "--symbolic-full-name" in command:
+            return type("Result", (), {"stdout": "origin/main\n"})()
+        if "fetch" in command:
+            return type("Result", (), {"stdout": ""})()
+        if "HEAD^{commit}" in command:
+            return type("Result", (), {"stdout": commit + "\n"})()
+        if "origin/main^{commit}" in command:
+            return type("Result", (), {"stdout": commit + "\n"})()
+        raise AssertionError(f"Unexpected command: {command}")
+
+    monkeypatch.setattr(update_lums, "run", fake_run)
+
+    update_lums.check_git(tmp_path)
+
+    fetch_index = next(i for i, cmd in enumerate(calls) if "fetch" in cmd)
+    head_index = next(
+        i for i, cmd in enumerate(calls) if "HEAD^{commit}" in cmd
+    )
+    remote_index = next(
+        i for i, cmd in enumerate(calls) if "origin/main^{commit}" in cmd
+    )
+    assert fetch_index < head_index < remote_index
+    assert calls[fetch_index][-4:] == ["fetch", "--no-tags", "origin", "main"]
+
+
+def test_check_git_rejects_local_main_behind_or_different_from_remote(
+    monkeypatch, tmp_path,
+):
+    def fake_run(command, **kwargs):
+        if command[-1] == "--porcelain":
+            return type("Result", (), {"stdout": ""})()
+        if "--show-current" in command:
+            return type("Result", (), {"stdout": "main\n"})()
+        if "--symbolic-full-name" in command:
+            return type("Result", (), {"stdout": "origin/main\n"})()
+        if "fetch" in command:
+            return type("Result", (), {"stdout": ""})()
+        if "HEAD^{commit}" in command:
+            return type("Result", (), {"stdout": "a1" * 20})()
+        if "origin/main^{commit}" in command:
+            return type("Result", (), {"stdout": "b2" * 20})()
+        raise AssertionError(f"Unexpected command: {command}")
+
+    monkeypatch.setattr(update_lums, "run", fake_run)
+
+    with pytest.raises(update_lums.UpdateError, match="does not match"):
+        update_lums.check_git(tmp_path)
+
+
+def test_check_git_aborts_when_fetch_fails(monkeypatch, tmp_path):
+    calls = []
+
+    def fake_run(command, **kwargs):
+        calls.append(command)
+        if command[-1] == "--porcelain":
+            return type("Result", (), {"stdout": ""})()
+        if "--show-current" in command:
+            return type("Result", (), {"stdout": "main\n"})()
+        if "--symbolic-full-name" in command:
+            return type("Result", (), {"stdout": "origin/main\n"})()
+        if "fetch" in command:
+            raise update_lums.UpdateError("simulated fetch failure")
+        raise AssertionError("Commit inspection must not run after fetch fails")
+
+    monkeypatch.setattr(update_lums, "run", fake_run)
+
+    with pytest.raises(update_lums.UpdateError, match="fetch failure"):
+        update_lums.check_git(tmp_path)
+
+    assert any("fetch" in command for command in calls)
+    assert not any("HEAD^{commit}" in command for command in calls)
+
+
+def test_check_repository_freshness_fetches_and_accepts_matching_commit(
+    monkeypatch, tmp_path,
+):
+    calls = []
+    commit = "a1" * 20
+
+    def fake_run(command, **kwargs):
+        calls.append(command)
+        if "--show-current" in command:
+            return type("Result", (), {"stdout": "main\n"})()
+        if "--symbolic-full-name" in command:
+            return type("Result", (), {"stdout": "origin/main\n"})()
+        if "fetch" in command:
+            return type("Result", (), {"stdout": ""})()
+        if "HEAD^{commit}" in command:
+            return type("Result", (), {"stdout": commit + "\n"})()
+        if "origin/main^{commit}" in command:
+            return type("Result", (), {"stdout": commit + "\n"})()
+        raise AssertionError(f"Unexpected command: {command}")
+
+    monkeypatch.setattr(update_lums, "run", fake_run)
+    update_lums.check_repository_freshness(tmp_path)
+
+    fetch_index = next(i for i, command in enumerate(calls) if "fetch" in command)
+    head_index = next(i for i, command in enumerate(calls) if "HEAD^{commit}" in command)
+    remote_index = next(
+        i for i, command in enumerate(calls)
+        if "origin/main^{commit}" in command
+    )
+    assert calls[fetch_index][-4:] == ["fetch", "--no-tags", "origin", "main"]
+    assert fetch_index < head_index < remote_index
+    assert not any("--porcelain" in command for command in calls)
+
+
+def test_check_repository_freshness_rejects_different_commit(
+    monkeypatch, tmp_path,
+):
+    def fake_run(command, **kwargs):
+        if "--show-current" in command:
+            return type("Result", (), {"stdout": "main\n"})()
+        if "--symbolic-full-name" in command:
+            return type("Result", (), {"stdout": "origin/main\n"})()
+        if "fetch" in command:
+            return type("Result", (), {"stdout": ""})()
+        if "HEAD^{commit}" in command:
+            return type("Result", (), {"stdout": "a1" * 20})()
+        if "origin/main^{commit}" in command:
+            return type("Result", (), {"stdout": "b2" * 20})()
+        raise AssertionError(f"Unexpected command: {command}")
+
+    monkeypatch.setattr(update_lums, "run", fake_run)
+
+    with pytest.raises(update_lums.UpdateError, match="does not match"):
+        update_lums.check_repository_freshness(tmp_path)
+
+
+def test_check_repository_freshness_aborts_when_fetch_fails(
+    monkeypatch, tmp_path,
+):
+    calls = []
+
+    def fake_run(command, **kwargs):
+        calls.append(command)
+        if "--show-current" in command:
+            return type("Result", (), {"stdout": "main\n"})()
+        if "--symbolic-full-name" in command:
+            return type("Result", (), {"stdout": "origin/main\n"})()
+        if "fetch" in command:
+            raise update_lums.UpdateError("simulated fetch failure")
+        raise AssertionError("Commit inspection must not run after fetch fails")
+
+    monkeypatch.setattr(update_lums, "run", fake_run)
+
+    with pytest.raises(update_lums.UpdateError, match="fetch failure"):
+        update_lums.check_repository_freshness(tmp_path)
+
+    assert any("fetch" in command for command in calls)
+    assert not any("HEAD^{commit}" in command for command in calls)
