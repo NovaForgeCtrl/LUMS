@@ -26,6 +26,10 @@
     <span class="lums-sidebar-icon" aria-hidden="true">⌘</span>
     <span class="lums-sidebar-label">{{ tr("Infrastructure topology") }}</span>
 </a>
+<a href="/alerts" data-nav-id="alerts" class="lums-sidebar-link{% if request.path.startswith('/alerts') %} is-active{% endif %}" {% if request.path.startswith('/alerts') %}aria-current="page"{% endif %}>
+    <span class="lums-sidebar-icon" aria-hidden="true">🔔</span>
+    <span class="lums-sidebar-label">{{ tr("Alerts & Monitoring") }}</span>
+</a>
 {% endif %}
         {% if "users.manage" in user_permissions %}
         <a href="/users" data-nav-id="users" class="lums-sidebar-link{% if request.path == '/users' %} is-active{% endif %}" {% if request.path == '/users' %}aria-current="page"{% endif %}>
