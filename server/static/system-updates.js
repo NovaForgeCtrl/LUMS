@@ -191,7 +191,11 @@ async function requestSystemUpdate() {
                 "Content-Type": "application/json",
                 "X-CSRF-Token": csrfToken,
             },
-            body: "{}",
+            body: JSON.stringify({
+                confirmed: true,
+                target_tag: currentRelease.tag,
+                target_commit: currentRelease.commit,
+            }),
         });
         const data = await response.json();
         if (!response.ok) {

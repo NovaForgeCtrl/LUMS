@@ -1492,6 +1492,568 @@ def host_updater_heartbeat():
     }), 200
 
 
+
+_HOST_UPDATE_STEPS = {
+    "preflight", "backup", "prepare", "switch", "verify", "result",
+    "rollback",
+}
+_HOST_UPDATE_FINAL_STATUSES = {
+    "failed", "rolled_back", "rollback_failed"
+}
+
+
+def _host_updater_auth_error():
+    """Return an API error response unless the dedicated token is valid."""
+    token_file = os.environ.get(
+        "LUMS_HOST_UPDATER_TOKEN_FILE",
+        "/run/secrets/lums_host_updater_token",
+    )
+    try:
+        configured_token = Path(token_file).read_text(
+            encoding="utf-8"
+        ).strip()
+    except OSError:
+        logger.error("Host-updater token file is unavailable")
+        return jsonify({"error": "host_updater_not_configured"}), 503
+
+    if len(configured_token) < 32:
+        logger.error("Host-updater token configuration is invalid")
+        return jsonify({"error": "host_updater_not_configured"}), 503
+
+    authorization = request.headers.get("Authorization", "")
+    scheme, separator, supplied_token = authorization.partition(" ")
+    supplied_token = supplied_token.strip()
+
+    if (
+        not separator
+        or scheme.lower() != "bearer"
+        or not supplied_token
+        or not hmac.compare_digest(
+            hash_client_token(supplied_token),
+            hash_client_token(configured_token),
+        )
+    ):
+        return jsonify({
+            "error": "host_updater_authentication_required"
+        }), 401
+
+    return None
+
+
+def _valid_update_worker_id(value):
+    return (
+        isinstance(value, str)
+        and 1 <= len(value) <= 80
+        and all(char.isalnum() or char in "._-" for char in value)
+    )
+
+
+def _update_job_owned_by(connection, job_id, worker_id):
+    row = connection.execute(
+        """
+        SELECT status, step, details_json
+        FROM system_update_jobs WHERE id = ?
+        """,
+        (job_id,),
+    ).fetchone()
+
+    if row is None:
+        return None, "not_found"
+
+    try:
+        details = json.loads(row["details_json"] or "{}")
+    except (TypeError, ValueError):
+        return None, "invalid_details"
+
+    if not isinstance(details, dict):
+        return None, "invalid_details"
+
+    if details.get("worker_id") != worker_id:
+        return None, "not_owner"
+
+    return (row, details), None
+
+
+@app.route("/api/host-updater/jobs/claim", methods=["POST"])
+def host_updater_claim_job():
+    """Atomically claim one queued job; never execute it in the web process."""
+    auth_error = _host_updater_auth_error()
+    if auth_error:
+        return auth_error
+
+    payload = request.get_json(silent=True)
+    if not isinstance(payload, dict):
+        return jsonify({"error": "invalid_json"}), 400
+
+    worker_id = payload.get("worker_id")
+    if not _valid_update_worker_id(worker_id):
+        return jsonify({"error": "invalid_worker_id"}), 400
+
+    connection = get_connection()
+    try:
+        connection.execute("BEGIN IMMEDIATE")
+
+        existing = connection.execute(
+            """
+            SELECT id FROM system_update_jobs
+            WHERE status IN ('running', 'rolling_back')
+            LIMIT 1
+            """
+        ).fetchone()
+        if existing is not None:
+            connection.rollback()
+            return jsonify({"error": "update_already_active"}), 409
+
+        job = connection.execute(
+            """
+            SELECT id, target_tag, target_commit, details_json
+            FROM system_update_jobs
+            WHERE status = 'queued'
+            ORDER BY id ASC
+            LIMIT 1
+            """
+        ).fetchone()
+
+        if job is None:
+            connection.commit()
+            return "", 204
+
+        try:
+            details = json.loads(job["details_json"] or "{}")
+        except (TypeError, ValueError):
+            details = {}
+
+        if not isinstance(details, dict):
+            connection.rollback()
+            return jsonify({"error": "job_not_approved"}), 409
+
+        approval = details.get("approval")
+        if not isinstance(approval, dict):
+            connection.rollback()
+            return jsonify({"error": "job_not_approved"}), 409
+
+        if (
+            approval.get("confirmed") is not True
+            or not approval.get("approved_by")
+            or not isinstance(approval.get("approved_username"), str)
+            or not approval.get("approved_username")
+            or not isinstance(approval.get("approved_at"), str)
+            or approval.get("target_tag") != job["target_tag"]
+            or approval.get("target_commit") != job["target_commit"]
+        ):
+            connection.rollback()
+            return jsonify({"error": "job_not_approved"}), 409
+
+        now = datetime.now(timezone.utc).isoformat()
+        details.update({
+            "worker_id": worker_id,
+            "claimed_at": now,
+        })
+        progress = [{
+            "at": now,
+            "step": "preflight",
+            "message": "Auftrag atomar übernommen.",
+        }]
+
+        cursor = connection.execute(
+            """
+            UPDATE system_update_jobs
+            SET status = 'running',
+                step = 'preflight',
+                details_json = ?,
+                progress_json = ?,
+                updated_at = ?
+            WHERE id = ? AND status = 'queued'
+            """,
+            (
+                json.dumps(details),
+                json.dumps(progress),
+                now,
+                job["id"],
+            ),
+        )
+
+        if cursor.rowcount != 1:
+            connection.rollback()
+            return jsonify({"error": "claim_conflict"}), 409
+
+        connection.commit()
+        return jsonify({
+            "job_id": job["id"],
+            "target_tag": job["target_tag"],
+            "target_commit": job["target_commit"],
+            "status": "running",
+            "step": "preflight",
+        }), 200
+
+    except sqlite3.Error:
+        connection.rollback()
+        logger.exception("Host-updater could not claim a job")
+        return jsonify({"error": "job_storage_failed"}), 500
+    finally:
+        connection.close()
+
+
+@app.route(
+    "/api/host-updater/jobs/<int:job_id>/progress",
+    methods=["POST"],
+)
+def host_updater_job_progress(job_id):
+    auth_error = _host_updater_auth_error()
+    if auth_error:
+        return auth_error
+
+    payload = request.get_json(silent=True)
+    if not isinstance(payload, dict):
+        return jsonify({"error": "invalid_json"}), 400
+
+    worker_id = payload.get("worker_id")
+    step = payload.get("step")
+    message = payload.get("message", "")
+
+    if not _valid_update_worker_id(worker_id):
+        return jsonify({"error": "invalid_worker_id"}), 400
+    if not isinstance(step, str) or step not in _HOST_UPDATE_STEPS:
+        return jsonify({"error": "invalid_step"}), 400
+    if not isinstance(message, str) or len(message) > 500:
+        return jsonify({"error": "invalid_message"}), 400
+
+    connection = get_connection()
+    try:
+        connection.execute("BEGIN IMMEDIATE")
+        owned, error = _update_job_owned_by(
+            connection, job_id, worker_id
+        )
+        if error == "not_found":
+            connection.rollback()
+            return jsonify({"error": "job_not_found"}), 404
+        if error:
+            connection.rollback()
+            return jsonify({"error": "job_not_owned"}), 409
+
+        row, _details = owned
+        if row["status"] not in {"running", "rolling_back"}:
+            connection.rollback()
+            return jsonify({"error": "invalid_job_state"}), 409
+        if row["status"] == "rolling_back" and step != "rollback":
+            connection.rollback()
+            return jsonify({"error": "rollback_step_required"}), 409
+        if row["status"] == "running" and step == "rollback":
+            connection.rollback()
+            return jsonify({"error": "rollback_must_be_started"}), 409
+
+        # The server enforces the normal update sequence. Repeating the
+        # current step is allowed for progress messages; skipping ahead,
+        # moving backwards, or reporting "result" is not.
+        if row["status"] == "running":
+            next_step = {
+                "preflight": "backup",
+                "backup": "prepare",
+                "prepare": "switch",
+                "switch": "verify",
+                "verify": None,
+            }
+            current_step = row["step"]
+            allowed_steps = {current_step}
+            expected_next = next_step.get(current_step)
+            if expected_next is not None:
+                allowed_steps.add(expected_next)
+
+            if step == "result" or step not in allowed_steps:
+                connection.rollback()
+                return jsonify({"error": "invalid_step_transition"}), 409
+
+        now = datetime.now(timezone.utc).isoformat()
+        try:
+            history = json.loads(
+                connection.execute(
+                    "SELECT progress_json FROM system_update_jobs WHERE id = ?",
+                    (job_id,),
+                ).fetchone()["progress_json"] or "[]"
+            )
+        except (TypeError, ValueError):
+            connection.rollback()
+            return jsonify({"error": "invalid_progress_history"}), 409
+
+        if not isinstance(history, list):
+            connection.rollback()
+            return jsonify({"error": "invalid_progress_history"}), 409
+
+        history.append({
+            "at": now,
+            "step": step,
+            "message": message,
+        })
+
+        cursor = connection.execute(
+            """
+            UPDATE system_update_jobs
+            SET step = ?, progress_json = ?, updated_at = ?
+            WHERE id = ? AND status = ?
+            """,
+            (step, json.dumps(history[-100:]), now, job_id, row["status"]),
+        )
+        if cursor.rowcount != 1:
+            connection.rollback()
+            return jsonify({"error": "job_state_conflict"}), 409
+
+        connection.commit()
+        return jsonify({"status": "ok", "step": step}), 200
+
+    except sqlite3.Error:
+        connection.rollback()
+        logger.exception("Could not record update progress")
+        return jsonify({"error": "job_storage_failed"}), 500
+    finally:
+        connection.close()
+
+
+
+@app.route(
+    "/api/host-updater/jobs/<int:job_id>/rollback",
+    methods=["POST"],
+)
+def host_updater_job_start_rollback(job_id):
+    """Explicitly enter rollback state; this endpoint performs no restore."""
+    auth_error = _host_updater_auth_error()
+    if auth_error:
+        return auth_error
+
+    payload = request.get_json(silent=True)
+    if not isinstance(payload, dict):
+        return jsonify({"error": "invalid_json"}), 400
+
+    worker_id = payload.get("worker_id")
+    if not _valid_update_worker_id(worker_id):
+        return jsonify({"error": "invalid_worker_id"}), 400
+
+    connection = get_connection()
+    try:
+        connection.execute("BEGIN IMMEDIATE")
+        owned, error = _update_job_owned_by(
+            connection, job_id, worker_id
+        )
+        if error == "not_found":
+            connection.rollback()
+            return jsonify({"error": "job_not_found"}), 404
+        if error:
+            connection.rollback()
+            return jsonify({"error": "job_not_owned"}), 409
+
+        row, _details = owned
+        if row["status"] != "running":
+            connection.rollback()
+            return jsonify({"error": "invalid_job_state"}), 409
+
+        now = datetime.now(timezone.utc).isoformat()
+        try:
+            history = json.loads(
+                connection.execute(
+                    "SELECT progress_json FROM system_update_jobs WHERE id = ?",
+                    (job_id,),
+                ).fetchone()["progress_json"] or "[]"
+            )
+        except (TypeError, ValueError):
+            connection.rollback()
+            return jsonify({"error": "invalid_progress_history"}), 409
+
+        if not isinstance(history, list):
+            connection.rollback()
+            return jsonify({"error": "invalid_progress_history"}), 409
+
+        history.append({
+            "at": now,
+            "step": "rollback",
+            "message": "Rollback ausdrücklich gestartet.",
+        })
+        cursor = connection.execute(
+            """
+            UPDATE system_update_jobs
+            SET status = 'rolling_back', step = 'rollback',
+                progress_json = ?, updated_at = ?
+            WHERE id = ? AND status = 'running'
+            """,
+            (json.dumps(history[-100:]), now, job_id),
+        )
+        if cursor.rowcount != 1:
+            connection.rollback()
+            return jsonify({"error": "job_state_conflict"}), 409
+
+        connection.commit()
+        return jsonify({"status": "rolling_back", "step": "rollback"}), 200
+
+    except sqlite3.Error:
+        connection.rollback()
+        logger.exception("Could not start rollback state")
+        return jsonify({"error": "job_storage_failed"}), 500
+    finally:
+        connection.close()
+
+
+@app.route(
+    "/api/host-updater/jobs/<int:job_id>/complete",
+    methods=["POST"],
+)
+def host_updater_job_complete(job_id):
+    auth_error = _host_updater_auth_error()
+    if auth_error:
+        return auth_error
+
+    payload = request.get_json(silent=True)
+    if not isinstance(payload, dict):
+        return jsonify({"error": "invalid_json"}), 400
+
+    worker_id = payload.get("worker_id")
+    if not _valid_update_worker_id(worker_id):
+        return jsonify({"error": "invalid_worker_id"}), 400
+
+    connection = get_connection()
+    try:
+        connection.execute("BEGIN IMMEDIATE")
+        owned, error = _update_job_owned_by(
+            connection, job_id, worker_id
+        )
+        if error == "not_found":
+            connection.rollback()
+            return jsonify({"error": "job_not_found"}), 404
+        if error:
+            connection.rollback()
+            return jsonify({"error": "job_not_owned"}), 409
+
+        row, _details = owned
+        if row["status"] != "running" or row["step"] != "verify":
+            connection.rollback()
+            return jsonify({"error": "verification_not_completed"}), 409
+
+        now = datetime.now(timezone.utc).isoformat()
+        cursor = connection.execute(
+            """
+            UPDATE system_update_jobs
+            SET status = 'completed', step = 'result',
+                updated_at = ?, finished_at = ?
+            WHERE id = ? AND status = 'running' AND step = 'verify'
+            """,
+            (now, now, job_id),
+        )
+        if cursor.rowcount != 1:
+            connection.rollback()
+            return jsonify({"error": "job_state_conflict"}), 409
+
+        connection.commit()
+        return jsonify({"status": "completed"}), 200
+
+    except sqlite3.Error:
+        connection.rollback()
+        logger.exception("Could not complete update job")
+        return jsonify({"error": "job_storage_failed"}), 500
+    finally:
+        connection.close()
+
+
+@app.route(
+    "/api/host-updater/jobs/<int:job_id>/fail",
+    methods=["POST"],
+)
+def host_updater_job_fail(job_id):
+    auth_error = _host_updater_auth_error()
+    if auth_error:
+        return auth_error
+
+    payload = request.get_json(silent=True)
+    if not isinstance(payload, dict):
+        return jsonify({"error": "invalid_json"}), 400
+
+    worker_id = payload.get("worker_id")
+    final_status = payload.get("final_status", "failed")
+    error_message = payload.get("error", "")
+    rollback_status = payload.get("rollback_status", "not_started")
+
+    if not _valid_update_worker_id(worker_id):
+        return jsonify({"error": "invalid_worker_id"}), 400
+    if (
+        not isinstance(final_status, str)
+        or final_status not in _HOST_UPDATE_FINAL_STATUSES
+    ):
+        return jsonify({"error": "invalid_final_status"}), 400
+    if not isinstance(error_message, str) or len(error_message) > 2000:
+        return jsonify({"error": "invalid_error"}), 400
+    if (
+        not isinstance(rollback_status, str)
+        or rollback_status not in {
+            "not_started", "succeeded", "failed", "not_required"
+        }
+    ):
+        return jsonify({"error": "invalid_rollback_status"}), 400
+
+    # A normal failure must not claim a rollback outcome that was
+    # never reached through the explicit rolling_back transition.
+    if final_status == "failed" and rollback_status in {
+        "succeeded", "failed"
+    }:
+        return jsonify({"error": "invalid_rollback_status"}), 400
+
+    connection = get_connection()
+    try:
+        connection.execute("BEGIN IMMEDIATE")
+        owned, error = _update_job_owned_by(
+            connection, job_id, worker_id
+        )
+        if error == "not_found":
+            connection.rollback()
+            return jsonify({"error": "job_not_found"}), 404
+        if error:
+            connection.rollback()
+            return jsonify({"error": "job_not_owned"}), 409
+
+        row, _details = owned
+        if row["status"] not in {"running", "rolling_back"}:
+            connection.rollback()
+            return jsonify({"error": "invalid_job_state"}), 409
+
+        if final_status in {"rolled_back", "rollback_failed"}:
+            if row["status"] != "rolling_back":
+                connection.rollback()
+                return jsonify({"error": "rollback_not_started"}), 409
+
+        if final_status == "rolled_back" and rollback_status != "succeeded":
+            connection.rollback()
+            return jsonify({"error": "rollback_not_verified"}), 400
+        if final_status == "rollback_failed" and rollback_status != "failed":
+            connection.rollback()
+            return jsonify({"error": "rollback_not_verified"}), 400
+        if final_status == "failed" and row["status"] == "rolling_back":
+            connection.rollback()
+            return jsonify({"error": "use_rollback_failed_status"}), 409
+
+        now = datetime.now(timezone.utc).isoformat()
+        cursor = connection.execute(
+            """
+            UPDATE system_update_jobs
+            SET status = ?, step = 'result', error = ?,
+                rollback_status = ?, updated_at = ?, finished_at = ?
+            WHERE id = ? AND status IN ('running', 'rolling_back')
+            """,
+            (
+                final_status, error_message[:2000], rollback_status,
+                now, now, job_id,
+            ),
+        )
+        if cursor.rowcount != 1:
+            connection.rollback()
+            return jsonify({"error": "job_state_conflict"}), 409
+
+        connection.commit()
+        return jsonify({"status": final_status}), 200
+
+    except sqlite3.Error:
+        connection.rollback()
+        logger.exception("Could not record update failure")
+        return jsonify({"error": "job_storage_failed"}), 500
+    finally:
+        connection.close()
+
+
+
 @app.route("/api/system-updates", methods=["GET"])
 @login_required
 @role_required(ROLE_ADMINISTRATOR)
@@ -1562,88 +2124,31 @@ def system_updates_status():
 @role_required(permission="system.update")
 @csrf_required
 def request_system_update():
-    try:
-        release = latest_release()
-    except ReleaseLookupError as error:
-        return jsonify({"error": str(error)}), 503
+    payload = request.get_json(silent=True)
+    if not isinstance(payload, dict):
+        return jsonify({"error": "invalid_json"}), 400
+    if payload.get("confirmed") is not True:
+        return jsonify({"error": "explicit_confirmation_required"}), 400
 
-    connection = get_connection()
-    try:
-        agent = connection.execute(
-            """
-            SELECT last_seen FROM system_update_agent WHERE id = 1
-            """
-        ).fetchone()
-        if agent is None:
-            return jsonify({
-                "error": "Der Host-Update-Dienst ist nicht installiert oder nicht erreichbar."
-            }), 503
+    requested_tag = payload.get("target_tag")
+    requested_commit = payload.get("target_commit")
+    if (
+        not isinstance(requested_tag, str)
+        or not requested_tag
+        or not isinstance(requested_commit, str)
+        or not requested_commit
+    ):
+        return jsonify({"error": "invalid_release_target"}), 400
 
-        try:
-            heartbeat = datetime.fromisoformat(agent["last_seen"])
-            if heartbeat.tzinfo is None:
-                heartbeat = heartbeat.replace(tzinfo=timezone.utc)
-        except (TypeError, ValueError):
-            heartbeat = None
-        if (
-            heartbeat is None
-            or (datetime.now(timezone.utc) - heartbeat).total_seconds() > 60
-        ):
-            return jsonify({
-                "error": "Der Host-Update-Dienst ist nicht erreichbar. Es wurde kein Update gestartet."
-            }), 503
-
-        active = connection.execute(
-            """
-            SELECT id FROM system_update_jobs
-            WHERE status IN (
-                'queued', 'running', 'rolling_back'
-            )
-            LIMIT 1
-            """
-        ).fetchone()
-        if active is not None:
-            return jsonify({
-                "error": "Ein Update läuft bereits.",
-                "job_id": active["id"],
-            }), 409
-
-        now = datetime.now(timezone.utc).isoformat()
-        cursor = connection.execute(
-            """
-            INSERT INTO system_update_jobs (
-                requested_at, requested_by, target_tag, target_commit,
-                status, step, updated_at
-            )
-            VALUES (?, ?, ?, ?, 'queued', 'queued', ?)
-            """,
-            (
-                now,
-                current_username(),
-                release["tag"],
-                release["commit"],
-                now,
-            ),
-        )
-        job_id = cursor.lastrowid
-        audit_log(
-            connection,
-            actor_type="user",
-            actor_id=current_user_id(),
-            action="system_update.request",
-            target=release["tag"],
-            result="success",
-            details=json.dumps({
-                "job_id": job_id,
-                "commit": release["commit"],
-            }),
-        )
-        connection.commit()
-    finally:
-        connection.close()
-
-    return jsonify({"job_id": job_id, "target_tag": release["tag"]}), 202
-
+    # Fail closed: the installed host updater currently reports
+    # update_execution_enabled=False and does not execute update jobs.
+    return jsonify({
+        "error": "update_execution_disabled",
+        "message": (
+            "Die Update-Ausführung ist deaktiviert. "
+            "Es wurde kein Updateauftrag angelegt."
+        ),
+    }), 503
 
 @app.route("/backups")
 @login_required

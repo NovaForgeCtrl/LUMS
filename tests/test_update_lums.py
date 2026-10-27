@@ -78,7 +78,6 @@ def test_validate_documented_container_and_preserve_runtime_settings(
     assert config["user"] == "lums"
     assert config["secret_source"].endswith("lums_secret")
     assert config["environment"] == [
-        "PATH=/usr/local/bin:/usr/bin",
         "LUMS_SECRET_KEY_FILE=/run/secrets/lums_secret",
     ]
     assert config["labels"] == {"app": "lums"}
@@ -88,13 +87,78 @@ def test_validate_documented_container_and_preserve_runtime_settings(
     assert "--read-only" in args
 
 
-def test_validate_container_rejects_database_volume_changes(
+def test_validate_container_accepts_unhardened_source_but_builds_hardened_target(
     documented_container,
 ):
-    documented_container["Mounts"][0]["Name"] = "different-volume"
+    host = documented_container["HostConfig"]
+    host["ReadonlyRootfs"] = False
+    host["CapDrop"] = []
+    host["SecurityOpt"] = []
+    host["Tmpfs"] = {}
 
-    with pytest.raises(update_lums.UpdateError, match="lums-data"):
-        update_lums.validate_container(documented_container)
+    config = update_lums.validate_container(documented_container)
+    args = update_lums.docker_run_arguments(config, "lums:update-test")
+
+    assert "--read-only" in args
+    assert "--cap-drop=ALL" in args
+    assert "--security-opt=no-new-privileges:true" in args
+    assert any(arg.startswith("/tmp:") for arg in args)
+    assert any(arg.startswith("/run:") for arg in args)
+
+
+def test_validate_container_preserves_read_only_updater_token(
+    documented_container, tmp_path,
+):
+    token = tmp_path / "server-token"
+    token.write_text("test-only-token", encoding="utf-8")
+    documented_container["Mounts"].append({
+        "Destination": "/run/secrets/lums_host_updater_token",
+        "Type": "bind",
+        "Source": "/etc/lums-host-updater/server-token",
+        "RW": False,
+    })
+    # validate_container verifies the expected host path without reading token contents.
+    # The file must exist in this test environment, so temporarily substitute Path.is_file.
+    original_is_file = update_lums.Path.is_file
+
+    def fake_is_file(path):
+        if str(path) == "/etc/lums-host-updater/server-token":
+            return True
+        return original_is_file(path)
+
+    update_lums.Path.is_file = fake_is_file
+    try:
+        documented_container["Config"]["Env"].append(
+            "LUMS_HOST_UPDATER_TOKEN_FILE=/run/secrets/lums_host_updater_token"
+        )
+        config = update_lums.validate_container(documented_container)
+        args = update_lums.docker_run_arguments(config, "lums:update-test")
+    finally:
+        update_lums.Path.is_file = original_is_file
+
+    assert any(
+        arg == (
+            "type=bind,src=/etc/lums-host-updater/server-token,"
+            "dst=/run/secrets/lums_host_updater_token,readonly"
+        )
+        for arg in args
+    )
+    assert "LUMS_HOST_UPDATER_TOKEN_FILE=/run/secrets/lums_host_updater_token" in args
+
+
+def test_validate_container_preserves_actual_database_volume_name(
+    documented_container,
+):
+    documented_container["Mounts"][0]["Name"] = "lums-data-f784d11-prod-20261026"
+
+    config = update_lums.validate_container(documented_container)
+    args = update_lums.docker_run_arguments(config, "lums:update-test")
+
+    assert config["data_volume"] == "lums-data-f784d11-prod-20261026"
+    assert (
+        "type=volume,src=lums-data-f784d11-prod-20261026,dst=/var/lib/lums"
+        in args
+    )
 
 
 def test_validate_container_rejects_exposed_non_loopback_port(
@@ -106,6 +170,24 @@ def test_validate_container_rejects_exposed_non_loopback_port(
 
     with pytest.raises(update_lums.UpdateError, match="port binding"):
         update_lums.validate_container(documented_container)
+
+
+def test_docker_run_does_not_forward_unvalidated_environment(
+    documented_container,
+):
+    documented_container["Config"]["Env"].extend([
+        "AWS_SECRET_ACCESS_KEY=must-not-be-forwarded",
+        "LD_PRELOAD=/tmp/untrusted.so",
+    ])
+
+    config = update_lums.validate_container(documented_container)
+    args = update_lums.docker_run_arguments(config, "lums:update-test")
+
+    joined = "\\n".join(args)
+    assert "AWS_SECRET_ACCESS_KEY" not in joined
+    assert "must-not-be-forwarded" not in joined
+    assert "LD_PRELOAD" not in joined
+    assert "LUMS_SECRET_KEY_FILE=/run/secrets/lums_secret" in joined
 
 
 def test_validate_container_rejects_unhandled_custom_environment(
@@ -177,6 +259,161 @@ def test_replace_container_cannot_be_enabled_by_flag(
 
     assert commands == []
 
+
+
+
+
+def test_host_backup_preflight_accepts_valid_read_only_host(monkeypatch):
+    from types import SimpleNamespace
+
+    def fake_sudo(command, *, capture=False, check=True):
+        if command[:3] == ["docker", "exec", "lums"]:
+            return SimpleNamespace(stdout="1000\n")
+        if command[0] == "test":
+            return SimpleNamespace(stdout="")
+        if command[0] == "stat":
+            return SimpleNamespace(
+                stdout="directory|700|10001|10001|/var/backups/lums\n"
+            )
+        if command[0] == "df":
+            return SimpleNamespace(
+                stdout=(
+                    "Filesystem 1024-blocks Used Available Capacity Mounted on\n"
+                    "/dev/test 1000000 100 900000 1% /var/backups\n"
+                )
+            )
+        raise AssertionError(f"Unexpected command: {command!r}")
+
+    monkeypatch.setattr(update_lums, "sudo", fake_sudo)
+    result = update_lums.host_backup_preflight()
+
+    assert result["database_bytes"] == 1000
+    assert result["required_bytes"] == 3 * 1000 + 64 * 1024 * 1024
+    assert result["available_bytes"] == 900000 * 1024
+    assert result["directory"] == "/var/backups/lums"
+
+
+def test_host_backup_preflight_rejects_wrong_directory_permissions(monkeypatch):
+    from types import SimpleNamespace
+
+    def fake_sudo(command, *, capture=False, check=True):
+        if command[:3] == ["docker", "exec", "lums"]:
+            return SimpleNamespace(stdout="1000\n")
+        if command[0] == "test":
+            return SimpleNamespace(stdout="")
+        if command[0] == "stat":
+            return SimpleNamespace(
+                stdout="directory|755|10001|10001|/var/backups/lums\n"
+            )
+        raise AssertionError(f"Unexpected command: {command!r}")
+
+    monkeypatch.setattr(update_lums, "sudo", fake_sudo)
+    with pytest.raises(update_lums.UpdateError, match="ownership or permissions"):
+        update_lums.host_backup_preflight()
+
+
+def test_host_backup_preflight_rejects_insufficient_host_space(monkeypatch):
+    from types import SimpleNamespace
+
+    def fake_sudo(command, *, capture=False, check=True):
+        if command[:3] == ["docker", "exec", "lums"]:
+            return SimpleNamespace(stdout="1000\n")
+        if command[0] == "test":
+            return SimpleNamespace(stdout="")
+        if command[0] == "stat":
+            return SimpleNamespace(
+                stdout="directory|700|10001|10001|/var/backups/lums\n"
+            )
+        if command[0] == "df":
+            return SimpleNamespace(
+                stdout=(
+                    "Filesystem 1024-blocks Used Available Capacity Mounted on\n"
+                    "/dev/test 100 99 1 99% /var/backups\n"
+                )
+            )
+        raise AssertionError(f"Unexpected command: {command!r}")
+
+    monkeypatch.setattr(update_lums, "sudo", fake_sudo)
+    with pytest.raises(update_lums.UpdateError, match="Insufficient backup space"):
+        update_lums.host_backup_preflight()
+
+
+def test_validate_backup_directory_rejects_insufficient_space(
+    tmp_path, monkeypatch
+):
+    from types import SimpleNamespace
+
+    monkeypatch.setattr(
+        update_lums.shutil,
+        "disk_usage",
+        lambda _path: SimpleNamespace(free=99),
+    )
+
+    with pytest.raises(update_lums.UpdateError, match="Insufficient backup space"):
+        update_lums.validate_backup_directory(tmp_path, required_free_bytes=100)
+
+
+def test_validate_backup_directory_accepts_sufficient_space(
+    tmp_path, monkeypatch
+):
+    from types import SimpleNamespace
+
+    monkeypatch.setattr(
+        update_lums.shutil,
+        "disk_usage",
+        lambda _path: SimpleNamespace(free=100),
+    )
+
+    assert update_lums.validate_backup_directory(
+        tmp_path, required_free_bytes=100
+    ) == tmp_path.resolve()
+
+
+def test_validate_backup_directory_rejects_negative_space_requirement(tmp_path):
+    with pytest.raises(
+        update_lums.UpdateError,
+        match="non-negative integer",
+    ):
+        update_lums.validate_backup_directory(tmp_path, required_free_bytes=-1)
+
+
+def test_validate_backup_directory_accepts_existing_directory(tmp_path):
+    result = update_lums.validate_backup_directory(tmp_path)
+    assert result == tmp_path.resolve()
+
+
+def test_validate_backup_directory_rejects_missing_directory(tmp_path):
+    missing = tmp_path / "missing"
+
+    with pytest.raises(
+        update_lums.UpdateError,
+        match="missing or is not a directory",
+    ):
+        update_lums.validate_backup_directory(missing)
+
+
+def test_validate_backup_directory_rejects_file(tmp_path):
+    file_path = tmp_path / "not-a-directory"
+    file_path.write_text("test", encoding="utf-8")
+
+    with pytest.raises(
+        update_lums.UpdateError,
+        match="missing or is not a directory",
+    ):
+        update_lums.validate_backup_directory(file_path)
+
+
+def test_validate_backup_directory_rejects_symlink(tmp_path):
+    actual = tmp_path / "actual"
+    actual.mkdir()
+    link = tmp_path / "linked"
+    link.symlink_to(actual, target_is_directory=True)
+
+    with pytest.raises(
+        update_lums.UpdateError,
+        match="symbolic link",
+    ):
+        update_lums.validate_backup_directory(link)
 
 
 def test_mount_matches_volume_by_name():
@@ -459,3 +696,112 @@ def test_check_repository_freshness_aborts_when_fetch_fails(
 
     assert any("fetch" in command for command in calls)
     assert not any("HEAD^{commit}" in command for command in calls)
+
+
+
+def test_create_verified_database_backup(monkeypatch):
+    import json
+    from types import SimpleNamespace
+
+    filename = "lums-backup-20261027T120000.123456Z-0123456789abcdef.db"
+    commands = []
+
+    def fake_sudo(command, *, capture=False, check=True):
+        commands.append(command)
+        return SimpleNamespace(stdout=json.dumps({
+            "filename": filename,
+            "size_bytes": 123456,
+            "integrity": "ok",
+            "foreign_key_violations": 0,
+            "application_tables": 12,
+        }))
+
+    monkeypatch.setattr(update_lums, "sudo", fake_sudo)
+
+    result = update_lums.create_verified_database_backup()
+
+    assert result["filename"] == filename
+    assert result["size_bytes"] == 123456
+    assert result["integrity"] == "ok"
+    assert result["foreign_key_violations"] == 0
+    assert result["application_tables"] == 12
+    assert result["directory"] == update_lums.BACKUP_SOURCE
+    assert len(commands) == 1
+    assert commands[0][:4] == ["docker", "exec", "lums", "python3"]
+    assert "mode=ro&immutable=1" in commands[0][5]
+    assert "uri=True" in commands[0][5]
+
+
+@pytest.mark.parametrize("payload", [
+    "not-json",
+    "[]",
+    "null",
+    '{"filename":"../unexpected.db","size_bytes":10,"integrity":"ok",'
+    '"foreign_key_violations":0,"application_tables":1}',
+    '{"filename":"lums-backup-20261027T120000.123456Z-0123456789abcdef.db",'
+    '"size_bytes":0,"integrity":"ok","foreign_key_violations":0,'
+    '"application_tables":1}',
+    '{"filename":"lums-backup-20261027T120000.123456Z-0123456789abcdef.db",'
+    '"size_bytes":10,"integrity":"failed","foreign_key_violations":0,'
+    '"application_tables":1}',
+    '{"filename":"lums-backup-20261027T120000.123456Z-0123456789abcdef.db",'
+    '"size_bytes":10,"integrity":"ok","foreign_key_violations":1,'
+    '"application_tables":1}',
+    '{"filename":"lums-backup-20261027T120000.123456Z-0123456789abcdef.db",'
+    '"size_bytes":10,"integrity":"ok","foreign_key_violations":0,'
+    '"application_tables":0}',
+])
+def test_create_verified_database_backup_rejects_invalid_result(
+    monkeypatch, payload,
+):
+    from types import SimpleNamespace
+
+    monkeypatch.setattr(
+        update_lums,
+        "sudo",
+        lambda command, **kwargs: SimpleNamespace(stdout=payload),
+    )
+
+    with pytest.raises(update_lums.UpdateError):
+        update_lums.create_verified_database_backup()
+
+
+def test_main_refuses_production_replacement_after_preflight(
+    monkeypatch, capsys,
+):
+    from types import SimpleNamespace
+
+    monkeypatch.setattr(update_lums.os, "geteuid", lambda: 1000)
+    monkeypatch.setattr(update_lums, "check_tools", lambda: None)
+    monkeypatch.setattr(
+        update_lums, "repository_root", lambda: Path("/fake/lums")
+    )
+    monkeypatch.setattr(update_lums, "check_git", lambda root: None)
+    monkeypatch.setattr(
+        update_lums, "inspect_container", lambda: {"Config": {}, "State": {}}
+    )
+    monkeypatch.setattr(update_lums, "validate_deployment", lambda data: [])
+    monkeypatch.setattr(
+        update_lums, "print_report", lambda root, data: None
+    )
+    monkeypatch.setattr(
+        update_lums,
+        "host_backup_preflight",
+        lambda: {
+            "directory": "/fake/backups",
+            "database_bytes": 1000,
+            "required_bytes": 1024,
+            "available_bytes": 2048,
+        },
+    )
+
+    def forbidden_replace(*args, **kwargs):
+        raise AssertionError("Container replacement must not be called")
+
+    monkeypatch.setattr(update_lums, "replace_container", forbidden_replace)
+    monkeypatch.setattr("sys.argv", ["update_lums.py"])
+
+    assert update_lums.main() == 1
+    captured = capsys.readouterr()
+    assert "Production replacement is intentionally disabled" in captured.err
+    assert "No changes were made" not in captured.out
