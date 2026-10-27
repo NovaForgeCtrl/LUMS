@@ -12,6 +12,8 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
+import shutil
 import subprocess
 import sys
 import time
@@ -24,6 +26,8 @@ CONTAINER_NAME = "lums"
 DATA_VOLUME = "lums-data"
 SECRET_PATH = "/etc/lums/secrets/lums_secret"
 SECRET_DESTINATION = "/run/secrets/lums_secret"
+TOKEN_PATH = "/etc/lums-host-updater/server-token"
+TOKEN_DESTINATION = "/run/secrets/lums_host_updater_token"
 DATABASE_DESTINATION = "/var/lib/lums"
 BACKUP_SOURCE = "/var/backups/lums"
 BACKUP_DESTINATION = "/var/backups/lums"
@@ -45,7 +49,7 @@ def sudo(command, *, capture=False, check=True):
 
 
 def validate_container(container: dict[str, Any]) -> dict[str, Any]:
-    """Validate the documented deployment before any replacement is attempted."""
+    """Validate the current deployment as a source for a hardened replacement."""
     config = container.get("Config") or {}
     host = container.get("HostConfig") or {}
     state = container.get("State") or {}
@@ -61,16 +65,6 @@ def validate_container(container: dict[str, Any]) -> dict[str, Any]:
             "The container port binding differs from the documented "
             "127.0.0.1:5050 -> 5000/tcp binding."
         )
-    if not host.get("ReadonlyRootfs"):
-        raise UpdateError("The container root filesystem is not read-only.")
-    if sorted(host.get("CapDrop") or []) != ["ALL"]:
-        raise UpdateError("The container must drop all Linux capabilities.")
-    if host.get("CapAdd"):
-        raise UpdateError("Additional Linux capabilities are not supported.")
-    if "no-new-privileges:true" not in (host.get("SecurityOpt") or []):
-        raise UpdateError("The container is missing no-new-privileges.")
-    if set(host.get("Tmpfs") or {}) != TMPFS:
-        raise UpdateError("The container /tmp and /run tmpfs settings are unsupported.")
     if host.get("RestartPolicy", {}).get("Name") != "unless-stopped":
         raise UpdateError("The container restart policy is not 'unless-stopped'.")
     if host.get("Privileged"):
@@ -104,20 +98,26 @@ def validate_container(container: dict[str, Any]) -> dict[str, Any]:
             raise UpdateError(f"Missing or duplicate mount destination: {destination}.")
         mounts[destination] = mount
 
-    allowed_mounts = {
-        frozenset({DATABASE_DESTINATION, SECRET_DESTINATION}),
-        frozenset({DATABASE_DESTINATION, SECRET_DESTINATION, BACKUP_DESTINATION}),
+    allowed_destinations = {
+        DATABASE_DESTINATION,
+        SECRET_DESTINATION,
     }
-    if frozenset(mounts) not in allowed_mounts:
-        raise UpdateError("The data, secret, or optional backup mounts are nonstandard.")
+    if BACKUP_DESTINATION in mounts:
+        allowed_destinations.add(BACKUP_DESTINATION)
+    if TOKEN_DESTINATION in mounts:
+        allowed_destinations.add(TOKEN_DESTINATION)
+    if set(mounts) != allowed_destinations:
+        raise UpdateError("The data, secret, token, or optional backup mounts are nonstandard.")
 
     data_mount = mounts[DATABASE_DESTINATION]
+    data_volume = data_mount.get("Name")
     if (
         data_mount.get("Type") != "volume"
-        or data_mount.get("Name") != DATA_VOLUME
+        or not isinstance(data_volume, str)
+        or not data_volume
         or not data_mount.get("RW")
     ):
-        raise UpdateError("The database is not mounted from the expected 'lums-data' volume.")
+        raise UpdateError("The database must use a named, writable Docker volume.")
 
     secret_mount = mounts[SECRET_DESTINATION]
     secret_source = secret_mount.get("Source")
@@ -128,6 +128,18 @@ def validate_container(container: dict[str, Any]) -> dict[str, Any]:
         or not Path(secret_source).is_file()
     ):
         raise UpdateError("The read-only application-secret mount is missing or invalid.")
+
+    token_source = None
+    if TOKEN_DESTINATION in mounts:
+        token_mount = mounts[TOKEN_DESTINATION]
+        token_source = token_mount.get("Source")
+        if (
+            token_mount.get("Type") != "bind"
+            or token_mount.get("RW")
+            or token_source != TOKEN_PATH
+            or not Path(token_source).is_file()
+        ):
+            raise UpdateError("The host-updater token mount must be the expected read-only bind mount.")
 
     backup_source = None
     if BACKUP_DESTINATION in mounts:
@@ -149,7 +161,12 @@ def validate_container(container: dict[str, Any]) -> dict[str, Any]:
         if separator and key.startswith("LUMS_"):
             environment[key] = value
 
-    unexpected = set(environment) - {"LUMS_SECRET_KEY_FILE", "LUMS_BACKUP_DIR"}
+    allowed_environment = {
+        "LUMS_SECRET_KEY_FILE",
+        "LUMS_BACKUP_DIR",
+        "LUMS_HOST_UPDATER_TOKEN_FILE",
+    }
+    unexpected = set(environment) - allowed_environment
     if unexpected:
         raise UpdateError(
             "Unsupported custom LUMS environment variable(s): "
@@ -161,20 +178,37 @@ def validate_container(container: dict[str, Any]) -> dict[str, Any]:
         raise UpdateError("The backup mount and LUMS_BACKUP_DIR setting do not match.")
     if backup_source is not None and environment["LUMS_BACKUP_DIR"] != BACKUP_DESTINATION:
         raise UpdateError("The backup directory environment setting is nonstandard.")
+    if (token_source is not None) != ("LUMS_HOST_UPDATER_TOKEN_FILE" in environment):
+        raise UpdateError("The updater-token mount and environment setting do not match.")
+    if token_source is not None and environment["LUMS_HOST_UPDATER_TOKEN_FILE"] != TOKEN_DESTINATION:
+        raise UpdateError("The updater-token environment setting is nonstandard.")
+
+    source_tmpfs = host.get("Tmpfs") or {}
+    if set(source_tmpfs) - TMPFS:
+        raise UpdateError("The source container has unsupported tmpfs mount points.")
+    target_tmpfs = {
+        "/tmp": source_tmpfs.get("/tmp", "rw,noexec,nosuid,size=67108864"),
+        "/run": source_tmpfs.get("/run", "rw,noexec,nosuid,size=16777216"),
+    }
 
     return {
+        "data_volume": data_volume,
         "secret_source": secret_source,
+        "token_source": token_source,
         "backup_source": backup_source,
-        "tmpfs": host["Tmpfs"],
+        "tmpfs": target_tmpfs,
         "user": config["User"],
-        "environment": config.get("Env") or [],
+        "environment": [
+            f"{key}={value}" for key, value in sorted(environment.items())
+        ],
         "labels": config.get("Labels") or {},
-        "security_options": host.get("SecurityOpt") or [],
+        # Never inherit arbitrary security options from the source container.
+        "security_options": ["no-new-privileges:true"],
     }
 
 
 def docker_run_arguments(configuration: dict[str, Any], image: str) -> list[str]:
-    """Build the replacement command while retaining validated runtime settings."""
+    """Build a hardened replacement while retaining validated data and secrets."""
     args = [
         "docker", "run", "-d",
         "--name", CONTAINER_NAME,
@@ -189,8 +223,14 @@ def docker_run_arguments(configuration: dict[str, Any], image: str) -> list[str]
         "--mount",
         f"type=bind,src={configuration['secret_source']},dst={SECRET_DESTINATION},readonly",
         "--mount",
-        f"type=volume,src={DATA_VOLUME},dst={DATABASE_DESTINATION}",
+        f"type=volume,src={configuration['data_volume']},dst={DATABASE_DESTINATION}",
     ]
+
+    if configuration.get("token_source"):
+        args.extend([
+            "--mount",
+            f"type=bind,src={configuration['token_source']},dst={TOKEN_DESTINATION},readonly",
+        ])
 
     environment_file = configuration.get("environment_file")
     if environment_file:
@@ -205,19 +245,13 @@ def docker_run_arguments(configuration: dict[str, Any], image: str) -> list[str]
         args.extend([
             "--mount",
             f"type=bind,src={configuration['backup_source']},dst={BACKUP_DESTINATION}",
-            "-e", f"LUMS_BACKUP_DIR={BACKUP_DESTINATION}",
         ])
-
-    for option in configuration.get("security_options", []):
-        if option != "no-new-privileges:true":
-            args.extend(["--security-opt", option])
 
     for key, value in configuration.get("labels", {}).items():
         args.extend(["--label", f"{key}={value}"])
 
     args.append(image)
     return args
-
 
 def check_application() -> None:
     """Wait for the local login endpoint; this does not prove DB rollback safety."""
@@ -327,7 +361,7 @@ def mount_matches(
 
 
 def validate_deployment(data: dict[str, Any]) -> list[str]:
-    """Check critical invariants without changing the running deployment."""
+    """Check critical production invariants without changing the deployment."""
     config = data.get("Config") or {}
     host = data.get("HostConfig") or {}
     state = data.get("State") or {}
@@ -336,33 +370,35 @@ def validate_deployment(data: dict[str, Any]) -> list[str]:
 
     if not state.get("Running"):
         problems.append("Production container is not running.")
-
     if config.get("User") != "lums":
         problems.append("Container user is not 'lums'.")
-
     if host.get("NetworkMode") != "bridge":
         problems.append("Unexpected Docker network mode.")
 
     bindings = host.get("PortBindings") or {}
     entries = bindings.get(EXPECTED_CONTAINER_PORT) or []
-    if not any(
+    if bindings != PORT_BINDINGS or not any(
         entry.get("HostIp") == "127.0.0.1"
         and entry.get("HostPort") == "5050"
         for entry in entries
     ):
-        problems.append("Expected localhost-only port binding is missing.")
+        problems.append("Expected localhost-only port binding is missing or differs.")
 
     if config.get("Entrypoint") != ["/app/docker-entrypoint.sh"]:
         problems.append("Unexpected container entrypoint.")
 
-    if not mount_matches(
-        mounts,
-        destination=DATABASE_DESTINATION,
-        mount_type="volume",
-        name=DATA_VOLUME,
-        rw=True,
+    data_mounts = [
+        mount for mount in mounts
+        if mount.get("Destination") == DATABASE_DESTINATION
+    ]
+    if not (
+        len(data_mounts) == 1
+        and data_mounts[0].get("Type") == "volume"
+        and isinstance(data_mounts[0].get("Name"), str)
+        and data_mounts[0].get("Name")
+        and data_mounts[0].get("RW") is True
     ):
-        problems.append("Expected writable lums-data volume is missing.")
+        problems.append("A named writable database volume is missing.")
 
     if not mount_matches(
         mounts,
@@ -371,25 +407,289 @@ def validate_deployment(data: dict[str, Any]) -> list[str]:
         source=SECRET_PATH,
         rw=False,
     ):
-        problems.append("Expected read-only secret mount is missing.")
+        problems.append("Expected read-only application-secret mount is missing.")
 
     if not mount_matches(
         mounts,
-        destination=BACKUP_DESTINATION,
+        destination=TOKEN_DESTINATION,
         mount_type="bind",
-        source=BACKUP_SOURCE,
-        rw=True,
+        source=TOKEN_PATH,
+        rw=False,
     ):
-        problems.append("Expected writable backup mount is missing.")
+        problems.append("Expected read-only host-updater token mount is missing.")
 
-    restart_policy = (host.get("RestartPolicy") or {}).get("Name")
-    if restart_policy != "unless-stopped":
+    environment = {}
+    for entry in config.get("Env") or []:
+        key, separator, value = entry.partition("=")
+        if separator:
+            environment[key] = value
+    if environment.get("LUMS_SECRET_KEY_FILE") != SECRET_DESTINATION:
+        problems.append("Application-secret environment setting is nonstandard.")
+    if environment.get("LUMS_HOST_UPDATER_TOKEN_FILE") != TOKEN_DESTINATION:
+        problems.append("Host-updater token environment setting is missing or nonstandard.")
+
+    backup_mounts = [
+        mount for mount in mounts
+        if mount.get("Destination") == BACKUP_DESTINATION
+    ]
+    if backup_mounts and not (
+        len(backup_mounts) == 1
+        and backup_mounts[0].get("Type") == "bind"
+        and backup_mounts[0].get("Source") == BACKUP_SOURCE
+        and backup_mounts[0].get("RW") is True
+        and environment.get("LUMS_BACKUP_DIR") == BACKUP_DESTINATION
+    ):
+        problems.append("Optional backup mount and environment setting are inconsistent.")
+    if not backup_mounts and "LUMS_BACKUP_DIR" in environment:
+        problems.append("Backup environment setting exists without its mount.")
+
+    if (host.get("RestartPolicy") or {}).get("Name") != "unless-stopped":
         problems.append("Restart policy is not unless-stopped.")
-
     if host.get("Privileged"):
         problems.append("Container is running in privileged mode.")
 
     return problems
+
+
+
+BACKUP_FILENAME_PATTERN = re.compile(
+    r"^lums-backup-\d{8}T\d{6}\.\d{6}Z-[a-f0-9]{16}\.db$"
+)
+
+
+def create_verified_database_backup() -> dict[str, Any]:
+    """Create and verify a new SQLite backup inside the running LUMS container.
+
+    This function does not replace or restart the container. The existing
+    database backup implementation performs SQLite integrity and foreign-key
+    checks before publishing the new backup.
+    """
+    script = r"""
+import json
+import re
+import sqlite3
+from pathlib import Path
+from contextlib import closing
+from database_backup import create_database_backup
+
+directory = Path("/var/backups/lums")
+database = Path("/var/lib/lums/lums.db")
+
+if not database.is_file() or database.is_symlink():
+    raise RuntimeError("Production database path is not a regular file.")
+if not directory.is_dir() or directory.is_symlink():
+    raise RuntimeError("Backup directory is not a real directory.")
+
+result = create_database_backup(database, directory, "db")
+filename = result.get("filename")
+pattern = re.compile(
+    r"^lums-backup-\d{8}T\d{6}\.\d{6}Z-[a-f0-9]{16}\.db$"
+)
+if not isinstance(filename, str) or not pattern.fullmatch(filename):
+    raise RuntimeError("Backup implementation returned an invalid filename.")
+
+backup = directory / filename
+if backup.is_symlink() or not backup.is_file():
+    raise RuntimeError("Created backup is not a regular file.")
+
+size = backup.stat().st_size
+if size <= 0 or result.get("size_bytes") != size:
+    raise RuntimeError("Created backup size verification failed.")
+
+backup_uri = backup.resolve().as_uri() + "?mode=ro&immutable=1"
+with closing(sqlite3.connect(backup_uri, uri=True, timeout=10)) as connection:
+    integrity = connection.execute("PRAGMA integrity_check").fetchone()
+    if integrity is None or integrity[0] != "ok":
+        raise RuntimeError("Created backup failed integrity_check.")
+    violations = connection.execute("PRAGMA foreign_key_check").fetchall()
+    if violations:
+        raise RuntimeError("Created backup has foreign-key violations.")
+    tables = connection.execute(
+        "SELECT COUNT(*) FROM sqlite_master "
+        "WHERE type = 'table' AND name NOT LIKE 'sqlite_%'"
+    ).fetchone()[0]
+    if tables <= 0:
+        raise RuntimeError("Created backup contains no application tables.")
+
+print(json.dumps({
+    "filename": filename,
+    "size_bytes": size,
+    "integrity": "ok",
+    "foreign_key_violations": 0,
+    "application_tables": tables,
+}, sort_keys=True))
+"""
+
+    result = sudo(
+        [
+            "docker", "exec", CONTAINER_NAME,
+            "python3", "-c", script,
+        ],
+        capture=True,
+    )
+
+    try:
+        payload = json.loads(result.stdout)
+    except (TypeError, json.JSONDecodeError) as exc:
+        raise UpdateError(
+            "Backup command returned invalid JSON; update must stop."
+        ) from exc
+
+    if not isinstance(payload, dict):
+        raise UpdateError(
+            "Backup command returned an invalid response type; update must stop."
+        )
+
+    filename = payload.get("filename")
+    size = payload.get("size_bytes")
+
+    if not isinstance(filename, str) or not BACKUP_FILENAME_PATTERN.fullmatch(
+        filename
+    ):
+        raise UpdateError(
+            "Backup command returned an invalid filename; update must stop."
+        )
+
+    if (
+        isinstance(size, bool)
+        or not isinstance(size, int)
+        or size <= 0
+        or payload.get("integrity") != "ok"
+        or payload.get("foreign_key_violations") != 0
+        or isinstance(payload.get("application_tables"), bool)
+        or not isinstance(payload.get("application_tables"), int)
+        or payload["application_tables"] <= 0
+    ):
+        raise UpdateError(
+            "Backup verification failed; update must stop."
+        )
+
+    return {
+        "filename": filename,
+        "size_bytes": size,
+        "integrity": "ok",
+        "foreign_key_violations": 0,
+        "application_tables": payload["application_tables"],
+        "directory": BACKUP_SOURCE,
+    }
+
+
+def validate_backup_directory(
+    directory: str | Path,
+    required_free_bytes: int = 0,
+) -> Path:
+    """Validate a backup directory and its available free space."""
+    if (
+        isinstance(required_free_bytes, bool)
+        or not isinstance(required_free_bytes, int)
+        or required_free_bytes < 0
+    ):
+        raise UpdateError("Required backup space must be a non-negative integer.")
+
+    path = Path(directory)
+
+    if path.is_symlink():
+        raise UpdateError("Backup directory must not be a symbolic link.")
+
+    if not path.exists() or not path.is_dir():
+        raise UpdateError("Backup directory is missing or is not a directory.")
+
+    try:
+        resolved = path.resolve(strict=True)
+    except (OSError, RuntimeError) as exc:
+        raise UpdateError("Backup directory cannot be resolved safely.") from exc
+
+    if resolved != path.absolute():
+        raise UpdateError("Backup directory resolves to an unexpected path.")
+
+    if not os.access(resolved, os.W_OK | os.X_OK):
+        raise UpdateError("Backup directory is not writable by the updater.")
+
+    try:
+        free_bytes = shutil.disk_usage(resolved).free
+    except OSError as exc:
+        raise UpdateError("Available backup space cannot be checked.") from exc
+
+    if free_bytes < required_free_bytes:
+        raise UpdateError(
+            f"Insufficient backup space: {free_bytes} bytes available; "
+            f"{required_free_bytes} bytes required."
+        )
+
+    return resolved
+
+
+
+def host_backup_preflight() -> dict[str, int | str]:
+    """Read-only validation of the protected host backup directory and space."""
+    database_result = sudo(
+        [
+            "docker", "exec", CONTAINER_NAME,
+            "stat", "-c", "%s", f"{DATABASE_DESTINATION}/lums.db",
+        ],
+        capture=True,
+    )
+    raw_size = database_result.stdout.strip()
+    if not raw_size.isdigit() or int(raw_size) <= 0:
+        raise UpdateError(
+            "Database size is missing or invalid; backup preflight refused."
+        )
+    database_size = int(raw_size)
+
+    # Conservative preliminary reserve for temporary copies and overhead.
+    required_bytes = database_size * 3 + 64 * 1024 * 1024
+
+    # Inspect the fixed host path without changing permissions or creating files.
+    sudo(["test", "-d", BACKUP_SOURCE])
+    sudo(["test", "!", "-L", BACKUP_SOURCE])
+
+    metadata = sudo(
+        ["stat", "-c", "%F|%a|%u|%g|%n", "--", BACKUP_SOURCE],
+        capture=True,
+    ).stdout.strip()
+
+    fields = metadata.split("|", 4)
+    if len(fields) != 5:
+        raise UpdateError("Could not parse backup directory metadata safely.")
+
+    file_type, mode, uid, gid, actual_path = fields
+    if file_type != "directory" or actual_path != BACKUP_SOURCE:
+        raise UpdateError("Backup path is not the expected real directory.")
+    if (mode, uid, gid) != ("700", "10001", "10001"):
+        raise UpdateError(
+            "Backup directory ownership or permissions differ from the "
+            "expected mode 0700 and UID/GID 10001:10001."
+        )
+
+    disk_lines = sudo(
+        ["df", "-Pk", "--", BACKUP_SOURCE],
+        capture=True,
+    ).stdout.strip().splitlines()
+
+    if len(disk_lines) < 2:
+        raise UpdateError("Could not read available host backup space.")
+
+    columns = disk_lines[-1].split()
+    if len(columns) < 6:
+        raise UpdateError("Host disk-space output is malformed.")
+
+    try:
+        available_bytes = int(columns[3]) * 1024
+    except (ValueError, IndexError) as exc:
+        raise UpdateError("Available host backup space is invalid.") from exc
+
+    if available_bytes < required_bytes:
+        raise UpdateError(
+            f"Insufficient backup space: {available_bytes} bytes available; "
+            f"{required_bytes} bytes required."
+        )
+
+    return {
+        "database_bytes": database_size,
+        "required_bytes": required_bytes,
+        "available_bytes": available_bytes,
+        "directory": BACKUP_SOURCE,
+    }
 
 
 def git_status(root: Path) -> str:
@@ -556,6 +856,13 @@ def main() -> int:
                 "\nUpdate refused. Resolve these checks before proceeding."
             )
             return 1
+
+        backup_status = host_backup_preflight()
+        print("\nHost backup preflight passed (read-only).")
+        print(f"Backup directory: {backup_status['directory']}")
+        print(f"Database size:    {backup_status['database_bytes']} bytes")
+        print(f"Space required:   {backup_status['required_bytes']} bytes")
+        print(f"Space available:  {backup_status['available_bytes']} bytes")
 
         if args.check:
             print("\nChecks passed. No changes were made.")
