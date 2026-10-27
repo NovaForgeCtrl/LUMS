@@ -2296,64 +2296,45 @@ First establish the current state.
 ## 91. Docker Image Maintenance
 
 LUMS application images should be rebuilt from the reviewed source tree.
+The host updater currently provides repository and deployment checks only.
+Production container replacement is deliberately disabled until database
+backup, migration safety, and restoration/rollback have been implemented
+and tested against the actual deployment configuration.
 
-For the documented single-container deployment, a guarded updater is available.
-Run it on the **LUMS server host**, from its repository checkout, as your normal
-account (not with `sudo`):
-
-```bash
-bash scripts/update-lums.sh
-```
-
-The script fast-forwards the currently checked-out branch, builds a new image,
-checks that the running `lums` container still uses the documented hardened
-settings and `lums-data` volume, creates and integrity-checks a SQLite online
-backup, then replaces the container. It checks the local `/login` page and
-automatically restores the previous container if startup or that check fails.
-The backup is stored under `/var/backups/lums-updates`; set
-`LUMS_UPDATE_BACKUP_DIR` to use another absolute host path. The previous
-container is kept with a timestamped name for manual rollback. After validating
-the upgrade, remove an old rollback container with `docker rm` and its
-timestamped name. Never add `-v`.
-
-The updater stops without changing the running service if the checkout is
-dirty, the branch has no upstream, or the running container differs from the
-documented deployment. It does not delete Docker volumes. Pull this updater
-into the server checkout once; later updates use the same one command.
-The updater does not run the full test suite; review the resulting container
-logs, HTTPS sign-in, dashboard data, and migration messages before considering
-the update complete.
-
-If rollback is needed, substitute the printed timestamp:
+Run repository freshness checks from the checkout as your normal account:
 
 ```bash
-sudo docker stop lums
-sudo docker rm lums
-sudo docker rename lums-before-upgrade-<timestamp> lums
-sudo docker start lums
+bash scripts/update-lums.sh --check-repository
 ```
 
-Before building a new image:
+This fetches `origin/main` and compares its commit with the local `HEAD`.
+It does not update the checkout, build an image, or change the running service.
 
-```bash id="x0m7r4"
-cd /opt/lums-public
+The deployment check can be run with:
+
+```bash
+bash scripts/update-lums.sh --check
 ```
 
-Run the automated test suite:
+It requires a clean checkout and validates the current container configuration.
+It may refuse a deployment whose volumes, mounts, or security settings differ
+from the documented fixture. A successful check is not proof that database
+restoration or rollback will work.
 
-```bash id="4gk1dp"
-./.venv-test/bin/pytest -q
+Without `--check` or `--check-repository`, the updater still refuses to replace
+the production container. Do not stop or replace the running container using
+this updater until the production-specific backup, migration, and rollback
+procedure has been implemented and verified in an isolated environment.
+
+The updater does not run the full test suite. In a checkout with the project
+virtual environment, run the relevant tests with:
+
+```bash
+.venv/bin/python -m pytest -q tests/test_database_backup.py tests/test_update_lums.py
 ```
 
-Only proceed when the test result is understood.
-
-Build the new image using a distinct temporary tag:
-
-```bash id="m8q3vz"
-sudo docker build -t lums:new .
-```
-
-A temporary tag allows the currently running image to remain identifiable during the replacement process.
+Only proceed when the test result is understood. A passing test suite does not
+replace a verified backup and restore test for the actual production database.
 
 ---
 

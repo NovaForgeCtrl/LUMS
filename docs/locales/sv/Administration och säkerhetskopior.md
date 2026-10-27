@@ -2326,24 +2326,31 @@ Fastställ först det aktuella tillståndet.
 
 LUMS-applikationsavbilder bör byggas om från det granskade källträdet.
 
-För den dokumenterade driftsättningen med en enda container finns ett skyddat uppdateringsskript. Kör det på **LUMS-servervärden**, från dess repositorykopia och med ditt vanliga konto (inte med `sudo`):
+Värduppdateraren kontrollerar för närvarande endast repositorystatus och
+driftsättningskonfiguration. Den uppdaterar inte arbetskopian, bygger en avbild,
+säkerhetskopierar produktionsdatabasen eller ersätter den körande containern.
+Ersättning av produktionscontainern är avsiktligt inaktiverad tills
+databassäkerhetskopiering, migrationssäkerhet och återställning har
+implementerats och testats i en isolerad miljö som motsvarar den faktiska
+driftsättningen.
+
+Kontrollera att repositoryt motsvarar `origin/main`:
 
 ```bash
-bash scripts/update-lums.sh
+bash scripts/update-lums.sh --check-repository
 ```
 
-Skriptet snabbspolar den utcheckade grenen, bygger en ny avbild och kontrollerar att den körande `lums`-containern fortfarande använder de dokumenterade härdade inställningarna och volymen `lums-data`. Det skapar en SQLite-onlinesäkerhetskopia och kontrollerar dess integritet innan containern ersätts. Därefter kontrollerar det den lokala `/login`-sidan och återställer automatiskt den tidigare containern om starten eller kontrollen misslyckas. Säkerhetskopian lagras under `/var/backups/lums-updates`; ange `LUMS_UPDATE_BACKUP_DIR` för att välja en annan absolut värdsökväg. Den tidigare containern behålls under ett tidsstämplat namn för manuell återställning. Ta bort en gammal återställningscontainer efter att uppgraderingen har verifierats med `docker rm` och dess tidsstämplade namn. Lägg aldrig till `-v`.
+Kommandot hämtar information från `origin/main` och jämför dess commit med
+lokala `HEAD`. Det ändrar inte arbetskopian eller den körande tjänsten.
+Driftsättningskontrollen kan köras med
+`bash scripts/update-lums.sh --check`. Den kan avvisa en konfiguration som
+skiljer sig från den dokumenterade mallen. En godkänd kontroll bevisar inte
+att databasåterställning eller återställning efter en misslyckad uppdatering
+fungerar.
 
-Uppdateraren avbryter utan att ändra den körande tjänsten om arbetskopian innehåller ändringar, grenen saknar en upstream eller den körande containern avviker från den dokumenterade driftsättningen. Den tar inte bort Docker-volymer. Hämta in uppdateraren till serverns repositorykopia en gång; senare uppdateringar använder samma kommando. Uppdateraren kör inte hela testsviten. Granska containerloggar, HTTPS-inloggning, paneldata och migreringsmeddelanden efter uppdateringen innan du betraktar den som slutförd.
-
-Om återställning behövs ersätter du tidsstämpeln som skrevs ut:
-
-```bash
-sudo docker stop lums
-sudo docker rm lums
-sudo docker rename lums-before-upgrade-<timestamp> lums
-sudo docker start lums
-```
+Stoppa eller ersätt inte produktionscontainern med uppdateraren förrän
+säkerhetskopiering, migrering och återställning har verifierats för den
+faktiska driftsättningen.
 
 Innan du bygger en ny avbild:
 

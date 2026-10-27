@@ -2334,24 +2334,28 @@ Selvitä ensin nykyinen tila.
 
 LUMS-sovelluskuvat tulee rakentaa uudelleen tarkastetusta lähdekoodipuusta.
 
-Dokumentoitua yhden kontin käyttöönottoa varten on saatavilla valvottu päivitysohjelma. Suorita se **LUMS-palvelimen isäntäkoneella**, arkiston työhakemistosta ja tavallisella käyttäjätililläsi (älä käytä `sudo`-komentoa):
+Tällä hetkellä isäntäkoneen päivitysohjelma tarkistaa vain arkiston tilan ja
+käyttöönoton kokoonpanon. Se ei päivitä työkopiota, rakenna kuvaa, varmuuskopioi
+tuotantotietokantaa eikä vaihda käynnissä olevaa konttia. Tuotantokontin vaihto
+on estetty, kunnes tietokannan varmuuskopiointi, migraatioturvallisuus ja
+palautus on toteutettu ja testattu todellista käyttöönottoa vastaavassa
+eristetyssä ympäristössä.
+
+Tarkista arkiston ajantasaisuus komennolla:
 
 ```bash
-bash scripts/update-lums.sh
+bash scripts/update-lums.sh --check-repository
 ```
 
-Skripti siirtää käytössä olevan haaran eteenpäin, rakentaa uuden kuvan ja tarkistaa, että käynnissä oleva `lums`-kontti käyttää dokumentoituja kovennettuja asetuksia ja taltiota `lums-data`. Se luo SQLite-tietokannan verkkovarmuuskopion ja tarkistaa sen eheyden ennen kontin vaihtamista. Tämän jälkeen se tarkistaa paikallisen `/login`-sivun ja palauttaa edellisen kontin automaattisesti, jos käynnistys tai tarkistus epäonnistuu. Varmuuskopio tallennetaan hakemistoon `/var/backups/lums-updates`; voit valita toisen absoluuttisen isäntäpolun asettamalla `LUMS_UPDATE_BACKUP_DIR`-muuttujan. Edellinen kontti säilytetään aikaleimallisella nimellä manuaalista palautusta varten. Kun päivitys on tarkistettu, poista vanha palautuskontti komennolla `docker rm` ja sen aikaleimallisella nimellä. Älä koskaan lisää valitsinta `-v`.
+Tämä noutaa `origin/main`-haaran tiedot ja vertaa sen commitia paikalliseen
+`HEAD`-commitiin muuttamatta työkopiota tai käynnissä olevaa palvelua.
+Käyttöönoton tarkistus voidaan suorittaa komennolla
+`bash scripts/update-lums.sh --check`. Tarkistus voi hylätä kokoonpanon, joka
+poikkeaa dokumentoidusta mallista. Onnistunut tarkistus ei todista, että
+tietokannan palautus tai palautuminen epäonnistuneesta päivityksestä toimii.
 
-Päivitysohjelma keskeyttää muuttamatta käynnissä olevaa palvelua, jos arkiston työhakemistossa on muutoksia, haaralla ei ole upstream-haaraa tai käynnissä oleva kontti poikkeaa dokumentoidusta käyttöönotosta. Se ei poista Docker-taltioita. Nouda päivitysohjelma palvelimen arkistoon kerran; myöhemmissä päivityksissä käytetään samaa komentoa. Ohjelma ei suorita koko testisarjaa. Tarkista päivityksen valmistuttua kontin lokit, HTTPS-kirjautuminen, koontinäytön tiedot ja migraatioviestit ennen kuin pidät päivitystä valmiina.
-
-Jos palautus on tarpeen, korvaa tulosteessa näkyvä aikaleima:
-
-```bash
-sudo docker stop lums
-sudo docker rm lums
-sudo docker rename lums-before-upgrade-<timestamp> lums
-sudo docker start lums
-```
+Älä pysäytä tai vaihda tuotantokonttia tällä päivitysohjelmalla ennen kuin
+todellisen käyttöönoton varmuuskopiointi, migraatiot ja palautus on testattu.
 
 Ennen uuden kuvan rakentamista:
 
