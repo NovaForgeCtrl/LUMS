@@ -5,6 +5,8 @@ from werkzeug.datastructures import LanguageAccept
 
 from server.i18n import (
     LANGUAGES,
+    _SYSTEM_UPDATE_KEYS,
+    _USER_PROFILE_UI,
     browser_language,
     normalize_language,
     translate,
@@ -69,8 +71,88 @@ def test_current_template_and_script_keys_are_translated():
     for language in LANGUAGES:
         if language in {"en-US", "en-GB"}:
             continue
-        missing = keys - translations_for(language).keys()
+        entries = translations_for(language)
+        missing = keys - entries.keys()
         assert not missing, f"{language} is missing translations: {missing}"
+
+        placeholder_pattern = re.compile(r"\{([A-Za-z_][A-Za-z0-9_]*)\}")
+        placeholder_mismatches = {
+            key: entries[key]
+            for key in keys
+            if set(placeholder_pattern.findall(key))
+            != set(placeholder_pattern.findall(entries[key]))
+        }
+        assert not placeholder_mismatches, (
+            f"{language} has translations with mismatched placeholders: "
+            f"{placeholder_mismatches}"
+        )
+
+
+def test_update_page_and_user_profile_are_fully_translated():
+    profile_keys = _USER_PROFILE_UI["en-US"].keys()
+
+    for language in LANGUAGES:
+        if language.startswith("en-"):
+            continue
+
+        entries = translations_for(language)
+        untranslated_update = {
+            key for key in _SYSTEM_UPDATE_KEYS
+            if entries.get(key, key) == key
+        }
+        assert not untranslated_update, (
+            f"{language} has untranslated update-page text: "
+            f"{untranslated_update}"
+        )
+
+        untranslated_profile = {
+            key for key in profile_keys
+            if entries.get(key, key) == key
+        }
+        assert not untranslated_profile, (
+            f"{language} has untranslated profile text: "
+            f"{untranslated_profile}"
+        )
+
+
+def test_permission_and_backup_form_messages_are_translated():
+    keys = {
+        "Permissions for {username}",
+        "Edit permissions for {username}",
+        "Enter a relative subfolder without '..' or backslashes.",
+        "SQLite (.db)",
+    }
+
+    for language in LANGUAGES:
+        if language.startswith("en-"):
+            continue
+        entries = translations_for(language)
+        untranslated = {
+            key for key in keys if entries.get(key, key) == key
+        }
+        assert not untranslated, (
+            f"{language} has untranslated form text: {untranslated}"
+        )
+
+
+def test_later_english_fallbacks_do_not_override_translated_messages():
+    messages = {
+        "Error creating update job:\n{error}",
+        "Error creating system update job:\n{error}",
+        "No alerts or outages in this period.",
+    }
+
+    for language in LANGUAGES:
+        if language.startswith("en-"):
+            continue
+        entries = translations_for(language)
+        untranslated = {
+            message for message in messages
+            if entries.get(message, message) == message
+        }
+        assert not untranslated, (
+            f"{language} has English fallback overrides: {untranslated}"
+        )
 
 
 
