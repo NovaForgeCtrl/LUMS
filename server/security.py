@@ -51,6 +51,8 @@ PERMISSIONS = {
     "backups.manage": "Datenbank-Backups erstellen und einsehen",
     "system.update": "LUMS-Systemupdates prüfen und starten",
     "infrastructure.manage": "Infrastruktur-Topologie verwalten",
+    "alerts.view": "Alerts und Alert-Historie ansehen",
+    "alerts.manage": "Alert-Regeln und Integrationen verwalten",
 }
 
 ROLE_DEFAULT_PERMISSIONS = {
@@ -95,6 +97,7 @@ PERMISSION_DEPENDENCIES = {
     "permissions.manage": {"users.manage", "clients.view"},
     "system.update": {"users.manage", "clients.view"},
     "infrastructure.manage": {"users.manage", "clients.view"},
+    "alerts.manage": {"alerts.view"},
 }
 
 SAFE_METHODS = {"GET", "HEAD", "OPTIONS"}
