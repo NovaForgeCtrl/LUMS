@@ -514,10 +514,29 @@ def login_required(view):
             }), 403
 
         request.environ["lums.user"] = user
-        request.environ["lums.permissions"] = (
+
+        effective_permissions = set(
             permissions
             if permissions is not None
             else ROLE_DEFAULT_PERMISSIONS[user["role"]]
+        )
+
+        # Defensively remove permissions whose dependencies are missing.
+        # Repeat until stable to handle dependencies across multiple levels.
+        while True:
+            invalid_permissions = {
+                permission
+                for permission in effective_permissions
+                if not PERMISSION_DEPENDENCIES.get(
+                    permission, set()
+                ).issubset(effective_permissions)
+            }
+            if not invalid_permissions:
+                break
+            effective_permissions.difference_update(invalid_permissions)
+
+        request.environ["lums.permissions"] = frozenset(
+            effective_permissions
         )
 
         return view(*args, **kwargs)

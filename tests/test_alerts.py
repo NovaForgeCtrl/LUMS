@@ -422,6 +422,35 @@ def test_alert_rule_create_requires_csrf(alert_http_env):
     assert response.get_json()["error"] == "csrf_validation_failed"
 
 
+def test_legacy_manage_permission_without_view_is_denied(alert_http_env):
+    env = alert_http_env
+
+    # Simulate an inconsistent permission state from an older database.
+    connection = env["connect"]()
+    try:
+        connection.execute(
+            """
+            INSERT INTO user_permissions (user_id, permission)
+            VALUES (?, ?)
+            """,
+            (2, "alerts.manage"),
+        )
+        connection.commit()
+    finally:
+        connection.close()
+
+    env["authenticate"](2, "test-operator")
+    response = env["client"].post(
+        "/alerts/rules",
+        base_url="https://localhost",
+        headers={"X-CSRF-Token": "pytest-csrf-token"},
+        json=_alert_http_payload(),
+    )
+
+    assert response.status_code == 403
+    assert response.get_json()["error"] == "authorization_required"
+
+
 def test_alert_rule_create_forbidden_for_operator(alert_http_env):
     env = alert_http_env
     env["authenticate"](2, "test-operator")

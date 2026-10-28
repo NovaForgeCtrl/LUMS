@@ -311,6 +311,7 @@ def migrate_alerting_permissions(connection):
         """
     )
 
+
 def migrate_user_language(connection):
     add_column_if_missing(
         connection,

@@ -68,10 +68,17 @@ def guard_test_context(monkeypatch, tmp_path):
         ) VALUES (1, 'guard-admin', 'not-used', '2026-01-01T00:00:00+00:00',
                   1, 'administrator')
     """)
-    connection.execute("""
+    connection.executemany(
+        """
         INSERT INTO user_permissions (user_id, permission)
-        VALUES (1, 'jobs.manage')
-    """)
+        VALUES (1, ?)
+        """,
+        [
+            ("clients.view",),
+            ("updates.view",),
+            ("jobs.manage",),
+        ],
+    )
     connection.execute("""
         INSERT INTO clients (id, hostname, enabled)
         VALUES (1, 'guard-test-client', 1)
