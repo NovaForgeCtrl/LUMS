@@ -73,6 +73,68 @@ def test_current_template_and_script_keys_are_translated():
         assert not missing, f"{language} is missing translations: {missing}"
 
 
+
+def test_dynamic_topology_and_telemetry_messages_are_localized():
+    project_root = Path(__file__).resolve().parents[1]
+    infrastructure = (
+        project_root / "server" / "static" / "infrastructure.js"
+    ).read_text(encoding="utf-8")
+    telemetry = (
+        project_root / "server" / "static" / "telemetry.js"
+    ).read_text(encoding="utf-8")
+
+    infrastructure_block = re.search(
+        r"const messages = \{(.*?)\n    \};",
+        infrastructure,
+        re.DOTALL,
+    )
+    telemetry_block = re.search(
+        r"const dashboardMessages = \{(.*?)\n    \};",
+        telemetry,
+        re.DOTALL,
+    )
+    assert infrastructure_block, "Infrastructure messages block not found"
+    assert telemetry_block, "Telemetry dashboardMessages block not found"
+
+    dynamic_keys = set(
+        re.findall(r':\s*"([^"]+)"', infrastructure_block.group(1))
+    )
+    dynamic_keys.update(
+        re.findall(r':\s*"([^"]+)"', telemetry_block.group(1))
+    )
+
+    representative = {
+        "Loading infrastructure data…",
+        "Infrastructure data could not be loaded.",
+        "No infrastructure items are registered yet.",
+        "Delete this infrastructure item and its relationships?",
+        "Request failed (HTTP {status}).",
+        "No alerts or outages in this period.",
+        "CPU threshold exceeded",
+        "Disk returned below the threshold",
+        "Telemetry interrupted",
+        "Not monitored on this client",
+    }
+
+    for language in LANGUAGES:
+        if language in {"en-US", "en-GB"}:
+            continue
+        entries = translations_for(language)
+        missing = dynamic_keys - entries.keys()
+        assert not missing, (
+            f"{language} is missing dynamic JS translation keys: {missing}"
+        )
+        untranslated = {
+            key: entries[key]
+            for key in representative
+            if entries[key] == key
+        }
+        assert not untranslated, (
+            f"{language} still has untranslated dynamic messages: "
+            f"{untranslated}"
+        )
+
+
 def test_user_language_migration_preserves_users_and_is_idempotent():
     connection = sqlite3.connect(":memory:")
     connection.execute(
@@ -159,3 +221,53 @@ def test_language_preference_is_saved_for_authenticated_user(
         "SELECT language FROM users WHERE id = 4"
     ).fetchone() == ("en-GB",)
     connection.close()
+
+
+def test_static_infrastructure_texts_are_localized():
+    infrastructure_keys = {
+        "Infrastructure topology",
+        "See registered LUMS clients, infrastructure and their dependencies in one place.",
+        "Infrastructure map",
+        "LUMS clients are imported automatically. Other systems and links are maintained here.",
+        "Topology summary",
+        "Registered clients",
+        "Infrastructure items",
+        "Relationships",
+        "Shared dependencies",
+        "Registered clients and manually managed infrastructure connected by their relationships.",
+        "Relationship",
+        "Inventory",
+        "Hostname, IP address, role and location for each system.",
+        "Notes",
+        "Hostname / IP address",
+        "Role / location",
+        "Source",
+        "Relationships and dependencies",
+        "Record what depends on, hosts, connects to or runs on another system.",
+        "From",
+        "To",
+        "Depends on",
+        "Hosts",
+        "Connects to",
+        "Runs on",
+        "Virtual machine",
+        "Network device",
+        "Service",
+        "Storage",
+    }
+
+    for language in LANGUAGES:
+        if language in {"en-US", "en-GB"}:
+            continue
+
+        entries = translations_for(language)
+        untranslated = {
+            key: entries.get(key, key)
+            for key in infrastructure_keys
+            if entries.get(key, key) == key
+        }
+
+        assert not untranslated, (
+            f"{language} has untranslated static infrastructure text: "
+            f"{untranslated}"
+        )
