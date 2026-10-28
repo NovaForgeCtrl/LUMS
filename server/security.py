@@ -51,6 +51,8 @@ PERMISSIONS = {
     "backups.manage": "Datenbank-Backups erstellen und einsehen",
     "system.update": "LUMS-Systemupdates prüfen und starten",
     "infrastructure.manage": "Infrastruktur-Topologie verwalten",
+    "alerts.view": "Alerts und Alert-Historie ansehen",
+    "alerts.manage": "Alert-Regeln und Integrationen verwalten",
 }
 
 ROLE_DEFAULT_PERMISSIONS = {
@@ -95,6 +97,7 @@ PERMISSION_DEPENDENCIES = {
     "permissions.manage": {"users.manage", "clients.view"},
     "system.update": {"users.manage", "clients.view"},
     "infrastructure.manage": {"users.manage", "clients.view"},
+    "alerts.manage": {"alerts.view"},
 }
 
 SAFE_METHODS = {"GET", "HEAD", "OPTIONS"}
@@ -511,10 +514,29 @@ def login_required(view):
             }), 403
 
         request.environ["lums.user"] = user
-        request.environ["lums.permissions"] = (
+
+        effective_permissions = set(
             permissions
             if permissions is not None
             else ROLE_DEFAULT_PERMISSIONS[user["role"]]
+        )
+
+        # Defensively remove permissions whose dependencies are missing.
+        # Repeat until stable to handle dependencies across multiple levels.
+        while True:
+            invalid_permissions = {
+                permission
+                for permission in effective_permissions
+                if not PERMISSION_DEPENDENCIES.get(
+                    permission, set()
+                ).issubset(effective_permissions)
+            }
+            if not invalid_permissions:
+                break
+            effective_permissions.difference_update(invalid_permissions)
+
+        request.environ["lums.permissions"] = frozenset(
+            effective_permissions
         )
 
         return view(*args, **kwargs)

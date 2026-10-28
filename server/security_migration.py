@@ -33,6 +33,7 @@ TELEMETRY_DASHBOARD_MIGRATION_VERSION = "013-telemetry-dashboard"
 TELEMETRY_EVENT_HISTORY_MIGRATION_VERSION = "014-telemetry-event-history"
 SYSTEM_UPDATE_PERMISSION_MIGRATION_VERSION = "015-system-update-permission"
 INFRASTRUCTURE_TOPOLOGY_MIGRATION_VERSION = "016-infrastructure-topology"
+ALERTING_PERMISSIONS_MIGRATION_VERSION = "017-alerting-permissions"
 
 
 def utc_now():
@@ -285,6 +286,26 @@ def migrate_infrastructure_topology(connection):
         """
         INSERT OR IGNORE INTO user_permissions (user_id, permission)
         SELECT users.id, 'infrastructure.manage'
+        FROM users
+        WHERE users.role = 'administrator'
+        """
+    )
+
+
+def migrate_alerting_permissions(connection):
+    """Grant alert permissions to existing administrator accounts."""
+    connection.execute(
+        """
+        INSERT OR IGNORE INTO user_permissions (user_id, permission)
+        SELECT users.id, 'alerts.view'
+        FROM users
+        WHERE users.role = 'administrator'
+        """
+    )
+    connection.execute(
+        """
+        INSERT OR IGNORE INTO user_permissions (user_id, permission)
+        SELECT users.id, 'alerts.manage'
         FROM users
         WHERE users.role = 'administrator'
         """
@@ -1073,6 +1094,27 @@ def run_migration(db_path, admin_username, skip_admin):
             print(
                 f"[OK] Migration "
                 f"{INFRASTRUCTURE_TOPOLOGY_MIGRATION_VERSION} completed"
+            )
+
+        if migration_already_applied(
+            connection,
+            ALERTING_PERMISSIONS_MIGRATION_VERSION
+        ):
+            print(
+                f"[INFO] Migration "
+                f"{ALERTING_PERMISSIONS_MIGRATION_VERSION} "
+                "is already recorded"
+            )
+        else:
+            migrate_alerting_permissions(connection)
+            record_migration(
+                connection,
+                ALERTING_PERMISSIONS_MIGRATION_VERSION
+            )
+            connection.commit()
+            print(
+                f"[OK] Migration "
+                f"{ALERTING_PERMISSIONS_MIGRATION_VERSION} completed"
             )
 
         print_schema(connection)

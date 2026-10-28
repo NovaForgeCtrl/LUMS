@@ -486,3 +486,52 @@ def test_failed_migration_restores_pre_migration_backup(
             "SELECT hostname, ip FROM clients"
         ).fetchone()
         assert client == ("integration-client", "192.0.2.10")
+
+
+def test_alerting_permission_migration_grants_only_administrators():
+    connection = sqlite3.connect(":memory:")
+    connection.executescript("""
+        CREATE TABLE users (
+            id INTEGER PRIMARY KEY,
+            role TEXT NOT NULL
+        );
+        CREATE TABLE user_permissions (
+            user_id INTEGER NOT NULL,
+            permission TEXT NOT NULL,
+            PRIMARY KEY (user_id, permission)
+        );
+        INSERT INTO users (id, role) VALUES
+            (1, 'administrator'),
+            (2, 'operator'),
+            (3, 'viewer');
+        INSERT INTO user_permissions (user_id, permission) VALUES
+            (1, 'clients.view'),
+            (2, 'updates.view');
+    """)
+
+    migration.migrate_alerting_permissions(connection)
+    migration.migrate_alerting_permissions(connection)
+
+    grants = connection.execute("""
+        SELECT user_id, permission
+        FROM user_permissions
+        WHERE permission IN ('alerts.view', 'alerts.manage')
+        ORDER BY user_id, permission
+    """).fetchall()
+
+    assert grants == [
+        (1, 'alerts.manage'),
+        (1, 'alerts.view'),
+    ]
+
+    # Existing unrelated permissions must remain untouched.
+    assert connection.execute("""
+        SELECT user_id, permission
+        FROM user_permissions
+        WHERE permission IN ('clients.view', 'updates.view')
+        ORDER BY user_id, permission
+    """).fetchall() == [
+        (1, 'clients.view'),
+        (2, 'updates.view'),
+    ]
+    connection.close()

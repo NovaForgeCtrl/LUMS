@@ -7,6 +7,7 @@ from flask import (
     redirect,
     session,
     Response,
+    g,
 )
 import csv
 import io
@@ -252,6 +253,24 @@ def get_connection():
     connection.execute("PRAGMA busy_timeout = 5000")
     connection.row_factory = sqlite3.Row
     return connection
+
+
+
+# Alerting routes use request-local SQLite connections.
+if __package__:
+    from .alerts_routes import alerts_bp
+else:
+    from alerts_routes import alerts_bp
+
+app.register_blueprint(alerts_bp)
+
+
+@app.teardown_appcontext
+def close_alert_database_connection(exception=None):
+    connection = getattr(g, "lums_alert_connection", None)
+    if connection is not None:
+        connection.close()
+        g.lums_alert_connection = None
 
 
 def get_user_permissions(connection, user_id, role):

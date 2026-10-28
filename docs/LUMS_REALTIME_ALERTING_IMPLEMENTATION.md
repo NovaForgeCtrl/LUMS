@@ -247,7 +247,7 @@ CREATE TABLE alert_notifications_log (
 | POST | `/alerts/<id>/acknowledge` | Acknowledge alert |
 | POST | `/alerts/<id>/resolve` | Mark alert resolved |
 | POST | `/alerts/<id>/escalate` | Escalate alert |
-| POST | `/alerts/clear-all` | Clear all resolved alerts |
+| POST | `/alerts/clear-all` | Disabled (501); alert history is preserved |
 
 ### Rule Management
 
@@ -262,13 +262,15 @@ CREATE TABLE alert_notifications_log (
 
 | Method | Endpoint | Purpose |
 |--------|----------|---------|
-| GET | `/alerts/integrations` | List integrations |
-| POST | `/alerts/integrations/email` | Setup email |
-| POST | `/alerts/integrations/slack` | Setup Slack |
-| POST | `/alerts/integrations/pagerduty` | Setup PagerDuty |
-| POST | `/alerts/integrations/webhook` | Setup webhook |
-| POST | `/alerts/integrations/<id>/test` | Test integration |
-| DELETE | `/alerts/integrations/<id>` | Remove integration |
+| GET | `/alerts/integrations` | Returns an empty list with `available: false` |
+| POST | `/alerts/integrations/email` | Disabled (501) |
+| POST | `/alerts/integrations/slack` | Disabled (501) |
+| POST | `/alerts/integrations/pagerduty` | Disabled (501) |
+| POST | `/alerts/integrations/webhook` | Disabled (501) |
+| POST | `/alerts/integrations/<id>/test` | Disabled (501) |
+| DELETE | `/alerts/integrations/<id>` | Disabled (501) |
+
+**Availability note:** Notification integrations are disabled until secure persistent configuration is implemented. The `clear-all` endpoint is disabled to preserve alert history.
 
 ---
 
@@ -370,18 +372,20 @@ CREATE TABLE alert_notifications_log (
 ## 🔧 Technical Details
 
 ### Alert Manager Initialization
-```python
-from alerts import AlertManager
-from app import get_connection
 
-# Initialize alert manager
-db_connection = get_connection()
-alert_manager = AlertManager(db_connection)
+In the Flask application, alert managers are created lazily per request by
+`server/alerts_routes.py`. The manager uses the connection factory configured
+as `LUMS_GET_CONNECTION`; the request's database connection is closed during
+Flask application-context teardown.
 
-# Register notification providers
-from alerts_routes import init_alerts_manager
-init_alerts_manager(db_connection)
-```
+Do not use the legacy `init_alerts_manager()` function to configure the Flask
+routes: the current route implementation resolves its manager through a
+request-local proxy. For standalone scripts or tests, an `AlertManager` can
+still be constructed with an explicitly created SQLite connection. The caller
+is responsible for closing that connection.
+
+Notification integration endpoints are currently disabled. Creating provider
+objects in memory does not constitute secure persistent integration storage.
 
 ### Creating an Alert Rule Programmatically
 ```python
