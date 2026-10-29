@@ -353,3 +353,11 @@ def test_static_infrastructure_texts_are_localized():
             f"{language} has untranslated static infrastructure text: "
             f"{untranslated}"
         )
+
+
+def test_alert_escalated_is_translated_in_all_languages():
+    for language in LANGUAGES:
+        text = translate("Alert escalated", language)
+        assert text != "Alert escalated" or language in {"en-US", "en-GB"}, (
+            f"{language} is missing the Alert escalated translation"
+        )

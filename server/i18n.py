@@ -234,9 +234,17 @@ _COMMON = {
         "Alert triggered": "Warnung ausgelöst",
         "Alert resolved": "Warnung behoben",
         "Acknowledged": "Bestätigt",
+        "Alert escalated": "Warnung eskaliert",
         "Escalation path": "Eskalationspfad",
         "Group similar alerts": "Ähnliche Warnungen gruppieren",
         "Deduplicate alerts": "Doppelte Warnungen entfernen",
+        'Configure alert rules and their thresholds.': 'Warnungsregeln und ihre Schwellwerte konfigurieren.',
+        'Enable rule': 'Regel aktivieren',
+        'Disable rule': 'Regel deaktivieren',
+        'Threshold must be valid JSON.': 'Der Schwellwert muss gültiges JSON sein.',
+        'No alert rules configured.': 'Keine Warnungsregeln konfiguriert.',
+        'Escalation path must be a valid JSON array of non-empty strings.': 'Der Eskalationspfad muss ein gültiges JSON-Array aus nicht leeren Zeichenfolgen sein.',
+        'The request failed. Please try again.': 'Die Anfrage ist fehlgeschlagen. Bitte versuche es erneut.',
         "Email notifications": "E-Mail-Benachrichtigungen",
         "Slack integration": "Slack-Integration",
         "PagerDuty integration": "PagerDuty-Integration",
@@ -255,6 +263,19 @@ _COMMON = {
         "Clear all alerts": "Alle Warnungen löschen",
         "Mute notifications": "Benachrichtigungen stummschalten",
         "Unmute notifications": "Benachrichtigungen einschalten",
+        'Monitor alert activity and respond to incidents.': 'Warnungsaktivität überwachen und auf Vorfälle reagieren.',
+        'Loading alerts…': 'Warnungen werden geladen …',
+        'The alert action failed.': 'Die Warnungsaktion ist fehlgeschlagen.',
+        'Resolve': 'Auflösen',
+        'Connecting…': 'Verbindung wird hergestellt …',
+        'Last updated': 'Letzte Aktualisierung',
+        'Current incidents and recent alert activity.': 'Aktuelle Vorfälle und letzte Warnungsaktivitäten.',
+        'Active alerts': 'Aktive Warnungen',
+        'Live updates': 'Automatische Aktualisierung',
+        'No alerts found.': 'Keine Warnungen gefunden.',
+        'This section will be implemented in a later step.': 'Dieser Bereich wird in einem späteren Schritt implementiert.',
+        'Alerts could not be loaded.': 'Warnungen konnten nicht geladen werden.',
+        'Acknowledge': 'Bestätigen',
     },
     "en-US": {
         "Alerts & Monitoring": "Alerts & Monitoring",
@@ -279,9 +300,17 @@ _COMMON = {
         "Alert triggered": "Alert triggered",
         "Alert resolved": "Alert resolved",
         "Acknowledged": "Acknowledged",
+        "Alert escalated": "Alert escalated",
         "Escalation path": "Escalation path",
         "Group similar alerts": "Group similar alerts",
         "Deduplicate alerts": "Deduplicate alerts",
+        'Configure alert rules and their thresholds.': 'Configure alert rules and their thresholds.',
+        'Enable rule': 'Enable rule',
+        'Disable rule': 'Disable rule',
+        'Threshold must be valid JSON.': 'Threshold must be valid JSON.',
+        'No alert rules configured.': 'No alert rules configured.',
+        'Escalation path must be a valid JSON array of non-empty strings.': 'Escalation path must be a valid JSON array of non-empty strings.',
+        'The request failed. Please try again.': 'The request failed. Please try again.',
         "Email notifications": "Email notifications",
         "Slack integration": "Slack integration",
         "PagerDuty integration": "PagerDuty integration",
@@ -330,9 +359,17 @@ _COMMON = {
         "Alert triggered": "Alert triggered",
         "Alert resolved": "Alert resolved",
         "Acknowledged": "Acknowledged",
+        "Alert escalated": "Alert escalated",
         "Escalation path": "Escalation path",
         "Group similar alerts": "Group similar alerts",
         "Deduplicate alerts": "Deduplicate alerts",
+        'Configure alert rules and their thresholds.': 'Configure alert rules and their thresholds.',
+        'Enable rule': 'Enable rule',
+        'Disable rule': 'Disable rule',
+        'Threshold must be valid JSON.': 'Threshold must be valid JSON.',
+        'No alert rules configured.': 'No alert rules configured.',
+        'Escalation path must be a valid JSON array of non-empty strings.': 'Escalation path must be a valid JSON array of non-empty strings.',
+        'The request failed. Please try again.': 'The request failed. Please try again.',
         "Email notifications": "Email notifications",
         "Slack integration": "Slack integration",
         "PagerDuty integration": "PagerDuty integration",
@@ -507,9 +544,17 @@ _COMMON = {
         "Alert triggered": "Alerte déclenchée",
         "Alert resolved": "Alerte résolue",
         "Acknowledged": "Reconnu",
+        "Alert escalated": "Alerte escaladée",
         "Escalation path": "Chemin de escalade",
         "Group similar alerts": "Regrouper les alertes similaires",
         "Deduplicate alerts": "Dédupliquer les alertes",
+        'Configure alert rules and their thresholds.': 'Configurez les règles d’alerte et leurs seuils.',
+        'Enable rule': 'Activer la règle',
+        'Disable rule': 'Désactiver la règle',
+        'Threshold must be valid JSON.': 'Le seuil doit être un JSON valide.',
+        'No alert rules configured.': 'Aucune règle d’alerte configurée.',
+        'Escalation path must be a valid JSON array of non-empty strings.': 'Le chemin d’escalade doit être un tableau JSON valide contenant des chaînes non vides.',
+        'The request failed. Please try again.': 'La requête a échoué. Veuillez réessayer.',
         "Email notifications": "Notifications par e-mail",
         "Slack integration": "Intégration Slack",
         "PagerDuty integration": "Intégration PagerDuty",
@@ -528,6 +573,19 @@ _COMMON = {
         "Clear all alerts": "Effacer toutes les alertes",
         "Mute notifications": "Désactiver les notifications",
         "Unmute notifications": "Réactiver les notifications",
+        'Monitor alert activity and respond to incidents.': 'Surveillez les alertes et réagissez aux incidents.',
+        'Loading alerts…': 'Chargement des alertes…',
+        'The alert action failed.': 'L’action sur l’alerte a échoué.',
+        'Resolve': 'Résoudre',
+        'Connecting…': 'Connexion…',
+        'Last updated': 'Dernière mise à jour',
+        'Current incidents and recent alert activity.': 'Incidents en cours et activité récente des alertes.',
+        'Active alerts': 'Alertes actives',
+        'Live updates': 'Mise à jour automatique',
+        'No alerts found.': 'Aucune alerte trouvée.',
+        'This section will be implemented in a later step.': 'Cette section sera mise en œuvre ultérieurement.',
+        'Alerts could not be loaded.': 'Impossible de charger les alertes.',
+        'Acknowledge': 'Acquitter',
     },
     "es": {
         "Standard LUMS": "LUMS estándar",
@@ -684,9 +742,17 @@ _COMMON = {
         "Alert triggered": "Alerta activada",
         "Alert resolved": "Alerta resuelta",
         "Acknowledged": "Reconocido",
+        "Alert escalated": "Alerta escalada",
         "Escalation path": "Ruta de escalada",
         "Group similar alerts": "Agrupar alertas similares",
         "Deduplicate alerts": "Deduplicar alertas",
+        'Configure alert rules and their thresholds.': 'Configura las reglas de alerta y sus umbrales.',
+        'Enable rule': 'Activar regla',
+        'Disable rule': 'Desactivar regla',
+        'Threshold must be valid JSON.': 'El umbral debe ser JSON válido.',
+        'No alert rules configured.': 'No hay reglas de alerta configuradas.',
+        'Escalation path must be a valid JSON array of non-empty strings.': 'La ruta de escalado debe ser una matriz JSON válida de cadenas no vacías.',
+        'The request failed. Please try again.': 'La solicitud ha fallado. Inténtalo de nuevo.',
         "Email notifications": "Notificaciones por correo electrónico",
         "Slack integration": "Integración de Slack",
         "PagerDuty integration": "Integración de PagerDuty",
@@ -705,6 +771,19 @@ _COMMON = {
         "Clear all alerts": "Borrar todas las alertas",
         "Mute notifications": "Silenciar notificaciones",
         "Unmute notifications": "Activar notificaciones",
+        'Monitor alert activity and respond to incidents.': 'Supervisa las alertas y responde a los incidentes.',
+        'Loading alerts…': 'Cargando alertas…',
+        'The alert action failed.': 'La acción de alerta ha fallado.',
+        'Resolve': 'Resolver',
+        'Connecting…': 'Conectando…',
+        'Last updated': 'Última actualización',
+        'Current incidents and recent alert activity.': 'Incidentes actuales y actividad reciente de alertas.',
+        'Active alerts': 'Alertas activas',
+        'Live updates': 'Actualización automática',
+        'No alerts found.': 'No se encontraron alertas.',
+        'This section will be implemented in a later step.': 'Esta sección se implementará más adelante.',
+        'Alerts could not be loaded.': 'No se pudieron cargar las alertas.',
+        'Acknowledge': 'Confirmar',
     },
     "zh-CN": {
         "Standard LUMS": "LUMS 标准版",
@@ -861,9 +940,17 @@ _COMMON = {
         "Alert triggered": "警报已触发",
         "Alert resolved": "警报已解决",
         "Acknowledged": "已确认",
+        "Alert escalated": "警报已升级",
         "Escalation path": "升级路径",
         "Group similar alerts": "分组相似警报",
         "Deduplicate alerts": "删除重复警报",
+        'Configure alert rules and their thresholds.': '配置警报规则及其阈值。',
+        'Enable rule': '启用规则',
+        'Disable rule': '禁用规则',
+        'Threshold must be valid JSON.': '阈值必须是有效的 JSON。',
+        'No alert rules configured.': '尚未配置警报规则。',
+        'Escalation path must be a valid JSON array of non-empty strings.': '升级路径必须是由非空字符串组成的有效 JSON 数组。',
+        'The request failed. Please try again.': '请求失败，请重试。',
         "Email notifications": "电子邮件通知",
         "Slack integration": "Slack集成",
         "PagerDuty integration": "PagerDuty集成",
@@ -882,6 +969,19 @@ _COMMON = {
         "Clear all alerts": "清除所有警报",
         "Mute notifications": "静音通知",
         "Unmute notifications": "取消通知静音",
+        'Monitor alert activity and respond to incidents.': '监控警报活动并响应事件。',
+        'Loading alerts…': '正在加载警报…',
+        'The alert action failed.': '警报操作失败。',
+        'Resolve': '解决',
+        'Connecting…': '正在连接…',
+        'Last updated': '上次更新',
+        'Current incidents and recent alert activity.': '当前事件和最近的警报活动。',
+        'Active alerts': '活动警报',
+        'Live updates': '自动更新',
+        'No alerts found.': '未找到警报。',
+        'This section will be implemented in a later step.': '此部分将在后续步骤中实现。',
+        'Alerts could not be loaded.': '无法加载警报。',
+        'Acknowledge': '确认',
     },
     "ja": {
         "Standard LUMS": "LUMS 標準",
@@ -1038,9 +1138,17 @@ _COMMON = {
         "Alert triggered": "アラートが発火しました",
         "Alert resolved": "アラートが解決しました",
         "Acknowledged": "確認済み",
+        "Alert escalated": "アラートがエスカレーションされました",
         "Escalation path": "エスカレーションパス",
         "Group similar alerts": "類似アラートをグループ化",
         "Deduplicate alerts": "重複排除アラート",
+        'Configure alert rules and their thresholds.': 'アラートルールとしきい値を設定します。',
+        'Enable rule': 'ルールを有効化',
+        'Disable rule': 'ルールを無効化',
+        'Threshold must be valid JSON.': 'しきい値は有効な JSON である必要があります。',
+        'No alert rules configured.': 'アラートルールが設定されていません。',
+        'Escalation path must be a valid JSON array of non-empty strings.': 'エスカレーションパスは、空でない文字列を含む有効な JSON 配列である必要があります。',
+        'The request failed. Please try again.': 'リクエストに失敗しました。もう一度お試しください。',
         "Email notifications": "メール通知",
         "Slack integration": "Slack統合",
         "PagerDuty integration": "PagerDuty統合",
@@ -1059,6 +1167,19 @@ _COMMON = {
         "Clear all alerts": "すべてのアラートをクリア",
         "Mute notifications": "通知をミュート",
         "Unmute notifications": "通知をミュート解除",
+        'Monitor alert activity and respond to incidents.': 'アラートを監視し、インシデントに対応します。',
+        'Loading alerts…': 'アラートを読み込み中…',
+        'The alert action failed.': 'アラート操作に失敗しました。',
+        'Resolve': '解決',
+        'Connecting…': '接続中…',
+        'Last updated': '最終更新',
+        'Current incidents and recent alert activity.': '現在のインシデントと最近のアラート活動。',
+        'Active alerts': 'アクティブなアラート',
+        'Live updates': '自動更新',
+        'No alerts found.': 'アラートが見つかりません。',
+        'This section will be implemented in a later step.': 'このセクションは後の段階で実装されます。',
+        'Alerts could not be loaded.': 'アラートを読み込めませんでした。',
+        'Acknowledge': '確認',
     },
     "pl": {
         "Standard LUMS": "Standard LUMS",
@@ -1215,9 +1336,17 @@ _COMMON = {
         "Alert triggered": "Alert wyzwolony",
         "Alert resolved": "Alert rozwiązany",
         "Acknowledged": "Potwierdzony",
+        "Alert escalated": "Alert eskalowany",
         "Escalation path": "Ścieżka eskalacji",
         "Group similar alerts": "Grupuj podobne alerty",
         "Deduplicate alerts": "Deduplikuj alerty",
+        'Configure alert rules and their thresholds.': 'Konfiguruj reguły alertów i ich progi.',
+        'Enable rule': 'Włącz regułę',
+        'Disable rule': 'Wyłącz regułę',
+        'Threshold must be valid JSON.': 'Próg musi być poprawnym dokumentem JSON.',
+        'No alert rules configured.': 'Nie skonfigurowano reguł alertów.',
+        'Escalation path must be a valid JSON array of non-empty strings.': 'Ścieżka eskalacji musi być prawidłową tablicą JSON zawierającą niepuste ciągi znaków.',
+        'The request failed. Please try again.': 'Żądanie nie powiodło się. Spróbuj ponownie.',
         "Email notifications": "Powiadomienia e-mailowe",
         "Slack integration": "Integracja Slack",
         "PagerDuty integration": "Integracja PagerDuty",
@@ -1236,6 +1365,19 @@ _COMMON = {
         "Clear all alerts": "Wyczyść wszystkie alerty",
         "Mute notifications": "Wycisz powiadomienia",
         "Unmute notifications": "Włącz powiadomienia",
+        'Monitor alert activity and respond to incidents.': 'Monitoruj alerty i reaguj na incydenty.',
+        'Loading alerts…': 'Ładowanie alertów…',
+        'The alert action failed.': 'Operacja alertu nie powiodła się.',
+        'Resolve': 'Rozwiąż',
+        'Connecting…': 'Łączenie…',
+        'Last updated': 'Ostatnia aktualizacja',
+        'Current incidents and recent alert activity.': 'Bieżące incydenty i ostatnia aktywność alertów.',
+        'Active alerts': 'Aktywne alerty',
+        'Live updates': 'Automatyczne odświeżanie',
+        'No alerts found.': 'Nie znaleziono alertów.',
+        'This section will be implemented in a later step.': 'Ta sekcja zostanie zaimplementowana później.',
+        'Alerts could not be loaded.': 'Nie udało się załadować alertów.',
+        'Acknowledge': 'Potwierdź',
     },
     "sv": {
         "Standard LUMS": "LUMS standard",
@@ -1392,9 +1534,17 @@ _COMMON = {
         "Alert triggered": "Avisering utlöst",
         "Alert resolved": "Avisering löst",
         "Acknowledged": "Bekräftad",
+        "Alert escalated": "Avisering eskalerad",
         "Escalation path": "Eskaleringsväg",
         "Group similar alerts": "Gruppera liknande aviseringar",
         "Deduplicate alerts": "Deduplicera aviseringar",
+        'Configure alert rules and their thresholds.': 'Konfigurera aviseringsregler och deras tröskelvärden.',
+        'Enable rule': 'Aktivera regel',
+        'Disable rule': 'Inaktivera regel',
+        'Threshold must be valid JSON.': 'Tröskelvärdet måste vara giltig JSON.',
+        'No alert rules configured.': 'Inga varningsregler har konfigurerats.',
+        'Escalation path must be a valid JSON array of non-empty strings.': 'Eskaleringsvägen måste vara en giltig JSON-array med icke-tomma strängar.',
+        'The request failed. Please try again.': 'Begäran misslyckades. Försök igen.',
         "Email notifications": "E-postmeddelanden",
         "Slack integration": "Slack-integration",
         "PagerDuty integration": "PagerDuty-integration",
@@ -1413,6 +1563,19 @@ _COMMON = {
         "Clear all alerts": "Rensa alla aviseringar",
         "Mute notifications": "Dölj meddelanden",
         "Unmute notifications": "Visa meddelanden",
+        'Monitor alert activity and respond to incidents.': 'Övervaka aviseringar och hantera incidenter.',
+        'Loading alerts…': 'Läser in aviseringar…',
+        'The alert action failed.': 'Åtgärden för aviseringen misslyckades.',
+        'Resolve': 'Lös',
+        'Connecting…': 'Ansluter…',
+        'Last updated': 'Senast uppdaterad',
+        'Current incidents and recent alert activity.': 'Aktuella incidenter och senaste aviseringsaktivitet.',
+        'Active alerts': 'Aktiva aviseringar',
+        'Live updates': 'Automatisk uppdatering',
+        'No alerts found.': 'Inga aviseringar hittades.',
+        'This section will be implemented in a later step.': 'Det här avsnittet implementeras i ett senare steg.',
+        'Alerts could not be loaded.': 'Aviseringarna kunde inte läsas in.',
+        'Acknowledge': 'Bekräfta',
     },
     "nb": {
         "Standard LUMS": "LUMS standard",
@@ -1569,9 +1732,17 @@ _COMMON = {
         "Alert triggered": "Varsel utløst",
         "Alert resolved": "Varsel løst",
         "Acknowledged": "Erkjent",
+        "Alert escalated": "Varsel eskalert",
         "Escalation path": "Eskalasjonsti",
         "Group similar alerts": "Grupper lignende varsler",
         "Deduplicate alerts": "Dedupliser varsler",
+        'Configure alert rules and their thresholds.': 'Konfigurer varslingsregler og terskelverdiene deres.',
+        'Enable rule': 'Aktiver regel',
+        'Disable rule': 'Deaktiver regel',
+        'Threshold must be valid JSON.': 'Terskelverdien må være gyldig JSON.',
+        'No alert rules configured.': 'Ingen varslingsregel er konfigurert.',
+        'Escalation path must be a valid JSON array of non-empty strings.': 'Eskaleringsbanen må være en gyldig JSON-liste med ikke-tomme strenger.',
+        'The request failed. Please try again.': 'Forespørselen mislyktes. Prøv igjen.',
         "Email notifications": "E-postvarsler",
         "Slack integration": "Slack-integrasjon",
         "PagerDuty integration": "PagerDuty-integrasjon",
@@ -1590,6 +1761,19 @@ _COMMON = {
         "Clear all alerts": "Fjern alle varsler",
         "Mute notifications": "Demp varsler",
         "Unmute notifications": "Aktivér varsler",
+        'Monitor alert activity and respond to incidents.': 'Overvåk varsler og håndter hendelser.',
+        'Loading alerts…': 'Laster inn varsler…',
+        'The alert action failed.': 'Varselhandlingen mislyktes.',
+        'Resolve': 'Løs',
+        'Connecting…': 'Kobler til…',
+        'Last updated': 'Sist oppdatert',
+        'Current incidents and recent alert activity.': 'Aktuelle hendelser og nylig varselaktivitet.',
+        'Active alerts': 'Aktive varsler',
+        'Live updates': 'Automatisk oppdatering',
+        'No alerts found.': 'Fant ingen varsler.',
+        'This section will be implemented in a later step.': 'Denne delen implementeres i et senere trinn.',
+        'Alerts could not be loaded.': 'Kunne ikke laste inn varsler.',
+        'Acknowledge': 'Bekreft',
     },
     "fi": {
         "Standard LUMS": "LUMS-vakio",
@@ -1746,9 +1930,17 @@ _COMMON = {
         "Alert triggered": "Hälytys laukaissut",
         "Alert resolved": "Hälytys ratkaissut",
         "Acknowledged": "Vahvistettu",
+        "Alert escalated": "Hälytys eskaloitu",
         "Escalation path": "Escalation-polku",
         "Group similar alerts": "Ryhmitä samankaltaiset hälytykset",
         "Deduplicate alerts": "Poista kaksoiskappaleet hälytyksistä",
+        'Configure alert rules and their thresholds.': 'Määritä hälytyssäännöt ja niiden kynnysarvot.',
+        'Enable rule': 'Ota sääntö käyttöön',
+        'Disable rule': 'Poista sääntö käytöstä',
+        'Threshold must be valid JSON.': 'Kynnysarvon on oltava kelvollista JSON-muotoa.',
+        'No alert rules configured.': 'Hälytyssääntöjä ei ole määritetty.',
+        'Escalation path must be a valid JSON array of non-empty strings.': 'Eskalointipolun on oltava kelvollinen JSON-taulukko, joka sisältää ei-tyhjiä merkkijonoja.',
+        'The request failed. Please try again.': 'Pyyntö epäonnistui. Yritä uudelleen.',
         "Email notifications": "Sähköposti-ilmoitukset",
         "Slack integration": "Slack-integrointi",
         "PagerDuty integration": "PagerDuty-integrointi",
@@ -1767,6 +1959,19 @@ _COMMON = {
         "Clear all alerts": "Poista kaikki hälytykset",
         "Mute notifications": "Mykistä ilmoitukset",
         "Unmute notifications": "Poista ilmoitusten mykistys",
+        'Monitor alert activity and respond to incidents.': 'Valvo hälytyksiä ja reagoi tapahtumiin.',
+        'Loading alerts…': 'Ladataan hälytyksiä…',
+        'The alert action failed.': 'Hälytystoiminto epäonnistui.',
+        'Resolve': 'Ratkaise',
+        'Connecting…': 'Yhdistetään…',
+        'Last updated': 'Viimeksi päivitetty',
+        'Current incidents and recent alert activity.': 'Nykyiset tapahtumat ja viimeaikainen hälytystoiminta.',
+        'Active alerts': 'Aktiiviset hälytykset',
+        'Live updates': 'Automaattinen päivitys',
+        'No alerts found.': 'Hälytyksiä ei löytynyt.',
+        'This section will be implemented in a later step.': 'Tämä osio toteutetaan myöhemmässä vaiheessa.',
+        'Alerts could not be loaded.': 'Hälytyksiä ei voitu ladata.',
+        'Acknowledge': 'Kuittaa',
     },
 }
 
@@ -6054,6 +6259,1680 @@ for _hint_language, _hint_value in _LIVE_MONITORING_AGENT_HINT_TRANSLATIONS.item
     _hint_entries = _HEALTH_DASHBOARD_TRANSLATIONS[_hint_language]
     _hint_entries['Confirm that /etc/default/lums-agent contains LUMS_BASE and LUMS_TOKEN. Do not paste or share the token.'] = _hint_value
 
+
+# SOC dashboard and laboratory interface translations.
+_SOC_DASHBOARD_TRANSLATIONS = {'en-US': {'SOC dashboard': 'SOC dashboard',
+           'Security posture, stored events and logs.': 'Security posture, stored events and logs.',
+           'Workspace': 'Workspace',
+           'Alerts, rules, SOC lab and stored logs.': 'Alerts, rules, SOC lab and stored logs.',
+           'Log data is loading.': 'Log data is loading.',
+           'SOC Lab': 'SOC Lab',
+           'Python-based detection, correlation and incident creation using synthetic test events.': 'Python-based '
+                                                                                                     'detection, '
+                                                                                                     'correlation '
+                                                                                                     'and '
+                                                                                                     'incident '
+                                                                                                     'creation '
+                                                                                                     'using '
+                                                                                                     'synthetic '
+                                                                                                     'test '
+                                                                                                     'events.',
+           'Isolated simulation': 'Isolated simulation',
+           'Authentication failures': 'Authentication failures',
+           'Three failed logins and correlation': 'Three failed logins and correlation',
+           'Duplicate detection': 'Duplicate detection',
+           'Repeated event in the same batch': 'Repeated event in the same batch',
+           'Privileged activity': 'Privileged activity',
+           'Synthetic administrator permission change': 'Synthetic administrator permission change',
+           'Choose a scenario to run the Python pipeline.': 'Choose a scenario to run the Python '
+                                                            'pipeline.',
+           'SOC result metrics': 'SOC result metrics',
+           'Events': 'Events',
+           'Detections': 'Detections',
+           'Correlations': 'Correlations',
+           'Duplicates': 'Duplicates',
+           'Incidents': 'Incidents',
+           'SOC visualizations': 'SOC visualizations',
+           'Event timeline': 'Event timeline',
+           'Temporal distribution of synthetic events.': 'Temporal distribution of synthetic '
+                                                         'events.',
+           'Run a scenario to display the timeline.': 'Run a scenario to display the timeline.',
+           'Severity and incident status': 'Severity and incident status',
+           'Distribution of detections and incidents.': 'Distribution of detections and incidents.',
+           'Severity distribution': 'Severity distribution',
+           'Run a scenario to display the distribution.': 'Run a scenario to display the '
+                                                          'distribution.',
+           'Detection and incident pipeline': 'Detection and incident pipeline',
+           'Results of processing in the current scenario.': 'Results of processing in the current '
+                                                             'scenario.',
+           'SOC pipeline': 'SOC pipeline',
+           'Run a scenario to display the pipeline.': 'Run a scenario to display the pipeline.',
+           'Pipeline result': 'Pipeline result',
+           'No scenario has been run yet.': 'No scenario has been run yet.',
+           'No events are stored, no external systems are contacted, and no automated countermeasures are executed.': 'No '
+                                                                                                                      'events '
+                                                                                                                      'are '
+                                                                                                                      'stored, '
+                                                                                                                      'no '
+                                                                                                                      'external '
+                                                                                                                      'systems '
+                                                                                                                      'are '
+                                                                                                                      'contacted, '
+                                                                                                                      'and '
+                                                                                                                      'no '
+                                                                                                                      'automated '
+                                                                                                                      'countermeasures '
+                                                                                                                      'are '
+                                                                                                                      'executed.',
+           'Log data is loading…': 'Log data is loading…',
+           'No matching log entries found.': 'No matching log entries found.',
+           'SOC event': 'SOC event',
+           'Audit': 'Audit',
+           'entries': 'entries',
+           'Logs could not be loaded.': 'Logs could not be loaded.',
+           'Error loading logs.': 'Error loading logs.',
+           'Event timeline distribution': 'Event timeline distribution',
+           'No events in this scenario.': 'No events in this scenario.',
+           'No valid timestamps are available.': 'No valid timestamps are available.',
+           'Entry': 'Entry',
+           'Severity and incident distribution': 'Severity and incident distribution',
+           'Detections by severity': 'Detections by severity',
+           'Incidents by status': 'Incidents by status',
+           'Open': 'Open',
+           'In progress': 'In progress',
+           'Resolved': 'Resolved',
+           'SOC pipeline results': 'SOC pipeline results',
+           'Duplicates removed': 'Duplicates removed',
+           'Python SOC pipeline is running…': 'Python SOC pipeline is running…',
+           'CSRF validation failed. Please reload the page.': 'CSRF validation failed. Please '
+                                                              'reload the page.',
+           'Unknown SOC scenario.': 'Unknown SOC scenario.',
+           'The Python SOC pipeline could not execute the scenario.': 'The Python SOC pipeline '
+                                                                      'could not execute the '
+                                                                      'scenario.',
+           'SOC request failed (HTTP {status}).': 'SOC request failed (HTTP {status}).',
+           'SOC request failed.': 'SOC request failed.',
+           'Scenario completed: {scenario}. Result provided by the Python pipeline.': 'Scenario '
+                                                                                      'completed: '
+                                                                                      '{scenario}. '
+                                                                                      'Result '
+                                                                                      'provided by '
+                                                                                      'the Python '
+                                                                                      'pipeline.',
+           'Total': 'Total',
+           'events': 'events',
+           'Display limited; export contains up to 5000 entries.': 'Display limited; export '
+                                                                   'contains up to 5000 entries.',
+           'Persisted SOC events and audit logs.': 'Persisted SOC events and audit logs.',
+           'Log export': 'Log export',
+           'All sources': 'All sources',
+           'SOC events': 'SOC events',
+           'Audit log': 'Audit log',
+           'All statuses': 'All statuses',
+           'Search': 'Search',
+           'Agent, action or content': 'Agent, action or content',
+           'Filter': 'Filter',
+           'Time': 'Time',
+           'Actor / Agent': 'Actor / Agent',
+           'Event / Action': 'Event / Action',
+           'Details': 'Details',
+           'SOC navigation': 'SOC navigation',
+           'SOC lab scenarios': 'SOC lab scenarios',
+           'Log': 'Log',
+           'Webhooks': 'Webhooks',
+           'Integrations': 'Integrations',
+           'Connected security and notification services will be managed here in the future.': 'Connected '
+                                                                                               'security '
+                                                                                               'and '
+                                                                                               'notification '
+                                                                                               'services '
+                                                                                               'will '
+                                                                                               'be '
+                                                                                               'managed '
+                                                                                               'here '
+                                                                                               'in '
+                                                                                               'the '
+                                                                                               'future.',
+           'Configuration not yet available': 'Configuration not yet available',
+           'Integrations remain disabled until secure persistent configuration and secret management are implemented.': 'Integrations '
+                                                                                                                        'remain '
+                                                                                                                        'disabled '
+                                                                                                                        'until '
+                                                                                                                        'secure '
+                                                                                                                        'persistent '
+                                                                                                                        'configuration '
+                                                                                                                        'and '
+                                                                                                                        'secret '
+                                                                                                                        'management '
+                                                                                                                        'are '
+                                                                                                                        'implemented.',
+           'Planned area for controlled delivery of alert events to external systems.': 'Planned '
+                                                                                        'area for '
+                                                                                        'controlled '
+                                                                                        'delivery '
+                                                                                        'of alert '
+                                                                                        'events to '
+                                                                                        'external '
+                                                                                        'systems.',
+           'Webhooks are disabled': 'Webhooks are disabled',
+           'No external destinations are contacted. URL validation, SSRF protection, secret storage, permissions and delivery logs must be implemented before activation.': 'No '
+                                                                                                                                                                            'external '
+                                                                                                                                                                            'destinations '
+                                                                                                                                                                            'are '
+                                                                                                                                                                            'contacted. '
+                                                                                                                                                                            'URL '
+                                                                                                                                                                            'validation, '
+                                                                                                                                                                            'SSRF '
+                                                                                                                                                                            'protection, '
+                                                                                                                                                                            'secret '
+                                                                                                                                                                            'storage, '
+                                                                                                                                                                            'permissions '
+                                                                                                                                                                            'and '
+                                                                                                                                                                            'delivery '
+                                                                                                                                                                            'logs '
+                                                                                                                                                                            'must '
+                                                                                                                                                                            'be '
+                                                                                                                                                                            'implemented '
+                                                                                                                                                                            'before '
+                                                                                                                                                                            'activation.'},
+ 'en-GB': {'Logs could not be loaded.': 'Logs could not be loaded.',
+           'No matching log entries found.': 'No matching log entries found.',
+           'Total': 'Total',
+           'events': 'events',
+           'Display limited; export contains up to 5000 entries.': 'Display limited; export '
+                                                                   'contains up to 5000 entries.',
+           'Persisted SOC events and audit logs.': 'Persisted SOC events and audit logs.',
+           'Log export': 'Log export',
+           'All sources': 'All sources',
+           'SOC events': 'SOC events',
+           'Audit log': 'Audit log',
+           'All statuses': 'All statuses',
+           'Search': 'Search',
+           'Agent, action or content': 'Agent, action or content',
+           'Filter': 'Filter',
+           'Time': 'Time',
+           'Actor / Agent': 'Actor / Agent',
+           'Event / Action': 'Event / Action',
+           'Details': 'Details',
+           'SOC navigation': 'SOC navigation',
+           'SOC lab scenarios': 'SOC lab scenarios',
+           'Log': 'Log',
+           'Webhooks': 'Webhooks',
+           'Integrations': 'Integrations',
+           'Connected security and notification services will be managed here in the future.': 'Connected '
+                                                                                               'security '
+                                                                                               'and '
+                                                                                               'notification '
+                                                                                               'services '
+                                                                                               'will '
+                                                                                               'be '
+                                                                                               'managed '
+                                                                                               'here '
+                                                                                               'in '
+                                                                                               'the '
+                                                                                               'future.',
+           'Configuration not yet available': 'Configuration not yet available',
+           'Integrations remain disabled until secure persistent configuration and secret management are implemented.': 'Integrations '
+                                                                                                                        'remain '
+                                                                                                                        'disabled '
+                                                                                                                        'until '
+                                                                                                                        'secure '
+                                                                                                                        'persistent '
+                                                                                                                        'configuration '
+                                                                                                                        'and '
+                                                                                                                        'secret '
+                                                                                                                        'management '
+                                                                                                                        'are '
+                                                                                                                        'implemented.',
+           'Planned area for controlled delivery of alert events to external systems.': 'Planned '
+                                                                                        'area for '
+                                                                                        'controlled '
+                                                                                        'delivery '
+                                                                                        'of alert '
+                                                                                        'events to '
+                                                                                        'external '
+                                                                                        'systems.',
+           'Webhooks are disabled': 'Webhooks are disabled',
+           'No external destinations are contacted. URL validation, SSRF protection, secret storage, permissions and delivery logs must be implemented before activation.': 'No '
+                                                                                                                                                                            'external '
+                                                                                                                                                                            'destinations '
+                                                                                                                                                                            'are '
+                                                                                                                                                                            'contacted. '
+                                                                                                                                                                            'URL '
+                                                                                                                                                                            'validation, '
+                                                                                                                                                                            'SSRF '
+                                                                                                                                                                            'protection, '
+                                                                                                                                                                            'secret '
+                                                                                                                                                                            'storage, '
+                                                                                                                                                                            'permissions '
+                                                                                                                                                                            'and '
+                                                                                                                                                                            'delivery '
+                                                                                                                                                                            'logs '
+                                                                                                                                                                            'must '
+                                                                                                                                                                            'be '
+                                                                                                                                                                            'implemented '
+                                                                                                                                                                            'before '
+                                                                                                                                                                            'activation.'},
+ 'de': {'SOC dashboard': 'SOC-Dashboard',
+        'Security posture, stored events and logs.': 'Sicherheitslage, gespeicherte Ereignisse und '
+                                                     'Protokolle.',
+        'Workspace': 'Arbeitsbereich',
+        'Alerts, rules, SOC lab and stored logs.': 'Warnungen, Regeln, SOC-Labor und gespeicherte '
+                                                   'Protokolle.',
+        'Log data is loading.': 'Log-Daten werden geladen.',
+        'SOC Lab': 'SOC-Labor',
+        'Python-based detection, correlation and incident creation using synthetic test events.': 'Python-basierte '
+                                                                                                  'Erkennung, '
+                                                                                                  'Korrelation '
+                                                                                                  'und '
+                                                                                                  'Incident-Erstellung '
+                                                                                                  'mit '
+                                                                                                  'synthetischen '
+                                                                                                  'Testereignissen.',
+        'Isolated simulation': 'Isolierte Simulation',
+        'Authentication failures': 'Authentifizierungsfehler',
+        'Three failed logins and correlation': 'Drei fehlgeschlagene Anmeldungen und Korrelation',
+        'Duplicate detection': 'Duplikaterkennung',
+        'Repeated event in the same batch': 'Wiederholtes Ereignis im selben Batch',
+        'Privileged activity': 'Privilegierte Aktivität',
+        'Synthetic administrator permission change': 'Synthetische '
+                                                     'Administrator-Berechtigungsänderung',
+        'Choose a scenario to run the Python pipeline.': 'Wähle ein Szenario, um die '
+                                                         'Python-Pipeline auszuführen.',
+        'SOC result metrics': 'SOC-Ergebniskennzahlen',
+        'Events': 'Ereignisse',
+        'Detections': 'Erkennungen',
+        'Correlations': 'Korrelationen',
+        'Duplicates': 'Duplikate',
+        'Incidents': 'Incidents',
+        'SOC visualizations': 'SOC-Visualisierungen',
+        'Event timeline': 'Ereignis-Zeitachse',
+        'Temporal distribution of synthetic events.': 'Zeitliche Verteilung der synthetischen '
+                                                      'Ereignisse.',
+        'Run a scenario to display the timeline.': 'Szenario ausführen, um die Zeitachse '
+                                                   'anzuzeigen.',
+        'Severity and incident status': 'Schweregrad und Incident-Status',
+        'Distribution of detections and incidents.': 'Verteilung der Erkennungen und Incidents.',
+        'Severity distribution': 'Schweregrad-Verteilung',
+        'Run a scenario to display the distribution.': 'Szenario ausführen, um die Verteilung '
+                                                       'anzuzeigen.',
+        'Detection and incident pipeline': 'Detection- und Incident-Pipeline',
+        'Results of processing in the current scenario.': 'Ergebnisse der Verarbeitung im '
+                                                          'aktuellen Szenario.',
+        'SOC pipeline': 'SOC-Pipeline',
+        'Run a scenario to display the pipeline.': 'Szenario ausführen, um die Pipeline '
+                                                   'anzuzeigen.',
+        'Pipeline result': 'Ergebnis der Pipeline',
+        'No scenario has been run yet.': 'Noch kein Szenario ausgeführt.',
+        'No events are stored, no external systems are contacted, and no automated countermeasures are executed.': 'Es '
+                                                                                                                   'werden '
+                                                                                                                   'keine '
+                                                                                                                   'Ereignisse '
+                                                                                                                   'gespeichert, '
+                                                                                                                   'keine '
+                                                                                                                   'externen '
+                                                                                                                   'Systeme '
+                                                                                                                   'angesprochen '
+                                                                                                                   'und '
+                                                                                                                   'keine '
+                                                                                                                   'automatischen '
+                                                                                                                   'Gegenmaßnahmen '
+                                                                                                                   'ausgeführt.',
+        'Log data is loading…': 'Log-Daten werden geladen …',
+        'No matching log entries found.': 'Keine passenden Protokolleinträge gefunden.',
+        'SOC event': 'SOC-Ereignis',
+        'Audit': 'Audit',
+        'entries': 'Einträge',
+        'Logs could not be loaded.': 'Logs konnten nicht geladen werden.',
+        'Error loading logs.': 'Fehler beim Laden der Protokolle.',
+        'Event timeline distribution': 'Zeitliche Verteilung der Ereignisse',
+        'No events in this scenario.': 'Keine Ereignisse in diesem Szenario.',
+        'No valid timestamps are available.': 'Keine gültigen Zeitstempel verfügbar.',
+        'Entry': 'Eintrag',
+        'Severity and incident distribution': 'Schweregrad- und Incident-Verteilung',
+        'Detections by severity': 'Erkennungen nach Schweregrad',
+        'Incidents by status': 'Incidents nach Status',
+        'Open': 'Offen',
+        'In progress': 'In Bearbeitung',
+        'Resolved': 'Gelöst',
+        'SOC pipeline results': 'SOC-Pipeline-Ergebnisse',
+        'Duplicates removed': 'Duplikate entfernt',
+        'Python SOC pipeline is running…': 'Python-SOC-Pipeline wird ausgeführt …',
+        'CSRF validation failed. Please reload the page.': 'CSRF-Prüfung fehlgeschlagen. Bitte '
+                                                           'Seite neu laden.',
+        'Unknown SOC scenario.': 'Unbekanntes SOC-Szenario.',
+        'The Python SOC pipeline could not execute the scenario.': 'Die Python-SOC-Pipeline konnte '
+                                                                   'das Szenario nicht ausführen.',
+        'SOC request failed (HTTP {status}).': 'SOC-Anfrage fehlgeschlagen (HTTP {status}).',
+        'SOC request failed.': 'SOC-Anfrage fehlgeschlagen.',
+        'Scenario completed: {scenario}. Result provided by the Python pipeline.': 'Szenario '
+                                                                                   'abgeschlossen: '
+                                                                                   '{scenario}. '
+                                                                                   'Ergebnis '
+                                                                                   'stammt aus der '
+                                                                                   'Python-Pipeline.',
+        'Total': 'Gesamt',
+        'events': 'Ereignisse',
+        'Display limited; export contains up to 5000 entries.': 'Anzeige begrenzt; der Export '
+                                                                'enthält bis zu 5000 Einträge.',
+        'Persisted SOC events and audit logs.': 'Persistierte SOC-Ereignisse und Audit-Protokolle.',
+        'Log export': 'Log-Export',
+        'All sources': 'Alle Quellen',
+        'SOC events': 'SOC-Ereignisse',
+        'Audit log': 'Audit-Protokoll',
+        'All statuses': 'Alle Status',
+        'Search': 'Suche',
+        'Agent, action or content': 'Agent, Aktion oder Inhalt',
+        'Filter': 'Filtern',
+        'Time': 'Zeit',
+        'Actor / Agent': 'Akteur / Agent',
+        'Event / Action': 'Ereignis / Aktion',
+        'Details': 'Details',
+        'SOC navigation': 'SOC-Navigation',
+        'SOC lab scenarios': 'SOC-Lab-Szenarien',
+        'Log': 'Log',
+        'Webhooks': 'Webhooks',
+        'Integrations': 'Integrationen',
+        'Connected security and notification services will be managed here in the future.': 'Hier '
+                                                                                            'werden '
+                                                                                            'künftig '
+                                                                                            'angebundene '
+                                                                                            'Sicherheits- '
+                                                                                            'und '
+                                                                                            'Benachrichtigungsdienste '
+                                                                                            'verwaltet.',
+        'Configuration not yet available': 'Konfiguration noch nicht verfügbar',
+        'Integrations remain disabled until secure persistent configuration and secret management are implemented.': 'Integrationen '
+                                                                                                                     'bleiben '
+                                                                                                                     'deaktiviert, '
+                                                                                                                     'bis '
+                                                                                                                     'sichere, '
+                                                                                                                     'persistente '
+                                                                                                                     'Konfiguration '
+                                                                                                                     'und '
+                                                                                                                     'Geheimnisverwaltung '
+                                                                                                                     'implementiert '
+                                                                                                                     'sind.',
+        'Planned area for controlled delivery of alert events to external systems.': 'Geplanter '
+                                                                                     'Bereich für '
+                                                                                     'die '
+                                                                                     'kontrollierte '
+                                                                                     'Zustellung '
+                                                                                     'von '
+                                                                                     'Warnungsereignissen '
+                                                                                     'an externe '
+                                                                                     'Systeme.',
+        'Webhooks are disabled': 'Webhooks sind deaktiviert',
+        'No external destinations are contacted. URL validation, SSRF protection, secret storage, permissions and delivery logs must be implemented before activation.': 'Es '
+                                                                                                                                                                         'werden '
+                                                                                                                                                                         'keine '
+                                                                                                                                                                         'externen '
+                                                                                                                                                                         'Ziele '
+                                                                                                                                                                         'kontaktiert. '
+                                                                                                                                                                         'URL-Prüfung, '
+                                                                                                                                                                         'SSRF-Schutz, '
+                                                                                                                                                                         'Geheimnisspeicherung, '
+                                                                                                                                                                         'Berechtigungen '
+                                                                                                                                                                         'und '
+                                                                                                                                                                         'Zustellprotokolle '
+                                                                                                                                                                         'müssen '
+                                                                                                                                                                         'vor '
+                                                                                                                                                                         'einer '
+                                                                                                                                                                         'Aktivierung '
+                                                                                                                                                                         'umgesetzt '
+                                                                                                                                                                         'werden.'},
+ 'fr': {'SOC dashboard': 'Tableau de bord SOC',
+        'Security posture, stored events and logs.': 'État de sécurité, événements enregistrés et '
+                                                     'journaux.',
+        'Workspace': 'Espace de travail',
+        'Alerts, rules, SOC lab and stored logs.': 'Alertes, règles, laboratoire SOC et journaux '
+                                                   'enregistrés.',
+        'Log data is loading.': 'Chargement des journaux…',
+        'SOC Lab': 'Laboratoire SOC',
+        'Python-based detection, correlation and incident creation using synthetic test events.': 'Détection, '
+                                                                                                  'corrélation '
+                                                                                                  'et '
+                                                                                                  'création '
+                                                                                                  'd’incidents '
+                                                                                                  'en '
+                                                                                                  'Python '
+                                                                                                  'à '
+                                                                                                  'partir '
+                                                                                                  'd’événements '
+                                                                                                  'de '
+                                                                                                  'test '
+                                                                                                  'synthétiques.',
+        'Isolated simulation': 'Simulation isolée',
+        'Authentication failures': 'Échecs d’authentification',
+        'Three failed logins and correlation': 'Trois échecs de connexion et corrélation',
+        'Duplicate detection': 'Détection des doublons',
+        'Repeated event in the same batch': 'Événement répété dans le même lot',
+        'Privileged activity': 'Activité privilégiée',
+        'Synthetic administrator permission change': 'Modification synthétique des droits '
+                                                     'administrateur',
+        'Choose a scenario to run the Python pipeline.': 'Choisissez un scénario pour exécuter le '
+                                                         'pipeline Python.',
+        'SOC result metrics': 'Indicateurs de résultats SOC',
+        'Events': 'Événements',
+        'Detections': 'Détections',
+        'Correlations': 'Corrélations',
+        'Duplicates': 'Doublons',
+        'Incidents': 'Incidents',
+        'SOC visualizations': 'Visualisations SOC',
+        'Event timeline': 'Chronologie des événements',
+        'Temporal distribution of synthetic events.': 'Répartition temporelle des événements '
+                                                      'synthétiques.',
+        'Run a scenario to display the timeline.': 'Exécutez un scénario pour afficher la '
+                                                   'chronologie.',
+        'Severity and incident status': 'Gravité et état des incidents',
+        'Distribution of detections and incidents.': 'Répartition des détections et des incidents.',
+        'Severity distribution': 'Répartition des niveaux de gravité',
+        'Run a scenario to display the distribution.': 'Exécutez un scénario pour afficher la '
+                                                       'répartition.',
+        'Detection and incident pipeline': 'Pipeline de détection et d’incidents',
+        'Results of processing in the current scenario.': 'Résultats du traitement du scénario '
+                                                          'actuel.',
+        'SOC pipeline': 'Pipeline SOC',
+        'Run a scenario to display the pipeline.': 'Exécutez un scénario pour afficher le '
+                                                   'pipeline.',
+        'Pipeline result': 'Résultat du pipeline',
+        'No scenario has been run yet.': 'Aucun scénario n’a encore été exécuté.',
+        'No events are stored, no external systems are contacted, and no automated countermeasures are executed.': 'Aucun '
+                                                                                                                   'événement '
+                                                                                                                   'n’est '
+                                                                                                                   'enregistré, '
+                                                                                                                   'aucun '
+                                                                                                                   'système '
+                                                                                                                   'externe '
+                                                                                                                   'n’est '
+                                                                                                                   'contacté '
+                                                                                                                   'et '
+                                                                                                                   'aucune '
+                                                                                                                   'contre-mesure '
+                                                                                                                   'automatique '
+                                                                                                                   'n’est '
+                                                                                                                   'exécutée.',
+        'Log data is loading…': 'Chargement des journaux…',
+        'No matching log entries found.': 'Aucune entrée de journal correspondante.',
+        'SOC event': 'Événement SOC',
+        'Audit': 'Audit',
+        'entries': 'entrées',
+        'Logs could not be loaded.': 'Impossible de charger les journaux.',
+        'Error loading logs.': 'Erreur lors du chargement des journaux.',
+        'Event timeline distribution': 'Répartition temporelle des événements',
+        'No events in this scenario.': 'Aucun événement dans ce scénario.',
+        'No valid timestamps are available.': 'Aucun horodatage valide disponible.',
+        'Entry': 'Entrée',
+        'Severity and incident distribution': 'Répartition de la gravité et des incidents',
+        'Detections by severity': 'Détections par niveau de gravité',
+        'Incidents by status': 'Incidents par état',
+        'Open': 'Ouvert',
+        'In progress': 'En cours',
+        'Resolved': 'Résolu',
+        'SOC pipeline results': 'Résultats du pipeline SOC',
+        'Duplicates removed': 'Doublons supprimés',
+        'Python SOC pipeline is running…': 'Exécution du pipeline SOC Python…',
+        'CSRF validation failed. Please reload the page.': 'Échec de la validation CSRF. Rechargez '
+                                                           'la page.',
+        'Unknown SOC scenario.': 'Scénario SOC inconnu.',
+        'The Python SOC pipeline could not execute the scenario.': 'Le pipeline SOC Python n’a pas '
+                                                                   'pu exécuter le scénario.',
+        'SOC request failed (HTTP {status}).': 'Échec de la requête SOC (HTTP {status}).',
+        'SOC request failed.': 'Échec de la requête SOC.',
+        'Scenario completed: {scenario}. Result provided by the Python pipeline.': 'Scénario '
+                                                                                   'terminé : '
+                                                                                   '{scenario}. '
+                                                                                   'Résultat '
+                                                                                   'fourni par le '
+                                                                                   'pipeline '
+                                                                                   'Python.',
+        'Total': 'Total',
+        'events': 'événements',
+        'Display limited; export contains up to 5000 entries.': 'Affichage limité ; l’export '
+                                                                'contient jusqu’à 5000 entrées.',
+        'Persisted SOC events and audit logs.': 'Événements SOC enregistrés et journaux d’audit.',
+        'Log export': 'Exportation des journaux',
+        'All sources': 'Toutes les sources',
+        'SOC events': 'Événements SOC',
+        'Audit log': 'Journal d’audit',
+        'All statuses': 'Tous les statuts',
+        'Search': 'Rechercher',
+        'Agent, action or content': 'Agent, action ou contenu',
+        'Filter': 'Filtrer',
+        'Time': 'Heure',
+        'Actor / Agent': 'Acteur / agent',
+        'Event / Action': 'Événement / action',
+        'Details': 'Détails',
+        'SOC navigation': 'Navigation SOC',
+        'SOC lab scenarios': 'Scénarios du laboratoire SOC',
+        'Log': 'Journal',
+        'Webhooks': 'Webhooks',
+        'Integrations': 'Intégrations',
+        'Connected security and notification services will be managed here in the future.': 'Les '
+                                                                                            'services '
+                                                                                            'de '
+                                                                                            'sécurité '
+                                                                                            'et de '
+                                                                                            'notification '
+                                                                                            'connectés '
+                                                                                            'seront '
+                                                                                            'gérés '
+                                                                                            'ici '
+                                                                                            'ultérieurement.',
+        'Configuration not yet available': 'Configuration pas encore disponible',
+        'Integrations remain disabled until secure persistent configuration and secret management are implemented.': 'Les '
+                                                                                                                     'intégrations '
+                                                                                                                     'restent '
+                                                                                                                     'désactivées '
+                                                                                                                     'jusqu’à '
+                                                                                                                     'la '
+                                                                                                                     'mise '
+                                                                                                                     'en '
+                                                                                                                     'place '
+                                                                                                                     'd’une '
+                                                                                                                     'configuration '
+                                                                                                                     'persistante '
+                                                                                                                     'sécurisée '
+                                                                                                                     'et '
+                                                                                                                     'd’une '
+                                                                                                                     'gestion '
+                                                                                                                     'des '
+                                                                                                                     'secrets.',
+        'Planned area for controlled delivery of alert events to external systems.': 'Espace prévu '
+                                                                                     'pour l’envoi '
+                                                                                     'contrôlé des '
+                                                                                     'événements '
+                                                                                     'd’alerte '
+                                                                                     'vers des '
+                                                                                     'systèmes '
+                                                                                     'externes.',
+        'Webhooks are disabled': 'Les webhooks sont désactivés',
+        'No external destinations are contacted. URL validation, SSRF protection, secret storage, permissions and delivery logs must be implemented before activation.': 'Aucune '
+                                                                                                                                                                         'destination '
+                                                                                                                                                                         'externe '
+                                                                                                                                                                         'n’est '
+                                                                                                                                                                         'contactée. '
+                                                                                                                                                                         'La '
+                                                                                                                                                                         'validation '
+                                                                                                                                                                         'des '
+                                                                                                                                                                         'URL, '
+                                                                                                                                                                         'la '
+                                                                                                                                                                         'protection '
+                                                                                                                                                                         'contre '
+                                                                                                                                                                         'les '
+                                                                                                                                                                         'SSRF, '
+                                                                                                                                                                         'le '
+                                                                                                                                                                         'stockage '
+                                                                                                                                                                         'des '
+                                                                                                                                                                         'secrets, '
+                                                                                                                                                                         'les '
+                                                                                                                                                                         'autorisations '
+                                                                                                                                                                         'et '
+                                                                                                                                                                         'les '
+                                                                                                                                                                         'journaux '
+                                                                                                                                                                         'de '
+                                                                                                                                                                         'livraison '
+                                                                                                                                                                         'doivent '
+                                                                                                                                                                         'être '
+                                                                                                                                                                         'mis '
+                                                                                                                                                                         'en '
+                                                                                                                                                                         'œuvre '
+                                                                                                                                                                         'avant '
+                                                                                                                                                                         'l’activation.'},
+ 'es': {'SOC dashboard': 'Panel SOC',
+        'Security posture, stored events and logs.': 'Estado de seguridad, eventos almacenados y '
+                                                     'registros.',
+        'Workspace': 'Área de trabajo',
+        'Alerts, rules, SOC lab and stored logs.': 'Alertas, reglas, laboratorio SOC y registros '
+                                                   'almacenados.',
+        'Log data is loading.': 'Cargando datos de registros…',
+        'SOC Lab': 'Laboratorio SOC',
+        'Python-based detection, correlation and incident creation using synthetic test events.': 'Detección, '
+                                                                                                  'correlación '
+                                                                                                  'y '
+                                                                                                  'creación '
+                                                                                                  'de '
+                                                                                                  'incidentes '
+                                                                                                  'en '
+                                                                                                  'Python '
+                                                                                                  'con '
+                                                                                                  'eventos '
+                                                                                                  'de '
+                                                                                                  'prueba '
+                                                                                                  'sintéticos.',
+        'Isolated simulation': 'Simulación aislada',
+        'Authentication failures': 'Fallos de autenticación',
+        'Three failed logins and correlation': 'Tres inicios de sesión fallidos y correlación',
+        'Duplicate detection': 'Detección de duplicados',
+        'Repeated event in the same batch': 'Evento repetido en el mismo lote',
+        'Privileged activity': 'Actividad privilegiada',
+        'Synthetic administrator permission change': 'Cambio sintético de permisos de '
+                                                     'administrador',
+        'Choose a scenario to run the Python pipeline.': 'Elige un escenario para ejecutar la '
+                                                         'canalización de Python.',
+        'SOC result metrics': 'Métricas de resultados SOC',
+        'Events': 'Eventos',
+        'Detections': 'Detecciones',
+        'Correlations': 'Correlaciones',
+        'Duplicates': 'Duplicados',
+        'Incidents': 'Incidentes',
+        'SOC visualizations': 'Visualizaciones SOC',
+        'Event timeline': 'Cronología de eventos',
+        'Temporal distribution of synthetic events.': 'Distribución temporal de eventos '
+                                                      'sintéticos.',
+        'Run a scenario to display the timeline.': 'Ejecuta un escenario para mostrar la '
+                                                   'cronología.',
+        'Severity and incident status': 'Gravedad y estado de incidentes',
+        'Distribution of detections and incidents.': 'Distribución de detecciones e incidentes.',
+        'Severity distribution': 'Distribución por gravedad',
+        'Run a scenario to display the distribution.': 'Ejecuta un escenario para mostrar la '
+                                                       'distribución.',
+        'Detection and incident pipeline': 'Canalización de detección e incidentes',
+        'Results of processing in the current scenario.': 'Resultados del procesamiento del '
+                                                          'escenario actual.',
+        'SOC pipeline': 'Canalización SOC',
+        'Run a scenario to display the pipeline.': 'Ejecuta un escenario para mostrar la '
+                                                   'canalización.',
+        'Pipeline result': 'Resultado de la canalización',
+        'No scenario has been run yet.': 'Todavía no se ha ejecutado ningún escenario.',
+        'No events are stored, no external systems are contacted, and no automated countermeasures are executed.': 'No '
+                                                                                                                   'se '
+                                                                                                                   'almacenan '
+                                                                                                                   'eventos, '
+                                                                                                                   'no '
+                                                                                                                   'se '
+                                                                                                                   'contacta '
+                                                                                                                   'con '
+                                                                                                                   'sistemas '
+                                                                                                                   'externos '
+                                                                                                                   'ni '
+                                                                                                                   'se '
+                                                                                                                   'ejecutan '
+                                                                                                                   'contramedidas '
+                                                                                                                   'automáticas.',
+        'Log data is loading…': 'Cargando datos de registros…',
+        'No matching log entries found.': 'No se encontraron registros coincidentes.',
+        'SOC event': 'Evento SOC',
+        'Audit': 'Auditoría',
+        'entries': 'entradas',
+        'Logs could not be loaded.': 'No se pudieron cargar los registros.',
+        'Error loading logs.': 'Error al cargar los registros.',
+        'Event timeline distribution': 'Distribución temporal de eventos',
+        'No events in this scenario.': 'No hay eventos en este escenario.',
+        'No valid timestamps are available.': 'No hay marcas de tiempo válidas.',
+        'Entry': 'Entrada',
+        'Severity and incident distribution': 'Distribución de gravedad e incidentes',
+        'Detections by severity': 'Detecciones por gravedad',
+        'Incidents by status': 'Incidentes por estado',
+        'Open': 'Abierto',
+        'In progress': 'En curso',
+        'Resolved': 'Resuelto',
+        'SOC pipeline results': 'Resultados de la canalización SOC',
+        'Duplicates removed': 'Duplicados eliminados',
+        'Python SOC pipeline is running…': 'Ejecutando la canalización SOC de Python…',
+        'CSRF validation failed. Please reload the page.': 'Falló la validación CSRF. Recarga la '
+                                                           'página.',
+        'Unknown SOC scenario.': 'Escenario SOC desconocido.',
+        'The Python SOC pipeline could not execute the scenario.': 'La canalización SOC de Python '
+                                                                   'no pudo ejecutar el escenario.',
+        'SOC request failed (HTTP {status}).': 'Falló la solicitud SOC (HTTP {status}).',
+        'SOC request failed.': 'Falló la solicitud SOC.',
+        'Scenario completed: {scenario}. Result provided by the Python pipeline.': 'Escenario '
+                                                                                   'completado: '
+                                                                                   '{scenario}. '
+                                                                                   'Resultado '
+                                                                                   'proporcionado '
+                                                                                   'por la '
+                                                                                   'canalización '
+                                                                                   'de Python.',
+        'Total': 'Total',
+        'events': 'eventos',
+        'Display limited; export contains up to 5000 entries.': 'Visualización limitada; la '
+                                                                'exportación contiene hasta 5000 '
+                                                                'entradas.',
+        'Persisted SOC events and audit logs.': 'Eventos SOC almacenados y registros de auditoría.',
+        'Log export': 'Exportación de registros',
+        'All sources': 'Todas las fuentes',
+        'SOC events': 'Eventos SOC',
+        'Audit log': 'Registro de auditoría',
+        'All statuses': 'Todos los estados',
+        'Search': 'Buscar',
+        'Agent, action or content': 'Agente, acción o contenido',
+        'Filter': 'Filtrar',
+        'Time': 'Hora',
+        'Actor / Agent': 'Actor / agente',
+        'Event / Action': 'Evento / acción',
+        'Details': 'Detalles',
+        'SOC navigation': 'Navegación SOC',
+        'SOC lab scenarios': 'Escenarios del laboratorio SOC',
+        'Log': 'Registro',
+        'Webhooks': 'Webhooks',
+        'Integrations': 'Integraciones',
+        'Connected security and notification services will be managed here in the future.': 'Aquí '
+                                                                                            'se '
+                                                                                            'gestionarán '
+                                                                                            'en el '
+                                                                                            'futuro '
+                                                                                            'los '
+                                                                                            'servicios '
+                                                                                            'conectados '
+                                                                                            'de '
+                                                                                            'seguridad '
+                                                                                            'y '
+                                                                                            'notificación.',
+        'Configuration not yet available': 'Configuración aún no disponible',
+        'Integrations remain disabled until secure persistent configuration and secret management are implemented.': 'Las '
+                                                                                                                     'integraciones '
+                                                                                                                     'permanecerán '
+                                                                                                                     'desactivadas '
+                                                                                                                     'hasta '
+                                                                                                                     'que '
+                                                                                                                     'se '
+                                                                                                                     'implementen '
+                                                                                                                     'una '
+                                                                                                                     'configuración '
+                                                                                                                     'persistente '
+                                                                                                                     'segura '
+                                                                                                                     'y '
+                                                                                                                     'la '
+                                                                                                                     'gestión '
+                                                                                                                     'de '
+                                                                                                                     'secretos.',
+        'Planned area for controlled delivery of alert events to external systems.': 'Área '
+                                                                                     'prevista '
+                                                                                     'para el '
+                                                                                     'envío '
+                                                                                     'controlado '
+                                                                                     'de eventos '
+                                                                                     'de alerta a '
+                                                                                     'sistemas '
+                                                                                     'externos.',
+        'Webhooks are disabled': 'Los webhooks están desactivados',
+        'No external destinations are contacted. URL validation, SSRF protection, secret storage, permissions and delivery logs must be implemented before activation.': 'No '
+                                                                                                                                                                         'se '
+                                                                                                                                                                         'contacta '
+                                                                                                                                                                         'con '
+                                                                                                                                                                         'destinos '
+                                                                                                                                                                         'externos. '
+                                                                                                                                                                         'Antes '
+                                                                                                                                                                         'de '
+                                                                                                                                                                         'activar '
+                                                                                                                                                                         'la '
+                                                                                                                                                                         'función, '
+                                                                                                                                                                         'deben '
+                                                                                                                                                                         'implementarse '
+                                                                                                                                                                         'la '
+                                                                                                                                                                         'validación '
+                                                                                                                                                                         'de '
+                                                                                                                                                                         'URL, '
+                                                                                                                                                                         'la '
+                                                                                                                                                                         'protección '
+                                                                                                                                                                         'contra '
+                                                                                                                                                                         'SSRF, '
+                                                                                                                                                                         'el '
+                                                                                                                                                                         'almacenamiento '
+                                                                                                                                                                         'de '
+                                                                                                                                                                         'secretos, '
+                                                                                                                                                                         'los '
+                                                                                                                                                                         'permisos '
+                                                                                                                                                                         'y '
+                                                                                                                                                                         'los '
+                                                                                                                                                                         'registros '
+                                                                                                                                                                         'de '
+                                                                                                                                                                         'entrega.'},
+ 'zh-CN': {'SOC dashboard': 'SOC 安全运营面板',
+           'Security posture, stored events and logs.': '安全态势、已存储事件和日志。',
+           'Workspace': '工作区',
+           'Alerts, rules, SOC lab and stored logs.': '告警、规则、SOC 实验室和已存储日志。',
+           'Log data is loading.': '正在加载日志数据…',
+           'SOC Lab': 'SOC 实验室',
+           'Python-based detection, correlation and incident creation using synthetic test events.': '使用合成测试事件进行 '
+                                                                                                     'Python '
+                                                                                                     '检测、关联和事件创建。',
+           'Isolated simulation': '隔离模拟',
+           'Authentication failures': '身份验证失败',
+           'Three failed logins and correlation': '三次登录失败及关联分析',
+           'Duplicate detection': '重复事件检测',
+           'Repeated event in the same batch': '同一批次中的重复事件',
+           'Privileged activity': '特权活动',
+           'Synthetic administrator permission change': '模拟管理员权限变更',
+           'Choose a scenario to run the Python pipeline.': '选择一个场景以运行 Python 流水线。',
+           'SOC result metrics': 'SOC 结果指标',
+           'Events': '事件',
+           'Detections': '检测',
+           'Correlations': '关联',
+           'Duplicates': '重复项',
+           'Incidents': '安全事件',
+           'SOC visualizations': 'SOC 可视化',
+           'Event timeline': '事件时间线',
+           'Temporal distribution of synthetic events.': '合成事件的时间分布。',
+           'Run a scenario to display the timeline.': '运行场景以显示时间线。',
+           'Severity and incident status': '严重程度与事件状态',
+           'Distribution of detections and incidents.': '检测和安全事件的分布。',
+           'Severity distribution': '严重程度分布',
+           'Run a scenario to display the distribution.': '运行场景以显示分布。',
+           'Detection and incident pipeline': '检测与事件处理流水线',
+           'Results of processing in the current scenario.': '当前场景的处理结果。',
+           'SOC pipeline': 'SOC 流水线',
+           'Run a scenario to display the pipeline.': '运行场景以显示流水线。',
+           'Pipeline result': '流水线结果',
+           'No scenario has been run yet.': '尚未运行场景。',
+           'No events are stored, no external systems are contacted, and no automated countermeasures are executed.': '不会存储事件、联系外部系统或执行自动对抗措施。',
+           'Log data is loading…': '正在加载日志数据…',
+           'No matching log entries found.': '未找到匹配的日志条目。',
+           'SOC event': 'SOC 事件',
+           'Audit': '审计',
+           'entries': '条',
+           'Logs could not be loaded.': '无法加载日志。',
+           'Error loading logs.': '加载日志时出错。',
+           'Event timeline distribution': '事件时间分布',
+           'No events in this scenario.': '此场景中没有事件。',
+           'No valid timestamps are available.': '没有可用的有效时间戳。',
+           'Entry': '条目',
+           'Severity and incident distribution': '严重程度和事件分布',
+           'Detections by severity': '按严重程度统计检测',
+           'Incidents by status': '按状态统计事件',
+           'Open': '未处理',
+           'In progress': '处理中',
+           'Resolved': '已解决',
+           'SOC pipeline results': 'SOC 流水线结果',
+           'Duplicates removed': '已移除重复项',
+           'Python SOC pipeline is running…': '正在运行 Python SOC 流水线…',
+           'CSRF validation failed. Please reload the page.': 'CSRF 验证失败，请重新加载页面。',
+           'Unknown SOC scenario.': '未知 SOC 场景。',
+           'The Python SOC pipeline could not execute the scenario.': 'Python SOC 流水线无法执行该场景。',
+           'SOC request failed (HTTP {status}).': 'SOC 请求失败（HTTP {status}）。',
+           'SOC request failed.': 'SOC 请求失败。',
+           'Scenario completed: {scenario}. Result provided by the Python pipeline.': '场景已完成：{scenario}。结果由 '
+                                                                                      'Python '
+                                                                                      '流水线提供。',
+           'Total': '总计',
+           'events': '事件',
+           'Display limited; export contains up to 5000 entries.': '显示数量有限；导出最多包含 5000 条记录。',
+           'Persisted SOC events and audit logs.': '已保存的 SOC 事件和审计日志。',
+           'Log export': '日志导出',
+           'All sources': '所有来源',
+           'SOC events': 'SOC 事件',
+           'Audit log': '审计日志',
+           'All statuses': '所有状态',
+           'Search': '搜索',
+           'Agent, action or content': '代理、操作或内容',
+           'Filter': '筛选',
+           'Time': '时间',
+           'Actor / Agent': '主体 / 代理',
+           'Event / Action': '事件 / 操作',
+           'Details': '详情',
+           'SOC navigation': 'SOC 导航',
+           'SOC lab scenarios': 'SOC 实验室场景',
+           'Log': '日志',
+           'Webhooks': 'Webhooks',
+           'Integrations': '集成',
+           'Connected security and notification services will be managed here in the future.': '此处将来用于管理已连接的安全和通知服务。',
+           'Configuration not yet available': '配置尚不可用',
+           'Integrations remain disabled until secure persistent configuration and secret management are implemented.': '在实现安全的持久化配置和机密管理之前，集成功能将保持禁用。',
+           'Planned area for controlled delivery of alert events to external systems.': '用于将告警事件受控发送到外部系统的规划区域。',
+           'Webhooks are disabled': 'Webhook 已禁用',
+           'No external destinations are contacted. URL validation, SSRF protection, secret storage, permissions and delivery logs must be implemented before activation.': '不会联系任何外部目标。启用前必须实现 '
+                                                                                                                                                                            'URL '
+                                                                                                                                                                            '验证、SSRF '
+                                                                                                                                                                            '防护、机密存储、权限控制和投递日志。'},
+ 'ja': {'SOC dashboard': 'SOC ダッシュボード',
+        'Security posture, stored events and logs.': 'セキュリティ状況、保存済みイベント、ログ。',
+        'Workspace': 'ワークスペース',
+        'Alerts, rules, SOC lab and stored logs.': 'アラート、ルール、SOC ラボ、保存済みログ。',
+        'Log data is loading.': 'ログを読み込み中…',
+        'SOC Lab': 'SOC ラボ',
+        'Python-based detection, correlation and incident creation using synthetic test events.': '合成テストイベントを使用した '
+                                                                                                  'Python '
+                                                                                                  'による検知、相関分析、インシデント作成。',
+        'Isolated simulation': '隔離シミュレーション',
+        'Authentication failures': '認証失敗',
+        'Three failed logins and correlation': '3 回のログイン失敗と相関分析',
+        'Duplicate detection': '重複検知',
+        'Repeated event in the same batch': '同じバッチ内の重複イベント',
+        'Privileged activity': '特権操作',
+        'Synthetic administrator permission change': '合成管理者権限の変更',
+        'Choose a scenario to run the Python pipeline.': 'シナリオを選択して Python パイプラインを実行してください。',
+        'SOC result metrics': 'SOC 結果指標',
+        'Events': 'イベント',
+        'Detections': '検知',
+        'Correlations': '相関',
+        'Duplicates': '重複',
+        'Incidents': 'インシデント',
+        'SOC visualizations': 'SOC 可視化',
+        'Event timeline': 'イベントタイムライン',
+        'Temporal distribution of synthetic events.': '合成イベントの時間分布。',
+        'Run a scenario to display the timeline.': 'シナリオを実行するとタイムラインが表示されます。',
+        'Severity and incident status': '重大度とインシデントの状態',
+        'Distribution of detections and incidents.': '検知とインシデントの分布。',
+        'Severity distribution': '重大度の分布',
+        'Run a scenario to display the distribution.': 'シナリオを実行すると分布が表示されます。',
+        'Detection and incident pipeline': '検知・インシデントパイプライン',
+        'Results of processing in the current scenario.': '現在のシナリオの処理結果。',
+        'SOC pipeline': 'SOC パイプライン',
+        'Run a scenario to display the pipeline.': 'シナリオを実行するとパイプラインが表示されます。',
+        'Pipeline result': 'パイプラインの結果',
+        'No scenario has been run yet.': 'まだシナリオは実行されていません。',
+        'No events are stored, no external systems are contacted, and no automated countermeasures are executed.': 'イベントは保存されず、外部システムへの接続や自動対策も実行されません。',
+        'Log data is loading…': 'ログを読み込み中…',
+        'No matching log entries found.': '一致するログ項目はありません。',
+        'SOC event': 'SOC イベント',
+        'Audit': '監査',
+        'entries': '件',
+        'Logs could not be loaded.': 'ログを読み込めませんでした。',
+        'Error loading logs.': 'ログの読み込み中にエラーが発生しました。',
+        'Event timeline distribution': 'イベントの時間分布',
+        'No events in this scenario.': 'このシナリオにイベントはありません。',
+        'No valid timestamps are available.': '有効なタイムスタンプがありません。',
+        'Entry': '項目',
+        'Severity and incident distribution': '重大度とインシデントの分布',
+        'Detections by severity': '重大度別の検知',
+        'Incidents by status': '状態別のインシデント',
+        'Open': '未対応',
+        'In progress': '対応中',
+        'Resolved': '解決済み',
+        'SOC pipeline results': 'SOC パイプラインの結果',
+        'Duplicates removed': '重複を削除しました',
+        'Python SOC pipeline is running…': 'Python SOC パイプラインを実行中…',
+        'CSRF validation failed. Please reload the page.': 'CSRF 検証に失敗しました。ページを再読み込みしてください。',
+        'Unknown SOC scenario.': '不明な SOC シナリオです。',
+        'The Python SOC pipeline could not execute the scenario.': 'Python SOC '
+                                                                   'パイプラインでシナリオを実行できませんでした。',
+        'SOC request failed (HTTP {status}).': 'SOC リクエストに失敗しました（HTTP {status}）。',
+        'SOC request failed.': 'SOC リクエストに失敗しました。',
+        'Scenario completed: {scenario}. Result provided by the Python pipeline.': 'シナリオが完了しました：{scenario}。結果は '
+                                                                                   'Python '
+                                                                                   'パイプラインから提供されました。',
+        'Total': '合計',
+        'events': 'イベント',
+        'Display limited; export contains up to 5000 entries.': '表示件数に制限があります。エクスポートには最大5000件が含まれます。',
+        'Persisted SOC events and audit logs.': '保存された SOC イベントと監査ログ。',
+        'Log export': 'ログのエクスポート',
+        'All sources': 'すべてのソース',
+        'SOC events': 'SOC イベント',
+        'Audit log': '監査ログ',
+        'All statuses': 'すべてのステータス',
+        'Search': '検索',
+        'Agent, action or content': 'エージェント、操作、または内容',
+        'Filter': 'フィルター',
+        'Time': '時刻',
+        'Actor / Agent': 'アクター / エージェント',
+        'Event / Action': 'イベント / 操作',
+        'Details': '詳細',
+        'SOC navigation': 'SOC ナビゲーション',
+        'SOC lab scenarios': 'SOC ラボのシナリオ',
+        'Log': 'ログ',
+        'Webhooks': 'Webhook',
+        'Integrations': 'インテグレーション',
+        'Connected security and notification services will be managed here in the future.': '接続されたセキュリティサービスと通知サービスは、今後ここで管理します。',
+        'Configuration not yet available': '設定はまだ利用できません',
+        'Integrations remain disabled until secure persistent configuration and secret management are implemented.': '安全な永続的設定とシークレット管理が実装されるまで、インテグレーションは無効のままです。',
+        'Planned area for controlled delivery of alert events to external systems.': 'アラートイベントを外部システムへ制御された形で配信するための予定領域です。',
+        'Webhooks are disabled': 'Webhook は無効です',
+        'No external destinations are contacted. URL validation, SSRF protection, secret storage, permissions and delivery logs must be implemented before activation.': '外部の宛先には接続しません。有効化する前に、URL '
+                                                                                                                                                                         '検証、SSRF '
+                                                                                                                                                                         '対策、シークレット保存、権限管理、配信ログを実装する必要があります。'},
+ 'pl': {'SOC dashboard': 'Panel SOC',
+        'Security posture, stored events and logs.': 'Stan bezpieczeństwa, zapisane zdarzenia i '
+                                                     'dzienniki.',
+        'Workspace': 'Obszar roboczy',
+        'Alerts, rules, SOC lab and stored logs.': 'Alerty, reguły, laboratorium SOC i zapisane '
+                                                   'dzienniki.',
+        'Log data is loading.': 'Wczytywanie danych dziennika.',
+        'SOC Lab': 'Laboratorium SOC',
+        'Python-based detection, correlation and incident creation using synthetic test events.': 'Wykrywanie, '
+                                                                                                  'korelacja '
+                                                                                                  'i '
+                                                                                                  'tworzenie '
+                                                                                                  'incydentów '
+                                                                                                  'w '
+                                                                                                  'Pythonie '
+                                                                                                  'na '
+                                                                                                  'podstawie '
+                                                                                                  'syntetycznych '
+                                                                                                  'zdarzeń '
+                                                                                                  'testowych.',
+        'Isolated simulation': 'Odizolowana symulacja',
+        'Authentication failures': 'Błędy uwierzytelniania',
+        'Three failed logins and correlation': 'Trzy nieudane logowania i korelacja',
+        'Duplicate detection': 'Wykrywanie duplikatów',
+        'Repeated event in the same batch': 'Powtórzone zdarzenie w tej samej partii',
+        'Privileged activity': 'Aktywność uprzywilejowana',
+        'Synthetic administrator permission change': 'Symulowana zmiana uprawnień administratora',
+        'Choose a scenario to run the Python pipeline.': 'Wybierz scenariusz, aby uruchomić potok '
+                                                         'Pythona.',
+        'SOC result metrics': 'Wskaźniki wyników SOC',
+        'Events': 'Zdarzenia',
+        'Detections': 'Wykrycia',
+        'Correlations': 'Korelacje',
+        'Duplicates': 'Duplikaty',
+        'Incidents': 'Incydenty',
+        'SOC visualizations': 'Wizualizacje SOC',
+        'Event timeline': 'Oś czasu zdarzeń',
+        'Temporal distribution of synthetic events.': 'Rozkład czasowy zdarzeń syntetycznych.',
+        'Run a scenario to display the timeline.': 'Uruchom scenariusz, aby wyświetlić oś czasu.',
+        'Severity and incident status': 'Poziom ważności i status incydentu',
+        'Distribution of detections and incidents.': 'Rozkład wykryć i incydentów.',
+        'Severity distribution': 'Rozkład poziomów ważności',
+        'Run a scenario to display the distribution.': 'Uruchom scenariusz, aby wyświetlić '
+                                                       'rozkład.',
+        'Detection and incident pipeline': 'Potok wykrywania i obsługi incydentów',
+        'Results of processing in the current scenario.': 'Wyniki przetwarzania bieżącego '
+                                                          'scenariusza.',
+        'SOC pipeline': 'Potok SOC',
+        'Run a scenario to display the pipeline.': 'Uruchom scenariusz, aby wyświetlić potok.',
+        'Pipeline result': 'Wynik potoku',
+        'No scenario has been run yet.': 'Nie uruchomiono jeszcze żadnego scenariusza.',
+        'No events are stored, no external systems are contacted, and no automated countermeasures are executed.': 'Zdarzenia '
+                                                                                                                   'nie '
+                                                                                                                   'są '
+                                                                                                                   'zapisywane, '
+                                                                                                                   'systemy '
+                                                                                                                   'zewnętrzne '
+                                                                                                                   'nie '
+                                                                                                                   'są '
+                                                                                                                   'kontaktowane '
+                                                                                                                   'i '
+                                                                                                                   'nie '
+                                                                                                                   'są '
+                                                                                                                   'wykonywane '
+                                                                                                                   'automatyczne '
+                                                                                                                   'działania '
+                                                                                                                   'zaradcze.',
+        'Log data is loading…': 'Wczytywanie danych dziennika…',
+        'No matching log entries found.': 'Nie znaleziono pasujących wpisów dziennika.',
+        'SOC event': 'Zdarzenie SOC',
+        'Audit': 'Audyt',
+        'entries': 'wpisów',
+        'Logs could not be loaded.': 'Nie udało się wczytać dzienników.',
+        'Error loading logs.': 'Błąd podczas wczytywania dzienników.',
+        'Event timeline distribution': 'Rozkład zdarzeń w czasie',
+        'No events in this scenario.': 'Brak zdarzeń w tym scenariuszu.',
+        'No valid timestamps are available.': 'Brak prawidłowych znaczników czasu.',
+        'Entry': 'Wpis',
+        'Severity and incident distribution': 'Rozkład ważności i incydentów',
+        'Detections by severity': 'Wykrycia według poziomu ważności',
+        'Incidents by status': 'Incydenty według statusu',
+        'Open': 'Otwarte',
+        'In progress': 'W toku',
+        'Resolved': 'Rozwiązane',
+        'SOC pipeline results': 'Wyniki potoku SOC',
+        'Duplicates removed': 'Usunięto duplikaty',
+        'Python SOC pipeline is running…': 'Uruchamianie potoku SOC w Pythonie…',
+        'CSRF validation failed. Please reload the page.': 'Weryfikacja CSRF nie powiodła się. '
+                                                           'Odśwież stronę.',
+        'Unknown SOC scenario.': 'Nieznany scenariusz SOC.',
+        'The Python SOC pipeline could not execute the scenario.': 'Potok SOC w Pythonie nie mógł '
+                                                                   'wykonać scenariusza.',
+        'SOC request failed (HTTP {status}).': 'Żądanie SOC nie powiodło się (HTTP {status}).',
+        'SOC request failed.': 'Żądanie SOC nie powiodło się.',
+        'Scenario completed: {scenario}. Result provided by the Python pipeline.': 'Scenariusz '
+                                                                                   'zakończony: '
+                                                                                   '{scenario}. '
+                                                                                   'Wynik pochodzi '
+                                                                                   'z potoku '
+                                                                                   'Pythona.',
+        'Total': 'Łącznie',
+        'events': 'zdarzenia',
+        'Display limited; export contains up to 5000 entries.': 'Wyświetlanie ograniczone; eksport '
+                                                                'zawiera do 5000 wpisów.',
+        'Persisted SOC events and audit logs.': 'Zapisane zdarzenia SOC i dzienniki audytu.',
+        'Log export': 'Eksport dziennika',
+        'All sources': 'Wszystkie źródła',
+        'SOC events': 'Zdarzenia SOC',
+        'Audit log': 'Dziennik audytu',
+        'All statuses': 'Wszystkie statusy',
+        'Search': 'Szukaj',
+        'Agent, action or content': 'Agent, działanie lub treść',
+        'Filter': 'Filtruj',
+        'Time': 'Czas',
+        'Actor / Agent': 'Aktor / agent',
+        'Event / Action': 'Zdarzenie / działanie',
+        'Details': 'Szczegóły',
+        'SOC navigation': 'Nawigacja SOC',
+        'SOC lab scenarios': 'Scenariusze laboratorium SOC',
+        'Log': 'Dziennik',
+        'Webhooks': 'Webhooki',
+        'Integrations': 'Integracje',
+        'Connected security and notification services will be managed here in the future.': 'W tym '
+                                                                                            'miejscu '
+                                                                                            'będą '
+                                                                                            'w '
+                                                                                            'przyszłości '
+                                                                                            'zarządzane '
+                                                                                            'podłączone '
+                                                                                            'usługi '
+                                                                                            'bezpieczeństwa '
+                                                                                            'i '
+                                                                                            'powiadomień.',
+        'Configuration not yet available': 'Konfiguracja nie jest jeszcze dostępna',
+        'Integrations remain disabled until secure persistent configuration and secret management are implemented.': 'Integracje '
+                                                                                                                     'pozostaną '
+                                                                                                                     'wyłączone '
+                                                                                                                     'do '
+                                                                                                                     'czasu '
+                                                                                                                     'wdrożenia '
+                                                                                                                     'bezpiecznej '
+                                                                                                                     'trwałej '
+                                                                                                                     'konfiguracji '
+                                                                                                                     'i '
+                                                                                                                     'zarządzania '
+                                                                                                                     'sekretami.',
+        'Planned area for controlled delivery of alert events to external systems.': 'Planowany '
+                                                                                     'obszar '
+                                                                                     'kontrolowanego '
+                                                                                     'dostarczania '
+                                                                                     'zdarzeń '
+                                                                                     'alertów do '
+                                                                                     'systemów '
+                                                                                     'zewnętrznych.',
+        'Webhooks are disabled': 'Webhooki są wyłączone',
+        'No external destinations are contacted. URL validation, SSRF protection, secret storage, permissions and delivery logs must be implemented before activation.': 'Nie '
+                                                                                                                                                                         'są '
+                                                                                                                                                                         'kontaktowane '
+                                                                                                                                                                         'żadne '
+                                                                                                                                                                         'zewnętrzne '
+                                                                                                                                                                         'miejsca '
+                                                                                                                                                                         'docelowe. '
+                                                                                                                                                                         'Przed '
+                                                                                                                                                                         'aktywacją '
+                                                                                                                                                                         'należy '
+                                                                                                                                                                         'wdrożyć '
+                                                                                                                                                                         'walidację '
+                                                                                                                                                                         'URL, '
+                                                                                                                                                                         'ochronę '
+                                                                                                                                                                         'przed '
+                                                                                                                                                                         'SSRF, '
+                                                                                                                                                                         'przechowywanie '
+                                                                                                                                                                         'sekretów, '
+                                                                                                                                                                         'uprawnienia '
+                                                                                                                                                                         'i '
+                                                                                                                                                                         'dzienniki '
+                                                                                                                                                                         'dostarczania.'},
+ 'sv': {'SOC dashboard': 'SOC-instrumentpanel',
+        'Security posture, stored events and logs.': 'Säkerhetsläge, lagrade händelser och loggar.',
+        'Workspace': 'Arbetsyta',
+        'Alerts, rules, SOC lab and stored logs.': 'Aviseringar, regler, SOC-labb och lagrade '
+                                                   'loggar.',
+        'Log data is loading.': 'Loggdata läses in.',
+        'SOC Lab': 'SOC-labb',
+        'Python-based detection, correlation and incident creation using synthetic test events.': 'Pythonbaserad '
+                                                                                                  'detektering, '
+                                                                                                  'korrelation '
+                                                                                                  'och '
+                                                                                                  'incidenthantering '
+                                                                                                  'med '
+                                                                                                  'syntetiska '
+                                                                                                  'testhändelser.',
+        'Isolated simulation': 'Isolerad simulering',
+        'Authentication failures': 'Autentiseringsfel',
+        'Three failed logins and correlation': 'Tre misslyckade inloggningar och korrelation',
+        'Duplicate detection': 'Dubblettdetektering',
+        'Repeated event in the same batch': 'Upprepad händelse i samma batch',
+        'Privileged activity': 'Privilegierad aktivitet',
+        'Synthetic administrator permission change': 'Simulerad ändring av '
+                                                     'administratörsbehörighet',
+        'Choose a scenario to run the Python pipeline.': 'Välj ett scenario för att köra '
+                                                         'Python-pipelinen.',
+        'SOC result metrics': 'SOC-resultatmått',
+        'Events': 'Händelser',
+        'Detections': 'Detekteringar',
+        'Correlations': 'Korrelationer',
+        'Duplicates': 'Dubbletter',
+        'Incidents': 'Incidenter',
+        'SOC visualizations': 'SOC-visualiseringar',
+        'Event timeline': 'Händelsetidslinje',
+        'Temporal distribution of synthetic events.': 'Tidsfördelning för syntetiska händelser.',
+        'Run a scenario to display the timeline.': 'Kör ett scenario för att visa tidslinjen.',
+        'Severity and incident status': 'Allvarlighetsgrad och incidentstatus',
+        'Distribution of detections and incidents.': 'Fördelning av detekteringar och incidenter.',
+        'Severity distribution': 'Fördelning efter allvarlighetsgrad',
+        'Run a scenario to display the distribution.': 'Kör ett scenario för att visa '
+                                                       'fördelningen.',
+        'Detection and incident pipeline': 'Pipeline för detektering och incidenter',
+        'Results of processing in the current scenario.': 'Bearbetningsresultat för det aktuella '
+                                                          'scenariot.',
+        'SOC pipeline': 'SOC-pipeline',
+        'Run a scenario to display the pipeline.': 'Kör ett scenario för att visa pipelinen.',
+        'Pipeline result': 'Pipelineresultat',
+        'No scenario has been run yet.': 'Inget scenario har körts ännu.',
+        'No events are stored, no external systems are contacted, and no automated countermeasures are executed.': 'Inga '
+                                                                                                                   'händelser '
+                                                                                                                   'lagras, '
+                                                                                                                   'inga '
+                                                                                                                   'externa '
+                                                                                                                   'system '
+                                                                                                                   'kontaktas '
+                                                                                                                   'och '
+                                                                                                                   'inga '
+                                                                                                                   'automatiska '
+                                                                                                                   'motåtgärder '
+                                                                                                                   'utförs.',
+        'Log data is loading…': 'Loggdata läses in…',
+        'No matching log entries found.': 'Inga matchande loggposter hittades.',
+        'SOC event': 'SOC-händelse',
+        'Audit': 'Granskning',
+        'entries': 'poster',
+        'Logs could not be loaded.': 'Det gick inte att läsa in loggarna.',
+        'Error loading logs.': 'Fel vid inläsning av loggar.',
+        'Event timeline distribution': 'Tidsfördelning av händelser',
+        'No events in this scenario.': 'Inga händelser i det här scenariot.',
+        'No valid timestamps are available.': 'Inga giltiga tidsstämplar finns tillgängliga.',
+        'Entry': 'Post',
+        'Severity and incident distribution': 'Fördelning av allvarlighetsgrad och incidenter',
+        'Detections by severity': 'Detekteringar efter allvarlighetsgrad',
+        'Incidents by status': 'Incidenter efter status',
+        'Open': 'Öppen',
+        'In progress': 'Pågår',
+        'Resolved': 'Löst',
+        'SOC pipeline results': 'SOC-pipeline-resultat',
+        'Duplicates removed': 'Dubbletter borttagna',
+        'Python SOC pipeline is running…': 'Python-baserade SOC-pipelinen körs…',
+        'CSRF validation failed. Please reload the page.': 'CSRF-kontrollen misslyckades. Läs in '
+                                                           'sidan igen.',
+        'Unknown SOC scenario.': 'Okänt SOC-scenario.',
+        'The Python SOC pipeline could not execute the scenario.': 'Python-baserade SOC-pipelinen '
+                                                                   'kunde inte köra scenariot.',
+        'SOC request failed (HTTP {status}).': 'SOC-begäran misslyckades (HTTP {status}).',
+        'SOC request failed.': 'SOC-begäran misslyckades.',
+        'Scenario completed: {scenario}. Result provided by the Python pipeline.': 'Scenariot '
+                                                                                   'slutfördes: '
+                                                                                   '{scenario}. '
+                                                                                   'Resultatet '
+                                                                                   'kommer från '
+                                                                                   'Python-pipelinen.',
+        'Total': 'Totalt',
+        'events': 'händelser',
+        'Display limited; export contains up to 5000 entries.': 'Visningen är begränsad; exporten '
+                                                                'innehåller upp till 5000 poster.',
+        'Persisted SOC events and audit logs.': 'Sparade SOC-händelser och granskningsloggar.',
+        'Log export': 'Loggexport',
+        'All sources': 'Alla källor',
+        'SOC events': 'SOC-händelser',
+        'Audit log': 'Granskningslogg',
+        'All statuses': 'Alla statusar',
+        'Search': 'Sök',
+        'Agent, action or content': 'Agent, åtgärd eller innehåll',
+        'Filter': 'Filtrera',
+        'Time': 'Tid',
+        'Actor / Agent': 'Aktör / agent',
+        'Event / Action': 'Händelse / åtgärd',
+        'Details': 'Detaljer',
+        'SOC navigation': 'SOC-navigering',
+        'SOC lab scenarios': 'SOC-labscenarier',
+        'Log': 'Logg',
+        'Webhooks': 'Webhooks',
+        'Integrations': 'Integrationer',
+        'Connected security and notification services will be managed here in the future.': 'Anslutna '
+                                                                                            'säkerhets- '
+                                                                                            'och '
+                                                                                            'aviseringstjänster '
+                                                                                            'kommer '
+                                                                                            'att '
+                                                                                            'hanteras '
+                                                                                            'här i '
+                                                                                            'framtiden.',
+        'Configuration not yet available': 'Konfigurationen är inte tillgänglig ännu',
+        'Integrations remain disabled until secure persistent configuration and secret management are implemented.': 'Integrationer '
+                                                                                                                     'förblir '
+                                                                                                                     'inaktiverade '
+                                                                                                                     'tills '
+                                                                                                                     'säker, '
+                                                                                                                     'beständig '
+                                                                                                                     'konfiguration '
+                                                                                                                     'och '
+                                                                                                                     'hantering '
+                                                                                                                     'av '
+                                                                                                                     'hemligheter '
+                                                                                                                     'har '
+                                                                                                                     'implementerats.',
+        'Planned area for controlled delivery of alert events to external systems.': 'Planerat '
+                                                                                     'område för '
+                                                                                     'kontrollerad '
+                                                                                     'leverans av '
+                                                                                     'varningshändelser '
+                                                                                     'till externa '
+                                                                                     'system.',
+        'Webhooks are disabled': 'Webhooks är inaktiverade',
+        'No external destinations are contacted. URL validation, SSRF protection, secret storage, permissions and delivery logs must be implemented before activation.': 'Inga '
+                                                                                                                                                                         'externa '
+                                                                                                                                                                         'mål '
+                                                                                                                                                                         'kontaktas. '
+                                                                                                                                                                         'URL-validering, '
+                                                                                                                                                                         'SSRF-skydd, '
+                                                                                                                                                                         'lagring '
+                                                                                                                                                                         'av '
+                                                                                                                                                                         'hemligheter, '
+                                                                                                                                                                         'behörigheter '
+                                                                                                                                                                         'och '
+                                                                                                                                                                         'leveransloggar '
+                                                                                                                                                                         'måste '
+                                                                                                                                                                         'införas '
+                                                                                                                                                                         'innan '
+                                                                                                                                                                         'funktionen '
+                                                                                                                                                                         'aktiveras.'},
+ 'nb': {'SOC dashboard': 'SOC-dashbord',
+        'Security posture, stored events and logs.': 'Sikkerhetstilstand, lagrede hendelser og '
+                                                     'logger.',
+        'Workspace': 'Arbeidsområde',
+        'Alerts, rules, SOC lab and stored logs.': 'Varsler, regler, SOC-laboratorium og lagrede '
+                                                   'logger.',
+        'Log data is loading.': 'Laster loggdata.',
+        'SOC Lab': 'SOC-laboratorium',
+        'Python-based detection, correlation and incident creation using synthetic test events.': 'Python-basert '
+                                                                                                  'deteksjon, '
+                                                                                                  'korrelasjon '
+                                                                                                  'og '
+                                                                                                  'opprettelse '
+                                                                                                  'av '
+                                                                                                  'hendelser '
+                                                                                                  'med '
+                                                                                                  'syntetiske '
+                                                                                                  'testhendelser.',
+        'Isolated simulation': 'Isolert simulering',
+        'Authentication failures': 'Autentiseringsfeil',
+        'Three failed logins and correlation': 'Tre mislykkede pålogginger og korrelasjon',
+        'Duplicate detection': 'Duplikatdeteksjon',
+        'Repeated event in the same batch': 'Gjentatt hendelse i samme batch',
+        'Privileged activity': 'Privilegert aktivitet',
+        'Synthetic administrator permission change': 'Syntetisk endring av '
+                                                     'administratorrettigheter',
+        'Choose a scenario to run the Python pipeline.': 'Velg et scenario for å kjøre '
+                                                         'Python-pipelinen.',
+        'SOC result metrics': 'SOC-resultatmålinger',
+        'Events': 'Hendelser',
+        'Detections': 'Deteksjoner',
+        'Correlations': 'Korrelasjoner',
+        'Duplicates': 'Duplikater',
+        'Incidents': 'Hendelser',
+        'SOC visualizations': 'SOC-visualiseringer',
+        'Event timeline': 'Hendelsestidslinje',
+        'Temporal distribution of synthetic events.': 'Tidsfordeling av syntetiske hendelser.',
+        'Run a scenario to display the timeline.': 'Kjør et scenario for å vise tidslinjen.',
+        'Severity and incident status': 'Alvorlighetsgrad og hendelsesstatus',
+        'Distribution of detections and incidents.': 'Fordeling av deteksjoner og hendelser.',
+        'Severity distribution': 'Fordeling etter alvorlighetsgrad',
+        'Run a scenario to display the distribution.': 'Kjør et scenario for å vise fordelingen.',
+        'Detection and incident pipeline': 'Pipeline for deteksjon og hendelser',
+        'Results of processing in the current scenario.': 'Behandlingsresultater for gjeldende '
+                                                          'scenario.',
+        'SOC pipeline': 'SOC-pipeline',
+        'Run a scenario to display the pipeline.': 'Kjør et scenario for å vise pipelinen.',
+        'Pipeline result': 'Pipelineresultat',
+        'No scenario has been run yet.': 'Ingen scenarioer er kjørt ennå.',
+        'No events are stored, no external systems are contacted, and no automated countermeasures are executed.': 'Ingen '
+                                                                                                                   'hendelser '
+                                                                                                                   'lagres, '
+                                                                                                                   'ingen '
+                                                                                                                   'eksterne '
+                                                                                                                   'systemer '
+                                                                                                                   'kontaktes, '
+                                                                                                                   'og '
+                                                                                                                   'ingen '
+                                                                                                                   'automatiske '
+                                                                                                                   'mottiltak '
+                                                                                                                   'utføres.',
+        'Log data is loading…': 'Laster loggdata…',
+        'No matching log entries found.': 'Fant ingen samsvarende loggoppføringer.',
+        'SOC event': 'SOC-hendelse',
+        'Audit': 'Revisjon',
+        'entries': 'oppføringer',
+        'Logs could not be loaded.': 'Kunne ikke laste loggene.',
+        'Error loading logs.': 'Feil ved lasting av logger.',
+        'Event timeline distribution': 'Tidsfordeling av hendelser',
+        'No events in this scenario.': 'Ingen hendelser i dette scenarioet.',
+        'No valid timestamps are available.': 'Ingen gyldige tidsstempler er tilgjengelige.',
+        'Entry': 'Oppføring',
+        'Severity and incident distribution': 'Fordeling av alvorlighetsgrad og hendelser',
+        'Detections by severity': 'Deteksjoner etter alvorlighetsgrad',
+        'Incidents by status': 'Hendelser etter status',
+        'Open': 'Åpen',
+        'In progress': 'Pågår',
+        'Resolved': 'Løst',
+        'SOC pipeline results': 'SOC-pipeline-resultater',
+        'Duplicates removed': 'Duplikater fjernet',
+        'Python SOC pipeline is running…': 'Python SOC-pipeline kjører…',
+        'CSRF validation failed. Please reload the page.': 'CSRF-validering mislyktes. Last inn '
+                                                           'siden på nytt.',
+        'Unknown SOC scenario.': 'Ukjent SOC-scenario.',
+        'The Python SOC pipeline could not execute the scenario.': 'Python SOC-pipeline kunne ikke '
+                                                                   'kjøre scenarioet.',
+        'SOC request failed (HTTP {status}).': 'SOC-forespørselen mislyktes (HTTP {status}).',
+        'SOC request failed.': 'SOC-forespørselen mislyktes.',
+        'Scenario completed: {scenario}. Result provided by the Python pipeline.': 'Scenario '
+                                                                                   'fullført: '
+                                                                                   '{scenario}. '
+                                                                                   'Resultatet '
+                                                                                   'kommer fra '
+                                                                                   'Python-pipelinen.',
+        'Total': 'Totalt',
+        'events': 'hendelser',
+        'Display limited; export contains up to 5000 entries.': 'Visningen er begrenset; eksporten '
+                                                                'inneholder opptil 5000 '
+                                                                'oppføringer.',
+        'Persisted SOC events and audit logs.': 'Lagrede SOC-hendelser og revisjonslogger.',
+        'Log export': 'Loggeksport',
+        'All sources': 'Alle kilder',
+        'SOC events': 'SOC-hendelser',
+        'Audit log': 'Revisjonslogg',
+        'All statuses': 'Alle statuser',
+        'Search': 'Søk',
+        'Agent, action or content': 'Agent, handling eller innhold',
+        'Filter': 'Filtrer',
+        'Time': 'Tid',
+        'Actor / Agent': 'Aktør / agent',
+        'Event / Action': 'Hendelse / handling',
+        'Details': 'Detaljer',
+        'SOC navigation': 'SOC-navigering',
+        'SOC lab scenarios': 'SOC-labscenarioer',
+        'Log': 'Logg',
+        'Webhooks': 'Webhooks',
+        'Integrations': 'Integrasjoner',
+        'Connected security and notification services will be managed here in the future.': 'Tilkoblede '
+                                                                                            'sikkerhets- '
+                                                                                            'og '
+                                                                                            'varslingstjenester '
+                                                                                            'vil '
+                                                                                            'bli '
+                                                                                            'administrert '
+                                                                                            'her i '
+                                                                                            'fremtiden.',
+        'Configuration not yet available': 'Konfigurasjon er ikke tilgjengelig ennå',
+        'Integrations remain disabled until secure persistent configuration and secret management are implemented.': 'Integrasjoner '
+                                                                                                                     'forblir '
+                                                                                                                     'deaktivert '
+                                                                                                                     'til '
+                                                                                                                     'sikker, '
+                                                                                                                     'vedvarende '
+                                                                                                                     'konfigurasjon '
+                                                                                                                     'og '
+                                                                                                                     'hemmelighetshåndtering '
+                                                                                                                     'er '
+                                                                                                                     'implementert.',
+        'Planned area for controlled delivery of alert events to external systems.': 'Planlagt '
+                                                                                     'område for '
+                                                                                     'kontrollert '
+                                                                                     'levering av '
+                                                                                     'varslingshendelser '
+                                                                                     'til eksterne '
+                                                                                     'systemer.',
+        'Webhooks are disabled': 'Webhooks er deaktivert',
+        'No external destinations are contacted. URL validation, SSRF protection, secret storage, permissions and delivery logs must be implemented before activation.': 'Ingen '
+                                                                                                                                                                         'eksterne '
+                                                                                                                                                                         'mål '
+                                                                                                                                                                         'kontaktes. '
+                                                                                                                                                                         'URL-validering, '
+                                                                                                                                                                         'SSRF-beskyttelse, '
+                                                                                                                                                                         'lagring '
+                                                                                                                                                                         'av '
+                                                                                                                                                                         'hemmeligheter, '
+                                                                                                                                                                         'tillatelser '
+                                                                                                                                                                         'og '
+                                                                                                                                                                         'leveringslogger '
+                                                                                                                                                                         'må '
+                                                                                                                                                                         'implementeres '
+                                                                                                                                                                         'før '
+                                                                                                                                                                         'aktivering.'},
+ 'fi': {'SOC dashboard': 'SOC-koontinäyttö',
+        'Security posture, stored events and logs.': 'Tietoturvatilanne, tallennetut tapahtumat ja '
+                                                     'lokit.',
+        'Workspace': 'Työtila',
+        'Alerts, rules, SOC lab and stored logs.': 'Hälytykset, säännöt, SOC-laboratorio ja '
+                                                   'tallennetut lokit.',
+        'Log data is loading.': 'Lokeja ladataan.',
+        'SOC Lab': 'SOC-laboratorio',
+        'Python-based detection, correlation and incident creation using synthetic test events.': 'Python-pohjainen '
+                                                                                                  'tunnistus, '
+                                                                                                  'korrelaatio '
+                                                                                                  'ja '
+                                                                                                  'poikkeamien '
+                                                                                                  'luonti '
+                                                                                                  'synteettisillä '
+                                                                                                  'testitapahtumilla.',
+        'Isolated simulation': 'Eristetty simulointi',
+        'Authentication failures': 'Todennusvirheet',
+        'Three failed logins and correlation': 'Kolme epäonnistunutta kirjautumista ja korrelaatio',
+        'Duplicate detection': 'Kaksoiskappaleiden tunnistus',
+        'Repeated event in the same batch': 'Sama tapahtuma toistuu erässä',
+        'Privileged activity': 'Etuoikeutettu toiminta',
+        'Synthetic administrator permission change': 'Synteettinen järjestelmänvalvojan '
+                                                     'käyttöoikeuden muutos',
+        'Choose a scenario to run the Python pipeline.': 'Valitse skenaario Python-putken '
+                                                         'suorittamiseksi.',
+        'SOC result metrics': 'SOC-tulosmittarit',
+        'Events': 'Tapahtumat',
+        'Detections': 'Havainnot',
+        'Correlations': 'Korrelaatiot',
+        'Duplicates': 'Kaksoiskappaleet',
+        'Incidents': 'Poikkeamat',
+        'SOC visualizations': 'SOC-visualisoinnit',
+        'Event timeline': 'Tapahtumien aikajana',
+        'Temporal distribution of synthetic events.': 'Synteettisten tapahtumien ajallinen '
+                                                      'jakauma.',
+        'Run a scenario to display the timeline.': 'Suorita skenaario aikajanan näyttämiseksi.',
+        'Severity and incident status': 'Vakavuus ja poikkeaman tila',
+        'Distribution of detections and incidents.': 'Havaintojen ja poikkeamien jakauma.',
+        'Severity distribution': 'Vakavuusjakauma',
+        'Run a scenario to display the distribution.': 'Suorita skenaario jakauman näyttämiseksi.',
+        'Detection and incident pipeline': 'Havainto- ja poikkeamaputki',
+        'Results of processing in the current scenario.': 'Nykyisen skenaarion käsittelytulokset.',
+        'SOC pipeline': 'SOC-putki',
+        'Run a scenario to display the pipeline.': 'Suorita skenaario putken näyttämiseksi.',
+        'Pipeline result': 'Putken tulos',
+        'No scenario has been run yet.': 'Skenaariota ei ole vielä suoritettu.',
+        'No events are stored, no external systems are contacted, and no automated countermeasures are executed.': 'Tapahtumia '
+                                                                                                                   'ei '
+                                                                                                                   'tallenneta, '
+                                                                                                                   'ulkoisiin '
+                                                                                                                   'järjestelmiin '
+                                                                                                                   'ei '
+                                                                                                                   'oteta '
+                                                                                                                   'yhteyttä '
+                                                                                                                   'eikä '
+                                                                                                                   'automaattisia '
+                                                                                                                   'vastatoimia '
+                                                                                                                   'suoriteta.',
+        'Log data is loading…': 'Lokeja ladataan…',
+        'No matching log entries found.': 'Vastaavia lokimerkintöjä ei löytynyt.',
+        'SOC event': 'SOC-tapahtuma',
+        'Audit': 'Tarkastusloki',
+        'entries': 'merkintää',
+        'Logs could not be loaded.': 'Lokien lataaminen epäonnistui.',
+        'Error loading logs.': 'Virhe lokien lataamisessa.',
+        'Event timeline distribution': 'Tapahtumien ajallinen jakauma',
+        'No events in this scenario.': 'Tässä skenaariossa ei ole tapahtumia.',
+        'No valid timestamps are available.': 'Kelvollisia aikaleimoja ei ole saatavilla.',
+        'Entry': 'Merkintä',
+        'Severity and incident distribution': 'Vakavuuden ja poikkeamien jakauma',
+        'Detections by severity': 'Havainnot vakavuuden mukaan',
+        'Incidents by status': 'Poikkeamat tilan mukaan',
+        'Open': 'Avoin',
+        'In progress': 'Käsittelyssä',
+        'Resolved': 'Ratkaistu',
+        'SOC pipeline results': 'SOC-putken tulokset',
+        'Duplicates removed': 'Kaksoiskappaleet poistettu',
+        'Python SOC pipeline is running…': 'Python-SOC-putki suoritetaan…',
+        'CSRF validation failed. Please reload the page.': 'CSRF-tarkistus epäonnistui. Lataa sivu '
+                                                           'uudelleen.',
+        'Unknown SOC scenario.': 'Tuntematon SOC-skenaario.',
+        'The Python SOC pipeline could not execute the scenario.': 'Python-SOC-putki ei voinut '
+                                                                   'suorittaa skenaariota.',
+        'SOC request failed (HTTP {status}).': 'SOC-pyyntö epäonnistui (HTTP {status}).',
+        'SOC request failed.': 'SOC-pyyntö epäonnistui.',
+        'Scenario completed: {scenario}. Result provided by the Python pipeline.': 'Skenaario '
+                                                                                   'valmis: '
+                                                                                   '{scenario}. '
+                                                                                   'Tulos saatiin '
+                                                                                   'Python-putkesta.',
+        'Total': 'Yhteensä',
+        'events': 'tapahtumat',
+        'Display limited; export contains up to 5000 entries.': 'Näytettävien tietueiden määrää on '
+                                                                'rajoitettu; vienti sisältää '
+                                                                'enintään 5000 tietuetta.',
+        'Persisted SOC events and audit logs.': 'Tallennetut SOC-tapahtumat ja tarkastuslokit.',
+        'Log export': 'Lokien vienti',
+        'All sources': 'Kaikki lähteet',
+        'SOC events': 'SOC-tapahtumat',
+        'Audit log': 'Tarkastusloki',
+        'All statuses': 'Kaikki tilat',
+        'Search': 'Haku',
+        'Agent, action or content': 'Agentti, toiminto tai sisältö',
+        'Filter': 'Suodata',
+        'Time': 'Aika',
+        'Actor / Agent': 'Toimija / agentti',
+        'Event / Action': 'Tapahtuma / toiminto',
+        'Details': 'Tiedot',
+        'SOC navigation': 'SOC-navigointi',
+        'SOC lab scenarios': 'SOC-laboratorion skenaariot',
+        'Log': 'Loki',
+        'Webhooks': 'Webhookit',
+        'Integrations': 'Integraatiot',
+        'Connected security and notification services will be managed here in the future.': 'Yhdistettyjä '
+                                                                                            'tietoturva- '
+                                                                                            'ja '
+                                                                                            'ilmoituspalveluja '
+                                                                                            'hallitaan '
+                                                                                            'täällä '
+                                                                                            'myöhemmin.',
+        'Configuration not yet available': 'Määritys ei ole vielä käytettävissä',
+        'Integrations remain disabled until secure persistent configuration and secret management are implemented.': 'Integraatiot '
+                                                                                                                     'pysyvät '
+                                                                                                                     'poissa '
+                                                                                                                     'käytöstä, '
+                                                                                                                     'kunnes '
+                                                                                                                     'turvallinen '
+                                                                                                                     'pysyvä '
+                                                                                                                     'määritys '
+                                                                                                                     'ja '
+                                                                                                                     'salaisuuksien '
+                                                                                                                     'hallinta '
+                                                                                                                     'on '
+                                                                                                                     'toteutettu.',
+        'Planned area for controlled delivery of alert events to external systems.': 'Suunniteltu '
+                                                                                     'alue '
+                                                                                     'hälytystapahtumien '
+                                                                                     'hallittuun '
+                                                                                     'toimittamiseen '
+                                                                                     'ulkoisiin '
+                                                                                     'järjestelmiin.',
+        'Webhooks are disabled': 'Webhookit eivät ole käytössä',
+        'No external destinations are contacted. URL validation, SSRF protection, secret storage, permissions and delivery logs must be implemented before activation.': 'Ulkoisiin '
+                                                                                                                                                                         'kohteisiin '
+                                                                                                                                                                         'ei '
+                                                                                                                                                                         'oteta '
+                                                                                                                                                                         'yhteyttä. '
+                                                                                                                                                                         'Ennen '
+                                                                                                                                                                         'käyttöönottoa '
+                                                                                                                                                                         'on '
+                                                                                                                                                                         'toteutettava '
+                                                                                                                                                                         'URL-validointi, '
+                                                                                                                                                                         'SSRF-suojaus, '
+                                                                                                                                                                         'salaisuuksien '
+                                                                                                                                                                         'tallennus, '
+                                                                                                                                                                         'käyttöoikeudet '
+                                                                                                                                                                         'ja '
+                                                                                                                                                                         'toimituslokit.'}}
+
 def translations_for(language):
     def merge_layers(*layers):
         merged = {}
@@ -6086,6 +7965,8 @@ def translations_for(language):
             _BACKUP_UI_TRANSLATIONS.get("en-GB", {}),
             _HEALTH_DASHBOARD_TRANSLATIONS.get("en-US", {}),
             _HEALTH_DASHBOARD_TRANSLATIONS.get("en-GB", {}),
+            _SOC_DASHBOARD_TRANSLATIONS.get("en-US", {}),
+            _SOC_DASHBOARD_TRANSLATIONS.get("en-GB", {}),
         )
     return merge_layers(
         _SYSTEM_UPDATE_UI.get(language, {}),
@@ -6099,6 +7980,8 @@ def translations_for(language):
         _USER_PROFILE_UI.get("en-US", {}),
         _USER_PROFILE_UI.get(language, {}),
         _HEALTH_DASHBOARD_TRANSLATIONS.get(language, {}),
+        _SOC_DASHBOARD_TRANSLATIONS.get("en-US", {}),
+        _SOC_DASHBOARD_TRANSLATIONS.get(language, {}),
     )
 
 

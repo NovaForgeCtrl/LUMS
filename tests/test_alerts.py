@@ -867,3 +867,572 @@ def test_status_transition_rolls_back_when_history_insert_fails(
     assert alert.metadata == original_metadata
     assert alert.alert_id in manager.active_alerts
     assert not db.in_transaction
+
+
+def test_alert_dashboard_renders_for_authorized_admin(alert_http_env):
+    env = alert_http_env
+    env["authenticate"](1, "test-admin")
+
+    with env["client"].session_transaction(
+        base_url="https://localhost"
+    ) as sess:
+        sess["language"] = "en-US"
+
+    response = env["client"].get(
+        "/alerts/",
+        base_url="https://localhost",
+    )
+
+    assert response.status_code == 200
+    assert b"alerts-dashboard" in response.data
+    assert b"SOC-Dashboard" in response.data
+
+
+def test_alert_dashboard_localizes_severity_and_status(alert_http_env):
+    env = alert_http_env
+    env["authenticate"](1, "test-admin")
+
+    with env["client"].session_transaction(
+        base_url="https://localhost"
+    ) as sess:
+        sess["language"] = "de"
+
+    created = _alert_http_create(env, severity="critical")
+    assert created.status_code == 201
+    rule_id = created.get_json()["rule"]["rule_id"]
+
+    triggered = env["client"].post(
+        "/alerts/trigger",
+        base_url="https://localhost",
+        json={
+            "rule_id": rule_id,
+            "source": "pytest",
+            "message": "Synthetic localization alert",
+            "metadata": {"test": True},
+        },
+        headers={"X-CSRF-Token": "pytest-csrf-token"},
+    )
+    assert triggered.status_code == 201
+
+    response = env["client"].get(
+        "/alerts/",
+        base_url="https://localhost",
+    )
+
+    assert response.status_code == 200
+    assert "Kritisch".encode() in response.data
+    assert "Warnung ausgelöst".encode() in response.data
+    assert b"severity-critical" in response.data
+
+
+# The synthetic SOC demo endpoint must remain absent from production.
+def test_synthetic_soc_demo_endpoint_is_not_registered(alert_http_env):
+    env = alert_http_env
+
+    matching_rules = [
+        rule
+        for rule in env["app"].url_map.iter_rules()
+        if rule.rule == "/alerts/api/soc/run"
+    ]
+    assert matching_rules == []
+
+    response = env["client"].post(
+        "/alerts/api/soc/run",
+        base_url="https://localhost",
+        json={"scenario": "auth"},
+    )
+    assert response.status_code == 404
+
+
+# COLLECTOR_API_SECURITY_TESTS_V1
+def test_collector_api_is_disabled_by_default_without_creating_tables(
+    alert_http_env, monkeypatch,
+):
+    env = alert_http_env
+    monkeypatch.setitem(
+        env["app"].config,
+        "LUMS_COLLECTOR_IDENTITY_PROVIDER",
+        lambda: "a" * 64,
+    )
+
+    response = env["client"].post(
+        "/alerts/api/collector/v1/events",
+        base_url="https://localhost",
+        json={"events": [_collector_event()]},
+    )
+
+    assert response.status_code == 503
+    assert response.get_json()["error"] == "soc_collector_disabled"
+
+    with closing(env["connect"]()) as connection:
+        tables = {
+            row["name"]
+            for row in connection.execute(
+                "SELECT name FROM sqlite_master WHERE type = 'table'"
+            )
+        }
+    assert "soc_collector_agents" not in tables
+    assert "soc_event_inbox" not in tables
+
+
+def _register_test_collector(env, monkeypatch, *, revoked=False):
+    from server.soc.collector_store import CollectorStore
+
+    fingerprint = "a" * 64
+    with closing(env["connect"]()) as connection:
+        store = CollectorStore(connection)
+        store.register_agent("test-agent-01", "Test Linux Agent", fingerprint)
+        if revoked:
+            store.revoke_agent("test-agent-01")
+        connection.commit()
+
+    monkeypatch.setitem(env["app"].config, "LUMS_SOC_COLLECTOR_ENABLED", True)
+    monkeypatch.setitem(
+        env["app"].config,
+        "LUMS_COLLECTOR_IDENTITY_PROVIDER",
+        lambda: fingerprint,
+    )
+    return fingerprint
+
+
+def _collector_event(event_id="evt-001", username="tester"):
+    return {
+        "event_id": event_id,
+        "source": "linux-test-01",
+        "event_type": "auth.failure",
+        "timestamp": "2026-10-29T09:00:00+00:00",
+        "fields": {"username": username},
+    }
+
+
+def test_collector_api_rejects_missing_identity_without_creating_tables(
+    alert_http_env, monkeypatch,
+):
+    env = alert_http_env
+    monkeypatch.setitem(env["app"].config, "LUMS_SOC_COLLECTOR_ENABLED", True)
+    env["app"].config.pop("LUMS_COLLECTOR_IDENTITY_PROVIDER", None)
+
+    response = env["client"].post(
+        "/alerts/api/collector/v1/events",
+        base_url="https://localhost",
+        json={"events": [_collector_event()]},
+    )
+
+    assert response.status_code == 401
+    assert response.get_json()["error"] == "collector_identity_required"
+
+    with closing(env["connect"]()) as connection:
+        tables = {
+            row["name"]
+            for row in connection.execute(
+                "SELECT name FROM sqlite_master WHERE type = 'table'"
+            )
+        }
+    assert "soc_collector_agents" not in tables
+    assert "soc_event_inbox" not in tables
+
+
+def test_collector_api_rejects_unregistered_certificate(
+    alert_http_env, monkeypatch,
+):
+    env = alert_http_env
+    monkeypatch.setitem(env["app"].config, "LUMS_SOC_COLLECTOR_ENABLED", True)
+    monkeypatch.setitem(
+        env["app"].config,
+        "LUMS_COLLECTOR_IDENTITY_PROVIDER",
+        lambda: "b" * 64,
+    )
+
+    response = env["client"].post(
+        "/alerts/api/collector/v1/events",
+        base_url="https://localhost",
+        json={"events": [_collector_event()]},
+    )
+
+    assert response.status_code == 403
+    assert response.get_json()["error"] == "collector_not_registered"
+
+
+def test_collector_api_accepts_events_and_deduplicates_retries(
+    alert_http_env, monkeypatch,
+):
+    env = alert_http_env
+    _register_test_collector(env, monkeypatch)
+    event = _collector_event()
+
+    first = env["client"].post(
+        "/alerts/api/collector/v1/events",
+        base_url="https://localhost",
+        json={"events": [event]},
+    )
+    second = env["client"].post(
+        "/alerts/api/collector/v1/events",
+        base_url="https://localhost",
+        json={"events": [event]},
+    )
+
+    assert first.status_code == 202
+    assert first.get_json()["accepted"] == 1
+    assert first.get_json()["duplicates"] == 0
+
+    assert second.status_code == 202
+    assert second.get_json()["accepted"] == 0
+    assert second.get_json()["duplicates"] == 1
+
+
+def test_collector_api_rejects_event_id_reuse_with_different_content(
+    alert_http_env, monkeypatch,
+):
+    env = alert_http_env
+    _register_test_collector(env, monkeypatch)
+
+    first = env["client"].post(
+        "/alerts/api/collector/v1/events",
+        base_url="https://localhost",
+        json={"events": [_collector_event("evt-conflict", "alice")]},
+    )
+    conflicting = env["client"].post(
+        "/alerts/api/collector/v1/events",
+        base_url="https://localhost",
+        json={"events": [_collector_event("evt-conflict", "bob")]},
+    )
+
+    assert first.status_code == 202
+    assert conflicting.status_code == 409
+    assert conflicting.get_json()["error"] == "event_id_conflict"
+
+
+def test_collector_api_rejects_revoked_agent(
+    alert_http_env, monkeypatch,
+):
+    env = alert_http_env
+    _register_test_collector(env, monkeypatch, revoked=True)
+
+    response = env["client"].post(
+        "/alerts/api/collector/v1/events",
+        base_url="https://localhost",
+        json={"events": [_collector_event()]},
+    )
+
+    assert response.status_code == 403
+    assert response.get_json()["error"] == "collector_revoked"
+
+def test_collector_api_rejects_missing_timestamp_without_persisting(
+    alert_http_env, monkeypatch,
+):
+    env = alert_http_env
+    _register_test_collector(env, monkeypatch)
+    event = _collector_event()
+    event.pop("timestamp")
+
+    response = env["client"].post(
+        "/alerts/api/collector/v1/events",
+        base_url="https://localhost",
+        json={"events": [event]},
+    )
+
+    assert response.status_code == 400
+    assert response.get_json()["error"] == "invalid_event"
+
+    with closing(env["connect"]()) as connection:
+        count = connection.execute(
+            "SELECT COUNT(*) FROM soc_event_inbox"
+        ).fetchone()[0]
+    assert count == 0
+
+
+def test_collector_api_rejects_timestamp_without_timezone(
+    alert_http_env, monkeypatch,
+):
+    env = alert_http_env
+    _register_test_collector(env, monkeypatch)
+    event = _collector_event()
+    event["timestamp"] = "2026-10-29T09:00:00"
+
+    response = env["client"].post(
+        "/alerts/api/collector/v1/events",
+        base_url="https://localhost",
+        json={"events": [event]},
+    )
+
+    assert response.status_code == 400
+    assert response.get_json()["error"] == "invalid_event"
+
+    with closing(env["connect"]()) as connection:
+        count = connection.execute(
+            "SELECT COUNT(*) FROM soc_event_inbox"
+        ).fetchone()[0]
+    assert count == 0
+
+
+def test_collector_api_treats_changed_timestamp_as_content_conflict(
+    alert_http_env, monkeypatch,
+):
+    env = alert_http_env
+    _register_test_collector(env, monkeypatch)
+    event = _collector_event("evt-timestamp-conflict")
+
+    first = env["client"].post(
+        "/alerts/api/collector/v1/events",
+        base_url="https://localhost",
+        json={"events": [event]},
+    )
+
+    changed = dict(event)
+    changed["timestamp"] = "2026-10-29T09:00:01+00:00"
+    conflicting = env["client"].post(
+        "/alerts/api/collector/v1/events",
+        base_url="https://localhost",
+        json={"events": [changed]},
+    )
+
+    assert first.status_code == 202
+    assert conflicting.status_code == 409
+    assert conflicting.get_json()["error"] == "event_id_conflict"
+
+
+# COLLECTOR_BOUNDED_BODY_TESTS_V1
+def test_collector_api_rejects_invalid_event_without_persisting_it(
+    alert_http_env, monkeypatch,
+):
+    env = alert_http_env
+    _register_test_collector(env, monkeypatch)
+
+    response = env["client"].post(
+        "/alerts/api/collector/v1/events",
+        base_url="https://localhost",
+        json={"events": [{"event_id": "bad-event"}]},
+    )
+
+    assert response.status_code == 400
+    assert response.get_json()["error"] == "invalid_event"
+
+    with closing(env["connect"]()) as connection:
+        count = connection.execute(
+            "SELECT COUNT(*) FROM soc_event_inbox"
+        ).fetchone()[0]
+    assert count == 0
+
+
+def test_collector_api_rejects_oversized_declared_body(
+    alert_http_env, monkeypatch,
+):
+    env = alert_http_env
+    _register_test_collector(env, monkeypatch)
+
+    response = env["client"].post(
+        "/alerts/api/collector/v1/events",
+        base_url="https://localhost",
+        data=b" " * (4 * 1024 * 1024 + 1),
+        content_type="application/json",
+    )
+
+    assert response.status_code == 413
+    assert response.get_json()["error"] == "request_too_large"
+
+
+def test_collector_import_failure_returns_controlled_json_error(
+    alert_http_env, monkeypatch,
+):
+    import builtins
+
+    env = alert_http_env
+    app = env["app"]
+
+    monkeypatch.setitem(app.config, "TESTING", False)
+    _register_test_collector(env, monkeypatch)
+
+    original_import = builtins.__import__
+
+    def failing_import(name, globals=None, locals=None, fromlist=(), level=0):
+        if (
+            name.endswith("soc.ingestion")
+            and "EventIngestor" in (fromlist or ())
+        ):
+            raise ImportError("SIMULATED_COLLECTOR_IMPORT_FAILURE")
+        return original_import(name, globals, locals, fromlist, level)
+
+    monkeypatch.setattr(builtins, "__import__", failing_import)
+
+    response = env["client"].post(
+        "/alerts/api/collector/v1/events",
+        base_url="https://localhost",
+        json={"events": [{
+            "event_id": "diagnostic-import-failure",
+            "source": "local-test",
+            "event_type": "auth.failure",
+            "fields": {"username": "diagnostic"},
+        }]},
+    )
+
+    assert response.status_code == 500
+    assert response.get_json() == {
+        "error": "collector_ingestion_failed"
+    }
+
+def test_collector_unexpected_import_failure_returns_controlled_json_error(
+    alert_http_env, monkeypatch,
+):
+    import builtins
+
+    env = alert_http_env
+    app = env["app"]
+
+    monkeypatch.setitem(app.config, "TESTING", False)
+    _register_test_collector(env, monkeypatch)
+
+    original_import = builtins.__import__
+
+    def failing_import(name, globals=None, locals=None, fromlist=(), level=0):
+        if (
+            name.endswith("soc.ingestion")
+            and "EventIngestor" in (fromlist or ())
+        ):
+            raise RuntimeError("SIMULATED_UNEXPECTED_IMPORT_FAILURE")
+        return original_import(name, globals, locals, fromlist, level)
+
+    monkeypatch.setattr(builtins, "__import__", failing_import)
+
+    response = env["client"].post(
+        "/alerts/api/collector/v1/events",
+        base_url="https://localhost",
+        json={"events": [{
+            "event_id": "diagnostic-unexpected-import-failure",
+            "source": "local-test",
+            "event_type": "auth.failure",
+            "fields": {"username": "diagnostic"},
+        }]},
+    )
+
+    assert response.status_code == 500
+    assert response.get_json() == {
+        "error": "collector_ingestion_failed"
+    }
+
+
+def _create_persisted_log_tables(env):
+    connection = env["connect"]()
+    try:
+        connection.executescript("""
+            CREATE TABLE soc_event_inbox (
+                inbox_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                agent_id TEXT NOT NULL,
+                event_id TEXT NOT NULL,
+                payload_json TEXT NOT NULL,
+                payload_sha256 TEXT NOT NULL,
+                received_at TEXT NOT NULL,
+                processing_status TEXT NOT NULL,
+                processed_at TEXT,
+                last_error TEXT
+            );
+
+            CREATE TABLE audit_log (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                timestamp TEXT NOT NULL,
+                actor_type TEXT NOT NULL,
+                actor_id TEXT,
+                action TEXT NOT NULL,
+                target TEXT,
+                result TEXT NOT NULL,
+                details TEXT
+            );
+
+            INSERT INTO soc_event_inbox
+                (agent_id, event_id, payload_json, payload_sha256,
+                 received_at, processing_status, last_error)
+            VALUES
+                ('agent-test', 'event-001', '{"kind":"test"}', 'abc',
+                 '2026-10-29T08:00:00Z', 'failed', 'test failure');
+
+            INSERT INTO audit_log
+                (timestamp, actor_type, actor_id, action, target, result, details)
+            VALUES
+                ('2026-10-29T08:01:00Z', 'user', '1',
+                 'login', 'test-target', 'success', 'test audit');
+        """)
+        connection.commit()
+    finally:
+        connection.close()
+
+
+def test_persisted_logs_read_saved_soc_and_audit_records(alert_http_env):
+    env = alert_http_env
+    env["authenticate"](1, "test-admin")
+    _create_persisted_log_tables(env)
+
+    response = env["client"].get(
+        "/alerts/api/logs", base_url="https://localhost"
+    )
+
+    assert response.status_code == 200
+    data = response.get_json()
+    assert data["count"] == 2
+    assert {item["source"] for item in data["logs"]} == {"soc", "audit"}
+    assert any(item["event"] == "event-001" for item in data["logs"])
+    assert any(item["event"] == "login" for item in data["logs"])
+
+
+def test_persisted_logs_apply_source_status_and_search_filters(alert_http_env):
+    env = alert_http_env
+    env["authenticate"](1, "test-admin")
+    _create_persisted_log_tables(env)
+
+    response = env["client"].get(
+        "/alerts/api/logs?source=soc&status=failed&q=event-001",
+        base_url="https://localhost",
+    )
+
+    assert response.status_code == 200
+    data = response.get_json()
+    assert data["count"] == 1
+    assert data["logs"][0]["source"] == "soc"
+    assert data["logs"][0]["status"] == "failed"
+    assert data["logs"][0]["event"] == "event-001"
+
+
+def test_persisted_logs_export_csv_json_and_txt(alert_http_env):
+    env = alert_http_env
+    env["authenticate"](1, "test-admin")
+    _create_persisted_log_tables(env)
+
+    for fmt, content_type, expected in (
+        ("csv", "text/csv", b"timestamp,source,actor,event,status"),
+        ("json", "application/json", b'"event": "event-001"'),
+        ("txt", "text/plain", b"event-001"),
+    ):
+        response = env["client"].get(
+            f"/alerts/api/logs/export?format={fmt}&source=soc",
+            base_url="https://localhost",
+        )
+        assert response.status_code == 200
+        assert content_type in response.content_type
+        assert expected in response.data
+        assert "attachment;" in response.headers.get("Content-Disposition", "")
+
+
+def test_persisted_logs_reject_invalid_filters_and_export_format(alert_http_env):
+    env = alert_http_env
+    env["authenticate"](1, "test-admin")
+
+    response = env["client"].get(
+        "/alerts/api/logs?source=unknown",
+        base_url="https://localhost",
+    )
+    assert response.status_code == 400
+
+    response = env["client"].get(
+        "/alerts/api/logs/export?format=xml",
+        base_url="https://localhost",
+    )
+    assert response.status_code == 400
+
+
+def test_persisted_logs_require_view_permission(alert_http_env):
+    env = alert_http_env
+    env["authenticate"](3, "test-viewer")
+
+    response = env["client"].get(
+        "/alerts/api/logs", base_url="https://localhost"
+    )
+
+    assert response.status_code == 403

@@ -429,6 +429,12 @@ def is_authenticated():
 # AUTHORIZATION DECORATORS
 # ============================================================
 
+def _is_api_request():
+    """Recognize API endpoints, including APIs nested under blueprints."""
+    path = request.path
+    return path.startswith("/api/") or "/api/" in path
+
+
 def login_required(view):
     @wraps(view)
     def wrapped(*args, **kwargs):
@@ -437,7 +443,7 @@ def login_required(view):
 
         if user_id is None:
 
-            if request.path.startswith("/api/"):
+            if _is_api_request():
                 return jsonify({
                     "error": "authentication_required"
                 }), 401
@@ -491,7 +497,7 @@ def login_required(view):
 
             logout_user()
 
-            if request.path.startswith("/api/"):
+            if _is_api_request():
                 return jsonify({
                     "error": "authentication_required"
                 }), 401
@@ -504,7 +510,7 @@ def login_required(view):
 
             logout_user()
 
-            if request.path.startswith("/api/"):
+            if _is_api_request():
                 return jsonify({
                     "error": "invalid_user_role"
                 }), 403
@@ -572,7 +578,7 @@ def role_required(*roles, permission=None):
             user = request.environ.get("lums.user")
 
             if user is None:
-                if request.path.startswith("/api/"):
+                if _is_api_request():
                     return jsonify({
                         "error": "authentication_required"
                     }), 401

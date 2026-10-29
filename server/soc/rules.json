@@ -1,0 +1,29 @@
+{
+  "version": 1,
+  "rules": [
+    {
+      "id": "LINUX-AUTH-001",
+      "name": "SSH-Authentifizierungsfehler",
+      "description": "Beispielregel für fehlgeschlagene SSH-Authentifizierungen. Erst aktivieren, wenn die Quelle passende Einzelereignisse liefert.",
+      "type": "detection",
+      "event_type": "ssh_auth_failure",
+      "field": "failure_count",
+      "operator": "gte",
+      "value": 5,
+      "severity": "warning",
+      "enabled": false
+    },
+    {
+      "id": "LINUX-AUTH-002",
+      "name": "Wiederholte SSH-Authentifizierungsfehler",
+      "description": "Beispiel für zeitbasierte Korrelation nach einem gemeinsamen Schlüssel. Benötigt passende, einzeln zeitgestempelte Ereignisse.",
+      "type": "correlation",
+      "event_type": "ssh_auth_failure",
+      "group_by": "source_ip",
+      "window_seconds": 300,
+      "minimum_count": 5,
+      "severity": "critical",
+      "enabled": false
+    }
+  ]
+}

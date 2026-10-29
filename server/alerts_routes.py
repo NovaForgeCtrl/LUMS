@@ -3,10 +3,9 @@ LUMS Alert Management API Routes
 REST endpoints for alert and rule management
 """
 
-from flask import (Blueprint, request, jsonify, session, render_template_string, current_app, g)
+from flask import (Blueprint, request, jsonify, session, render_template, current_app, g, Response)
 from functools import wraps
 from werkzeug.local import LocalProxy
-from datetime import datetime, timezone, timedelta
 import uuid
 import json
 import logging
@@ -16,12 +15,12 @@ if __package__:
     from .alerts import (
         AlertManager, AlertRule, Alert, AlertSeverity, AlertStatus,
     )
-    from .security import login_required, role_required, csrf_required, current_user_id
+    from .security import login_required, role_required, csrf_required, current_user_id, current_user_role, current_user_permissions, get_csrf_token
 else:
     from alerts import (
         AlertManager, AlertRule, Alert, AlertSeverity, AlertStatus,
     )
-    from security import login_required, role_required, csrf_required, current_user_id
+    from security import login_required, role_required, csrf_required, current_user_id, current_user_role, current_user_permissions, get_csrf_token
 
 logger = logging.getLogger(__name__)
 
@@ -57,53 +56,18 @@ alert_manager = LocalProxy(_get_alert_manager)
 @login_required
 @role_required(permission="alerts.view")
 def alert_dashboard():
-    """Alert management dashboard"""
+    """Render the LUMS alert dashboard using the shared application layout."""
     try:
         alerts = alert_manager.get_alerts(limit=50)
-        return render_template_string("""
-        <div class="alerts-dashboard">
-            <h1>{{ tr("Alerts & Monitoring") }}</h1>
-            <div class="alerts-tabs">
-                <button class="tab-btn active" data-tab="overview">{{ tr("Alert overview") }}</button>
-                <button class="tab-btn" data-tab="history">{{ tr("Alert history") }}</button>
-                <button class="tab-btn" data-tab="rules">{{ tr("Alert rules") }}</button>
-                <button class="tab-btn" data-tab="integrations">{{ tr("Integrations & Webhooks") }}</button>
-            </div>
-            
-            <div id="overview" class="tab-content active">
-                <table class="alerts-table">
-                    <thead>
-                        <tr>
-                            <th>{{ tr("Alert name") }}</th>
-                            <th>{{ tr("Severity level") }}</th>
-                            <th>{{ tr("Alert status") }}</th>
-                            <th>{{ tr("Alert timestamp") }}</th>
-                            <th>{{ tr("Action") }}</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for alert in alerts %}
-                        <tr>
-                            <td>{{ alert.message }}</td>
-                            <td><span class="severity-{{ alert.severity.value }}">{{ alert.severity.value }}</span></td>
-                            <td>{{ alert.status.value }}</td>
-                            <td>{{ alert.triggered_at }}</td>
-                            <td>
-                                {% if alert.status.value != 'resolved' %}
-                                <button class="btn-acknowledge" data-alert-id="{{ alert.alert_id }}">{{ tr("Acknowledged") }}</button>
-                                <button class="btn-resolve" data-alert-id="{{ alert.alert_id }}">{{ tr("Alert resolved") }}</button>
-                                {% endif %}
-                            </td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-        </div>
-        """, alerts=alerts
+        return render_template(
+            "alerts.html",
+            alerts=alerts,
+            csrf_token=get_csrf_token(),
+            user_role=current_user_role(),
+            user_permissions=sorted(current_user_permissions()),
         )
-    except Exception as e:
-        logger.error(f"Error loading dashboard: {e}")
+    except Exception:
+        logger.exception("Error loading dashboard")
         return {"error": "Internal server error"}, 500
 
 
@@ -518,6 +482,348 @@ def test_integration(integration_id):
 def remove_integration(integration_id):
     """Remove notification integration"""
     return {"error": "Notification integrations are disabled pending secure persistent configuration"}, 501
+
+
+# ============================================================
+# SOC LAB — SYNTHETISCHE SZENARIEN, KEINE PERSISTENZ
+# ============================================================
+
+
+
+
+# ============================================================
+# PERSISTED LOG VIEW — READ ONLY
+# ============================================================
+
+def _log_table_exists(connection, table_name):
+    """Check schema existence without creating or migrating tables."""
+    row = connection.execute(
+        "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?",
+        (table_name,),
+    ).fetchone()
+    return row is not None
+
+
+def _collect_persisted_log_rows(connection, source="", status="", query=""):
+    """Read persisted SOC inbox and audit records without changing the database."""
+    rows = []
+    search = query.casefold().strip()
+
+    if source in ("", "soc") and _log_table_exists(connection, "soc_event_inbox"):
+        records = connection.execute("""
+            SELECT inbox_id, agent_id, event_id, received_at,
+                   processing_status, processed_at, last_error, payload_json
+            FROM soc_event_inbox
+            ORDER BY received_at DESC, inbox_id DESC
+            LIMIT 5000
+        """).fetchall()
+
+        for record in records:
+            item = dict(record)
+            row = {
+                "timestamp": item.get("received_at") or "",
+                "source": "soc",
+                "actor": item.get("agent_id") or "",
+                "event": item.get("event_id") or "",
+                "status": item.get("processing_status") or "",
+                "details": item.get("last_error") or "",
+                "record_id": item.get("inbox_id"),
+                "processed_at": item.get("processed_at"),
+                "payload": item.get("payload_json") or "",
+            }
+            rows.append(row)
+
+    if source in ("", "audit") and _log_table_exists(connection, "audit_log"):
+        records = connection.execute("""
+            SELECT id, timestamp, actor_type, actor_id, action,
+                   target, result, details
+            FROM audit_log
+            ORDER BY timestamp DESC, id DESC
+            LIMIT 5000
+        """).fetchall()
+
+        for record in records:
+            item = dict(record)
+            rows.append({
+                "timestamp": item.get("timestamp") or "",
+                "source": "audit",
+                "actor": " / ".join(
+                    part for part in (
+                        item.get("actor_type") or "",
+                        item.get("actor_id") or "",
+                    ) if part
+                ),
+                "event": item.get("action") or "",
+                "status": item.get("result") or "",
+                "details": " | ".join(
+                    part for part in (
+                        item.get("target") or "",
+                        item.get("details") or "",
+                    ) if part
+                ),
+                "record_id": item.get("id"),
+                "processed_at": "",
+                "payload": "",
+            })
+
+    if status:
+        rows = [row for row in rows if row["status"].casefold() == status.casefold()]
+
+    if search:
+        rows = [
+            row for row in rows
+            if search in " ".join(str(value or "") for value in row.values()).casefold()
+        ]
+
+    rows.sort(key=lambda row: row["timestamp"], reverse=True)
+    return rows
+
+
+def _log_query_parameters():
+    source = request.args.get("source", "").strip().lower()
+    status = request.args.get("status", "").strip().lower()
+    query = request.args.get("q", "").strip()
+
+    if source not in ("", "soc", "audit"):
+        return None, ("invalid_source", 400)
+    if status not in (
+        "", "pending", "processing", "processed", "failed", "success", "failure"
+    ):
+        return None, ("invalid_status", 400)
+    if len(query) > 200:
+        return None, ("search_too_long", 400)
+
+    return {"source": source, "status": status, "q": query}, None
+
+
+@alerts_bp.route("/api/logs", methods=["GET"])
+@login_required
+@role_required(permission="alerts.view")
+def get_persisted_logs():
+    """Return bounded, read-only records from persistent SOC and audit tables."""
+    params, error = _log_query_parameters()
+    if error:
+        code, status_code = error
+        return jsonify({"error": code}), status_code
+
+    try:
+        connection = _collector_connection()
+        rows = _collect_persisted_log_rows(
+            connection, params["source"], params["status"], params["q"]
+        )
+        return jsonify({
+            "logs": rows[:500],
+            "count": min(len(rows), 500),
+            "truncated": len(rows) > 500,
+        }), 200
+    except Exception:
+        logger.exception("Could not read persisted SOC logs")
+        return jsonify({"error": "logs_unavailable"}), 500
+
+
+@alerts_bp.route("/api/logs/export", methods=["GET"])
+@login_required
+@role_required(permission="alerts.view")
+def export_persisted_logs():
+    """Export the same read-only log view as CSV, JSON, or plain text."""
+    import csv
+    import io
+
+    params, error = _log_query_parameters()
+    if error:
+        code, status_code = error
+        return jsonify({"error": code}), status_code
+
+    fmt = request.args.get("format", "csv").strip().lower()
+    if fmt not in ("csv", "json", "txt"):
+        return jsonify({"error": "invalid_export_format"}), 400
+
+    try:
+        connection = _collector_connection()
+        rows = _collect_persisted_log_rows(
+            connection, params["source"], params["status"], params["q"]
+        )[:5000]
+
+        if fmt == "json":
+            body = json.dumps(rows, ensure_ascii=False, indent=2)
+            mimetype = "application/json; charset=utf-8"
+        elif fmt == "txt":
+            body = "\n".join(
+                f'{row["timestamp"]} [{row["source"]}] '
+                f'{row["status"]} {row["event"]} — {row["actor"]} '
+                f'{row["details"]}'.rstrip()
+                for row in rows
+            )
+            mimetype = "text/plain; charset=utf-8"
+        else:
+            output = io.StringIO(newline="")
+            fields = [
+                "timestamp", "source", "actor", "event", "status",
+                "details", "record_id", "processed_at", "payload",
+            ]
+            writer = csv.DictWriter(output, fieldnames=fields)
+            writer.writeheader()
+            writer.writerows(rows)
+            body = output.getvalue()
+            mimetype = "text/csv; charset=utf-8"
+
+        filename = f"lums-logs.{fmt}"
+        return Response(
+            body,
+            mimetype=mimetype,
+            headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+        )
+    except Exception:
+        logger.exception("Could not export persisted SOC logs")
+        return jsonify({"error": "logs_unavailable"}), 500
+
+
+# ============================================================
+# INDEPENDENT SOC COLLECTOR API
+# ============================================================
+
+def _collector_connection():
+    """Get a request-local DB connection without initializing AlertManager."""
+    connection = getattr(g, "lums_alert_connection", None)
+    if connection is not None:
+        return connection
+
+    connection_factory = current_app.config.get("LUMS_GET_CONNECTION")
+    if not callable(connection_factory):
+        raise RuntimeError("Collector database connection factory is not configured")
+
+    connection = connection_factory()
+    g.lums_alert_connection = connection
+    return connection
+
+
+def _verified_collector_fingerprint():
+    """Return a SHA-256 fingerprint supplied by trusted TLS integration.
+
+    The callback must derive this value from a verified client certificate.
+    It must never copy a value directly from an untrusted HTTP header or body.
+    """
+    provider = current_app.config.get("LUMS_COLLECTOR_IDENTITY_PROVIDER")
+    if not callable(provider):
+        return None
+
+    try:
+        fingerprint = provider()
+    except Exception:
+        logger.warning("Collector identity provider failed", exc_info=True)
+        return None
+
+    if not isinstance(fingerprint, str):
+        return None
+
+    import re
+    if re.fullmatch(r"[0-9a-fA-F]{64}", fingerprint) is None:
+        return None
+
+    return fingerprint.lower()
+
+
+@alerts_bp.route("/api/collector/v1/events", methods=["POST"])
+def ingest_collector_events():
+    """Accept bounded events only when SOC collection is explicitly enabled."""
+    from werkzeug.exceptions import BadRequest
+
+    if current_app.config.get("LUMS_SOC_COLLECTOR_ENABLED") is not True:
+        return jsonify({"error": "soc_collector_disabled"}), 503
+
+    fingerprint = _verified_collector_fingerprint()
+    if fingerprint is None:
+        return jsonify({"error": "collector_identity_required"}), 401
+
+    import json
+
+    max_request_bytes = 4 * 1024 * 1024
+    if (
+        request.content_length is not None
+        and request.content_length > max_request_bytes
+    ):
+        return jsonify({"error": "request_too_large"}), 413
+
+    try:
+        # Read only one byte beyond the limit; do not buffer an unlimited body.
+        raw = request.stream.read(max_request_bytes + 1)
+    except (BadRequest, ValueError):
+        return jsonify({"error": "invalid_json_payload"}), 400
+
+    if len(raw) > max_request_bytes:
+        return jsonify({"error": "request_too_large"}), 413
+
+    try:
+        payload = json.loads(raw)
+    except (UnicodeDecodeError, json.JSONDecodeError):
+        return jsonify({"error": "invalid_json_payload"}), 400
+
+    if not isinstance(payload, dict) or set(payload) != {"events"}:
+        return jsonify({"error": "invalid_json_payload"}), 400
+
+    events = payload["events"]
+    if not isinstance(events, list) or not events:
+        return jsonify({"error": "invalid_event_batch"}), 400
+    if len(events) > 500:
+        return jsonify({"error": "batch_too_large"}), 413
+
+    try:
+        if __package__:
+            from .soc.ingestion import EventIngestor, IngestionError
+            from .soc.collector_store import (
+                CollectorStore, CollectorNotFoundError,
+                CollectorRevokedError, EventIdConflictError,
+            )
+        else:
+            from soc.ingestion import EventIngestor, IngestionError
+            from soc.collector_store import (
+                CollectorStore, CollectorNotFoundError,
+                CollectorRevokedError, EventIdConflictError,
+            )
+    except Exception:
+        logger.exception("Collector event ingestion dependencies could not be loaded")
+        return jsonify({"error": "collector_ingestion_failed"}), 500
+
+    try:
+        # Collector events must include their source event timestamp.
+        # Keep generic EventIngestor behavior unchanged for other callers.
+        if any(
+            not isinstance(event, dict) or "timestamp" not in event
+            for event in events
+        ):
+            raise IngestionError("Collector event timestamp is required")
+
+        # Validate the complete batch before persisting any event.
+        EventIngestor().ingest_batch(events)
+
+        store = CollectorStore(_collector_connection())
+        agent = store.get_agent_by_fingerprint(fingerprint)
+        if agent is None:
+            return jsonify({"error": "collector_not_registered"}), 403
+        if agent["status"] != "active":
+            return jsonify({"error": "collector_revoked"}), 403
+
+        result = store.ingest_batch(agent["agent_id"], events)
+        return jsonify({
+            "status": "accepted",
+            **result.to_dict(),
+        }), 202
+
+    except IngestionError:
+        return jsonify({"error": "invalid_event"}), 400
+    except EventIdConflictError:
+        return jsonify({"error": "event_id_conflict"}), 409
+    except CollectorNotFoundError:
+        return jsonify({"error": "collector_not_registered"}), 403
+    except CollectorRevokedError:
+        return jsonify({"error": "collector_revoked"}), 403
+    except (TypeError, ValueError):
+        return jsonify({"error": "invalid_event_batch"}), 400
+    except Exception:
+        logger.exception("Collector event ingestion failed")
+        return jsonify({"error": "collector_ingestion_failed"}), 500
+
+
 
 
 # ============================================================
