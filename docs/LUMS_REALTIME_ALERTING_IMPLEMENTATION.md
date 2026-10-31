@@ -1,480 +1,107 @@
-# 🚨 LUMS Real-Time Alerting & Monitoring Implementation
-
-**Status:** ✅ **Phase 1 Complete** | **Date:** 2026-10-27  
-**Commits:** 91bd08d + 06cfe52 | **Branch:** `novaforgectrl-improve-markdown-documentation`
-
----
-
-## 📋 Architecture Overview
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│                    LUMS Alert System                         │
-├─────────────────────────────────────────────────────────────┤
-│                                                               │
-│  ┌──────────────────────────────────────────────────────┐   │
-│  │          Alert Rules Engine (Conditions)              │   │
-│  │  • CPU > 80% → Warning  • Disk > 90% → Critical      │   │
-│  │  • Service Down → Critical  • Memory Low → Warning    │   │
-│  └──────────────────────────────────────────────────────┘   │
-│                           ↓                                   │
-│  ┌──────────────────────────────────────────────────────┐   │
-│  │       Alert Lifecycle Management                      │   │
-│  │  Triggered → Acknowledged → Resolved/Escalated       │   │
-│  │  with Grouping & Deduplication                       │   │
-│  └──────────────────────────────────────────────────────┘   │
-│                           ↓                                   │
-│  ┌──────────────────────────────────────────────────────┐   │
-│  │    Multi-Channel Notification Routing                │   │
-│  │                                                       │   │
-│  │  📧 Email  | 💬 Slack  | 🚨 PagerDuty  | 🔗 Webhooks │   │
-│  │  with SMS & Custom Integrations                      │   │
-│  └──────────────────────────────────────────────────────┘   │
-│                                                               │
-└─────────────────────────────────────────────────────────────┘
-```
-
----
-
-## 🎯 Feature Set: Real-Time Alerting & Notifications
-
-### 1️⃣ Alert Severity Levels
-
-| Level | Value | Use Case | Color |
-|-------|-------|----------|-------|
-| 🔴 **CRITICAL** | `critical` | System down, data loss risk | RED |
-| 🟠 **WARNING** | `warning` | Performance degradation, high usage | ORANGE |
-| 🔵 **INFO** | `info` | Informational events | BLUE |
-
-### 2️⃣ Alert Rule Engine
-
-**Features:**
-- ✅ Condition-based rule evaluation
-- ✅ Dynamic threshold configuration  
-- ✅ Severity level assignment
-- ✅ Enable/Disable rules
-- ✅ Escalation path definition
-- ✅ Alert grouping (group similar events)
-- ✅ Alert deduplication (prevent duplicates)
-
-**Example Rule:**
-```python
-AlertRule(
-    rule_id="cpu_alert_01",
-    name="High CPU Usage",
-    description="Triggers when CPU exceeds 80%",
-    condition="cpu_usage > threshold",
-    threshold=80,
-    severity=AlertSeverity.WARNING,
-    escalation_path=["slack_integration_01", "email_integration_01"],
-    group_similar=True,
-    deduplicate=True
-)
-```
-
-### 3️⃣ Alert Lifecycle & Status
-
-```
-┌──────────────┐
-│  TRIGGERED   │  ← Alert triggered by condition match
-└──────┬───────┘
-       │
-       ├─→ ┌─────────────────┐
-       │   │  ACKNOWLEDGED   │  ← User acknowledges alert
-       │   └────────┬────────┘
-       │            │
-       │            ├─→ ┌──────────┐
-       │            │   │ RESOLVED │  ← Problem fixed, alert closed
-       │            │   └──────────┘
-       │            │
-       │            └─→ ┌──────────────┐
-       │                │  ESCALATED   │  ← Alert escalates (no action)
-       │                └──────────────┘
-       │
-       └─→ ┌──────────────────┐
-           │   ESCALATED      │  ← Alert auto-escalates after timeout
-           └──────────────────┘
-```
-
-### 4️⃣ Notification Integrations
-
-#### 📧 **Email Notifications**
-```python
-EmailNotificationProvider(
-    smtp_server="mail.example.com",
-    smtp_port=587,
-    username="alerts@example.com",
-    password="***",
-    from_address="alerts@example.com"
-)
-```
-- ✅ HTML & Plain Text emails
-- ✅ Alert details included
-- ✅ Customizable templates
-- ✅ STARTTLS/TLS support
-
-#### 💬 **Slack Integration**
-```python
-SlackNotificationProvider(
-    webhook_url="https://hooks.slack.com/services/..."
-)
-```
-- ✅ Color-coded by severity
-- ✅ Rich formatting
-- ✅ Alert details as fields
-- ✅ Direct channel posting
-
-#### 🚨 **PagerDuty Integration**
-```python
-PagerDutyNotificationProvider(
-    api_key="***",
-    service_id="PXXXXXX"
-)
-```
-- ✅ Create incidents directly
-- ✅ Urgency mapping
-- ✅ Service assignment
-- ✅ Auto-escalation policies
-
-#### 🔗 **Generic Webhooks**
-```python
-WebhookNotificationProvider(
-    webhook_url="https://your-system.com/webhook"
-)
-```
-- ✅ Outbound webhooks
-- ✅ JSON payload
-- ✅ Custom integrations
-- ✅ Any HTTP endpoint
-
-#### 📱 **SMS Notifications** (via webhooks)
-- Send SMS via Twilio, AWS SNS, or other providers
-- Configure webhook integration for SMS service
-
----
-
-## 📊 Database Schema
-
-### Tables Created
-
-#### 1. `alert_rules`
-```sql
-CREATE TABLE alert_rules (
-    rule_id TEXT PRIMARY KEY,
-    name TEXT NOT NULL,
-    description TEXT,
-    condition TEXT NOT NULL,
-    threshold TEXT NOT NULL,
-    severity TEXT NOT NULL,
-    enabled BOOLEAN DEFAULT 1,
-    escalation_path TEXT,        -- JSON array
-    group_similar BOOLEAN DEFAULT 1,
-    deduplicate BOOLEAN DEFAULT 1,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-)
-```
-
-#### 2. `alerts`
-```sql
-CREATE TABLE alerts (
-    alert_id TEXT PRIMARY KEY,
-    rule_id TEXT NOT NULL,
-    source TEXT NOT NULL,         -- e.g., "client-01", "server"
-    message TEXT NOT NULL,
-    severity TEXT NOT NULL,       -- critical/warning/info
-    status TEXT NOT NULL,         -- triggered/acknowledged/resolved/escalated
-    metadata TEXT,                -- JSON additional data
-    triggered_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    acknowledged_at TIMESTAMP,
-    resolved_at TIMESTAMP,
-    escalation_count INTEGER DEFAULT 0,
-    FOREIGN KEY (rule_id) REFERENCES alert_rules(rule_id)
-)
-```
-
-#### 3. `alert_history`
-```sql
-CREATE TABLE alert_history (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    alert_id TEXT NOT NULL,
-    status TEXT NOT NULL,         -- Status change
-    changed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    changed_by TEXT,              -- User ID
-    reason TEXT,                  -- Why status changed
-    FOREIGN KEY (alert_id) REFERENCES alerts(alert_id)
-)
-```
-
-#### 4. `notification_integrations`
-```sql
-CREATE TABLE notification_integrations (
-    integration_id TEXT PRIMARY KEY,
-    provider_type TEXT NOT NULL,  -- email/slack/pagerduty/webhook
-    name TEXT NOT NULL,
-    config TEXT NOT NULL,         -- JSON configuration
-    enabled BOOLEAN DEFAULT 1,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-)
-```
-
-#### 5. `alert_notifications_log`
-```sql
-CREATE TABLE alert_notifications_log (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    alert_id TEXT NOT NULL,
-    integration_id TEXT NOT NULL,
-    recipients TEXT,              -- JSON array
-    success BOOLEAN,              -- Delivery status
-    error_message TEXT,           -- If failed
-    sent_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (alert_id) REFERENCES alerts(alert_id),
-    FOREIGN KEY (integration_id) REFERENCES notification_integrations(integration_id)
-)
-```
-
----
-
-## 🔌 REST API Endpoints
-
-### Alert Management
-
-| Method | Endpoint | Purpose |
-|--------|----------|---------|
-| GET | `/alerts/current` | Get active alerts |
-| GET | `/alerts/history` | Get alert history |
-| POST | `/alerts/trigger` | Manually trigger alert (testing) |
-| POST | `/alerts/<id>/acknowledge` | Acknowledge alert |
-| POST | `/alerts/<id>/resolve` | Mark alert resolved |
-| POST | `/alerts/<id>/escalate` | Escalate alert |
-| POST | `/alerts/clear-all` | Disabled (501); alert history is preserved |
-
-### Rule Management
-
-| Method | Endpoint | Purpose |
-|--------|----------|---------|
-| GET | `/alerts/rules` | List all rules |
-| POST | `/alerts/rules` | Create new rule |
-| PUT | `/alerts/rules/<id>` | Update rule |
-| DELETE | `/alerts/rules/<id>` | Delete rule |
-
-### Integrations
-
-| Method | Endpoint | Purpose |
-|--------|----------|---------|
-| GET | `/alerts/integrations` | Returns an empty list with `available: false` |
-| POST | `/alerts/integrations/email` | Disabled (501) |
-| POST | `/alerts/integrations/slack` | Disabled (501) |
-| POST | `/alerts/integrations/pagerduty` | Disabled (501) |
-| POST | `/alerts/integrations/webhook` | Disabled (501) |
-| POST | `/alerts/integrations/<id>/test` | Disabled (501) |
-| DELETE | `/alerts/integrations/<id>` | Disabled (501) |
-
-**Availability note:** Notification integrations are disabled until secure persistent configuration is implemented. The `clear-all` endpoint is disabled to preserve alert history.
-
----
-
-## 🌍 Multilingual Support
-
-**All 43 translation keys across 11 languages:**
-
-### Core Labels
-- ✅ "Alerts & Monitoring"
-- ✅ "Alert overview"
-- ✅ "Alert history"
-- ✅ "Alert rules"
-- ✅ "Notifications"
-- ✅ "Integrations & Webhooks"
-
-### Severity & Status
-- ✅ "Critical", "Warning", "Info"
-- ✅ "Alert triggered", "Alert resolved", "Acknowledged"
-
-### Management
-- ✅ "Create alert rule", "Edit alert rule", "Delete alert rule"
-- ✅ "Alert name", "Alert description"
-- ✅ "Condition", "Threshold", "Severity level"
-
-### Integrations
-- ✅ "Email notifications", "Slack integration", "PagerDuty integration"
-- ✅ "SMS notifications"
-- ✅ "Webhook URL", "Webhook payload"
-- ✅ "Outbound webhooks", "Inbound webhooks"
-- ✅ "Test integration", "Integration settings"
-
-### Features
-- ✅ "Escalation path"
-- ✅ "Group similar alerts", "Deduplicate alerts"
-- ✅ "Mute notifications", "Unmute notifications"
-
-**Languages:**
-- 🇩🇪 Deutsch (de)
-- 🇬🇧 English (en-US, en-GB)
-- 🇪🇸 Español (es)
-- 🇫🇮 Suomi (fi)
-- 🇫🇷 Français (fr)
-- 🇯🇵 日本語 (ja)
-- 🇳🇴 Norsk bokmål (nb)
-- 🇵🇱 Polski (pl)
-- 🇸🇪 Svenska (sv)
-- 🇨🇳 简体中文 (zh-CN)
-
----
-
-## 🎨 Frontend Integration
-
-### Sidebar Navigation
-```html
-<a href="/alerts" data-nav-id="alerts" class="lums-sidebar-link">
-    <span class="lums-sidebar-icon">🔔</span>
-    <span class="lums-sidebar-label">{{ tr("Alerts & Monitoring") }}</span>
-</a>
-```
-
-### UI Components (Ready for Implementation)
-- Alert Dashboard with tabbed interface
-- Real-time alert feed
-- Alert history table
-- Rule management interface
-- Integration configuration panels
-- Test integration buttons
-- Alert acknowledge/resolve/escalate actions
-
----
-
-## 📈 Roadmap: Next Steps
-
-### Phase 1B (Weeks 5-8)
-- [ ] Frontend dashboard implementation
-- [ ] Real-time WebSocket updates
-- [ ] Alert filtering & search
-- [ ] Rule templates (pre-built common rules)
-- [ ] Notification rate limiting
-- [ ] Alert correlation engine
-
-### Phase 2 (Months 2-3)
-- [ ] Webhook inbound support
-- [ ] SMS notifications (Twilio)
-- [ ] Prometheus metric alert rules
-- [ ] Alert templating system
-- [ ] Escalation automation
-- [ ] Alert forecasting (ML-based)
-
-### Phase 3 (Months 4-6)
-- [ ] Video analytics alerts
-- [ ] SSH/RDP session anomaly detection
-- [ ] Physical access anomaly alerts
-- [ ] Compliance violation alerts
-- [ ] Log aggregation alerts (ELK/Loki)
-
----
-
-## 🔧 Technical Details
-
-### Alert Manager Initialization
-
-In the Flask application, alert managers are created lazily per request by
-`server/alerts_routes.py`. The manager uses the connection factory configured
-as `LUMS_GET_CONNECTION`; the request's database connection is closed during
-Flask application-context teardown.
-
-Do not use the legacy `init_alerts_manager()` function to configure the Flask
-routes: the current route implementation resolves its manager through a
-request-local proxy. For standalone scripts or tests, an `AlertManager` can
-still be constructed with an explicitly created SQLite connection. The caller
-is responsible for closing that connection.
-
-Notification integration endpoints are currently disabled. Creating provider
-objects in memory does not constitute secure persistent integration storage.
-
-### Creating an Alert Rule Programmatically
-```python
-rule = AlertRule(
-    rule_id="disk_usage_alert",
-    name="Disk Usage Alert",
-    description="Alert when disk usage exceeds 90%",
-    condition="disk_usage > threshold",
-    threshold=90,
-    severity=AlertSeverity.CRITICAL,
-    escalation_path=["email_integration_01", "slack_integration_01"],
-    group_similar=True,
-    deduplicate=True
-)
-
-alert_manager.create_rule(rule)
-```
-
-### Triggering an Alert
-```python
-alert = alert_manager.trigger_alert(
-    rule_id="disk_usage_alert",
-    source="client-01",
-    message="Disk usage on /dev/sda1 is 95%",
-    metadata={
-        "device": "/dev/sda1",
-        "usage_percent": 95,
-        "available_gb": 5
-    }
-)
-```
-
-### Managing Alerts
-```python
-# Acknowledge alert
-alert_manager.acknowledge_alert(alert_id, "admin@example.com")
-
-# Resolve alert
-alert_manager.resolve_alert(alert_id)
-
-# Get active alerts
-active = alert_manager.active_alerts.values()
-
-# Get history
-history = alert_manager.get_alerts(limit=100, offset=0)
-```
-
----
-
-## ✅ Implementation Checklist
-
-- [x] Alert severity levels (Critical, Warning, Info)
-- [x] Alert rule engine with conditions & thresholds
-- [x] Alert lifecycle management (Triggered → Resolved)
-- [x] Alert grouping & deduplication
-- [x] Escalation path support
-- [x] Database schema (5 tables + audit log)
-- [x] Email notification provider
-- [x] Slack integration
-- [x] PagerDuty integration
-- [x] Generic webhook support
-- [x] REST API for all operations
-- [x] Manual alert triggering (testing)
-- [x] Alert acknowledgment & resolution
-- [x] Escalation tracking
-- [x] Notification delivery logging
-- [x] Multilingual support (11 languages)
-- [x] Sidebar navigation
-- [x] Git commits with documentation
-
----
-
-## 🚀 Deployment Notes
-
-1. **Database Migration**: Run `ALTER TABLE` or re-initialize DB
-2. **Environment Variables**: Add for email/Slack/PagerDuty credentials
-3. **Flask Routes**: Register `alerts_routes.py` blueprint in `app.py`
-4. **Translation Sync**: Language changes take effect on next page load
-5. **Testing**: Use `/alerts/trigger` endpoint to test alerts
-
----
-
-## 📞 Support & Contact
-
-**Feature Owner:** LUMS Command Center Team  
-**Status:** Phase 1 Complete, Phase 1B In Progress  
-**Last Updated:** 2026-10-27
-
----
-
-**All files committed to:** `novaforgectrl-improve-markdown-documentation`  
-**Commits:** `91bd08d` (Navigation) + `06cfe52` (Backend)
+# LUMS Alert Management: Current Implementation
+
+This note describes the alert-management code currently present in LUMS. It
+is a code reference, not a feature roadmap or a promise that every visible
+control is operational. The implementation is centered on
+`server/alerts.py` and `server/alerts_routes.py`.
+
+## What is implemented
+
+LUMS persists alert rules, alert records and alert state history in SQLite.
+The Flask blueprint creates a request-scoped `AlertManager` using the
+application's database connection factory. The manager loads rules and
+unresolved alerts from the database for each request.
+
+The current API supports:
+
+- listing, creating, updating and deleting alert rules;
+- manually triggering an alert for an existing enabled rule;
+- viewing active alerts and paginated alert history;
+- acknowledging, resolving and manually escalating an active alert.
+
+The alert severity values are `critical`, `warning` and `info`. The stored
+alert states are `triggered`, `acknowledged`, `resolved` and `escalated`.
+Acknowledgement, resolution and escalation changes are written to
+`alert_history`. Resolved alerts are removed from the manager's active-alert
+collection but remain in the database.
+
+## Important limits
+
+The rule model stores a condition, threshold, severity, escalation path,
+grouping flag and deduplication flag. The current server does **not** evaluate
+conditions against telemetry or other measurements. A rule does not trigger
+automatically: an authenticated caller must invoke `POST /alerts/trigger`.
+Grouping and deduplication values are stored but are not applied. When an alert
+is triggered, the manager attempts to send it through providers named in the
+rule's escalation path. The web application creates each manager with an empty
+provider map, and its integration endpoints cannot configure providers, so
+application-triggered alerts currently have no notification delivery.
+
+The `AlertManager` defines email, Slack, PagerDuty and generic webhook provider
+classes, but these classes are not configured through the application. The
+integration API deliberately reports integrations as unavailable and returns
+`501 Not Implemented` for configuration, test and deletion requests. No
+notification delivery should be expected. `POST /alerts/clear-all` also
+returns `501` so that alert history cannot be removed through that endpoint.
+
+The `/alerts/` page is a basic server-rendered overview. Its rule, history and
+integration tab controls and alert-action buttons are not a complete
+interactive management interface. Use the documented API behavior as the
+source of truth rather than assuming that a visible button performs an action.
+The current implementation does not provide real-time push or WebSocket
+updates.
+
+## Routes and access control
+
+All routes require an authenticated web session.
+
+| Method | Route | Permission | Current behavior |
+| --- | --- | --- | --- |
+| `GET` | `/alerts/` | `alerts.view` | Renders the basic alert overview |
+| `GET` | `/alerts/rules` | `alerts.view` | Lists stored rules |
+| `POST` | `/alerts/rules` | `alerts.manage` | Creates a validated rule |
+| `PUT` | `/alerts/rules/<rule_id>` | `alerts.manage` | Updates a stored rule |
+| `DELETE` | `/alerts/rules/<rule_id>` | `alerts.manage` | Deletes a rule when database constraints allow |
+| `GET` | `/alerts/current` | `alerts.view` | Returns active alerts |
+| `GET` | `/alerts/history` | `alerts.view` | Returns alert history |
+| `POST` | `/alerts/trigger` | `alerts.manage` | Manually creates an alert for an enabled rule |
+| `POST` | `/alerts/<alert_id>/acknowledge` | `alerts.manage` | Records an acknowledgement |
+| `POST` | `/alerts/<alert_id>/resolve` | `alerts.manage` | Resolves an active alert |
+| `POST` | `/alerts/<alert_id>/escalate` | `alerts.manage` | Manually increments its escalation count |
+| `POST` | `/alerts/clear-all` | `alerts.manage` | Disabled; returns `501` |
+| `GET` | `/alerts/integrations` | `alerts.view` | Returns an empty list and `available: false` |
+| `POST` / `DELETE` | `/alerts/integrations/...` | `alerts.manage` | Disabled; returns `501` |
+
+Mutating routes require CSRF protection as well as the relevant permission.
+Permission checks are enforced on the server. `alerts.manage` depends on
+`alerts.view`; role grants are maintained by the security migration and
+permission configuration.
+
+## Persistent tables
+
+`AlertManager` initializes these tables when it is created:
+
+- `alert_rules`: rule definitions and their configured values;
+- `alerts`: alert records and current lifecycle state;
+- `alert_history`: acknowledgement, resolution and escalation history;
+- `notification_integrations`: reserved integration configuration schema;
+- `alert_notifications_log`: reserved delivery-log schema.
+
+The final two tables do not mean integrations are available. The HTTP
+integration endpoints remain disabled until secure persistent configuration
+and delivery behavior are implemented.
+
+## Verification
+
+Alert routes, permission enforcement, payload validation, persistence and
+lifecycle behavior are covered by `tests/test_alerts.py`. Re-run the relevant
+tests against the revision being deployed. A passing test suite does not turn
+disabled integration routes or unevaluated rules into available features.
+
+## Related code
+
+- `server/alerts.py`
+- `server/alerts_routes.py`
+- `server/security.py`
+- `server/security_migration.py`
+- `tests/test_alerts.py`

@@ -224,15 +224,10 @@ Obecne obszary audytu:
 | #13   | Testy symulacyjne                        | PASS                      |
 | #14   | Ciągła integracja                        | PASS                      |
 | #15   | Logowanie aplikacji / audytu             | PASS                      |
-| #16   | Wersjonowanie / wydania                  | REVIEWED — OPEN BY DESIGN |
+| #16   | Wersjonowanie / wydania                  | Sprawdź [Releases](https://github.com/NovaForgeCtrl/LUMS/releases) i [tagi](https://github.com/NovaForgeCtrl/LUMS/tags) |
 | #17   | Kontrola dostępu oparta na rolach        | PASS                      |
-| #18   | Przegląd dokumentacji                    | IN PROGRESS               |
 
-Audyt #16 celowo różni się od technicznych mechanizmów bezpieczeństwa powyżej.
-
-LUMS obecnie nie ma oficjalnego stabilnego wydania, tagu wydania ani GitHub Release. Jest to zamierzone, ponieważ projekt pozostaje w aktywnym rozwoju.
-
-Audyt #18 pozostaje otwarty, dopóki pełny zestaw dokumentacji nie zostanie przejrzany i zsynchronizowany z obecną implementacją.
+Tabela rejestruje zakres i wyniki wcześniejszych weryfikacji; nie jest certyfikacją ani gwarancją dla późniejszych rewizji. Odpowiednie kontrole należy ponownie wykonać na dokładnym kodzie przeznaczonym do wdrożenia. Dostępność wydań jest dynamiczna: sprawdź [Releases](https://github.com/NovaForgeCtrl/LUMS/releases) i [tagi](https://github.com/NovaForgeCtrl/LUMS/tags) repozytorium, zamiast wnioskować o stanie na podstawie tego dokumentu.
 
 # Audyt bezpieczeństwa #01
 
@@ -407,8 +402,6 @@ Następujące obszary audytu są udokumentowane w kolejnych sekcjach:
 * #15 Logowanie aplikacji / audytu
 * #16 Wersjonowanie / wydania
 * #17 Kontrola dostępu oparta na rolach
-
-Audyt #18 — Przegląd dokumentacji — pozostaje otwarty, dopóki pełny zestaw dokumentacji nie zostanie przejrzany i zsynchronizowany z obecną implementacją.
 
 # Audyt bezpieczeństwa #05
 
@@ -865,24 +858,12 @@ System logowania ma wspierać zarówno operacyjne rozwiązywanie problemów, jak
 
 ## Wersjonowanie i wydania
 
-Wersjonowanie i zarządzanie wydaniami zostały przejrzane w ramach audytu bezpieczeństwa.
-
-LUMS jest obecnie w aktywnym rozwoju i nie ma jeszcze oficjalnego stabilnego wydania.
-
-Obecny stan repozytorium celowo nie ma:
-
-* oficjalnej stabilnej wersji wydania
-* tagu wydania
-* GitHub Release
+Wersjonowanie i zarządzanie wydaniami są częścią przeglądu bezpieczeństwa, ponieważ operatorzy muszą móc zidentyfikować dokładny wdrażany kod i artefakty. Dostępność wydań i wersje komponentów zmieniają się niezależnie od tego przewodnika. Sprawdź aktualne [tagi](https://github.com/NovaForgeCtrl/LUMS/tags) i stronę [Releases](https://github.com/NovaForgeCtrl/LUMS/releases) repozytorium oraz metadane wersji w dokładnej rewizji wdrażanego kodu źródłowego. Nie traktuj tego dokumentu jako aktualnego katalogu wydań.
 
 Obecne wersje komponentów obejmują:
 
 * LUMS Agent: `1.7.0`
 * LUMS Watcher: `1.2.1`
-
-Obecnie nie ma jednego formalnego numeru wersji reprezentującego całą aplikację LUMS.
-
-Jest to zamierzona decyzja o stanie projektu, a nie przypadkowe pominięcie.
 
 Planowany proces wydania to:
 
@@ -896,11 +877,7 @@ Planowany proces wydania to:
 8. Opublikować GitHub Release.
 9. Zachować wydanie jako udokumentowaną podstawę.
 
-Żadne oficjalne wydanie nie jest tworzone wyłącznie dlatego, że audyt bezpieczeństwa osiągnął określony numer audytu.
-
-Utworzenie wydania nastąpi dopiero po zakończeniu pozostałej pracy implementacyjnej i dokumentacyjnej.
-
-**Status: REVIEWED — OPEN BY DESIGN**
+Wydanie należy opublikować dopiero po ukończeniu implementacji, przeglądu bezpieczeństwa, dokumentacji i testów regresji dla danej rewizji.
 
 ---
 
@@ -925,15 +902,11 @@ Następujące obszary audytu bezpieczeństwa są zakończone:
 | #13   | Testy symulacyjne                        | PASS                      |
 | #14   | Ciągła integracja                        | PASS                      |
 | #15   | Logowanie aplikacji / audytu             | PASS                      |
-| #16   | Wersjonowanie / wydania                  | REVIEWED — OPEN BY DESIGN |
+| #16   | Wersjonowanie / wydania                  | Sprawdź [Releases](https://github.com/NovaForgeCtrl/LUMS/releases) i [tagi](https://github.com/NovaForgeCtrl/LUMS/tags) |
 
 Pozostały numerowany techniczny obszar audytu to:
 
 * #17 Kontrola dostępu oparta na rolach
-
-Przegląd dokumentacji jest śledzony oddzielnie jako:
-
-* #18 Przegląd dokumentacji — IN PROGRESS
 
 # Audyt bezpieczeństwa #17
 
@@ -1128,7 +1101,7 @@ Serwer pozostaje autorytatywną granicą bezpieczeństwa.
 
 **Status: PASS**
 
-# Audyt bezpieczeństwa #18
+# Zasady przeglądu dokumentacji
 
 ## Przegląd dokumentacji
 
@@ -1194,7 +1167,7 @@ Użytkownicy Viewera nie mają dostępu do:
 
 Przegląd dokumentacji usuwa lub zastępuje również nieaktualne odniesienia do wcześniejszych liczby testów, stanów migracji, konfiguracji wdrożeń i zachowań wyłącznie rozwojowych.
 
-**Status: IN PROGRESS**
+Ten przewodnik należy weryfikować względem odpowiedniej implementacji po każdej zmianie funkcji lub mechanizmów bezpieczeństwa. Historycznych twierdzeń nie należy przedstawiać jako aktualnego stanu bez ich sprawdzenia.
 
 ---
 
@@ -1400,15 +1373,12 @@ Numerowane wyniki audytu to:
 | #13   | Testy symulacyjne                        | PASS                      |
 | #14   | Ciągła integracja                        | PASS                      |
 | #15   | Logowanie aplikacji / audytu             | PASS                      |
-| #16   | Wersjonowanie / wydania                  | REVIEWED — OPEN BY DESIGN |
+| #16   | Wersjonowanie / wydania                  | Sprawdź bieżące wydania i tagi |
 | #17   | Kontrola dostępu oparta na rolach        | PASS                      |
-| #18   | Przegląd dokumentacji                    | IN PROGRESS               |
 
 Mechanizmy bezpieczeństwa technicznego przejrzane w audytach #01–#15 i #17 zostały zaliczone.
 
-Audyt #16 pozostaje celowo otwarty, ponieważ LUMS nie osiągnął jeszcze pierwszego oficjalnego stabilnego wydania.
-
-Audyt #18 pozostaje otwarty, dopóki pełna dokumentacja projektu nie zostanie przejrzana i zsynchronizowana z końcowym stanem implementacji.
+Dostępność wydań i tagów może się zmieniać niezależnie od tego przewodnika. Aktualny stan sprawdź w [Releases](https://github.com/NovaForgeCtrl/LUMS/releases) i na liście [tagów](https://github.com/NovaForgeCtrl/LUMS/tags) repozytorium.
 
 Żadnego wyniku audytu bezpieczeństwa nie należy interpretować jako gwarancji, że LUMS jest wolny od podatności.
 
@@ -1420,7 +1390,7 @@ Zmiany w aplikacji, Agencie, zależnościach, konfiguracji kontenera, ekspozycji
 
 # Podstawa bezpieczeństwa
 
-Bieżąca podstawa bezpieczeństwa opiera się na zweryfikowanej implementacji i produkcyjnym stanie wdrożenia.
+Ta podstawa opisuje mechanizmy skonfigurowane w kodzie źródłowym i wytycznych wdrożeniowych. Nie dowodzi, że stosuje je konkretna instalacja; zweryfikuj efektywne ustawienia w środowisku docelowym.
 
 Podstawa obejmuje:
 
@@ -1501,7 +1471,7 @@ Zamiast tego uwierzytelnianie, autoryzacja, walidacja, kontrolowane wykonywanie,
 
 Projekt celowo przedkłada jawne egzekwowanie po stronie serwera nad bezpieczeństwem przez interfejs.
 
-Bieżąca podstawa bezpieczeństwa jest udokumentowana zgodnie ze zweryfikowanym stanem implementacji, a nie historycznym zachowaniem rozwojowym.
+Podstawa bezpieczeństwa dokumentuje zweryfikowany stan implementacji, a nie historyczne zachowanie w trakcie rozwoju. Sama w sobie nie dowodzi, że konkretna instalacja stosuje opisane mechanizmy; zweryfikuj efektywne ustawienia w środowisku docelowym.
 
 ---
 

@@ -1401,17 +1401,39 @@ Git-tunniste
 ```
 GitHub-julkaisu
 
-Kehityksen tila
+Nykyinen tila
 
-LUMS on tällä hetkellä aktiivisessa kehityksessä.
+LUMS on aktiivisesti kehitettävä Linux-päivitysten hallinta-alusta.
 
-Ydin hallinta-arkkitehtuuri, asiakassuoritusmalli, paketinhallinta, RBAC, turvallisuuden koventaminen ja palautusmekanismit on toteutettu.
+Nykyiseen toteutukseen kuuluvat:
 
-Projektia ei tarkoituksella pidetä valmiina julkaisuna vain siksi, että sovellus on toimiva.
+* keskitetty asiakashallinta
+* ohjelmistoluettelo
+* päivitysten tunnistus
+* pakettihaku
+* pakettien asennus ja poisto
+* pakettikohtaiset päivitykset
+* järjestelmäpäivitykset
+* pysyvät päivitystyöt
+* pakettikohtainen työn tila
+* töiden palautus
+* uudelleenkäynnistyksen tunnistus
+* käyttämättömyyden huomioiva suoritus
+* asiakastunnisteisiin perustuva todennus ja tunnisteiden vaihto
+* ylläpitäjien todennus
+* rooli- ja käyttöoikeuspohjainen pääsynhallinta
+* käyttäjähallinta
+* valvontalokitus
+* kontin kovennus ja HTTPS-liikenne
+* automatisoitu testaus ja jatkuva integraatio
+* valinnainen suoritin-, muisti-, levy-, verkko-, isäntä- ja tapahtumatelemetria
+* rekisteröityihin asiakkaisiin ja manuaalisesti ylläpidettyyn luetteloon perustuva infrastruktuurin topologia
+* pysyvät hälytystiedot ja hälytyssääntöjen hallintapäätepisteet dokumentoituine rajoituksineen
 
-Julkaisuvalmius edellyttää myös, että ympäröivä dokumentaatio ja toimintamenettelyt kuvaavat samaa nykyistä järjestelmää.
+Luettelo on yleiskuvaus, ei väite ominaisuuksien täydellisyydestä tai julkaisukelpoisuudesta. Valinnaiset osat voivat edellyttää erillistä asennusta ja määritystä, ja yksittäisillä ominaisuuksilla on dokumentoituja rajoituksia. Tarkista tietyn version toiminta sen lähdekoodin versiosta ja testeistä.
 
-Siksi dokumentaation johdonmukaisuutta pidetään osana suunnitteluprosessia eikä jälkikäteen lisättävänä asiana.
+Hälytyssäännöt ja niiden ehdot sekä kynnysarvot tallennetaan, mutta palvelin ei arvioi niitä automaattisesti telemetrian perusteella. Hälytys käynnistetään manuaalisesti. Eskalointipolussa nimetyt palveluntarjoajat voidaan kutsua manuaalisessa käynnistyksessä, mutta verkkosovellus luo hälytyshallinnan tyhjällä palveluntarjoajakartalla eikä integraatiopäätepisteillä voi määrittää palveluntarjoajia. Ryhmittely- ja deduplikointiasetukset tallennetaan, mutta niitä ei sovelleta. Katso toteutuksen rajat tiedostosta `docs/LUMS_REALTIME_ALERTING_IMPLEMENTATION.md`.
+
 Tuetut järjestelmät
 
 LUMS on suunniteltu hallitsemaan Linux-järjestelmiä, jotka käyttävät tuettuja natiiveja paketinhallintoja.
@@ -2078,16 +2100,6 @@ Verkon turvallisuus
 Turvallisuutta pidetään jatkuvana suunnitteluvastuuna eikä kertaluonteisena tarkistuslistana.
 Julkaisun tila
 
-LUMS ei tällä hetkellä väitä olevansa vakaa tuotantojulkaisuversio.
-
-Tällä hetkellä ei ole:
-
-* lopullista semanttista versiota
-
-* vakaata julkaisutunnistetta
-
-* GitHub-julkaisua
-
 Projekti noudattaa tarkoituksella julkaisujärjestystä:
 text
 
@@ -2109,28 +2121,10 @@ Git-tunniste
 ```
 GitHub-julkaisu
 
-Ensimmäinen virallinen julkaisu tulisi luoda vasta, kun nykyinen toteutus, turvallisuuskatsaus, dokumentaatio ja regressiotestaus on katsottu valmiiksi.
+Julkaisu- ja tunnistetietojen saatavuus voi muuttua tästä dokumentaatiosta riippumatta. Tarkista ajantasainen tilanne arkiston [Releases-sivulta](https://github.com/NovaForgeCtrl/LUMS/releases) ja [tunnisteista](https://github.com/NovaForgeCtrl/LUMS/tags). Julkaisu tulisi tehdä vasta, kun kyseisen version toteutus, tietoturvakatsaus, dokumentaatio ja regressiotestit ovat valmiit.
 Tiekartta
 
 Tiekartta keskittyy tarkoituksella vakauteen ja ylläpidettävyyteen sen sijaan, että lisättäisiin ominaisuuksia ilman olemassa olevan perustan viimeistelyä.
-Nykyinen vaihe
-
-* suorita dokumentaation tarkistus loppuun
-
-* poista jäljellä olevat dokumentaation epäjohdonmukaisuudet
-
-* sulje dokumentaation tarkastustyö
-
-* suorita lopullinen täydellinen testiajo
-
-* varmista CI
-
-* valmistele julkaisuversio
-
-* luo ensimmäinen virallinen Git-tunniste
-
-* julkaise ensimmäinen GitHub-julkaisu
-
 Tuleva kehitys
 
 Mahdollinen tuleva työ voi sisältää:

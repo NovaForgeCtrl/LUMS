@@ -8,6 +8,22 @@ Themes are a presentation layer only. They do not replace, modify, or bypass the
 
 The theme system exists to make LUMS adaptable to different visual preferences while keeping the application itself consistent.
 
+## Implementation status and source of truth
+
+The current browser implementation is in `server/static/theme.js`. It supports
+`standard`, `LUMSStadium`, `golf`, `nerd`, `geek` and `admin`; stores the
+selection in browser `localStorage` under `lums-theme`; and falls back to
+`standard` when the saved identifier is missing or invalid. The `nerd` theme
+starts the matrix effect and `geek` starts the network effect. Theme selection
+is a browser preference, not an account setting or server-side authorization
+state.
+
+This reference also contains design requirements and conceptual examples.
+Statements using terms such as “should”, “must” or “future” describe
+architectural guidance, not proof that a particular visual feature or
+accessibility behavior is implemented. Verify current behavior in the source
+code before treating a concept as a shipped capability.
+
 ---
 
 ## 1. Overview
@@ -2877,4 +2893,3 @@ The fundamental rule remains:
 A theme may change the atmosphere of LUMS.
 
 It must never change what LUMS actually is allowed to do.
-

@@ -219,15 +219,10 @@ Domaines d'audit actuels :
 | #13   | Tests de simulation                    | RÉUSSI                    |
 | #14   | Intégration continue                   | RÉUSSI                    |
 | #15   | Journalisation applicative / d'audit   | RÉUSSI                    |
-| #16   | Versionnement / Releases               | EXAMINÉ — OUVERT PAR CONCEPTION |
+| #16   | Versionnement / Releases               | Vérifier les releases et tags actuels du dépôt |
 | #17   | Contrôle d'accès basé sur les rôles    | RÉUSSI                    |
-| #18   | Revue de documentation                 | EN COURS                  |
 
-L'audit #16 est intentionnellement différent des contrôles de sécurité techniques ci-dessus.
-
-LUMS n'a actuellement aucune version stable officielle, aucune étiquette de version et aucune GitHub Release. Ceci est intentionnel car le projet reste en développement actif.
-
-L'audit #18 reste ouvert jusqu'à ce que l'ensemble complet de la documentation ait été examiné et synchronisé avec l'implémentation actuelle.
+Ce tableau récapitule le périmètre et les résultats des vérifications antérieures ; il ne constitue ni une certification ni une garantie pour les révisions ultérieures. Relancez les contrôles pertinents sur le code exact à déployer. La disponibilité des releases évolue ; ne déduisez donc pas leur état de ce document, mais consultez la [page Releases](https://github.com/NovaForgeCtrl/LUMS/releases) et les [tags](https://github.com/NovaForgeCtrl/LUMS/tags) du dépôt.
 
 # Audit de sécurité #01
 
@@ -403,7 +398,7 @@ Les domaines d'audit suivants sont documentés dans les sections suivantes :
 * #16 Versionnement / Releases
 * #17 Contrôle d'accès basé sur les rôles
 
-L'audit #18 — Revue de documentation — reste ouvert jusqu'à ce que l'ensemble complet de la documentation ait été examiné et synchronisé avec l'implémentation actuelle.
+Examinez la documentation au regard de l'implémentation lorsque le code ou le comportement du déploiement change. Elle doit décrire le système réel, et non un état de développement antérieur. Traitez cette revue comme une tâche de maintenance continue, et non comme un état d'audit ponctuel.
 
 # Audit de sécurité #05
 
@@ -859,24 +854,12 @@ Le système de journalisation est conçu pour prendre en charge à la fois le d�
 
 ## Versionnement et Releases
 
-Le versionnement et la gestion des releases ont été examinés dans le cadre de l'audit de sécurité.
-
-LUMS est actuellement en développement actif et n'a pas encore de version stable officielle.
-
-L'état actuel du référentiel a donc intentionnellement :
-
-* aucune version stable officielle
-* aucune étiquette de version
-* aucune GitHub Release
+Le versionnement et la gestion des releases font partie de la revue de sécurité, car les opérateurs doivent pouvoir identifier précisément le code et les artefacts qu'ils déploient. La disponibilité des releases et les versions des composants évoluent indépendamment de ce guide. Consultez les tags actuels et la [page Releases](https://github.com/NovaForgeCtrl/LUMS/releases) du dépôt, ainsi que les métadonnées de version de la révision exacte du code source à déployer. Ce document n'est pas un catalogue des releases en temps réel.
 
 Les versions actuelles des composants comprennent :
 
 * LUMS Agent : `1.7.0`
 * LUMS Watcher : `1.2.1`
-
-Il n'existe actuellement aucun numéro de version formel unique représentant l'application LUMS complète.
-
-Il s'agit d'une décision intentionnelle sur l'état du projet plutôt que d'une omission accidentelle.
 
 Le processus de release prévu est :
 
@@ -889,12 +872,6 @@ Le processus de release prévu est :
 7. Créer l'étiquette Git correspondante.
 8. Publier la GitHub Release.
 9. Préserver la release comme base documentée.
-
-Aucune release officielle n'est créée uniquement parce que l'audit de sécurité atteint un certain numéro d'audit.
-
-La création de la release n'aura lieu qu'après que le travail restant d'implémentation et de documentation aura été terminé.
-
-**Statut : EXAMINÉ — OUVERT PAR CONCEPTION**
 
 ---
 
@@ -919,15 +896,13 @@ Les domaines d'audit de sécurité suivants sont terminés :
 | #13   | Tests de simulation                    | RÉUSSI                    |
 | #14   | Intégration continue                   | RÉUSSI                    |
 | #15   | Journalisation applicative / d'audit   | RÉUSSI                    |
-| #16   | Versionnement / Releases               | EXAMINÉ — OUVERT PAR CONCEPTION |
+| #16   | Versionnement / Releases               | Vérifier les releases et tags actuels du dépôt |
 
 Le domaine d'audit technique numéroté restant est :
 
 * #17 Contrôle d'accès basé sur les rôles
 
-La revue de documentation est suivie séparément comme :
-
-* #18 Revue de documentation — EN COURS
+La revue de la documentation est un processus continu, mené indépendamment de tout état d'audit numéroté.
 
 # Audit de sécurité #17
 
@@ -1092,11 +1067,9 @@ Le serveur reste la frontière de sécurité faisant autorité.
 
 **Statut : RÉUSSI**
 
-# Audit de sécurité #18
-
 ## Revue de documentation
 
-La documentation de sécurité est examinée par rapport au système LUMS actuellement implémenté.
+La documentation de sécurité doit être maintenue en fonction du système LUMS actuellement implémenté.
 
 Le but de cette revue est de garantir que la documentation de sécurité décrit l'implémentation réelle plutôt qu'un état de développement antérieur.
 
@@ -1132,7 +1105,7 @@ La documentation doit distinguer entre :
 
 Les détails d'implémentation historiques ne doivent pas être présentés comme une configuration de production actuelle.
 
-En particulier, la documentation reflète la configuration SQLite de production actuelle plutôt que la configuration WAL actuelle.
+En particulier, la documentation reflète la configuration SQLite de production actuellement implémentée.
 
 L'exécution de production actuelle est documentée comme :
 
@@ -1156,9 +1129,7 @@ Les utilisateurs Viewer n'ont pas accès à :
 * Gestion des paquets
 * Maintenance système
 
-La revue de documentation supprime ou remplace également les références obsolètes aux nombres de tests antérieurs, aux états de migration, aux configurations de déploiement et au comportement réservé au développement.
-
-**Statut : EN COURS**
+Réexaminez la documentation lorsque le code ou le comportement du déploiement change. Supprimez ou remplacez alors les références obsolètes aux nombres de tests antérieurs, aux états de migration, aux configurations de déploiement et au comportement réservé au développement.
 
 ---
 
@@ -1364,15 +1335,12 @@ Les résultats d'audit numérotés sont :
 | #13   | Tests de simulation                    | RÉUSSI                    |
 | #14   | Intégration continue                   | RÉUSSI                    |
 | #15   | Journalisation applicative / d'audit   | RÉUSSI                    |
-| #16   | Versionnement / Releases               | EXAMINÉ — OUVERT PAR CONCEPTION |
+| #16   | Versionnement / Releases               | Vérifier les releases et tags actuels du dépôt |
 | #17   | Contrôle d'accès basé sur les rôles    | RÉUSSI                    |
-| #18   | Revue de documentation                 | EN COURS                  |
 
 Les contrôles de sécurité techniques examinés dans les audits #01–#15 et #17 ont réussi.
 
-L'audit #16 reste intentionnellement ouvert car LUMS n'a pas encore atteint sa première version stable officielle.
-
-L'audit #18 reste ouvert jusqu'à ce que la documentation complète du projet ait été examinée et synchronisée avec l'état d'implémentation final.
+La disponibilité des releases et des tags peut évoluer ; consultez les [releases](https://github.com/NovaForgeCtrl/LUMS/releases) et les [tags](https://github.com/NovaForgeCtrl/LUMS/tags) actuels du dépôt.
 
 Aucun résultat d'audit de sécurité ne doit être interprété comme une garantie que LUMS est exempt de vulnérabilités.
 
@@ -1384,7 +1352,7 @@ Les modifications de l'application, de l'agent, des dépendances, de la configur
 
 # Base de sécurité
 
-La base de sécurité actuelle est basée sur l'implémentation vérifiée et l'état de déploiement de production.
+Cette base décrit les contrôles configurés dans le code source et les consignes de déploiement. Elle ne prouve pas qu'une installation particulière les applique ; vérifiez les paramètres effectifs dans l'environnement cible.
 
 La base comprend :
 

@@ -1339,7 +1339,7 @@ Die Sicherheitsprüfung von LUMS hat folgende Bereiche abgedeckt:
 - Netzwerkexposition
 - Sauberkeit der Repository-Artefakte
 
-Die abschließende Dokumentationsprüfung wird im Rahmen des Release-Readiness-Prozesses separat durchgeführt.
+Die Dokumentation muss bei Änderungen am Code oder am Bereitstellungsverhalten mit der Implementierung abgeglichen werden, damit sie das tatsächlich vorhandene System beschreibt.
 
 ---
 
@@ -2000,8 +2000,11 @@ Die aktuelle Implementierung umfasst:
 - HTTPS-Transport
 - automatisierte Tests
 - kontinuierliche Integration
+- optionale Telemetrie zu CPU, Arbeitsspeicher, Datenträgern, Netzwerk, Host und Ereignissen
+- Infrastruktur-Topologie aus registrierten Clients und manuell gepflegtem Inventar
+- persistente Alert-Datensätze und Endpunkte zur Regelverwaltung mit den in `docs/LUMS_REALTIME_ALERTING_IMPLEMENTATION.md` dokumentierten Einschränkungen
 
-Das Projekt befindet sich derzeit in der abschließenden Dokumentations- und Release-Readiness-Phase.
+Diese Liste ist eine Übersicht auf hoher Ebene und keine Aussage über vollständige Funktionen oder Release-Bereitschaft. Optionale Komponenten können eine separate Installation und Konfiguration erfordern; für einzelne Funktionen gelten dokumentierte Einschränkungen. Prüfe für das Verhalten eines bestimmten Releases die jeweilige Quellrevision und deren Tests.
 
 ---
 
@@ -2053,17 +2056,7 @@ Sicherheit wird als fortlaufende Entwicklungsaufgabe behandelt und nicht als ein
 
 ---
 
-## Release-Status
-
-LUMS beansprucht derzeit keine stabile Produktionsrelease-Version.
-
-Aktuell gibt es:
-
-- keine endgültige semantische Version
-- keinen stabilen Release-Tag
-- kein GitHub-Release
-
-Das Projekt folgt bewusst dieser Release-Reihenfolge:
+## Release-Prozess
 
 ```text
 Implementierung
@@ -2083,24 +2076,13 @@ Git-Tag
 GitHub-Release
 ```
 
-Das erste offizielle Release sollte erst erstellt werden, wenn die aktuelle Implementierung, Sicherheitsprüfung, Dokumentation und Regressionstests als abgeschlossen gelten.
+Die Verfügbarkeit von Releases und Tags kann sich unabhängig von dieser Dokumentation ändern. Prüfe den aktuellen Stand auf der Releases-Seite und bei den Tags des Repositorys. Ein Release sollte erst veröffentlicht werden, wenn Implementierung, Sicherheitsüberprüfung, Dokumentation und Regressionstests für die betreffende Revision abgeschlossen sind.
 
 ---
 
 ## Roadmap
 
 Die Roadmap konzentriert sich bewusst auf Stabilität und Wartbarkeit, statt neue Funktionen hinzuzufügen, bevor die bestehende Grundlage abgeschlossen ist.
-
-### Aktuelle Phase
-
-- vollständige Dokumentationsprüfung
-- verbleibende Dokumentationswidersprüche beseitigen
-- Dokumentationsaudit abschließen
-- abschließenden vollständigen Testlauf durchführen
-- CI überprüfen
-- Release-Version vorbereiten
-- ersten offiziellen Git-Tag erstellen
-- erstes GitHub-Release veröffentlichen
 
 ### Zukünftige Entwicklung
 

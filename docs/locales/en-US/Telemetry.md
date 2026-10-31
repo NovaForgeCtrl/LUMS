@@ -169,7 +169,7 @@ integration credentials are required or stored by LUMS.
 
 The telemetry agent uses `LUMS_BASE`, `LUMS_TOKEN` and the optional
 `LUMS_CA_FILE` environment variables. Remote server connections require
-HTTPS. See [Installation and upgrades](<Installation and upgrades_GB.md>) for
+HTTPS. See [Installation and upgrades](<Installation and upgrades.md>) for
 installation and configuration instructions.
 
 ## Installation and operation
@@ -200,7 +200,7 @@ client-side checks. Do not paste or share the token when troubleshooting.
   range (1–168 hours).
 
 For the dashboard's status thresholds and the limits of its backup-storage
-indicator, see [LUMS Health Dashboard](<LUMS Health Dashboard_GB.md>). For
-general guidance, see [Installation and upgrades](<Installation and upgrades_GB.md>)
-and [Troubleshooting](Troubleshooting_GB.md). The English source is
+indicator, see [LUMS Health Dashboard](<LUMS Health Dashboard.md>). For
+general guidance, see [Installation and upgrades](<Installation and upgrades.md>)
+and [Troubleshooting](Troubleshooting.md). The English source is
 [telemetry.md](../../../telemetry.md).

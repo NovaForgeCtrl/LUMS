@@ -1,7 +1,7 @@
 # LUMS documentation by language
 
-This index links the user and administrator documentation available in each
-language. Localized guides live in `docs/locales/<language>/`; English
+This index links operational guides and internal project references by
+language. Localized documents live in `docs/locales/<language>/`; English
 technical source documents remain at their documented repository paths. Use
 the English source when a translated procedure is incomplete or differs,
 especially before changing a production system.
@@ -36,5 +36,22 @@ especially before changing a production system.
 | Svenska | [Telemetri](locales/sv/Telemetri.md) | [LUMS-hälsopanel](locales/sv/LUMS-hälsopanel.md) | [LUMS-infrastrukturstopologi](locales/sv/LUMS-infrastrukturstopologi.md) | [Återställning av säkerhetskopia](<locales/sv/Återställning av säkerhetskopia.md>) | [Nedladdningsbart paket med uppdateringsverktyg](<locales/sv/Nedladdningsbart paket med uppdateringsverktyg.md>) |
 | 简体中文 | [遥测](locales/zh-CN/遥测.md) | [系统健康仪表板](locales/zh-CN/系统健康仪表板.md) | [基础设施拓扑](locales/zh-CN/LUMS_基础设施拓扑.md) | [数据库备份恢复](locales/zh-CN/数据库备份恢复.md) | [更新工具包](locales/zh-CN/更新工具包.md) |
 
-The [optional theme-system reference](../LUMS_Optional_Theme_System.md) is
-developer documentation and is currently maintained in English.
+## Project and developer references
+
+These references describe product context, frontend theme architecture and
+the current alert-management implementation. Their translations are useful
+for orientation; code remains the source of truth for current behavior.
+
+| Language | Product context | Theme-system reference | Alert-management implementation |
+| --- | --- | --- | --- |
+| Deutsch | [Produktkontext](locales/de/Produktkontext.md) | [Themensystem](locales/de/Themensystem.md) | [Alertverwaltung](locales/de/Alertmanagement.md) |
+| English (US) | [Product](../PRODUCT.md) | [Theme system](../LUMS_Optional_Theme_System.md) | [Alert management](LUMS_REALTIME_ALERTING_IMPLEMENTATION.md) |
+| English (UK) | [Product](<locales/en-GB/Product context_GB.md>) | [Theme system](<locales/en-GB/Optional theme system_GB.md>) | [Alert management](<locales/en-GB/Alert management_GB.md>) |
+| Español | [Contexto del producto](<locales/es/Contexto del producto.md>) | [Sistema de temas](<locales/es/Sistema de temas.md>) | [Gestión de alertas](<locales/es/Gestión de alertas.md>) |
+| Suomi | [Tuotekonteksti](locales/fi/Tuotekonteksti.md) | [Teemajärjestelmä](locales/fi/Teemajärjestelmä.md) | [Hälytysten hallinta](<locales/fi/Hälytysten hallinta.md>) |
+| Français | [Contexte produit](<locales/fr/Contexte produit.md>) | [Système de thèmes](<locales/fr/Système de thèmes.md>) | [Gestion des alertes](<locales/fr/Gestion des alertes.md>) |
+| 日本語 | [製品コンテキスト](locales/ja/製品コンテキスト.md) | [テーマシステム](locales/ja/テーマシステム.md) | [アラート管理](locales/ja/アラート管理.md) |
+| Norsk bokmål | [Produktkontekst](locales/nb-NO/Produktkontekst.md) | [Temasystem](locales/nb-NO/Temasystem.md) | [Varslingsadministrasjon](locales/nb-NO/Varslingsadministrasjon.md) |
+| Polski | [Kontekst produktu](<locales/pl/Kontekst produktu.md>) | [System motywów](<locales/pl/System motywów.md>) | [Zarządzanie alertami](<locales/pl/Zarządzanie alertami.md>) |
+| Svenska | [Produktkontext](locales/sv/Produktkontext.md) | [Temasystem](locales/sv/Temasystem.md) | [Larmhantering](locales/sv/Larmhantering.md) |
+| 简体中文 | [产品背景](locales/zh-CN/产品背景.md) | [主题系统](locales/zh-CN/主题系统.md) | [告警管理](locales/zh-CN/告警管理.md) |

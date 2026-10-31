@@ -224,15 +224,12 @@ Nykyiset tarkastusalueet:
 | #13       | Simulation Tests                       | PASS                      |
 | #14       | Continuous Integration                 | PASS                      |
 | #15       | Application / Audit Logging            | PASS                      |
-| #16       | Versioning / Releases                  | REVIEWED — OPEN BY DESIGN |
+| #16       | Versioning / Releases                  | Tarkista arkiston nykyiset julkaisut ja tunnisteet |
 | #17       | Role-Based Access Control              | PASS                      |
-| #18       | Documentation Review                   | IN PROGRESS               |
 
-Tarkastus #16 eroaa tarkoituksella yllä olevista teknisistä turvakontrolleista.
+Tämä tarkastus käsittelee versionhallintaa ja julkaisuja erillään teknisistä tietoturvakontrolleista. Julkaisujen ja Git-tunnisteiden saatavuus voi muuttua tämän dokumentin päivityksistä riippumatta. Tarkista ajantasainen tilanne arkiston [Releases-sivulta](https://github.com/NovaForgeCtrl/LUMS/releases) ja [tunnisteista](https://github.com/NovaForgeCtrl/LUMS/tags).
 
-LUMSilla ei ole tällä hetkellä virallista vakaata julkaisua, julkaisutunnistetta eikä GitHub-julkaisua. Tämä on tarkoituksellista, koska projekti on edelleen aktiivisessa kehityksessä.
-
-Tarkastus #18 pysyy avoimena, kunnes täydellinen dokumentaatiosarja on tarkastettu ja synkronisoitu nykyisen toteutuksen kanssa.
+Dokumentaation yhdenmukaisuus toteutuksen kanssa on jatkuvaa ylläpitotyötä, ei erillinen numeroitu tietoturvatarkastus. Käännettyjen oppaiden ja kielikohtaisten oppaiden hakemisto on tiedostossa [`docs/README.md`](../../README.md).
 
 # Turvallisuustarkastus #01
 
@@ -408,7 +405,7 @@ Seuraavat tarkastusalueet on dokumentoitu myöhemmissä osioissa:
 * #16 Versioning / Releases
 * #17 Role-Based Access Control
 
-Tarkastus #18 — Documentation Review — pysyy avoimena, kunnes täydellinen dokumentaatiosarja on tarkastettu ja synkronisoitu nykyisen toteutuksen kanssa.
+Dokumentaation yhdenmukaisuus toteutuksen kanssa on jatkuvaa ylläpitotyötä, ei erillinen numeroitu tietoturvatarkastus. Käännettyjen oppaiden ja kielikohtaisten oppaiden hakemisto on tiedostossa [`docs/README.md`](../../README.md).
 
 # Turvallisuustarkastus #05
 
@@ -863,44 +860,25 @@ Lokitusjärjestelmä on tarkoitettu tukemaan sekä operatiivista vianmäärityst
 
 # Turvallisuustarkastus #16
 
-## Versioning and Releases
+## Versiointi ja julkaisut
 
-Versiointi ja julkaisujen hallinta tarkastettiin osana turvallisuustarkastusta.
+Versiointi ja julkaisujen hallinta kuuluvat tietoturvakatsaukseen, sillä ylläpitäjien on voitava tunnistaa käyttöönottamansa koodi ja artefaktit. Julkaisujen saatavuus ja komponenttiversiot muuttuvat tästä oppaasta riippumatta. Tarkista arkiston [nykyiset tunnisteet](https://github.com/NovaForgeCtrl/LUMS/tags) ja [Releases-sivu](https://github.com/NovaForgeCtrl/LUMS/releases) sekä tarkastele käyttöönotettavan tarkan lähdekoodiversion versiotietoja. Älä käsittele tätä dokumenttia reaaliaikaisena julkaisuluettelona.
 
-LUMS on tällä hetkellä aktiivisessa kehityksessä eikä sillä ole vielä virallista vakaata julkaisua.
+Tässä dokumentoidut komponenttiversiot ovat LUMS Agent `1.7.0` ja LUMS Watcher `1.2.1`.
 
-Nykyisessä arkiston tilassa on siksi tarkoituksella:
-
-* ei virallista vakaata julkaisuversiota
-* ei julkaisutunnistetta
-* ei GitHub-julkaisua
-
-Nykyiset komponenttiversiot ovat:
-
-* LUMS Agent: `1.7.0`
-* LUMS Watcher: `1.2.1`
-
-Tällä hetkellä ei ole yhtä muodollista versionumeroa, joka edustaisi koko LUMS-sovellusta.
-
-Tämä on tarkoituksellinen projektin tilaa koskeva päätös eikä vahingossa tapahtunut laiminlyönti.
-
-Suunniteltu julkaisuprosessi on:
+Suunniteltu julkaisuprosessi:
 
 1. Suorita toteutustyö loppuun.
-2. Suorita turvallisuuskatsaus loppuun.
+2. Suorita tietoturvakatsaus loppuun.
 3. Tarkista ja synkronisoi dokumentaatio.
-4. Suorita täydellinen automatisoitu testisarja.
+4. Suorita koko automatisoitu testisarja.
 5. Varmista CI.
 6. Määritä julkaisuversio.
 7. Luo vastaava Git-tunniste.
-8. Julkaise GitHub-julkaisu.
+8. Julkaise GitHub Release.
 9. Säilytä julkaisu dokumentoituna perustasona.
 
-Virallista julkaisua ei luoda vain siksi, että turvallisuustarkastus saavuttaa tietyn tarkastusnumeron.
-
-Julkaisun luominen tapahtuu vasta, kun jäljellä oleva toteutus- ja dokumentaatiotyö on suoritettu.
-
-**Tila: REVIEWED — OPEN BY DESIGN**
+Virallista julkaisua ei tehdä vain siksi, että tietoturvakatsaus saavuttaa tietyn numeron.
 
 ---
 
@@ -925,15 +903,13 @@ Seuraavat turvallisuustarkastusalueet on suoritettu:
 | #13       | Simulation Tests                       | PASS                      |
 | #14       | Continuous Integration                 | PASS                      |
 | #15       | Application / Audit Logging            | PASS                      |
-| #16       | Versioning / Releases                  | REVIEWED — OPEN BY DESIGN |
+| #16       | Versioning / Releases                  | Tarkista arkiston nykyiset julkaisut ja tunnisteet |
 
 Jäljellä oleva numeroitu tekninen tarkastusalue on:
 
 * #17 Role-Based Access Control
 
-Dokumentaation tarkastus seurataan erikseen:
-
-* #18 Documentation Review — IN PROGRESS
+Dokumentaation yhdenmukaisuus toteutuksen kanssa on jatkuvaa ylläpitotyötä, ei erillinen numeroitu tietoturvatarkastus. Käännettyjen oppaiden ja kielikohtaisten oppaiden hakemisto on tiedostossa [`docs/README.md`](../../README.md).
 
 # Turvallisuustarkastus #17
 
@@ -1129,9 +1105,7 @@ Palvelin pysyy ensisijaisena turvarajana.
 
 **Tila: PASS**
 
-# Turvallisuustarkastus #18
-
-## Documentation Review
+## Dokumentaation tarkistus
 
 Turvallisuusdokumentaatio tarkastetaan nykyistä toteutettua LUMS-järjestelmää vasten.
 
@@ -1195,7 +1169,6 @@ Viewer-käyttäjillä ei ole pääsyä:
 
 Dokumentaation tarkastus poistaa tai korvaa myös vanhentuneet viittaukset aiempiin testien määriin, migraatiotiloihin, käyttöönottokonfiguraatioihin ja vain kehityksessä käytettyyn käyttäytymiseen.
 
-**Tila: IN PROGRESS**
 
 ---
 
@@ -1401,15 +1374,12 @@ Numeroidut tarkastustulokset ovat:
 | #13       | Simulation Tests                       | PASS                      |
 | #14       | Continuous Integration                 | PASS                      |
 | #15       | Application / Audit Logging            | PASS                      |
-| #16       | Versioning / Releases                  | REVIEWED — OPEN BY DESIGN |
+| #16       | Versioning / Releases                  | Tarkista arkiston nykyiset julkaisut ja tunnisteet |
 | #17       | Role-Based Access Control              | PASS                      |
-| #18       | Documentation Review                   | IN PROGRESS               |
 
-Tarkastuksissa #01–#15 ja #17 tarkastetut tekniset turvakontrollit ovat läpäisseet.
+Tarkastuksissa #01–#15 ja #17 tarkastetut tekniset turvakontrollit läpäisivät niille kirjatut tarkistukset. Tulokset eivät ole sertifiointi eivätkä takuu myöhempien versioiden toiminnasta.
 
-Tarkastus #16 pysyy tarkoituksella avoimena, koska LUMS ei ole vielä saavuttanut ensimmäistä virallista vakaata julkaisuaan.
-
-Tarkastus #18 pysyy avoimena, kunnes koko projektidokumentaatio on tarkastettu ja synkronisoitu lopullisen toteutustilan kanssa.
+Julkaisujen ja tunnisteiden saatavuus voi muuttua; tarkista arkiston [Releases-sivu](https://github.com/NovaForgeCtrl/LUMS/releases) ja [tunnisteet](https://github.com/NovaForgeCtrl/LUMS/tags).
 
 Mitään turvallisuustarkastuksen tulosta ei pidä tulkita takeeksi siitä, että LUMS on vapaa haavoittuvuuksista.
 
@@ -1421,7 +1391,7 @@ Muutokset sovellukseen, agenttiin, riippuvuuksiin, kontin konfiguraatioon, verko
 
 # Turvallisuusperustaso
 
-Nykyinen turvallisuusperustaso perustuu varmennettuun toteutukseen ja tuotannon käyttöönoton tilaan.
+Tässä kuvataan lähdekoodissa ja käyttöönotto-ohjeissa määritettyjä kontrolleja. Tämä ei todista, että yksittäinen asennus soveltaa niitä; varmista kohdeympäristön tosiasialliset asetukset.
 
 Perustaso sisältää:
 

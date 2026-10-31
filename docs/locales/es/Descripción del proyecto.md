@@ -1347,7 +1347,7 @@ La revisión de seguridad de LUMS ha cubierto las siguientes áreas:
 * exposición de red
 * higiene de artefactos del repositorio
 
-La revisión de documentación restante se maneja por separado como parte del proceso final de preparación para la versión.
+La revisión de la documentación forma parte del mantenimiento continuo; esta guía no registra una fase del proyecto ligada a una rama ni un estado de lanzamiento en tiempo real.
 
 ---
 
@@ -2008,8 +2008,11 @@ La implementación actual incluye:
 * transporte HTTPS
 * pruebas automatizadas
 * integración continua
+* telemetría opcional de CPU, memoria, disco, red, host y eventos
+* topología de infraestructura basada en clientes registrados e inventario mantenido manualmente
+* registros persistentes de alertas y endpoints para gestionar reglas, con las limitaciones descritas en `docs/LUMS_REALTIME_ALERTING_IMPLEMENTATION.md`
 
-El proyecto se encuentra actualmente en la fase final de documentación y preparación para la versión.
+Esta lista es un inventario general, no una afirmación de que todas las funciones estén completas o de que el proyecto esté listo para publicarse. Los componentes opcionales pueden requerir instalación y configuración por separado, y algunas funciones tienen limitaciones documentadas. Consulta la revisión del código fuente y sus pruebas para conocer el comportamiento de una versión concreta.
 
 ---
 
@@ -2061,17 +2064,7 @@ La seguridad se trata como una responsabilidad de ingeniería continua en lugar 
 
 ---
 
-## Estado de la versión
-
-LUMS no declara actualmente una versión de producción estable.
-
-Actualmente no hay:
-
-* versión semántica final
-* etiqueta de versión estable
-* GitHub Release
-
-El proyecto sigue deliberadamente la secuencia de versión:
+## Proceso de publicación
 
 ```text id="f3c4y9"
 Implementation
@@ -2091,28 +2084,13 @@ Git Tag
 GitHub Release
 ```
 
-La primera versión oficial solo debe crearse después de que la implementación actual, la revisión de seguridad, la documentación y las pruebas de regresión se consideren completas.
+La disponibilidad de versiones y etiquetas puede cambiar sin que se actualice esta documentación; consulta la página Releases del repositorio y sus etiquetas para conocer el estado actual. Una versión solo debe publicarse cuando se hayan completado la implementación, la revisión de seguridad, la documentación y las pruebas de regresión correspondientes a esa revisión.
 
 ---
 
 ## Hoja de ruta
 
-La hoja de ruta está intencionalmente enfocada en la estabilidad y el mantenimiento en lugar de agregar funcionalidades sin completar la base existente.
-
-### Fase actual
-
-* completar la revisión de documentación
-* eliminar las inconsistencias de documentación restantes
-* cerrar el trabajo de auditoría de documentación
-* realizar la ejecución final completa de pruebas
-* verificar CI
-* preparar la versión de publicación
-* crear la primera etiqueta Git oficial
-* publicar la primera GitHub Release
-
-### Desarrollo futuro
-
-El trabajo futuro potencial puede incluir:
+Esta guía no registra una fase del proyecto ligada a una rama o a un plazo. El trabajo futuro, una vez seleccionado y verificado, puede incluir:
 
 * distribuciones Linux adicionales
 * backends de gestores de paquetes adicionales

@@ -1382,7 +1382,7 @@ The LUMS security review has covered the following areas:
 
 * repository artifact hygiene
 
-The remaining documentation review is handled separately as part of the final release-readiness process.
+Documentation is reviewed alongside implementation changes and maintained as part of the operational guidance.
 ## Testing and CI
 
 LUMS includes automated tests covering core application behaviour and security controls.
@@ -2026,51 +2026,38 @@ LUMS is an actively developed Linux update-management platform.
 
 The current implementation includes:
 
-    centralised client management
-
+* centralised client management
 * software inventory
-
 * update detection
-
 * package search
-
 * package installation and removal
-
 * package-specific updates
-
 * system updates
-
 * persistent update jobs
-
 * package-level job state
-
 * job recovery
-
 * reboot detection
-
 * idle-aware execution
-
 * client-token authentication
-
 * token rotation
-
 * administrative authentication
-
 * role-based access control
-
 * user management
-
 * audit logging
-
 * container hardening
-
 * HTTPS transport
-
 * automated testing
-
 * continuous integration
+* optional CPU, memory, disk, network, host and event telemetry
+* infrastructure topology from registered clients and manually maintained inventory
+* persistent alert records and rule-management endpoints, with the limitations
+  documented in `docs/LUMS_REALTIME_ALERTING_IMPLEMENTATION.md`
 
-The project is currently in the final documentation and release-readiness phase.
+This list is a high-level inventory, not a feature-completeness or release
+readiness claim. Optional components may need separate installation and
+configuration, and individual features have documented limits. Check the
+source revision and its tests for the behaviour of a specific release.
+
 ## Security Status
 
 The major security-review areas have been implemented and reviewed.
@@ -2116,19 +2103,7 @@ Network Security
 ```
 
 Security is treated as an ongoing engineering responsibility rather than a one-time checklist.
-## Release Status
-
-LUMS does not currently claim a stable production release version.
-
-There is currently:
-
-* no final semantic version
-
-* no stable release tag
-
-* no GitHub Release
-
-The project deliberately follows the release sequence:
+## Release Process
 
 ```text id="f3c4y9"
 Implementation
@@ -2148,47 +2123,31 @@ Git Tag
 GitHub Release
 ```
 
-The first official release should only be created after the current implementation, security review, documentation, and regression testing are considered complete.
+Release and tag availability can change independently of this documentation;
+check the repository's [Releases](https://github.com/NovaForgeCtrl/LUMS/releases)
+and [tags](https://github.com/NovaForgeCtrl/LUMS/tags) for the current state.
+A release should only be published after the implementation, security review,
+documentation and regression tests for that revision are complete.
+
+---
+
 ## Roadmap
 
-The roadmap is intentionally focused on stability and maintainability rather than adding features without completing the existing foundation.
-### Current Phase
-
-* complete documentation review
-
-* remove remaining documentation inconsistencies
-
-* close documentation audit work
-
-* perform final full test run
-
-* verify CI
-
-* prepare release version
-
-* create the first official Git tag
-
-* publish the first GitHub Release
-
-### Future Development
-
-Potential future work may include:
+This guide does not track a branch-specific or time-based project phase.
+Potential future work, when selected and verified, may include:
 
 * additional Linux distributions
-
 * additional package-manager backends
-
 * further UI improvements
-
 * additional reporting capabilities
-
 * expanded operational automation
-
 * additional security controls
-
 * further test coverage
 
 Future features should preserve the existing architectural boundaries.
+
+---
+
 ## What LUMS Is Not
 
 LUMS is intentionally not designed as:
@@ -2298,7 +2257,15 @@ install.md
 administration.md
 security.md
 troubleshooting.md
+telemetry.md
+LUMS_Health_Dashboard.md
+LUMS_Infrastructure_Topology.md
+server/static/backup-restore.md
+docs/update-tools-package.md
 LUMS_Optional_Theme_System.md
+PRODUCT.md
+docs/LUMS_REALTIME_ALERTING_IMPLEMENTATION.md
+docs/README.md
 ```
 
 Each document has a defined purpose.
@@ -2313,7 +2280,11 @@ The security guide documents the security architecture and audit state.
 
 The troubleshooting guide provides diagnostic procedures.
 
-The optional theme document covers frontend theme architecture.
+The telemetry, health-dashboard, topology, backup-restore and updater-package
+guides document those operational features. The optional theme reference and
+`PRODUCT.md` are internal design/context documents; the alert-management
+document records the current implementation and its unavailable features.
+[`docs/README.md`](../../README.md) indexes the documentation by language.
 
 ### Additional English (UK) user and administrator guides
 
