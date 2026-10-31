@@ -7933,6 +7933,54 @@ _SOC_DASHBOARD_TRANSLATIONS = {'en-US': {'SOC dashboard': 'SOC dashboard',
                                                                                                                                                                          'ja '
                                                                                                                                                                          'toimituslokit.'}}
 
+
+# SOC navigation and development workspace labels.
+_SOC_DASHBOARD_TRANSLATIONS["en-US"].update({
+    "Alerts": "Alerts",
+    "Alerts navigation": "Alerts navigation",
+    "Detection Rules": "Detection Rules",
+    "Development workspace": "Development workspace",
+    "Event Explorer": "Event Explorer",
+    "Export History": "Export History",
+    "In development": "In development",
+    "Network Analyzer": "Network Analyzer",
+    "Network Monitoring": "Network Monitoring",
+    "Network Statistics": "Network Statistics",
+    "Overview": "Overview",
+    "PCAP Investigation": "PCAP Investigation",
+    "Planned": "Planned",
+    "Reports": "Reports",
+    "SOC": "SOC",
+    "SOC Dashboard": "SOC Dashboard",
+    "Security Reports": "Security Reports",
+    "Sensor Management": "Sensor Management",
+    "This page is part of the SOC interface foundation. Its live data sources and operational functions are not connected yet.": "This page is part of the SOC interface foundation. Its live data sources and operational functions are not connected yet.",
+    "Toggle alerts navigation": "Toggle alerts navigation",
+})
+
+_SOC_DASHBOARD_TRANSLATIONS["de"].update({
+    "Alerts": "Warnungen",
+    "Alerts navigation": "Warnungsnavigation",
+    "Detection Rules": "Erkennungsregeln",
+    "Development workspace": "Entwicklungsarbeitsbereich",
+    "Event Explorer": "Ereignis-Explorer",
+    "Export History": "Exportverlauf",
+    "In development": "In Entwicklung",
+    "Network Analyzer": "Netzwerkanalyse",
+    "Network Monitoring": "Netzwerküberwachung",
+    "Network Statistics": "Netzwerkstatistiken",
+    "Overview": "Übersicht",
+    "PCAP Investigation": "PCAP-Untersuchung",
+    "Planned": "Geplant",
+    "Reports": "Berichte",
+    "SOC": "SOC",
+    "SOC Dashboard": "SOC-Dashboard",
+    "Security Reports": "Sicherheitsberichte",
+    "Sensor Management": "Sensorverwaltung",
+    "This page is part of the SOC interface foundation. Its live data sources and operational functions are not connected yet.": "Diese Seite gehört zur Grundlage der SOC-Oberfläche. Ihre Live-Datenquellen und operativen Funktionen sind noch nicht angebunden.",
+    "Toggle alerts navigation": "Warnungsnavigation umschalten",
+})
+
 def translations_for(language):
     def merge_layers(*layers):
         merged = {}

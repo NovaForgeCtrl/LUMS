@@ -725,7 +725,7 @@ def _verified_collector_fingerprint():
 
 @alerts_bp.route("/api/collector/v1/events", methods=["POST"])
 def ingest_collector_events():
-    """Accept bounded events only when SOC collection is explicitly enabled."""
+    """Accept bounded events only from enabled, registered collectors."""
     from werkzeug.exceptions import BadRequest
 
     if current_app.config.get("LUMS_SOC_COLLECTOR_ENABLED") is not True:
@@ -735,58 +735,76 @@ def ingest_collector_events():
     if fingerprint is None:
         return jsonify({"error": "collector_identity_required"}), 401
 
-    import json
-
-    max_request_bytes = 4 * 1024 * 1024
-    if (
-        request.content_length is not None
-        and request.content_length > max_request_bytes
-    ):
-        return jsonify({"error": "request_too_large"}), 413
-
-    try:
-        # Read only one byte beyond the limit; do not buffer an unlimited body.
-        raw = request.stream.read(max_request_bytes + 1)
-    except (BadRequest, ValueError):
-        return jsonify({"error": "invalid_json_payload"}), 400
-
-    if len(raw) > max_request_bytes:
-        return jsonify({"error": "request_too_large"}), 413
-
-    try:
-        payload = json.loads(raw)
-    except (UnicodeDecodeError, json.JSONDecodeError):
-        return jsonify({"error": "invalid_json_payload"}), 400
-
-    if not isinstance(payload, dict) or set(payload) != {"events"}:
-        return jsonify({"error": "invalid_json_payload"}), 400
-
-    events = payload["events"]
-    if not isinstance(events, list) or not events:
-        return jsonify({"error": "invalid_event_batch"}), 400
-    if len(events) > 500:
-        return jsonify({"error": "batch_too_large"}), 413
-
     try:
         if __package__:
             from .soc.ingestion import EventIngestor, IngestionError
             from .soc.collector_store import (
-                CollectorStore, CollectorNotFoundError,
-                CollectorRevokedError, EventIdConflictError,
+                CollectorStore,
+                CollectorNotFoundError,
+                CollectorRevokedError,
+                EventIdConflictError,
             )
         else:
             from soc.ingestion import EventIngestor, IngestionError
             from soc.collector_store import (
-                CollectorStore, CollectorNotFoundError,
-                CollectorRevokedError, EventIdConflictError,
+                CollectorStore,
+                CollectorNotFoundError,
+                CollectorRevokedError,
+                EventIdConflictError,
             )
     except Exception:
-        logger.exception("Collector event ingestion dependencies could not be loaded")
+        logger.exception(
+            "Collector event ingestion dependencies could not be loaded"
+        )
         return jsonify({"error": "collector_ingestion_failed"}), 500
 
     try:
-        # Collector events must include their source event timestamp.
-        # Keep generic EventIngestor behavior unchanged for other callers.
+        # Runtime requests must never create or migrate database schema.
+        # SOC storage is initialized by the application entrypoint.
+        store = CollectorStore(
+            _collector_connection(),
+            initialize_schema=False,
+        )
+
+        # Reject unknown or revoked identities before reading and validating
+        # an attacker-controlled request body.
+        agent = store.get_agent_by_fingerprint(fingerprint)
+        if agent is None:
+            return jsonify({"error": "collector_not_registered"}), 403
+        if agent["status"] != "active":
+            return jsonify({"error": "collector_revoked"}), 403
+
+        max_request_bytes = 4 * 1024 * 1024
+        if (
+            request.content_length is not None
+            and request.content_length > max_request_bytes
+        ):
+            return jsonify({"error": "request_too_large"}), 413
+
+        try:
+            raw = request.stream.read(max_request_bytes + 1)
+        except (BadRequest, ValueError):
+            return jsonify({"error": "invalid_json_payload"}), 400
+
+        if len(raw) > max_request_bytes:
+            return jsonify({"error": "request_too_large"}), 413
+
+        import json
+
+        try:
+            payload = json.loads(raw)
+        except (UnicodeDecodeError, json.JSONDecodeError):
+            return jsonify({"error": "invalid_json_payload"}), 400
+
+        if not isinstance(payload, dict) or set(payload) != {"events"}:
+            return jsonify({"error": "invalid_json_payload"}), 400
+
+        events = payload["events"]
+        if not isinstance(events, list) or not events:
+            return jsonify({"error": "invalid_event_batch"}), 400
+        if len(events) > 500:
+            return jsonify({"error": "batch_too_large"}), 413
+
         if any(
             not isinstance(event, dict) or "timestamp" not in event
             for event in events
@@ -795,13 +813,6 @@ def ingest_collector_events():
 
         # Validate the complete batch before persisting any event.
         EventIngestor().ingest_batch(events)
-
-        store = CollectorStore(_collector_connection())
-        agent = store.get_agent_by_fingerprint(fingerprint)
-        if agent is None:
-            return jsonify({"error": "collector_not_registered"}), 403
-        if agent["status"] != "active":
-            return jsonify({"error": "collector_revoked"}), 403
 
         result = store.ingest_batch(agent["agent_id"], events)
         return jsonify({
@@ -822,7 +833,6 @@ def ingest_collector_events():
     except Exception:
         logger.exception("Collector event ingestion failed")
         return jsonify({"error": "collector_ingestion_failed"}), 500
-
 
 
 

@@ -9,20 +9,48 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
+from .worker_schema import (
+    RECOVERY_COLUMNS,
+    RECOVERY_INDEX,
+    validate_claim_columns,
+    validate_recovery_index,
+    validate_schema_migrations,
+)
+
 
 MIGRATION_VERSION = "001-soc-worker-claims"
 DEFAULT_DB_PATH = "/var/lib/lums/lums.db"
 
 _REQUIRED_INBOX_COLUMNS = {
     "inbox_id",
+    "agent_id",
+    "event_id",
+    "payload_json",
+    "payload_sha256",
+    "received_at",
     "processing_status",
     "processed_at",
     "last_error",
 }
+_REQUIRED_MIGRATION_COLUMNS = {"version", "applied_at"}
 
 
 def utc_now() -> str:
     return datetime.now(timezone.utc).isoformat()
+
+
+def _ensure_recovery_index(connection: sqlite3.Connection) -> None:
+    """Create a missing recovery index and reject an incorrect definition."""
+    if not validate_recovery_index(connection):
+        connection.execute(
+            f"CREATE INDEX {RECOVERY_INDEX} "
+            f"ON soc_event_inbox({', '.join(RECOVERY_COLUMNS)})"
+        )
+
+    if not validate_recovery_index(connection):
+        raise RuntimeError(
+            f"Recovery index {RECOVERY_INDEX} could not be created"
+        )
 
 
 def run_migration(db_path: str | Path) -> bool:
@@ -71,6 +99,23 @@ def run_migration(db_path: str | Path) -> bool:
             )
         """)
 
+        migration_columns = {
+            row[1]
+            for row in connection.execute(
+                "PRAGMA table_info(schema_migrations)"
+            ).fetchall()
+        }
+        missing_migration_columns = (
+            _REQUIRED_MIGRATION_COLUMNS - migration_columns
+        )
+        if missing_migration_columns:
+            raise RuntimeError(
+                "schema_migrations is missing required columns: "
+                + ", ".join(sorted(missing_migration_columns))
+            )
+
+        validate_schema_migrations(connection)
+
         recorded = connection.execute("""
             SELECT 1
             FROM schema_migrations
@@ -78,7 +123,6 @@ def run_migration(db_path: str | Path) -> bool:
         """, (MIGRATION_VERSION,)).fetchone()
 
         if recorded is not None:
-            # A recorded migration must also have its complete schema.
             current_columns = {
                 row[1]
                 for row in connection.execute(
@@ -93,6 +137,13 @@ def run_migration(db_path: str | Path) -> bool:
                     "Migration is recorded but claim columns are missing; "
                     "manual recovery is required"
                 )
+
+            validate_claim_columns(connection)
+
+            # A missing index can be safely restored. An incorrect one
+            # indicates schema drift and must not be silently replaced.
+            _ensure_recovery_index(connection)
+
             connection.commit()
             return False
 
@@ -117,10 +168,11 @@ def run_migration(db_path: str | Path) -> bool:
                 ADD COLUMN attempts INTEGER NOT NULL DEFAULT 0
             """)
 
-        connection.execute("""
-            CREATE INDEX IF NOT EXISTS idx_soc_event_inbox_claim_recovery
-            ON soc_event_inbox(processing_status, claimed_at, inbox_id)
-        """)
+        # Reject incompatible pre-existing definitions before recording
+        # the migration.
+        validate_claim_columns(connection)
+
+        _ensure_recovery_index(connection)
 
         connection.execute("""
             INSERT INTO schema_migrations(version, applied_at)

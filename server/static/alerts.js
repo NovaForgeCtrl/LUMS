@@ -16,7 +16,14 @@
     const connectionContainer = connection.closest(".lums-pagebar-status");
     const refreshButton = document.getElementById("alerts-refresh");
     const csrf = root.dataset.csrf;
-    let currentTab = "dashboard";
+    const allowedTabs = new Set([
+        "dashboard", "overview", "history", "rules",
+        "integrations", "webhooks", "logs"
+    ]);
+    const requestedTab = window.location.hash.slice(1);
+    let currentTab = allowedTabs.has(requestedTab)
+        ? requestedTab
+        : "dashboard";
     let loading = false;
     let lastAlerts = [];
 
@@ -825,44 +832,66 @@
         });
     });
 
-    document.querySelectorAll(".alerts-tabs .tab-btn").forEach((tab) => {
-        tab.addEventListener("click", () => {
-            currentTab = tab.dataset.tab;
-            document.querySelectorAll(".alerts-tabs .tab-btn").forEach((item) => {
-                const selected = item === tab;
-                item.classList.toggle("active", selected);
-                item.setAttribute("aria-selected", String(selected));
-            });
+    function activateTab(tabName, { load = true } = {}) {
+        if (!allowedTabs.has(tabName)) {
+            tabName = "dashboard";
+        }
 
-            tableWrap.hidden = currentTab === "dashboard"
-                || currentTab === "rules"
-                || currentTab === "integrations"
-                || currentTab === "webhooks"
-                || currentTab === "logs";
-            rulesPanel.hidden = currentTab !== "rules";
-            integrationsPanel.hidden = currentTab !== "integrations";
-            webhooksPanel.hidden = currentTab !== "webhooks";
-            logsPanel.hidden = currentTab !== "logs";
-            socPanel.hidden = currentTab !== "dashboard";
-            feedback.textContent = "";
+        currentTab = tabName;
 
-            if (currentTab === "dashboard") {
-                void refresh();
-                return;
+        document.querySelectorAll("[data-alert-tab]").forEach((link) => {
+            const selected = link.dataset.alertTab === currentTab;
+            link.classList.toggle("is-active", selected);
+            if (selected) {
+                link.setAttribute("aria-current", "page");
+            } else {
+                link.removeAttribute("aria-current");
             }
-            if (currentTab === "rules") {
-                void loadRules();
-                return;
-            }
-            if (currentTab === "integrations" || currentTab === "webhooks") {
-                return;
-            }
-            if (currentTab === "logs") {
-                void loadLogs();
-                return;
-            }
-            refresh();
         });
+
+        tableWrap.hidden = currentTab === "dashboard"
+            || currentTab === "rules"
+            || currentTab === "integrations"
+            || currentTab === "webhooks"
+            || currentTab === "logs";
+        rulesPanel.hidden = currentTab !== "rules";
+        integrationsPanel.hidden = currentTab !== "integrations";
+        webhooksPanel.hidden = currentTab !== "webhooks";
+        logsPanel.hidden = currentTab !== "logs";
+        socPanel.hidden = currentTab !== "dashboard";
+        feedback.textContent = "";
+
+        if (!load) return;
+
+        if (currentTab === "dashboard"
+            || currentTab === "overview"
+            || currentTab === "history") {
+            void refresh();
+        } else if (currentTab === "rules") {
+            void loadRules();
+        } else if (currentTab === "logs") {
+            void loadLogs();
+        }
+    }
+
+    const alertsNavToggle = document.getElementById(
+        "lums-sidebar-alerts-toggle"
+    );
+    const alertsSubnav = document.getElementById(
+        "lums-sidebar-alerts-subnav"
+    );
+
+    if (alertsNavToggle && alertsSubnav) {
+        alertsNavToggle.addEventListener("click", () => {
+            const expanded =
+                alertsNavToggle.getAttribute("aria-expanded") === "true";
+            alertsNavToggle.setAttribute("aria-expanded", String(!expanded));
+            alertsSubnav.hidden = expanded;
+        });
+    }
+
+    window.addEventListener("hashchange", () => {
+        activateTab(window.location.hash.slice(1));
     });
 
     refreshButton.addEventListener("click", refresh);
@@ -872,7 +901,7 @@
     });
 
     setConnectionState("connecting", root.dataset.loading);
-    void refresh();
+    activateTab(currentTab);
     window.setInterval(() => {
         if (!document.hidden) void refresh();
     }, 5000);

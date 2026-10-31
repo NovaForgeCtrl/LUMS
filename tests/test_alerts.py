@@ -313,7 +313,12 @@ def alert_http_env(tmp_path, monkeypatch):
 
     with closing(connect_test_db()) as connection:
         connection.executescript("""
-            CREATE TABLE users (
+            CREATE TABLE schema_migrations (
+            version TEXT PRIMARY KEY,
+            applied_at TEXT NOT NULL
+        );
+
+        CREATE TABLE users (
                 id INTEGER PRIMARY KEY,
                 username TEXT NOT NULL UNIQUE,
                 password_hash TEXT NOT NULL DEFAULT 'test',
@@ -977,10 +982,14 @@ def test_collector_api_is_disabled_by_default_without_creating_tables(
 
 def _register_test_collector(env, monkeypatch, *, revoked=False):
     from server.soc.collector_store import CollectorStore
+    from server.soc.storage_migration import initialize_storage
+
+    # Mirror the production startup migration in the isolated test database.
+    initialize_storage(env["db_path"])
 
     fingerprint = "a" * 64
     with closing(env["connect"]()) as connection:
-        store = CollectorStore(connection)
+        store = CollectorStore(connection, initialize_schema=False)
         store.register_agent("test-agent-01", "Test Linux Agent", fingerprint)
         if revoked:
             store.revoke_agent("test-agent-01")
@@ -1035,7 +1044,10 @@ def test_collector_api_rejects_missing_identity_without_creating_tables(
 def test_collector_api_rejects_unregistered_certificate(
     alert_http_env, monkeypatch,
 ):
+    from server.soc.storage_migration import initialize_storage
+
     env = alert_http_env
+    initialize_storage(env["db_path"])
     monkeypatch.setitem(env["app"].config, "LUMS_SOC_COLLECTOR_ENABLED", True)
     monkeypatch.setitem(
         env["app"].config,

@@ -24,9 +24,10 @@ _COMMON_KEYS = {
     "id", "name", "description", "type", "event_type", "severity", "enabled"
 }
 _DETECTION_KEYS = _COMMON_KEYS | {"field", "operator", "value"}
-_CORRELATION_KEYS = _COMMON_KEYS | {
+_CORRELATION_REQUIRED_KEYS = _COMMON_KEYS | {
     "group_by", "window_seconds", "minimum_count"
 }
+_CORRELATION_KEYS = _CORRELATION_REQUIRED_KEYS | {"inactivity_seconds"}
 _ALLOWED_TYPES = {"detection", "correlation"}
 _ALLOWED_SEVERITIES = {"info", "warning", "critical"}
 _ALLOWED_OPERATORS = {"eq", "ne", "gt", "gte", "lt", "lte", "contains", "in"}
@@ -103,7 +104,7 @@ def load_catalog_data(data: Any) -> LoadedRuleCatalog:
     _require_keys(data, {"version", "rules"}, _ROOT_KEYS, "catalog")
 
     version = data["version"]
-    if isinstance(version, bool) or version != CATALOG_VERSION:
+    if type(version) is not int or version != CATALOG_VERSION:
         raise RuleCatalogError("Unsupported catalog version")
 
     rules = data["rules"]
@@ -123,15 +124,20 @@ def load_catalog_data(data: Any) -> LoadedRuleCatalog:
             raise RuleCatalogError(f"{location} must be an object")
 
         rule_type = item.get("type")
-        if rule_type not in _ALLOWED_TYPES:
+        if not isinstance(rule_type, str) or rule_type not in _ALLOWED_TYPES:
             raise RuleCatalogError(f"{location}: unsupported rule type")
 
         required = (
             _DETECTION_KEYS
             if rule_type == "detection"
+            else _CORRELATION_REQUIRED_KEYS
+        )
+        allowed = (
+            _DETECTION_KEYS
+            if rule_type == "detection"
             else _CORRELATION_KEYS
         )
-        _require_keys(item, required, required, location)
+        _require_keys(item, required, allowed, location)
 
         rule_id = _identifier(item["id"], "id", location)
         if rule_id in seen_ids:
@@ -147,7 +153,7 @@ def load_catalog_data(data: Any) -> LoadedRuleCatalog:
             raise RuleCatalogError(f"{location}: description is too long")
 
         severity = item["severity"]
-        if severity not in _ALLOWED_SEVERITIES:
+        if not isinstance(severity, str) or severity not in _ALLOWED_SEVERITIES:
             raise RuleCatalogError(f"{location}: unsupported severity")
 
         enabled = item["enabled"]
@@ -158,7 +164,7 @@ def load_catalog_data(data: Any) -> LoadedRuleCatalog:
             if rule_type == "detection":
                 field = _nonempty_string(item["field"], "field", location)
                 operator = item["operator"]
-                if operator not in _ALLOWED_OPERATORS:
+                if not isinstance(operator, str) or operator not in _ALLOWED_OPERATORS:
                     raise RuleCatalogError(
                         f"{location}: unsupported operator"
                     )
@@ -183,6 +189,9 @@ def load_catalog_data(data: Any) -> LoadedRuleCatalog:
                 )
                 window_seconds = item["window_seconds"]
                 minimum_count = item["minimum_count"]
+                inactivity_seconds = item.get(
+                    "inactivity_seconds", window_seconds
+                )
 
                 if (
                     isinstance(window_seconds, bool)
@@ -200,6 +209,14 @@ def load_catalog_data(data: Any) -> LoadedRuleCatalog:
                     raise RuleCatalogError(
                         f"{location}: minimum_count must be 2..10000"
                     )
+                if (
+                    isinstance(inactivity_seconds, bool)
+                    or not isinstance(inactivity_seconds, int)
+                    or not 1 <= inactivity_seconds <= 86400
+                ):
+                    raise RuleCatalogError(
+                        f"{location}: inactivity_seconds must be 1..86400"
+                    )
 
                 correlations.append(
                     CorrelationRule(
@@ -211,6 +228,7 @@ def load_catalog_data(data: Any) -> LoadedRuleCatalog:
                         minimum_count=minimum_count,
                         severity=severity,
                         enabled=enabled,
+                        inactivity_seconds=inactivity_seconds,
                     )
                 )
         except RuleCatalogError:

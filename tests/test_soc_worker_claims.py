@@ -221,3 +221,99 @@ def test_claims_only_pending_rows(worker_db):
     claim = store.claim_pending()[0]
     assert store.finish_claim(claim["inbox_id"], claim["claim_token"])
     assert store.claim_pending() == ()
+
+
+
+def test_invalid_json_does_not_block_valid_events_in_claim_batch(worker_db):
+    _, connection, store = worker_db
+
+    store.ingest_batch("linux01", [
+        {
+            "event_id": "linux01:boot1:2",
+            "source": "linux01",
+            "event_type": "linux.auth.failure",
+            "timestamp": "2026-10-29T09:01:00+00:00",
+            "fields": {"message": "another failed login"},
+        }
+    ])
+
+    connection.execute("""
+        UPDATE soc_event_inbox
+        SET payload_json = ?
+        WHERE event_id = ?
+    """, ("{invalid-json", "linux01:boot1:1"))
+    connection.commit()
+
+    claims = store.claim_pending(limit=10)
+
+    assert len(claims) == 2
+
+    claims_by_event = {
+        claim["event_id"]: claim for claim in claims
+    }
+
+    invalid_claim = claims_by_event["linux01:boot1:1"]
+    valid_claim = claims_by_event["linux01:boot1:2"]
+
+    assert invalid_claim["payload"] is None
+    assert isinstance(invalid_claim["payload_error"], str)
+    assert invalid_claim["payload_error"]
+
+    assert isinstance(valid_claim["payload"], dict)
+    assert valid_claim["payload"]["event_id"] == "linux01:boot1:2"
+    assert valid_claim["payload_error"] is None
+
+
+def test_fresh_claim_is_not_recovered(worker_db):
+    _, connection, store = worker_db
+    claim = store.claim_pending(max_attempts=3)[0]
+
+    before = connection.execute("""
+        SELECT processing_status, claim_token, claimed_at, attempts
+        FROM soc_event_inbox WHERE inbox_id = ?
+    """, (claim["inbox_id"],)).fetchone()
+
+    assert store.recover_stale_claims(
+        stale_after_seconds=3600,
+        max_attempts=3,
+    ) == 0
+
+    after = connection.execute("""
+        SELECT processing_status, claim_token, claimed_at, attempts
+        FROM soc_event_inbox WHERE inbox_id = ?
+    """, (claim["inbox_id"],)).fetchone()
+
+    assert after == before
+    assert after[0] == "processing"
+    assert after[1] == claim["claim_token"]
+    assert after[2] is not None
+    assert after[3] == 1
+
+
+def test_processing_claim_without_timestamp_is_not_recovered(worker_db):
+    _, connection, store = worker_db
+    claim = store.claim_pending(max_attempts=3)[0]
+
+    connection.execute("""
+        UPDATE soc_event_inbox
+        SET claimed_at = NULL
+        WHERE inbox_id = ?
+    """, (claim["inbox_id"],))
+    connection.commit()
+
+    assert store.recover_stale_claims(
+        stale_after_seconds=60,
+        max_attempts=3,
+    ) == 0
+
+    row = connection.execute("""
+        SELECT processing_status, claim_token, claimed_at, attempts
+        FROM soc_event_inbox WHERE inbox_id = ?
+    """, (claim["inbox_id"],)).fetchone()
+
+    assert row == (
+        "processing",
+        claim["claim_token"],
+        None,
+        1,
+    )

@@ -140,3 +140,59 @@ def test_store_does_not_create_or_modify_alert_tables(store):
     assert "alert_rules" not in names
     assert "soc_collector_agents" in names
     assert "soc_event_inbox" in names
+
+
+@pytest.mark.parametrize("operation", [
+    "register_agent",
+    "revoke_agent",
+    "ingest_batch",
+    "recover_stale_claims",
+    "claim_pending",
+    "claim_next_pending",
+    "finish_claim",
+    "fail_claim",
+])
+def test_transaction_methods_preserve_caller_transaction(store, operation):
+    from server.soc.collector_store import CollectorStoreError
+
+    connection = store.connection
+    connection.execute("""
+        CREATE TABLE transaction_guard_markers (
+            name TEXT PRIMARY KEY
+        )
+    """)
+    connection.commit()
+
+    connection.execute("BEGIN IMMEDIATE")
+    connection.execute(
+        "INSERT INTO transaction_guard_markers(name) VALUES (?)",
+        (operation,),
+    )
+
+    calls = {
+        "register_agent": lambda: store.register_agent(
+            "linux02", "Second test host", "b" * 64
+        ),
+        "revoke_agent": lambda: store.revoke_agent("linux01"),
+        "ingest_batch": lambda: store.ingest_batch("linux01", [event()]),
+        "recover_stale_claims": lambda: store.recover_stale_claims(),
+        "claim_pending": lambda: store.claim_pending(),
+        "claim_next_pending": lambda: store.claim_next_pending(),
+        "finish_claim": lambda: store.finish_claim(1, "test-token"),
+        "fail_claim": lambda: store.fail_claim(
+            1, "test-token", "test failure"
+        ),
+    }
+
+    with pytest.raises(CollectorStoreError, match="existing transaction"):
+        calls[operation]()
+
+    assert connection.in_transaction is True
+
+    connection.commit()
+
+    marker = connection.execute(
+        "SELECT name FROM transaction_guard_markers WHERE name = ?",
+        (operation,),
+    ).fetchone()
+    assert marker == (operation,)

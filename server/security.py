@@ -421,6 +421,405 @@ def current_user_permissions():
     return request.environ.get("lums.permissions", frozenset())
 
 
+def _table_exists(connection, table_name):
+    row = connection.execute(
+        """
+        SELECT 1
+        FROM sqlite_master
+        WHERE type = 'table' AND name = ?
+        """,
+        (table_name,),
+    ).fetchone()
+    return row is not None
+
+
+def custom_rbac_is_active(connection):
+    """Check migration 018 and reject incomplete custom-RBAC schemas."""
+    custom_tables = (
+        "roles",
+        "role_permissions",
+        "user_roles",
+        "user_permission_overrides",
+    )
+
+    existing = {
+        table for table in custom_tables
+        if _table_exists(connection, table)
+    }
+
+    if not _table_exists(connection, "schema_migrations"):
+        if existing:
+            raise RuntimeError(
+                "Custom RBAC tables exist without schema_migrations"
+            )
+        return False
+
+    marker = connection.execute(
+        "SELECT 1 FROM schema_migrations WHERE version = ?",
+        ("018-custom-rbac",),
+    ).fetchone()
+
+    if marker is None:
+        if existing:
+            raise RuntimeError(
+                "Custom RBAC tables exist without migration marker 018"
+            )
+        return False
+
+    missing = set(custom_tables) - existing
+    if missing:
+        raise RuntimeError(
+            "Custom RBAC schema is incomplete: "
+            + ", ".join(sorted(missing))
+        )
+
+    return True
+
+
+def store_user_permissions(
+    connection,
+    user_id,
+    role,
+    permissions,
+    actor_id=None,
+    timestamp=None,
+):
+    """
+    Store a user's effective permission selection.
+
+    The caller owns the transaction. This helper does not commit.
+    """
+    if role not in VALID_ROLES:
+        raise ValueError(f"Invalid user role: {role!r}")
+
+    if not isinstance(permissions, (list, tuple, set, frozenset)):
+        raise ValueError("Permissions must be a collection")
+
+    permission_list = list(permissions)
+    selected = set(permission_list)
+
+    if len(selected) != len(permission_list):
+        raise ValueError("Duplicate permissions are not allowed")
+
+    unknown = selected - set(PERMISSIONS)
+    if unknown:
+        raise ValueError(
+            "Unknown permissions: " + ", ".join(sorted(unknown))
+        )
+
+    for permission in selected:
+        dependencies = PERMISSION_DEPENDENCIES.get(permission, set())
+        missing_dependencies = dependencies - selected
+        if missing_dependencies:
+            raise ValueError(
+                f"Permission {permission!r} is missing dependencies: "
+                + ", ".join(sorted(missing_dependencies))
+            )
+
+    if timestamp is None:
+        timestamp = utc_now()
+
+    if custom_rbac_is_active(connection):
+        role_key = "system-" + role
+        role_rows = connection.execute(
+            """
+            SELECT id
+            FROM roles
+            WHERE role_key = ?
+              AND is_system = 1
+              AND is_migration = 0
+            """,
+            (role_key,),
+        ).fetchall()
+
+        if len(role_rows) != 1:
+            raise RuntimeError(
+                f"Expected exactly one protected system role: {role_key}"
+            )
+
+        # Index access works with both sqlite3.Row and ordinary tuples.
+        role_id = role_rows[0][0]
+
+        base_permissions = {
+            row[0]
+            for row in connection.execute(
+                """
+                SELECT permission
+                FROM role_permissions
+                WHERE role_id = ?
+                """,
+                (role_id,),
+            ).fetchall()
+        }
+
+        unknown_base = base_permissions - set(PERMISSIONS)
+        if unknown_base:
+            raise RuntimeError(
+                "System role contains unknown permissions: "
+                + ", ".join(sorted(unknown_base))
+            )
+
+        grants = selected - base_permissions
+        denies = base_permissions - selected
+
+        connection.execute(
+            "DELETE FROM user_roles WHERE user_id = ?",
+            (user_id,),
+        )
+        connection.execute(
+            "DELETE FROM user_permission_overrides WHERE user_id = ?",
+            (user_id,),
+        )
+        connection.execute(
+            """
+            INSERT INTO user_roles (
+                user_id, role_id, assigned_at, assigned_by
+            )
+            VALUES (?, ?, ?, ?)
+            """,
+            (user_id, role_id, timestamp, actor_id),
+        )
+
+        overrides = [
+            (user_id, permission, "grant", timestamp, actor_id)
+            for permission in sorted(grants)
+        ]
+        overrides.extend(
+            (user_id, permission, "deny", timestamp, actor_id)
+            for permission in sorted(denies)
+        )
+
+        connection.executemany(
+            """
+            INSERT INTO user_permission_overrides (
+                user_id, permission, effect, changed_at, changed_by
+            )
+            VALUES (?, ?, ?, ?, ?)
+            """,
+            overrides,
+        )
+        return "custom"
+
+    if not _table_exists(connection, "user_permissions"):
+        raise RuntimeError(
+            "Legacy RBAC is active but user_permissions is missing"
+        )
+
+    connection.execute(
+        "DELETE FROM user_permissions WHERE user_id = ?",
+        (user_id,),
+    )
+    connection.executemany(
+        """
+        INSERT INTO user_permissions (user_id, permission)
+        VALUES (?, ?)
+        """,
+        [(user_id, permission) for permission in sorted(selected)],
+    )
+    return "legacy"
+
+
+def _filter_permission_dependencies(permissions):
+    """Remove permissions whose prerequisites are not effective."""
+    effective = set(permissions)
+
+    while True:
+        invalid_permissions = {
+            permission
+            for permission in effective
+            if not PERMISSION_DEPENDENCIES.get(
+                permission, set()
+            ).issubset(effective)
+        }
+
+        if not invalid_permissions:
+            return frozenset(effective)
+
+        effective.difference_update(invalid_permissions)
+
+
+def _calculate_effective_permissions(
+    role_permissions,
+    grants=(),
+    denies=(),
+):
+    """Calculate role permissions plus grants, minus denies."""
+    effective = (
+        set(role_permissions)
+        | set(grants)
+    ) - set(denies)
+
+    return _filter_permission_dependencies(effective)
+
+
+class _InvalidLegacyRoleError(RuntimeError):
+    """Raised when legacy RBAC contains an invalid user role."""
+
+
+def resolve_user_permissions(connection, user_id, user_role=None):
+    """
+    Resolve effective permissions using either legacy RBAC or custom RBAC.
+
+    Migration 018 is the authoritative switch. Once recorded, missing or
+    inconsistent custom-RBAC data is an error; legacy permissions are never
+    used as a fallback.
+    """
+    if not _table_exists(connection, "schema_migrations"):
+        raise RuntimeError(
+            "RBAC state is unavailable: schema_migrations table is missing"
+        )
+
+    migration_marker = connection.execute(
+        """
+        SELECT 1
+        FROM schema_migrations
+        WHERE version = ?
+        """,
+        ("018-custom-rbac",),
+    ).fetchone()
+
+    custom_tables = (
+        "roles",
+        "role_permissions",
+        "user_roles",
+        "user_permission_overrides",
+    )
+
+    existing_custom_tables = {
+        table
+        for table in custom_tables
+        if _table_exists(connection, table)
+    }
+
+    if migration_marker is None:
+        if existing_custom_tables:
+            raise RuntimeError(
+                "Custom RBAC tables exist without migration marker 018"
+            )
+
+        if user_role is None:
+            user_row = connection.execute(
+                "SELECT role FROM users WHERE id = ?",
+                (user_id,),
+            ).fetchone()
+
+            if user_row is None:
+                raise RuntimeError(
+                    f"Cannot resolve permissions for missing user id {user_id}"
+                )
+
+            user_role = user_row["role"]
+
+        if user_role not in VALID_ROLES:
+            raise _InvalidLegacyRoleError(
+                f"Cannot resolve permissions for invalid legacy role {user_role!r}"
+            )
+
+        if _table_exists(connection, "user_permissions"):
+            legacy_permissions = {
+                row["permission"]
+                for row in connection.execute(
+                    """
+                    SELECT permission
+                    FROM user_permissions
+                    WHERE user_id = ?
+                    """,
+                    (user_id,),
+                ).fetchall()
+            }
+        else:
+            legacy_permissions = set(
+                ROLE_DEFAULT_PERMISSIONS[user_role]
+            )
+
+        return _filter_permission_dependencies(legacy_permissions)
+
+    missing_tables = set(custom_tables) - existing_custom_tables
+    if missing_tables:
+        raise RuntimeError(
+            "Custom RBAC schema is incomplete; missing tables: "
+            + ", ".join(sorted(missing_tables))
+        )
+
+    assignments = connection.execute(
+        """
+        SELECT
+            ur.role_id,
+            r.id AS resolved_role_id
+        FROM user_roles AS ur
+        LEFT JOIN roles AS r
+          ON r.id = ur.role_id
+        WHERE ur.user_id = ?
+        """,
+        (user_id,),
+    ).fetchall()
+
+    if len(assignments) != 1:
+        raise RuntimeError(
+            f"User id {user_id} must have exactly one custom RBAC role assignment"
+        )
+
+    if assignments[0]["resolved_role_id"] is None:
+        raise RuntimeError(
+            f"User id {user_id} references a missing custom RBAC role"
+        )
+
+    role_id = assignments[0]["role_id"]
+
+    role_permissions = {
+        row["permission"]
+        for row in connection.execute(
+            """
+            SELECT permission
+            FROM role_permissions
+            WHERE role_id = ?
+            """,
+            (role_id,),
+        ).fetchall()
+    }
+
+    override_rows = connection.execute(
+        """
+        SELECT permission, effect
+        FROM user_permission_overrides
+        WHERE user_id = ?
+        """,
+        (user_id,),
+    ).fetchall()
+
+    grants = set()
+    denies = set()
+
+    for row in override_rows:
+        permission = row["permission"]
+        effect = row["effect"]
+
+        if effect == "grant":
+            grants.add(permission)
+        elif effect == "deny":
+            denies.add(permission)
+        else:
+            raise RuntimeError(
+                f"User id {user_id} has an invalid permission override effect"
+            )
+
+    unknown_permissions = (
+        role_permissions | grants | denies
+    ) - set(PERMISSIONS)
+
+    if unknown_permissions:
+        raise RuntimeError(
+            "Custom RBAC data contains unknown permissions: "
+            + ", ".join(sorted(unknown_permissions))
+        )
+
+    return _calculate_effective_permissions(
+        role_permissions,
+        grants,
+        denies,
+    )
+
+
 def is_authenticated():
     return current_user_id() is not None
 
@@ -442,25 +841,25 @@ def login_required(view):
         user_id = current_user_id()
 
         if user_id is None:
-
             if _is_api_request():
                 return jsonify({
                     "error": "authentication_required"
                 }), 401
 
-            return redirect(
-                url_for("login")
-            )
+            return redirect(url_for("login"))
 
         from flask import current_app
 
-        connection = current_app.config[
-            "LUMS_GET_CONNECTION"
-        ]()
-
+        connection = None
+        user = None
         permissions = None
+        invalid_legacy_role = False
 
         try:
+            connection = current_app.config[
+                "LUMS_GET_CONNECTION"
+            ]()
+
             user = connection.execute(
                 """
                 SELECT id, username, enabled, role
@@ -470,44 +869,40 @@ def login_required(view):
                 (user_id,),
             ).fetchone()
 
-            permissions_table = connection.execute(
-                """
-                SELECT 1
-                FROM sqlite_master
-                WHERE type = 'table' AND name = 'user_permissions'
-                """
-            ).fetchone()
-
-            if user is not None and permissions_table is not None:
-                permissions = frozenset(
-                    row["permission"]
-                    for row in connection.execute(
-                        """
-                        SELECT permission
-                        FROM user_permissions
-                        WHERE user_id = ?
-                        """,
-                        (user_id,),
-                    ).fetchall()
+            if user is not None and user["enabled"]:
+                permissions = resolve_user_permissions(
+                    connection,
+                    user_id,
+                    user["role"],
                 )
-        finally:
-            connection.close()
 
-        if user is None or not user["enabled"]:
+        except _InvalidLegacyRoleError:
+            invalid_legacy_role = True
 
-            logout_user()
+        except Exception:
+            current_app.logger.exception(
+                "Failed to resolve authorization state for user id %r",
+                user_id,
+            )
+
+            request.environ.pop("lums.user", None)
+            request.environ.pop("lums.permissions", None)
 
             if _is_api_request():
                 return jsonify({
-                    "error": "authentication_required"
-                }), 401
+                    "error": "authorization_state_unavailable"
+                }), 503
 
-            return redirect(
-                url_for("login")
+            abort(
+                503,
+                description="Authorization state is temporarily unavailable.",
             )
 
-        if user["role"] not in VALID_ROLES:
+        finally:
+            if connection is not None:
+                connection.close()
 
+        if invalid_legacy_role:
             logout_user()
 
             if _is_api_request():
@@ -519,31 +914,18 @@ def login_required(view):
                 "error": "invalid_user_role"
             }), 403
 
+        if user is None or not user["enabled"]:
+            logout_user()
+
+            if _is_api_request():
+                return jsonify({
+                    "error": "authentication_required"
+                }), 401
+
+            return redirect(url_for("login"))
+
         request.environ["lums.user"] = user
-
-        effective_permissions = set(
-            permissions
-            if permissions is not None
-            else ROLE_DEFAULT_PERMISSIONS[user["role"]]
-        )
-
-        # Defensively remove permissions whose dependencies are missing.
-        # Repeat until stable to handle dependencies across multiple levels.
-        while True:
-            invalid_permissions = {
-                permission
-                for permission in effective_permissions
-                if not PERMISSION_DEPENDENCIES.get(
-                    permission, set()
-                ).issubset(effective_permissions)
-            }
-            if not invalid_permissions:
-                break
-            effective_permissions.difference_update(invalid_permissions)
-
-        request.environ["lums.permissions"] = frozenset(
-            effective_permissions
-        )
+        request.environ["lums.permissions"] = permissions
 
         return view(*args, **kwargs)
 

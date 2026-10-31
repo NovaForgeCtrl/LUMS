@@ -1,5 +1,6 @@
 """Deterministic incident creation from LUMS SOC pipeline results."""
 
+from datetime import datetime
 from hashlib import sha256
 import json
 
@@ -75,7 +76,20 @@ class IncidentBuilder:
             )
 
         for match in result.correlations:
-            ordered_event_ids = tuple(sorted(set(match.event_ids)))
+            # Identity remains independent of input order.
+            ordered_event_ids = tuple(sorted(match.event_ids))
+
+            # Evidence follows event time, not lexical event-ID order.
+            chronological_events = sorted(
+                match.event_timestamps,
+                key=lambda item: (
+                    datetime.fromisoformat(
+                        item[1].replace("Z", "+00:00")
+                    ),
+                    item[0],
+                ),
+            )
+
             incident_id = _stable_id(
                 "inc",
                 "correlation",
@@ -99,7 +113,7 @@ class IncidentBuilder:
                     observed_at=match.last_seen,
                 )
             ]
-            for event_id in ordered_event_ids:
+            for event_id, event_timestamp in chronological_events:
                 evidence.append(
                     IncidentEvidence(
                         evidence_id=_stable_id("ev", "event", event_id),
@@ -109,7 +123,7 @@ class IncidentBuilder:
                             f"Event {event_id} contributed to correlation "
                             f"rule {match.rule_id}"
                         ),
-                        observed_at=match.last_seen,
+                        observed_at=event_timestamp,
                     )
                 )
 
