@@ -110,3 +110,15 @@ def test_comparison_type_mismatch_is_reported():
     event = make_event(fields={"failure_count": "seven"})
     with pytest.raises(DetectionError, match="cannot compare"):
         DetectionEngine().evaluate(event, [make_rule()])
+
+
+@pytest.mark.parametrize("operator", [[], {}])
+def test_detection_rule_rejects_unhashable_operators(operator):
+    with pytest.raises(ValueError, match="Unsupported operator"):
+        make_rule(operator=operator)
+
+
+@pytest.mark.parametrize("severity", [[], {}])
+def test_detection_rule_rejects_unhashable_severities(severity):
+    with pytest.raises(ValueError, match="Unsupported severity"):
+        make_rule(severity=severity)

@@ -65,9 +65,15 @@ class DetectionRule:
         _identifier(self.event_type, "event_type")
         if not isinstance(self.field, str) or not self.field.strip():
             raise ValueError("Rule field is required")
-        if self.operator not in {"eq", "ne", "gt", "gte", "lt", "lte", "contains", "in"}:
+        if (
+            not isinstance(self.operator, str)
+            or self.operator not in {"eq", "ne", "gt", "gte", "lt", "lte", "contains", "in"}
+        ):
             raise ValueError("Unsupported operator")
-        if self.severity not in {"info", "warning", "critical"}:
+        if (
+            not isinstance(self.severity, str)
+            or self.severity not in {"info", "warning", "critical"}
+        ):
             raise ValueError("Unsupported severity")
         if not isinstance(self.enabled, bool):
             raise ValueError("Rule enabled must be boolean")

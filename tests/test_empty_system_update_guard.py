@@ -12,6 +12,11 @@ def guard_test_context(monkeypatch, tmp_path):
     connection.row_factory = sqlite3.Row
 
     connection.executescript("""
+        CREATE TABLE schema_migrations (
+            version TEXT PRIMARY KEY,
+            applied_at TEXT NOT NULL
+        );
+
         CREATE TABLE users (
             id INTEGER PRIMARY KEY,
             username TEXT NOT NULL,

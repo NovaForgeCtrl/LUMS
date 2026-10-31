@@ -113,6 +113,15 @@ def create_rbac_database(db_path):
         ],
     )
 
+    connection.execute(
+        """
+        CREATE TABLE schema_migrations (
+            version TEXT PRIMARY KEY,
+            applied_at TEXT NOT NULL
+        )
+        """
+    )
+
     from server.security_migration import migrate_user_profiles
     migrate_user_profiles(connection)
 
@@ -399,6 +408,16 @@ def test_login_required_rejects_invalid_user_role(
 
     connection.execute(
         """
+        CREATE TABLE schema_migrations (
+            version TEXT PRIMARY KEY,
+            applied_at TEXT NOT NULL
+        )
+        """
+    )
+
+
+    connection.execute(
+        """
         CREATE TABLE users (
             id INTEGER PRIMARY KEY,
             username TEXT NOT NULL,
@@ -547,6 +566,16 @@ def test_real_route_create_client_requires_administrator(
 def create_package_job_database(db_path):
     connection = sqlite3.connect(db_path)
     connection.row_factory = sqlite3.Row
+
+    connection.execute(
+        """
+        CREATE TABLE schema_migrations (
+            version TEXT PRIMARY KEY,
+            applied_at TEXT NOT NULL
+        )
+        """
+    )
+
 
     connection.execute(
         """
@@ -1008,6 +1037,16 @@ def test_real_route_delete_client_requires_administrator(
 def create_user_test_database(db_path):
     connection = sqlite3.connect(db_path)
     connection.row_factory = sqlite3.Row
+
+    connection.execute(
+        """
+        CREATE TABLE schema_migrations (
+            version TEXT PRIMARY KEY,
+            applied_at TEXT NOT NULL
+        )
+        """
+    )
+
 
     connection.execute(
         """
@@ -1776,6 +1815,106 @@ def test_administrator_can_create_and_list_database_backups(
         ("database.backup.delete",),
     ]
 
+
+
+def test_database_backup_remains_created_when_audit_fails(
+    monkeypatch,
+    tmp_path,
+):
+    from server import app as app_module
+
+    db_path = str(tmp_path / "backup-audit-create.db")
+    backup_directory = tmp_path / "backup-audit-create"
+    backup_directory.mkdir()
+    create_rbac_database(db_path)
+
+    app = configure_real_app_session_user(
+        monkeypatch,
+        app_module,
+        db_path,
+        1,
+        "administrator",
+    )
+    app.config["LUMS_BACKUP_DIR"] = backup_directory
+    monkeypatch.setattr(app_module, "DB_PATH", db_path)
+
+    def fail_audit(*args, **kwargs):
+        raise sqlite3.OperationalError("simulated audit failure")
+
+    monkeypatch.setattr(app_module, "audit_log", fail_audit)
+
+    with app.test_client() as client:
+        login_as(client, 1, "administrator")
+        with client.session_transaction() as session:
+            session["csrf_token"] = "pytest-csrf-token"
+
+        response = client.post(
+            "/api/backups",
+            headers={"X-CSRF-Token": "pytest-csrf-token"},
+            json={"format": "db", "path": "manual"},
+        )
+
+    assert response.status_code == 500
+    payload = response.get_json()
+    assert payload["error"] == "backup_audit_failed"
+
+    backup = payload["backup"]
+    backup_path = (
+        backup_directory / "manual" / backup["filename"]
+    )
+    assert backup_path.is_file()
+    assert backup_path.stat().st_size == backup["size_bytes"]
+
+
+def test_database_backup_is_deleted_when_delete_audit_fails(
+    monkeypatch,
+    tmp_path,
+):
+    from server import app as app_module
+
+    db_path = str(tmp_path / "backup-audit-delete.db")
+    backup_directory = tmp_path / "backup-audit-delete"
+    backup_directory.mkdir()
+    create_rbac_database(db_path)
+
+    app = configure_real_app_session_user(
+        monkeypatch,
+        app_module,
+        db_path,
+        1,
+        "administrator",
+    )
+    app.config["LUMS_BACKUP_DIR"] = backup_directory
+    monkeypatch.setattr(app_module, "DB_PATH", db_path)
+
+    backup = app_module.create_database_backup(
+        db_path,
+        backup_directory,
+        "db",
+    )
+    backup_path = backup_directory / backup["filename"]
+    assert backup_path.is_file()
+
+    def fail_audit(*args, **kwargs):
+        raise sqlite3.OperationalError("simulated audit failure")
+
+    monkeypatch.setattr(app_module, "audit_log", fail_audit)
+
+    with app.test_client() as client:
+        login_as(client, 1, "administrator")
+        with client.session_transaction() as session:
+            session["csrf_token"] = "pytest-csrf-token"
+
+        response = client.delete(
+            f"/api/backups/{backup['filename']}",
+            headers={"X-CSRF-Token": "pytest-csrf-token"},
+        )
+
+    assert response.status_code == 500
+    assert response.get_json() == {
+        "error": "backup_audit_failed",
+    }
+    assert not backup_path.exists()
 
 def test_database_backup_requires_explicit_permission_and_supports_delegation(
     monkeypatch,
@@ -2974,3 +3113,344 @@ def test_user_profile_function_id_rejects_string(monkeypatch, tmp_path):
 
     assert response.status_code == 400
     assert response.get_json() == {"error": "invalid_user_function"}
+
+
+# ============================================================
+# CUSTOM RBAC ROUTE TEST FIXTURES
+# ============================================================
+
+def create_custom_rbac_user_test_database(
+    db_path,
+    *,
+    extra_users=(),
+):
+    """Create a route-test database migrated through custom RBAC 018."""
+    from server import security_migration as migration
+
+    create_user_test_database(db_path)
+
+    connection = sqlite3.connect(db_path)
+    connection.row_factory = sqlite3.Row
+    connection.execute("PRAGMA foreign_keys = ON")
+
+    try:
+        for username, role in extra_users:
+            connection.execute(
+                """
+                INSERT INTO users (
+                    username,
+                    password_hash,
+                    created_at,
+                    enabled,
+                    role
+                )
+                VALUES (?, ?, ?, 1, ?)
+                """,
+                (
+                    username,
+                    "pytest-password-hash",
+                    "2026-01-02T00:00:00+00:00",
+                    role,
+                ),
+            )
+
+        # Migration 003: populate legacy permissions for every test user.
+        migration.migrate_user_permissions(connection)
+        migration.record_migration(
+            connection,
+            migration.PERMISSIONS_MIGRATION_VERSION,
+        )
+
+        # The administrator must be allowed to delegate permissions.
+        # Its standard role deliberately excludes permissions.manage.
+        connection.execute(
+            """
+            INSERT OR IGNORE INTO user_permissions (user_id, permission)
+            VALUES (1, 'permissions.manage')
+            """
+        )
+
+        # Execute migration 017 rather than merely inserting its marker.
+        migration.migrate_alerting_permissions(connection)
+        migration.record_migration(
+            connection,
+            migration.ALERTING_PERMISSIONS_MIGRATION_VERSION,
+        )
+
+        # Complete migration 008 before switching to custom RBAC.
+        if not migration.migrate_permission_delegation(connection):
+            raise RuntimeError(
+                "Test fixture has no eligible permission manager for migration 008"
+            )
+        migration.record_migration(
+            connection,
+            migration.PERMISSION_DELEGATION_MIGRATION_VERSION,
+        )
+
+        connection.commit()
+
+        # Mirror the production transaction boundary for migration 018.
+        connection.execute("BEGIN IMMEDIATE")
+        migration.migrate_custom_rbac(connection)
+        migration.record_migration(
+            connection,
+            migration.CUSTOM_RBAC_MIGRATION_VERSION,
+        )
+        connection.commit()
+
+    except Exception:
+        connection.rollback()
+        raise
+
+    finally:
+        connection.close()
+
+
+def configure_custom_rbac_app_session_user(
+    monkeypatch,
+    app_module,
+    db_path,
+    user_id,
+    username,
+):
+    """Configure app routes with foreign keys enabled on every DB connection."""
+    def get_test_connection():
+        connection = sqlite3.connect(db_path)
+        connection.row_factory = sqlite3.Row
+        connection.execute("PRAGMA foreign_keys = ON")
+        return connection
+
+    monkeypatch.setitem(
+        app_module.app.config,
+        "LUMS_GET_CONNECTION",
+        get_test_connection,
+    )
+    monkeypatch.setattr(
+        app_module,
+        "get_connection",
+        get_test_connection,
+    )
+
+    app_module.app.config.update(
+        TESTING=True,
+        WTF_CSRF_ENABLED=False,
+    )
+
+    def fake_login_user(user_id, username):
+        from flask import session
+
+        session["user_id"] = user_id
+        session["username"] = username
+        session.permanent = True
+
+    monkeypatch.setattr(
+        app_module,
+        "login_user",
+        fake_login_user,
+    )
+
+    return app_module.app
+
+
+def test_custom_rbac_create_user_persists_role_and_overrides(
+    monkeypatch,
+    tmp_path,
+):
+    from server import app as app_module
+    from server.security import resolve_user_permissions
+
+    db_path = str(
+        tmp_path / "custom-rbac-create-user.db"
+    )
+    create_custom_rbac_user_test_database(db_path)
+
+    app = configure_custom_rbac_app_session_user(
+        monkeypatch,
+        app_module,
+        db_path,
+        1,
+        "administrator",
+    )
+
+    permissions = [
+        "alerts.view",
+        "clients.view",
+        "software.view",
+    ]
+
+    with app.test_client() as client:
+        login_as(client, 1, "administrator")
+
+        with client.session_transaction() as session:
+            session["csrf_token"] = "pytest-csrf-token"
+
+        response = client.post(
+            "/api/users",
+            headers={"X-CSRF-Token": "pytest-csrf-token"},
+            json={
+                "username": "custom-operator",
+                "password": "pytest-password-123",
+                "role": ROLE_OPERATOR,
+                "permissions": permissions,
+            },
+        )
+
+    assert response.status_code == 201
+    assert response.get_json()["user"]["permissions"] == permissions
+
+    connection = sqlite3.connect(db_path)
+    connection.row_factory = sqlite3.Row
+
+    assignment = connection.execute(
+        """
+        SELECT roles.role_key
+        FROM user_roles
+        JOIN roles ON roles.id = user_roles.role_id
+        WHERE user_roles.user_id = 2
+        """
+    ).fetchall()
+
+    assert len(assignment) == 1
+    assert assignment[0]["role_key"] == "system-operator"
+
+    overrides = {
+        (row["permission"], row["effect"])
+        for row in connection.execute(
+            """
+            SELECT permission, effect
+            FROM user_permission_overrides
+            WHERE user_id = 2
+            """
+        ).fetchall()
+    }
+
+    assert overrides == {
+        ("alerts.view", "grant"),
+        ("jobs.manage", "deny"),
+        ("packages.search", "deny"),
+        ("updates.view", "deny"),
+    }
+
+    # The new route must not write the legacy permission table.
+    legacy_rows = connection.execute(
+        """
+        SELECT COUNT(*)
+        FROM user_permissions
+        WHERE user_id = 2
+        """
+    ).fetchone()[0]
+    assert legacy_rows == 0
+
+    effective_permissions = resolve_user_permissions(
+        connection,
+        2,
+        ROLE_OPERATOR,
+    )
+    assert effective_permissions == set(permissions)
+
+    connection.close()
+
+
+def test_custom_rbac_update_user_persists_role_and_overrides(
+    monkeypatch,
+    tmp_path,
+):
+    from server import app as app_module
+    from server.security import resolve_user_permissions
+
+    db_path = str(
+        tmp_path / "custom-rbac-update-user.db"
+    )
+    create_custom_rbac_user_test_database(
+        db_path,
+        extra_users=(("custom-viewer", ROLE_VIEWER),),
+    )
+
+    connection = sqlite3.connect(db_path)
+    connection.row_factory = sqlite3.Row
+
+    old_assignment = connection.execute(
+        """
+        SELECT roles.role_key
+        FROM user_roles
+        JOIN roles ON roles.id = user_roles.role_id
+        WHERE user_roles.user_id = 2
+        """
+    ).fetchone()
+
+    assert old_assignment is not None
+    assert old_assignment["role_key"].startswith("legacy-")
+    connection.close()
+
+    app = configure_custom_rbac_app_session_user(
+        monkeypatch,
+        app_module,
+        db_path,
+        1,
+        "administrator",
+    )
+
+    permissions = [
+        "clients.view",
+        "jobs.manage",
+        "updates.view",
+    ]
+
+    with app.test_client() as client:
+        login_as(client, 1, "administrator")
+
+        with client.session_transaction() as session:
+            session["csrf_token"] = "pytest-csrf-token"
+
+        response = client.put(
+            "/api/users/2/permissions",
+            headers={"X-CSRF-Token": "pytest-csrf-token"},
+            json={
+                "role": ROLE_VIEWER,
+                "permissions": permissions,
+            },
+        )
+
+    assert response.status_code == 200
+    assert response.get_json()["user"]["permissions"] == permissions
+
+    connection = sqlite3.connect(db_path)
+    connection.row_factory = sqlite3.Row
+
+    assignment = connection.execute(
+        """
+        SELECT roles.role_key
+        FROM user_roles
+        JOIN roles ON roles.id = user_roles.role_id
+        WHERE user_roles.user_id = 2
+        """
+    ).fetchall()
+
+    assert len(assignment) == 1
+    assert assignment[0]["role_key"] == "system-viewer"
+
+    overrides = {
+        (row["permission"], row["effect"])
+        for row in connection.execute(
+            """
+            SELECT permission, effect
+            FROM user_permission_overrides
+            WHERE user_id = 2
+            """
+        ).fetchall()
+    }
+
+    assert overrides == {
+        ("jobs.manage", "grant"),
+        ("software.view", "deny"),
+        ("updates.view", "grant"),
+    }
+
+    effective_permissions = resolve_user_permissions(
+        connection,
+        2,
+        ROLE_VIEWER,
+    )
+    assert effective_permissions == set(permissions)
+
+    connection.close()

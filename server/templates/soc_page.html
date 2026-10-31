@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="{{ language }}" data-locale="{{ language_locale }}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="csrf-token" content="{{ csrf_token }}">
+    <title>LUMS — {{ tr(page.title) }}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    {% if page_key == "dashboard" %}
+    <link rel="stylesheet" href="{{ url_for('static', filename='soc_dashboard.css') }}">
+    {% endif %}
+</head>
+<body class="lums-sidebar-layout">
+    {% include "_sidebar.html" %}
+
+    <header class="lums-pagebar">
+        <button type="button" class="lums-sidebar-toggle"
+                id="lums-sidebar-toggle"
+                aria-label="{{ tr('Toggle navigation') }}"
+                aria-controls="lums-sidebar"
+                aria-expanded="true">
+            <span aria-hidden="true">&#9776;</span>
+        </button>
+        <div class="lums-pagebar-brand">
+            <strong>LUMS</strong>
+            <span>SOC / {{ tr(page.title) }}</span>
+        </div>
+        <div class="lums-pagebar-status">
+            <span class="status-dot" aria-hidden="true"></span>
+            {{ tr("Development workspace") }}
+        </div>
+    </header>
+
+    <main class="container soc-page">
+        <header class="soc-page-heading">
+            <div>
+                <p class="soc-eyebrow">LUMS / SECURITY OPERATIONS</p>
+                <h1>{{ tr(page.title) }}</h1>
+                <p>{{ tr(page.description) }}</p>
+            </div>
+            <span class="soc-development-status">
+                {{ tr("In development") }}
+            </span>
+        </header>
+
+        {% if page_key == "dashboard" %}
+        <section class="soc-page-notice" id="soc-dashboard-notice" aria-live="polite">
+            <strong>Dashboard-Daten</strong>
+            <p id="soc-dashboard-message">SOC-Daten werden geladen …</p>
+        </section>
+
+        <section class="soc-dashboard-grid" id="soc-dashboard"
+                 data-api-url="{{ url_for('soc.dashboard_api') }}">
+            <article class="panel soc-dashboard-card">
+                <div class="soc-page-card-heading">
+                    <h2>Event-Pipeline</h2>
+                    <span id="soc-events-source">Wird geladen</span>
+                </div>
+                <div class="soc-metric-grid">
+                    <div><strong id="soc-events-pending">—</strong><span>Ausstehend</span></div>
+                    <div><strong id="soc-events-processing">—</strong><span>In Verarbeitung</span></div>
+                    <div><strong id="soc-events-processed">—</strong><span>Verarbeitet</span></div>
+                    <div><strong id="soc-events-failed">—</strong><span>Fehlgeschlagen</span></div>
+                </div>
+            </article>
+
+            <article class="panel soc-dashboard-card">
+                <div class="soc-page-card-heading">
+                    <h2>Sensoren</h2>
+                    <span id="soc-sensors-source">Wird geladen</span>
+                </div>
+                <div class="soc-metric-grid soc-metric-grid-two">
+                    <div><strong id="soc-sensors-active">—</strong><span>Aktiv</span></div>
+                    <div><strong id="soc-sensors-revoked">—</strong><span>Widerrufen</span></div>
+                </div>
+            </article>
+
+            <article class="panel soc-dashboard-card">
+                <div class="soc-page-card-heading">
+                    <h2>Incidents nach Status</h2>
+                    <span id="soc-incidents-source">Wird geladen</span>
+                </div>
+                <div class="soc-metric-grid">
+                    <div><strong id="soc-incidents-open">—</strong><span>Offen</span></div>
+                    <div><strong id="soc-incidents-investigating">—</strong><span>In Untersuchung</span></div>
+                    <div><strong id="soc-incidents-resolved">—</strong><span>Gelöst</span></div>
+                </div>
+            </article>
+
+            <article class="panel soc-dashboard-card">
+                <div class="soc-page-card-heading">
+                    <h2>Incidents nach Schweregrad</h2>
+                </div>
+                <div class="soc-metric-grid">
+                    <div><strong id="soc-severity-info">—</strong><span>Info</span></div>
+                    <div><strong id="soc-severity-warning">—</strong><span>Warnung</span></div>
+                    <div><strong id="soc-severity-critical">—</strong><span>Kritisch</span></div>
+                </div>
+            </article>
+
+            <article class="panel soc-dashboard-card soc-dashboard-wide">
+                <div class="soc-page-card-heading">
+                    <h2>Zuletzt aktualisierte Incidents</h2>
+                    <span id="soc-incidents-updated">—</span>
+                </div>
+                <div class="soc-table-wrap">
+                    <table class="soc-dashboard-table">
+                        <thead>
+                            <tr>
+                                <th scope="col">Titel</th>
+                                <th scope="col">Schweregrad</th>
+                                <th scope="col">Status</th>
+                                <th scope="col">Aktualisiert</th>
+                            </tr>
+                        </thead>
+                        <tbody id="soc-recent-incidents">
+                            <tr><td colspan="4">Daten werden geladen …</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </article>
+        </section>
+        {% else %}
+        <section class="soc-page-notice" aria-live="polite">
+            <strong>{{ tr("Development workspace") }}</strong>
+            <p>{{ tr("This page is part of the SOC interface foundation. Its live data sources and operational functions are not connected yet.") }}</p>
+        </section>
+
+        <section class="soc-page-grid" aria-label="{{ tr(page.title) }}">
+            {% for heading, description in page.sections %}
+            <article class="panel soc-page-card">
+                <div class="soc-page-card-heading">
+                    <h2>{{ tr(heading) }}</h2>
+                    <span>{{ tr("Planned") }}</span>
+                </div>
+                <p>{{ tr(description) }}</p>
+            </article>
+            {% endfor %}
+        </section>
+        {% endif %}
+    </main>
+
+    <script src="{{ url_for('static', filename='sidebar.js') }}" defer></script>
+    {% if page_key == "dashboard" %}
+    <script src="{{ url_for('static', filename='soc_dashboard.js') }}" defer></script>
+    {% endif %}
+</body>
+</html>

@@ -33,14 +33,17 @@ def make_incident(
     *,
     evidence=None,
     severity="warning",
+    title="Repeated authentication failures",
+    summary="Several authentication failures were detected.",
+    created_at=CREATED,
 ):
     return Incident.create(
         incident_id=incident_id,
-        title="Repeated authentication failures",
-        summary="Several authentication failures were detected.",
+        title=title,
+        summary=summary,
         severity=severity,
         evidence=tuple(evidence if evidence is not None else [make_evidence()]),
-        created_at=CREATED,
+        created_at=created_at,
     )
 
 
@@ -264,3 +267,416 @@ def test_invalid_incident_type_is_rejected(store_env):
     _, _, store = store_env
     with pytest.raises(TypeError, match="Incident"):
         store.save({"incident_id": "not-an-incident"})
+
+
+@pytest.mark.parametrize("operation", ["save", "save_many", "transition"])
+def test_transaction_methods_preserve_caller_transaction(
+    store_env, operation
+):
+    from server.soc.incident_store import IncidentStoreError
+
+    _, connection, store = store_env
+    connection.execute("""
+        CREATE TABLE transaction_guard_markers (
+            name TEXT PRIMARY KEY
+        )
+    """)
+    connection.commit()
+
+    connection.execute("BEGIN IMMEDIATE")
+    connection.execute(
+        "INSERT INTO transaction_guard_markers(name) VALUES (?)",
+        (operation,),
+    )
+
+    calls = {
+        "save": lambda: store.save(make_incident("caller-save")),
+        "save_many": lambda: store.save_many((
+            make_incident("caller-save-many"),
+        )),
+        "transition": lambda: store.transition(
+            "inc-1", "investigating", changed_by="operator-1"
+        ),
+    }
+
+    with pytest.raises(IncidentStoreError, match="existing transaction"):
+        calls[operation]()
+
+    assert connection.in_transaction is True
+
+    connection.commit()
+
+    marker = connection.execute(
+        "SELECT name FROM transaction_guard_markers WHERE name = ?",
+        (operation,),
+    ).fetchone()
+    assert marker == (operation,)
+
+
+def test_save_many_in_transaction_keeps_caller_transaction_open(store_env):
+    _, connection, store = store_env
+    expected = make_incident("caller-owned-save")
+
+    connection.execute("BEGIN IMMEDIATE")
+    stored = store.save_many_in_transaction((expected,))
+
+    assert stored == (expected,)
+    assert connection.in_transaction is True
+
+    connection.commit()
+
+    assert store.get("caller-owned-save") == expected
+
+
+def test_append_evidence_in_transaction_preserves_caller_transaction(store_env):
+    _, connection, store = store_env
+    store.save(make_incident())
+
+    new_evidence = make_evidence(
+        "ev-2", kind="correlation", reference_id="series-1"
+    )
+
+    connection.execute("BEGIN IMMEDIATE")
+    stored = store.append_evidence_in_transaction(
+        "inc-1", [new_evidence], updated_at=UPDATED
+    )
+
+    assert connection.in_transaction is True
+    assert [item.evidence_id for item in stored.evidence] == ["ev-1", "ev-2"]
+    assert stored.updated_at == UPDATED
+
+    connection.commit()
+
+    assert store.get("inc-1") == stored
+
+
+def test_append_evidence_is_idempotent_and_does_not_update_timestamp(store_env):
+    _, connection, store = store_env
+    store.save(make_incident())
+
+    connection.execute("BEGIN IMMEDIATE")
+    first = store.append_evidence_in_transaction(
+        "inc-1",
+        [make_evidence("ev-2")],
+        updated_at=UPDATED,
+    )
+    connection.commit()
+
+    duplicate_timestamp = "2026-10-28T11:00:00+00:00"
+    connection.execute("BEGIN IMMEDIATE")
+    second = store.append_evidence_in_transaction(
+        "inc-1",
+        [make_evidence("ev-2")],
+        updated_at=duplicate_timestamp,
+    )
+    connection.commit()
+
+    assert second.updated_at == first.updated_at == UPDATED
+    assert len(second.evidence) == 2
+    assert connection.execute(
+        "SELECT COUNT(*) FROM soc_incident_evidence WHERE incident_id = 'inc-1'"
+    ).fetchone()[0] == 2
+
+
+def test_append_evidence_does_not_change_status_or_status_history(store_env):
+    _, connection, store = store_env
+    store.save(make_incident())
+    store.transition(
+        "inc-1",
+        "investigating",
+        changed_by="operator-1",
+        updated_at=UPDATED,
+    )
+    history_before = store.history("inc-1")
+
+    connection.execute("BEGIN IMMEDIATE")
+    stored = store.append_evidence_in_transaction(
+        "inc-1",
+        [make_evidence("ev-2")],
+        updated_at="2026-10-28T10:10:00+00:00",
+    )
+    connection.commit()
+
+    assert stored.status == "investigating"
+    assert store.history("inc-1") == history_before
+
+
+def test_append_evidence_requires_caller_transaction(store_env):
+    _, connection, store = store_env
+    store.save(make_incident())
+
+    from server.soc.incident_store import IncidentStoreError
+
+    with pytest.raises(IncidentStoreError, match="active transaction"):
+        store.append_evidence_in_transaction(
+            "inc-1", [make_evidence("ev-2")]
+        )
+
+    assert connection.in_transaction is False
+    assert len(store.get("inc-1").evidence) == 1
+
+
+def test_append_evidence_rejects_unknown_incident_inside_transaction(store_env):
+    _, connection, store = store_env
+
+    connection.execute("BEGIN IMMEDIATE")
+    with pytest.raises(IncidentNotFoundError):
+        store.append_evidence_in_transaction(
+            "missing", [make_evidence("ev-2")]
+        )
+
+    assert connection.in_transaction is True
+    connection.rollback()
+
+
+def test_append_evidence_never_moves_updated_at_backwards(store_env):
+    _, connection, store = store_env
+    store.save(make_incident())
+    store.transition(
+        "inc-1",
+        "investigating",
+        changed_by="operator-1",
+        updated_at=UPDATED,
+    )
+
+    # 12:00 +03:00 entspricht 09:00 UTC und liegt vor 10:05 UTC.
+    late_timestamp = "2026-10-28T12:00:00+03:00"
+
+    connection.execute("BEGIN IMMEDIATE")
+    stored = store.append_evidence_in_transaction(
+        "inc-1",
+        [make_evidence("ev-late")],
+        updated_at=late_timestamp,
+    )
+    connection.commit()
+
+    assert stored.updated_at == UPDATED
+    assert [item.evidence_id for item in stored.evidence] == [
+        "ev-1", "ev-late"
+    ]
+    assert stored.status == "investigating"
+
+
+def test_append_evidence_rejects_naive_updated_at(store_env):
+    _, connection, store = store_env
+    store.save(make_incident())
+
+    connection.execute("BEGIN IMMEDIATE")
+    with pytest.raises(ValueError, match="timezone-aware"):
+        store.append_evidence_in_transaction(
+            "inc-1",
+            [make_evidence("ev-2")],
+            updated_at="2026-10-28T10:10:00",
+        )
+
+    assert connection.in_transaction is True
+    connection.rollback()
+    assert len(store.get("inc-1").evidence) == 1
+
+
+def test_incident_add_evidence_accepts_exact_replay():
+    incident = make_incident()
+    evidence = incident.evidence[0]
+
+    assert incident.add_evidence(evidence) is incident
+
+
+def test_incident_add_evidence_rejects_same_id_with_different_content():
+    incident = make_incident()
+    conflicting = make_evidence(reference_id="different-reference")
+
+    with pytest.raises(ValueError, match="different content"):
+        incident.add_evidence(conflicting)
+
+
+def test_save_rejects_evidence_id_conflict_without_changing_persisted_data(
+    store_env,
+):
+    _, connection, store = store_env
+    original = make_incident()
+    store.save(original)
+
+    conflicting = make_incident(
+        evidence=[make_evidence(reference_id="different-reference")]
+    )
+
+    from server.soc.incident_store import IncidentStoreError
+
+    with pytest.raises(IncidentStoreError, match="different content"):
+        store.save(conflicting)
+
+    assert store.get("inc-1") == original
+    assert connection.execute(
+        "SELECT COUNT(*) FROM soc_incident_evidence"
+    ).fetchone()[0] == 1
+    assert connection.in_transaction is False
+
+
+def test_save_many_rejects_evidence_id_conflict_and_preserves_caller_transaction(
+    store_env,
+):
+    _, connection, store = store_env
+    original = make_incident()
+    store.save(original)
+
+    conflicting = make_incident(
+        evidence=[make_evidence(reference_id="different-reference")]
+    )
+
+    from server.soc.incident_store import IncidentStoreError
+
+    connection.execute("BEGIN")
+    try:
+        with pytest.raises(IncidentStoreError, match="different content"):
+            store.save_many_in_transaction([conflicting])
+
+        assert connection.in_transaction is True
+    finally:
+        connection.rollback()
+
+    assert store.get("inc-1") == original
+
+
+def test_append_evidence_rejects_evidence_id_conflict_and_preserves_transaction(
+    store_env,
+):
+    _, connection, store = store_env
+    original = make_incident()
+    store.save(original)
+
+    conflicting = make_evidence(reference_id="different-reference")
+
+    from server.soc.incident_store import IncidentStoreError
+
+    connection.execute("BEGIN")
+    try:
+        with pytest.raises(IncidentStoreError, match="different content"):
+            store.append_evidence_in_transaction(
+                "inc-1",
+                [conflicting],
+                updated_at=UPDATED,
+            )
+        assert connection.in_transaction is True
+    finally:
+        connection.rollback()
+
+    assert store.get("inc-1") == original
+
+
+@pytest.mark.parametrize("invalid_timestamp", [123, True, object(), ""])
+def test_append_evidence_rejects_invalid_timestamp_type(
+    store_env,
+    invalid_timestamp,
+):
+    _, connection, store = store_env
+    store.save(make_incident())
+
+    connection.execute("BEGIN")
+    try:
+        with pytest.raises(ValueError, match="timezone-aware ISO timestamp"):
+            store.append_evidence_in_transaction(
+                "inc-1",
+                [make_evidence("ev-2")],
+                updated_at=invalid_timestamp,
+            )
+        assert connection.in_transaction is True
+    finally:
+        connection.rollback()
+
+    assert [item.evidence_id for item in store.get("inc-1").evidence] == [
+        "ev-1"
+    ]
+
+
+@pytest.mark.parametrize(
+    ("field", "conflicting_value"),
+    [
+        ("title", "Different incident title"),
+        ("summary", "Different incident summary"),
+        ("severity", "critical"),
+        ("created_at", "2026-10-28T10:01:00+00:00"),
+    ],
+)
+def test_save_rejects_incident_identity_conflict(
+    store_env,
+    field,
+    conflicting_value,
+):
+    from dataclasses import replace
+    from server.soc.incident_store import IncidentStoreError
+
+    _, connection, store = store_env
+    original = make_incident()
+    store.save(original)
+
+    conflicting = replace(original, **{field: conflicting_value})
+
+    with pytest.raises(IncidentStoreError, match="different content"):
+        store.save(conflicting)
+
+    assert store.get("inc-1") == original
+    assert connection.in_transaction is False
+
+
+@pytest.mark.parametrize(
+    ("field", "conflicting_value"),
+    [
+        ("title", "Different incident title"),
+        ("summary", "Different incident summary"),
+        ("severity", "critical"),
+        ("created_at", "2026-10-28T10:01:00+00:00"),
+    ],
+)
+def test_save_many_rejects_incident_identity_conflict(
+    store_env,
+    field,
+    conflicting_value,
+):
+    from dataclasses import replace
+    from server.soc.incident_store import IncidentStoreError
+
+    _, connection, store = store_env
+    original = make_incident()
+    store.save(original)
+
+    conflicting = replace(original, **{field: conflicting_value})
+
+    connection.execute("BEGIN")
+    try:
+        with pytest.raises(IncidentStoreError, match="different content"):
+            store.save_many_in_transaction([conflicting])
+
+        assert connection.in_transaction is True
+    finally:
+        connection.rollback()
+
+    assert store.get("inc-1") == original
+
+
+def test_incident_create_rejects_empty_created_at():
+    with pytest.raises(ValueError, match="created_at"):
+        Incident.create(
+            incident_id="inc-empty-created-at",
+            title="Timestamp validation",
+            summary="Empty timestamp must be rejected.",
+            severity="warning",
+            created_at="",
+        )
+
+
+def test_incident_transition_rejects_empty_updated_at():
+    incident = make_incident()
+
+    with pytest.raises(ValueError, match="updated_at"):
+        incident.transition("investigating", updated_at="")
+
+
+def test_incident_add_evidence_rejects_empty_updated_at():
+    incident = make_incident()
+    evidence = make_evidence(
+        "ev-empty-updated-at",
+        reference_id="evt-empty-updated-at",
+    )
+
+    with pytest.raises(ValueError, match="updated_at"):
+        incident.add_evidence(evidence, updated_at="")

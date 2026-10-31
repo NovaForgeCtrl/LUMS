@@ -155,28 +155,6 @@
     cursor: pointer;
 }
 
-.alerts-tabs {
-    display: flex;
-    gap: .25rem;
-    overflow-x: auto;
-    padding: 0 1rem;
-    border-bottom: 1px solid var(--border-color, #303846);
-}
-
-.alerts-tabs .tab-btn {
-    flex: 0 0 auto;
-    padding: .85rem 1rem;
-    border: 0;
-    border-bottom: 2px solid transparent;
-    background: transparent;
-    cursor: pointer;
-    opacity: .75;
-}
-
-.alerts-tabs .tab-btn.active {
-    border-bottom-color: #9989d6;
-    opacity: 1;
-}
 
 .alerts-feedback {
     min-height: 1.25rem;

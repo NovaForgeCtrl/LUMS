@@ -67,6 +67,8 @@ if __package__:
         current_username,
         current_user_role,
         current_user_permissions,
+        resolve_user_permissions,
+        store_user_permissions,
         get_csrf_token,
         audit_log,
         current_user_id,
@@ -114,6 +116,8 @@ else:
         current_username,
         current_user_role,
         current_user_permissions,
+        resolve_user_permissions,
+        store_user_permissions,
         get_csrf_token,
         audit_log,
         current_user_id,
@@ -264,6 +268,14 @@ else:
 
 app.register_blueprint(alerts_bp)
 
+# SOC pages use a dedicated blueprint and the existing clients.view permission.
+if __package__:
+    from .soc.routes import soc_bp
+else:
+    from soc.routes import soc_bp
+
+app.register_blueprint(soc_bp)
+
 
 @app.teardown_appcontext
 def close_alert_database_connection(exception=None):
@@ -273,16 +285,37 @@ def close_alert_database_connection(exception=None):
         g.lums_alert_connection = None
 
 
-def get_user_permissions(connection, user_id, role):
-    permissions_table = connection.execute(
+def _app_table_exists(connection, table_name):
+    return connection.execute(
         """
         SELECT 1
         FROM sqlite_master
-        WHERE type = 'table' AND name = 'user_permissions'
-        """
-    ).fetchone()
+        WHERE type = 'table' AND name = ?
+        """,
+        (table_name,),
+    ).fetchone() is not None
 
-    if permissions_table is None:
+
+def get_user_permissions(connection, user_id, role):
+    if _app_table_exists(connection, "schema_migrations"):
+        return sorted(
+            resolve_user_permissions(
+                connection,
+                user_id,
+                user_role=role,
+            )
+        )
+
+    permissions_table = _app_table_exists(
+        connection,
+        "user_permissions",
+    )
+
+    if not permissions_table:
+        if role not in ROLE_DEFAULT_PERMISSIONS:
+            raise RuntimeError(
+                f"Invalid legacy user role: {role!r}"
+            )
         return sorted(ROLE_DEFAULT_PERMISSIONS[role])
 
     return [
@@ -321,56 +354,51 @@ def validate_permission_selection(permissions):
 
 
 def count_active_user_managers(connection):
-    permissions_table = connection.execute(
+    users = connection.execute(
         """
-        SELECT 1
-        FROM sqlite_master
-        WHERE type = 'table' AND name = 'user_permissions'
-        """
-    ).fetchone()
-
-    if permissions_table is None:
-        return connection.execute(
-            "SELECT COUNT(*) FROM users WHERE enabled = 1 AND role = ?",
-            (ROLE_ADMINISTRATOR,),
-        ).fetchone()[0]
-
-    return connection.execute(
-        """
-        SELECT COUNT(DISTINCT users.id)
+        SELECT id, role
         FROM users
-        JOIN user_permissions
-            ON user_permissions.user_id = users.id
-        WHERE users.enabled = 1
-          AND user_permissions.permission = 'users.manage'
+        WHERE enabled = 1
         """
-    ).fetchone()[0]
+    ).fetchall()
+
+    return sum(
+        "users.manage" in get_user_permissions(
+            connection,
+            user["id"],
+            user["role"],
+        )
+        for user in users
+    )
 
 
 def count_active_permission_managers(connection):
-    return connection.execute("""
-        SELECT COUNT(DISTINCT users.id)
+    required = {
+        "permissions.manage",
+        "users.manage",
+        "clients.view",
+    }
+
+    users = connection.execute(
+        """
+        SELECT id, role
         FROM users
-        WHERE users.enabled = 1
-          AND EXISTS (
-              SELECT 1
-              FROM user_permissions
-              WHERE user_permissions.user_id = users.id
-                AND user_permissions.permission = 'permissions.manage'
-          )
-          AND EXISTS (
-              SELECT 1
-              FROM user_permissions
-              WHERE user_permissions.user_id = users.id
-                AND user_permissions.permission = 'users.manage'
-          )
-          AND EXISTS (
-              SELECT 1
-              FROM user_permissions
-              WHERE user_permissions.user_id = users.id
-                AND user_permissions.permission = 'clients.view'
-          )
-    """).fetchone()[0]
+        WHERE enabled = 1
+        """
+    ).fetchall()
+
+    return sum(
+        required.issubset(
+            set(
+                get_user_permissions(
+                    connection,
+                    user["id"],
+                    user["role"],
+                )
+            )
+        )
+        for user in users
+    )
 
 def permission_ui_context():
     language = normalize_language(
@@ -2650,7 +2678,6 @@ def update_user_profile(user_id):
 @role_required(ROLE_ADMINISTRATOR, permission="users.manage")
 @csrf_required
 def create_user():
-
     data = request.get_json(silent=True) or {}
 
     username = str(data.get("username", "")).strip()
@@ -2662,37 +2689,23 @@ def create_user():
     )
 
     if not username:
-        return jsonify({
-            "error": "username_required"
-        }), 400
+        return jsonify({"error": "username_required"}), 400
 
     if len(username) > 64:
-        return jsonify({
-            "error": "username_too_long"
-        }), 400
+        return jsonify({"error": "username_too_long"}), 400
 
     if not password:
-        return jsonify({
-            "error": "password_required"
-        }), 400
+        return jsonify({"error": "password_required"}), 400
 
     if len(password) < 12:
-        return jsonify({
-            "error": "password_too_short"
-        }), 400
+        return jsonify({"error": "password_too_short"}), 400
 
     if role not in VALID_ROLES:
-        return jsonify({
-            "error": "invalid_user_role"
-        }), 400
+        return jsonify({"error": "invalid_user_role"}), 400
 
     if not validate_permission_selection(permissions):
-        return jsonify({
-            "error": "invalid_user_permissions"
-        }), 400
+        return jsonify({"error": "invalid_user_permissions"}), 400
 
-    # Creating an account with no permissions is allowed for users.manage.
-    # Assigning any permissions requires the separate delegation permission.
     if permissions and "permissions.manage" not in current_user_permissions():
         return jsonify({
             "error": "permission_delegation_required"
@@ -2701,6 +2714,8 @@ def create_user():
     connection = get_connection()
 
     try:
+        connection.execute("BEGIN IMMEDIATE")
+
         existing = connection.execute(
             """
             SELECT id
@@ -2711,10 +2726,13 @@ def create_user():
         ).fetchone()
 
         if existing is not None:
+            connection.rollback()
             return jsonify({
                 "error": "user_already_exists"
             }), 409
 
+        timestamp = datetime.now(timezone.utc).isoformat()
+        actor_id = current_user_id()
         password_hash = hash_password(password)
 
         cursor = connection.execute(
@@ -2728,30 +2746,24 @@ def create_user():
             )
             VALUES (?, ?, ?, 1, ?)
             """,
-            (
-                username,
-                password_hash,
-                datetime.now(timezone.utc).isoformat(),
-                role,
-            ),
+            (username, password_hash, timestamp, role),
         )
 
         user_id = cursor.lastrowid
-        connection.executemany(
-            """
-            INSERT INTO user_permissions (user_id, permission)
-            VALUES (?, ?)
-            """,
-            [
-                (user_id, permission)
-                for permission in permissions
-            ],
+
+        store_user_permissions(
+            connection,
+            user_id,
+            role,
+            permissions,
+            actor_id=actor_id,
+            timestamp=timestamp,
         )
 
         audit_log(
             connection,
             actor_type="user",
-            actor_id=current_user_id(),
+            actor_id=actor_id,
             action="user.create",
             target=f"user:{user_id}",
             result="success",
@@ -2776,7 +2788,6 @@ def create_user():
 
     except sqlite3.IntegrityError:
         connection.rollback()
-
         return jsonify({
             "error": "user_already_exists"
         }), 409
@@ -2818,44 +2829,61 @@ def update_user_permissions(user_id):
 
     try:
         connection.execute("BEGIN IMMEDIATE")
+
         target = connection.execute(
-            "SELECT id, username, role, enabled FROM users WHERE id = ?",
+            """
+            SELECT id, username, role, enabled
+            FROM users
+            WHERE id = ?
+            """,
             (user_id,),
         ).fetchone()
 
         if target is None:
+            connection.rollback()
             return jsonify({"error": "user_not_found"}), 404
 
-        had_user_management = "users.manage" in get_user_permissions(
-            connection,
-            user_id,
-            target["role"],
-        )
-
-        if (
-            target["enabled"]
-            and had_user_management
-            and "users.manage" not in permissions
-            and count_active_user_managers(connection) <= 1
-        ):
-            return jsonify({
-                "error": "last_enabled_administrator"
-            }), 409
-
-        had_permission_management = (
-            "permissions.manage" in get_user_permissions(
+        old_permissions = set(
+            get_user_permissions(
                 connection,
                 user_id,
                 target["role"],
             )
         )
+        selected_permissions = set(permissions)
+
+        had_user_management = "users.manage" in old_permissions
+
+        if (
+            target["enabled"]
+            and had_user_management
+            and "users.manage" not in selected_permissions
+            and count_active_user_managers(connection) <= 1
+        ):
+            connection.rollback()
+            return jsonify({
+                "error": "last_enabled_administrator"
+            }), 409
+
+        permission_manager_set = {
+            "permissions.manage",
+            "users.manage",
+            "clients.view",
+        }
+        had_permission_management = permission_manager_set.issubset(
+            old_permissions
+        )
+        retains_permission_management = permission_manager_set.issubset(
+            selected_permissions
+        )
 
         if (
             target["enabled"]
             and had_permission_management
-            and "permissions.manage" not in permissions
+            and not retains_permission_management
             and count_active_permission_managers(connection) <= 1
         ):
+            connection.rollback()
             return jsonify({
                 "error": "last_enabled_permission_manager"
             }), 409
@@ -2864,25 +2892,23 @@ def update_user_permissions(user_id):
             "UPDATE users SET role = ? WHERE id = ?",
             (role, user_id),
         )
-        connection.execute(
-            "DELETE FROM user_permissions WHERE user_id = ?",
-            (user_id,),
-        )
-        connection.executemany(
-            """
-            INSERT INTO user_permissions (user_id, permission)
-            VALUES (?, ?)
-            """,
-            [
-                (user_id, permission)
-                for permission in permissions
-            ],
+
+        timestamp = datetime.now(timezone.utc).isoformat()
+        actor_id = current_user_id()
+
+        store_user_permissions(
+            connection,
+            user_id,
+            role,
+            permissions,
+            actor_id=actor_id,
+            timestamp=timestamp,
         )
 
         audit_log(
             connection,
             actor_type="user",
-            actor_id=current_user_id(),
+            actor_id=actor_id,
             action="user.permissions.update",
             target=f"user:{user_id}",
             result="success",
@@ -2891,6 +2917,7 @@ def update_user_permissions(user_id):
                 f"permissions={','.join(sorted(permissions))}"
             ),
         )
+
         connection.commit()
 
         return jsonify({
@@ -2902,9 +2929,11 @@ def update_user_permissions(user_id):
                 "permissions": sorted(permissions),
             },
         })
+
     except Exception:
         connection.rollback()
         raise
+
     finally:
         connection.close()
 
@@ -2991,12 +3020,15 @@ def delete_user(user_id):
         ).fetchone()
 
         if target is None:
+            connection.rollback()
             return jsonify({"error": "user_not_found"}), 404
 
-        target_permissions = get_user_permissions(
-            connection,
-            user_id,
-            target["role"],
+        target_permissions = set(
+            get_user_permissions(
+                connection,
+                user_id,
+                target["role"],
+            )
         )
 
         if (
@@ -3004,19 +3036,23 @@ def delete_user(user_id):
             and "users.manage" in target_permissions
             and count_active_user_managers(connection) <= 1
         ):
+            connection.rollback()
             return jsonify({
                 "error": "last_enabled_administrator"
             }), 409
 
+        permission_manager_set = {
+            "permissions.manage",
+            "users.manage",
+            "clients.view",
+        }
+
         if (
             target["enabled"]
-            and {
-                "permissions.manage",
-                "users.manage",
-                "clients.view",
-            }.issubset(target_permissions)
+            and permission_manager_set.issubset(target_permissions)
             and count_active_permission_managers(connection) <= 1
         ):
+            connection.rollback()
             return jsonify({
                 "error": "last_enabled_permission_manager"
             }), 409

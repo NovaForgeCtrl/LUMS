@@ -27,6 +27,11 @@ def telemetry_env(tmp_path, monkeypatch):
 
     connection.executescript(
         """
+        CREATE TABLE schema_migrations (
+            version TEXT PRIMARY KEY,
+            applied_at TEXT NOT NULL
+        );
+
         CREATE TABLE users (
             id INTEGER PRIMARY KEY,
             username TEXT NOT NULL,

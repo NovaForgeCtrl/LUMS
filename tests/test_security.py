@@ -385,6 +385,15 @@ def create_report_test_database(db_path):
 
     connection.execute(
         """
+        CREATE TABLE schema_migrations (
+            version TEXT PRIMARY KEY,
+            applied_at TEXT NOT NULL
+        )
+        """
+    )
+
+    connection.execute(
+        """
         CREATE TABLE clients (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             hostname TEXT UNIQUE,

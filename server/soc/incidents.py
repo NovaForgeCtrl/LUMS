@@ -24,8 +24,11 @@ def _validate_identifier(value: str, field_name: str) -> None:
 def _validate_timestamp(value: str, field_name: str) -> None:
     if not isinstance(value, str) or not value:
         raise ValueError(f"{field_name} must be a timezone-aware ISO timestamp")
+    normalized = (
+        value[:-1] + "+00:00" if value.endswith("Z") else value
+    )
     try:
-        parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+        parsed = datetime.fromisoformat(normalized)
     except ValueError as exc:
         raise ValueError(
             f"{field_name} must be a timezone-aware ISO timestamp"
@@ -112,7 +115,9 @@ class Incident:
         evidence: tuple[IncidentEvidence, ...] = (),
         created_at: str | None = None,
     ) -> "Incident":
-        timestamp = created_at or utc_now_iso()
+        timestamp = (
+            created_at if created_at is not None else utc_now_iso()
+        )
         return cls(
             incident_id=incident_id,
             title=title,
@@ -144,7 +149,9 @@ class Incident:
             raise ValueError(
                 f"transition from {self.status} to {new_status} is not allowed"
             )
-        timestamp = updated_at or utc_now_iso()
+        timestamp = (
+            updated_at if updated_at is not None else utc_now_iso()
+        )
         _validate_timestamp(timestamp, "updated_at")
         return replace(self, status=new_status, updated_at=timestamp)
 
@@ -157,9 +164,16 @@ class Incident:
         """Return a new snapshot with evidence appended exactly once."""
         if not isinstance(evidence, IncidentEvidence):
             raise TypeError("evidence must be an IncidentEvidence instance")
-        if any(item.evidence_id == evidence.evidence_id for item in self.evidence):
-            return self
-        timestamp = updated_at or utc_now_iso()
+        for existing in self.evidence:
+            if existing.evidence_id == evidence.evidence_id:
+                if existing != evidence:
+                    raise ValueError(
+                        "evidence_id already exists with different content"
+                    )
+                return self
+        timestamp = (
+            updated_at if updated_at is not None else utc_now_iso()
+        )
         _validate_timestamp(timestamp, "updated_at")
         return replace(
             self,

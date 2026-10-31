@@ -10,7 +10,6 @@
 </head>
 <body class="lums-sidebar-layout">
     {% include "_sidebar.html" %}
-    <div class="lums-sidebar-scrim" id="lums-sidebar-scrim" hidden></div>
 
     <header class="lums-pagebar">
         <button type="button" class="lums-sidebar-toggle"
@@ -118,36 +117,7 @@
                 </button>
             </div>
 
-            <nav class="alerts-tabs alerts-soc-nav" aria-label="{{ tr('SOC navigation') }}">
-                <button type="button" class="tab-btn active"
-                        data-tab="dashboard" aria-selected="true">
-                    {{ tr('SOC dashboard') }}
-                </button>
-                <button type="button" class="tab-btn"
-                        data-tab="overview" aria-selected="false">
-                    {{ tr('Alert overview') }}
-                </button>
-                <button type="button" class="tab-btn"
-                        data-tab="history" aria-selected="false">
-                    {{ tr('Alert history') }}
-                </button>
-                <button type="button" class="tab-btn"
-                        data-tab="rules" aria-selected="false">
-                    {{ tr('Alert rules') }}
-                </button>
-                <button type="button" class="tab-btn"
-                        data-tab="integrations" aria-selected="false">
-                    {{ tr('Integrations') }}
-                </button>
-                <button type="button" class="tab-btn"
-                        data-tab="webhooks" aria-selected="false">
-                    {{ tr('Webhooks') }}
-                </button>
-                <button type="button" class="tab-btn"
-                        data-tab="logs" aria-selected="false">
-                    {{ tr('Log') }}
-                </button>
-            </nav>
+
 
             <p class="alerts-feedback" id="alerts-feedback"
                role="status" aria-live="polite"></p>

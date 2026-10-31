@@ -57,15 +57,30 @@ class CollectorStore:
     an untrusted request-body field.
     """
 
-    def __init__(self, connection: sqlite3.Connection):
+    def __init__(
+        self,
+        connection: sqlite3.Connection,
+        *,
+        initialize_schema: bool = True,
+    ):
         if not isinstance(connection, sqlite3.Connection):
             raise TypeError("connection must be a sqlite3.Connection")
+        if not isinstance(initialize_schema, bool):
+            raise TypeError("initialize_schema must be a bool")
         self.connection = connection
-        self._initialize_schema()
+        if initialize_schema:
+            self._initialize_schema()
 
     def _initialize_schema(self) -> None:
+        """Create collector tables and indexes atomically when self-owned."""
+        owns_transaction = not self.connection.in_transaction
+
         try:
-            self.connection.executescript("""
+            if owns_transaction:
+                self.connection.execute("BEGIN IMMEDIATE")
+
+            statements = (
+                """
                 CREATE TABLE IF NOT EXISTS soc_collector_agents (
                     agent_id TEXT PRIMARY KEY,
                     display_name TEXT NOT NULL,
@@ -74,8 +89,9 @@ class CollectorStore:
                         CHECK (status IN ('active', 'revoked')),
                     created_at TEXT NOT NULL,
                     revoked_at TEXT
-                );
-
+                )
+                """,
+                """
                 CREATE TABLE IF NOT EXISTS soc_event_inbox (
                     inbox_id INTEGER PRIMARY KEY AUTOINCREMENT,
                     agent_id TEXT NOT NULL,
@@ -91,15 +107,27 @@ class CollectorStore:
                     UNIQUE (agent_id, event_id),
                     FOREIGN KEY (agent_id)
                         REFERENCES soc_collector_agents(agent_id)
-                );
-
+                )
+                """,
+                """
                 CREATE INDEX IF NOT EXISTS idx_soc_event_inbox_pending
-                    ON soc_event_inbox(processing_status, inbox_id);
-
+                    ON soc_event_inbox(processing_status, inbox_id)
+                """,
+                """
                 CREATE INDEX IF NOT EXISTS idx_soc_event_inbox_agent_received
-                    ON soc_event_inbox(agent_id, received_at DESC);
-            """)
+                    ON soc_event_inbox(agent_id, received_at DESC)
+                """,
+            )
+
+            for statement in statements:
+                self.connection.execute(statement)
+
+            if owns_transaction:
+                self.connection.commit()
+
         except sqlite3.Error as exc:
+            if owns_transaction and self.connection.in_transaction:
+                self.connection.rollback()
             raise CollectorStoreError(
                 "Unable to initialize collector storage"
             ) from exc
@@ -107,6 +135,13 @@ class CollectorStore:
     @staticmethod
     def _now() -> str:
         return datetime.now(timezone.utc).isoformat()
+
+    def _ensure_transaction_available(self) -> None:
+        """Refuse to manage a transaction owned by another caller."""
+        if self.connection.in_transaction:
+            raise CollectorStoreError(
+                "Collector operation cannot run inside an existing transaction"
+            )
 
     @staticmethod
     def _validate_agent_id(agent_id: str) -> None:
@@ -137,8 +172,11 @@ class CollectorStore:
             raise ValueError("display_name is too long")
 
         created_at = self._now()
+        self._ensure_transaction_available()
+        transaction_started = False
         try:
             self.connection.execute("BEGIN IMMEDIATE")
+            transaction_started = True
             self.connection.execute("""
                 INSERT INTO soc_collector_agents
                     (agent_id, display_name, certificate_sha256,
@@ -149,12 +187,14 @@ class CollectorStore:
             ))
             self.connection.commit()
         except sqlite3.IntegrityError as exc:
-            self.connection.rollback()
+            if transaction_started and self.connection.in_transaction:
+                self.connection.rollback()
             raise ValueError(
                 "Agent ID or certificate is already registered"
             ) from exc
         except sqlite3.Error as exc:
-            self.connection.rollback()
+            if transaction_started and self.connection.in_transaction:
+                self.connection.rollback()
             raise CollectorStoreError("Unable to register collector") from exc
 
         return {
@@ -191,8 +231,11 @@ class CollectorStore:
 
     def revoke_agent(self, agent_id: str) -> bool:
         self._validate_agent_id(agent_id)
+        self._ensure_transaction_available()
+        transaction_started = False
         try:
             self.connection.execute("BEGIN IMMEDIATE")
+            transaction_started = True
             cursor = self.connection.execute("""
                 UPDATE soc_collector_agents
                 SET status = 'revoked', revoked_at = COALESCE(revoked_at, ?)
@@ -201,7 +244,8 @@ class CollectorStore:
             self.connection.commit()
             return cursor.rowcount == 1
         except sqlite3.Error as exc:
-            self.connection.rollback()
+            if transaction_started and self.connection.in_transaction:
+                self.connection.rollback()
             raise CollectorStoreError("Unable to revoke collector") from exc
 
     def ingest_batch(
@@ -260,8 +304,11 @@ class CollectorStore:
 
         accepted = 0
         duplicates = 0
+        self._ensure_transaction_available()
+        transaction_started = False
         try:
             self.connection.execute("BEGIN IMMEDIATE")
+            transaction_started = True
             agent = self.connection.execute("""
                 SELECT status FROM soc_collector_agents WHERE agent_id = ?
             """, (authenticated_agent_id,)).fetchone()
@@ -300,10 +347,12 @@ class CollectorStore:
         except (
             CollectorNotFoundError, CollectorRevokedError, EventIdConflictError
         ):
-            self.connection.rollback()
+            if transaction_started and self.connection.in_transaction:
+                self.connection.rollback()
             raise
         except sqlite3.Error as exc:
-            self.connection.rollback()
+            if transaction_started and self.connection.in_transaction:
+                self.connection.rollback()
             raise CollectorStoreError(
                 "Unable to persist collector events"
             ) from exc
@@ -372,27 +421,33 @@ class CollectorStore:
             datetime.now(timezone.utc)
             - timedelta(seconds=stale_after_seconds)
         ).isoformat()
+        self._ensure_transaction_available()
+        transaction_started = False
         try:
             self.connection.execute("BEGIN IMMEDIATE")
+            transaction_started = True
             recovered = self._recover_stale_claims_in_transaction(
                 cutoff=cutoff, max_attempts=max_attempts
             )
             self.connection.commit()
             return recovered
         except sqlite3.Error as exc:
-            self.connection.rollback()
+            if transaction_started and self.connection.in_transaction:
+                self.connection.rollback()
             raise CollectorStoreError(
                 "Unable to recover stale worker claims"
             ) from exc
 
-    def claim_pending(
-        self, *, limit: int = 100, max_attempts: int = 5,
-        stale_after_seconds: int = 300,
+    def _claim_pending(
+        self, *, limit: int, max_attempts: int,
+        stale_after_seconds: int, recover_stale: bool,
+        after_inbox_id: int | None = None,
     ) -> tuple[dict[str, object], ...]:
         """Atomically reserve pending events for one worker.
 
         Each row gets a unique claim token. Attempts count successful claims.
         The caller must finalize or fail each claim using its returned token.
+        Invalid JSON is reported per claim and does not roll back the batch.
         """
         self._validate_worker_limits(
             limit=limit,
@@ -404,13 +459,17 @@ class CollectorStore:
             datetime.now(timezone.utc)
             - timedelta(seconds=stale_after_seconds)
         ).isoformat()
-        claimed: list[dict[str, object]] = []
+        claimed_rows: list[tuple[dict[str, object], object]] = []
 
+        self._ensure_transaction_available()
+        transaction_started = False
         try:
             self.connection.execute("BEGIN IMMEDIATE")
-            self._recover_stale_claims_in_transaction(
-                cutoff=cutoff, max_attempts=max_attempts
-            )
+            transaction_started = True
+            if recover_stale:
+                self._recover_stale_claims_in_transaction(
+                    cutoff=cutoff, max_attempts=max_attempts
+                )
 
             rows = self.connection.execute("""
                 SELECT inbox_id, agent_id, event_id, payload_json,
@@ -418,12 +477,18 @@ class CollectorStore:
                 FROM soc_event_inbox
                 WHERE processing_status = 'pending'
                   AND attempts < ?
+                  AND (? IS NULL OR inbox_id > ?)
                 ORDER BY inbox_id
                 LIMIT ?
-            """, (max_attempts, limit)).fetchall()
+            """, (
+                max_attempts, after_inbox_id, after_inbox_id, limit
+            )).fetchall()
 
             for row in rows:
-                inbox_id, agent_id, event_id, payload_json, received_at, attempts = row
+                (
+                    inbox_id, agent_id, event_id, payload_json,
+                    received_at, attempts,
+                ) = row
                 token = uuid.uuid4().hex
                 cursor = self.connection.execute("""
                     UPDATE soc_event_inbox
@@ -442,27 +507,81 @@ class CollectorStore:
                         "Inbox row changed during atomic claim"
                     )
 
-                claimed.append({
+                claimed_rows.append(({
                     "inbox_id": inbox_id,
                     "agent_id": agent_id,
                     "event_id": event_id,
-                    "payload": json.loads(payload_json),
                     "received_at": received_at,
                     "processing_status": "processing",
                     "claim_token": token,
                     "claimed_at": now,
                     "attempts": attempts + 1,
-                })
+                }, payload_json))
 
             self.connection.commit()
-            return tuple(claimed)
         except Exception as exc:
-            self.connection.rollback()
+            if transaction_started and self.connection.in_transaction:
+                self.connection.rollback()
             if isinstance(exc, (ValueError, CollectorStoreError)):
                 raise
             raise CollectorStoreError(
                 "Unable to claim pending collector events"
             ) from exc
+
+        claimed: list[dict[str, object]] = []
+
+        for claim, payload_json in claimed_rows:
+            try:
+                claim["payload"] = json.loads(payload_json)
+                claim["payload_error"] = None
+            except (ValueError, TypeError, RecursionError) as exc:
+                claim["payload"] = None
+                claim["payload_error"] = (
+                    f"Invalid JSON payload: {type(exc).__name__}"
+                )
+            claimed.append(claim)
+
+        return tuple(claimed)
+
+    def claim_pending(
+        self, *, limit: int = 100, max_attempts: int = 5,
+        stale_after_seconds: int = 300,
+    ) -> tuple[dict[str, object], ...]:
+        """Atomically reserve a batch and recover stale claims first."""
+        return self._claim_pending(
+            limit=limit,
+            max_attempts=max_attempts,
+            stale_after_seconds=stale_after_seconds,
+            recover_stale=True,
+        )
+
+    def claim_next_pending(
+        self, *, max_attempts: int = 5,
+        stale_after_seconds: int = 300,
+        recover_stale: bool = False,
+        after_inbox_id: int | None = None,
+    ) -> dict[str, object] | None:
+        """Claim one event; optionally recover expired claims in that transaction."""
+        if not isinstance(recover_stale, bool):
+            raise TypeError("recover_stale must be a bool")
+        if (
+            after_inbox_id is not None
+            and (
+                isinstance(after_inbox_id, bool)
+                or not isinstance(after_inbox_id, int)
+                or after_inbox_id < 1
+            )
+        ):
+            raise ValueError("after_inbox_id must be a positive integer")
+
+        claims = self._claim_pending(
+            limit=1,
+            max_attempts=max_attempts,
+            stale_after_seconds=stale_after_seconds,
+            recover_stale=recover_stale,
+            after_inbox_id=after_inbox_id,
+        )
+        return claims[0] if claims else None
 
     def finish_claim(self, inbox_id: int, claim_token: str) -> bool:
         """Mark a claimed event processed only if its token is still current."""
@@ -471,8 +590,11 @@ class CollectorStore:
         if not isinstance(claim_token, str) or not claim_token:
             raise ValueError("claim_token must not be empty")
 
+        self._ensure_transaction_available()
+        transaction_started = False
         try:
             self.connection.execute("BEGIN IMMEDIATE")
+            transaction_started = True
             cursor = self.connection.execute("""
                 UPDATE soc_event_inbox
                 SET processing_status = 'processed',
@@ -487,7 +609,8 @@ class CollectorStore:
             self.connection.commit()
             return cursor.rowcount == 1
         except sqlite3.Error as exc:
-            self.connection.rollback()
+            if transaction_started and self.connection.in_transaction:
+                self.connection.rollback()
             raise CollectorStoreError(
                 "Unable to finalize worker claim"
             ) from exc
@@ -508,8 +631,11 @@ class CollectorStore:
         )
         safe_error = error.strip()[:2000]
 
+        self._ensure_transaction_available()
+        transaction_started = False
         try:
             self.connection.execute("BEGIN IMMEDIATE")
+            transaction_started = True
             cursor = self.connection.execute("""
                 UPDATE soc_event_inbox
                 SET processing_status = CASE
@@ -526,7 +652,8 @@ class CollectorStore:
             self.connection.commit()
             return cursor.rowcount == 1
         except sqlite3.Error as exc:
-            self.connection.rollback()
+            if transaction_started and self.connection.in_transaction:
+                self.connection.rollback()
             raise CollectorStoreError(
                 "Unable to record worker failure"
             ) from exc

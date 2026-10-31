@@ -26,10 +26,86 @@
     <span class="lums-sidebar-icon" aria-hidden="true">⌘</span>
     <span class="lums-sidebar-label">{{ tr("Infrastructure topology") }}</span>
 </a>
-<a href="/alerts" data-nav-id="alerts" class="lums-sidebar-link{% if request.path.startswith('/alerts') %} is-active{% endif %}" {% if request.path.startswith('/alerts') %}aria-current="page"{% endif %}>
-    <span class="lums-sidebar-icon" aria-hidden="true">🔔</span>
-    <span class="lums-sidebar-label">{{ tr("Alerts & Monitoring") }}</span>
-</a>
+{% endif %}
+
+{% if "clients.view" in user_permissions or "alerts.view" in user_permissions %}
+<div class="lums-sidebar-soc-group" data-nav-id="soc">
+    {% if "clients.view" in user_permissions %}
+    <a href="{{ url_for('soc.soc_dashboard') }}" class="lums-sidebar-link{% if request.path.startswith('/soc') %} is-active{% endif %}" {% if request.path in ['/soc', '/soc/'] %}aria-current="page"{% endif %}>
+        <span class="lums-sidebar-icon" aria-hidden="true">⌘</span>
+        <span class="lums-sidebar-label">{{ tr("SOC") }}</span>
+    </a>
+    <nav class="lums-sidebar-soc-subnav" aria-label="{{ tr('SOC navigation') }}">
+        <a href="{{ url_for('soc.soc_dashboard') }}" {% if request.path in ['/soc', '/soc/'] %}class="is-active" aria-current="page"{% endif %}>{{ tr("SOC Dashboard") }}</a>
+        <a href="{{ url_for('soc.network_monitoring') }}" {% if request.path == '/soc/network-monitoring' %}class="is-active" aria-current="page"{% endif %}>{{ tr("Network Monitoring") }}</a>
+        <a href="{{ url_for('soc.event_explorer') }}" {% if request.path == '/soc/events' %}class="is-active" aria-current="page"{% endif %}>{{ tr("Event Explorer") }}</a>
+      </nav>
+    {% else %}
+    <a href="{{ url_for('alerts.alert_dashboard') }}" class="lums-sidebar-link{% if request.path.startswith('/alerts') %} is-active{% endif %}" {% if request.path.startswith('/alerts') %}aria-current="page"{% endif %}>
+        <span class="lums-sidebar-icon" aria-hidden="true">🔔</span>
+        <span class="lums-sidebar-label">{{ tr("Alerts") }}</span>
+    </a>
+    {% endif %}
+
+    {% if "alerts.view" in user_permissions and "clients.view" in user_permissions %}
+    <div class="lums-sidebar-alerts-group">
+        <div class="lums-sidebar-alerts-heading">
+            <a href="{{ url_for('alerts.alert_dashboard') }}" class="lums-sidebar-soc-link{% if request.path.startswith('/alerts') %} is-active{% endif %}" {% if request.path.startswith('/alerts') %}aria-current="page"{% endif %}>
+                {{ tr("Alerts") }}
+            </a>
+            {% if request.path.startswith('/alerts') %}
+            <button type="button" class="lums-sidebar-alerts-toggle"
+                    id="lums-sidebar-alerts-toggle"
+                    aria-controls="lums-sidebar-alerts-subnav"
+                    aria-expanded="true"
+                    aria-label="{{ tr('Toggle alerts navigation') }}">
+                <span aria-hidden="true">⌄</span>
+            </button>
+            {% endif %}
+        </div>
+        {% if request.path.startswith('/alerts') %}
+        <nav class="lums-sidebar-alerts-subnav" id="lums-sidebar-alerts-subnav"
+             aria-label="{{ tr('Alerts navigation') }}">
+            <a href="/alerts#dashboard" data-alert-tab="dashboard">{{ tr("SOC dashboard") }}</a>
+            <a href="/alerts#overview" data-alert-tab="overview">{{ tr("Alert overview") }}</a>
+            <a href="/alerts#history" data-alert-tab="history">{{ tr("Alert history") }}</a>
+            <a href="/alerts#rules" data-alert-tab="rules">{{ tr("Alert rules") }}</a>
+            <a href="/alerts#integrations" data-alert-tab="integrations">{{ tr("Integrations") }}</a>
+            <a href="/alerts#webhooks" data-alert-tab="webhooks">{{ tr("Webhooks") }}</a>
+            <a href="/alerts#logs" data-alert-tab="logs">{{ tr("Log") }}</a>
+        </nav>
+        {% endif %}
+    </div>
+    {% elif "alerts.view" in user_permissions and request.path.startswith('/alerts') %}
+    <nav class="lums-sidebar-alerts-subnav" id="lums-sidebar-alerts-subnav"
+         aria-label="{{ tr('Alerts navigation') }}">
+        <a href="/alerts#dashboard" data-alert-tab="dashboard">{{ tr("SOC dashboard") }}</a>
+        <a href="/alerts#overview" data-alert-tab="overview">{{ tr("Alert overview") }}</a>
+        <a href="/alerts#history" data-alert-tab="history">{{ tr("Alert history") }}</a>
+        <a href="/alerts#rules" data-alert-tab="rules">{{ tr("Alert rules") }}</a>
+        <a href="/alerts#integrations" data-alert-tab="integrations">{{ tr("Integrations") }}</a>
+        <a href="/alerts#webhooks" data-alert-tab="webhooks">{{ tr("Webhooks") }}</a>
+        <a href="/alerts#logs" data-alert-tab="logs">{{ tr("Log") }}</a>
+    </nav>
+    {% endif %}
+
+    {% if "clients.view" in user_permissions %}
+        <a href="{{ url_for('soc.network_analyzer') }}" {% if request.path == '/soc/network-analyzer' %}class="is-active" aria-current="page"{% endif %}>{{ tr("Network Analyzer") }}</a>
+        <a href="{{ url_for('soc.pcap_investigation') }}" {% if request.path == '/soc/pcap' %}class="is-active" aria-current="page"{% endif %}>{{ tr("PCAP Investigation") }}</a>
+        <a href="{{ url_for('soc.incidents') }}" {% if request.path == '/soc/incidents' %}class="is-active" aria-current="page"{% endif %}>{{ tr("Incidents") }}</a>
+        <a href="{{ url_for('soc.detection_rules') }}" {% if request.path == '/soc/detections' %}class="is-active" aria-current="page"{% endif %}>{{ tr("Detection Rules") }}</a>
+        <a href="{{ url_for('soc.sensor_management') }}" {% if request.path == '/soc/sensors' %}class="is-active" aria-current="page"{% endif %}>{{ tr("Sensor Management") }}</a>
+        <details class="lums-sidebar-reports" {% if request.path.startswith('/soc/reports') %}open{% endif %}>
+            <summary>{{ tr("Reports") }}</summary>
+            <div>
+                <a href="{{ url_for('soc.reports_overview') }}" {% if request.path == '/soc/reports' %}class="is-active" aria-current="page"{% endif %}>{{ tr("Overview") }}</a>
+                <a href="{{ url_for('soc.security_reports') }}" {% if request.path == '/soc/reports/security' %}class="is-active" aria-current="page"{% endif %}>{{ tr("Security Reports") }}</a>
+                <a href="{{ url_for('soc.network_reports') }}" {% if request.path == '/soc/reports/network' %}class="is-active" aria-current="page"{% endif %}>{{ tr("Network Statistics") }}</a>
+                <a href="{{ url_for('soc.export_history') }}" {% if request.path == '/soc/reports/exports' %}class="is-active" aria-current="page"{% endif %}>{{ tr("Export History") }}</a>
+            </div>
+        </details>
+    {% endif %}
+</div>
 {% endif %}
         {% if "users.manage" in user_permissions %}
         <a href="/users" data-nav-id="users" class="lums-sidebar-link{% if request.path == '/users' %} is-active{% endif %}" {% if request.path == '/users' %}aria-current="page"{% endif %}>

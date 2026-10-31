@@ -185,3 +185,53 @@ def test_empty_catalog_is_valid():
     assert result.rule_count == 0
     assert result.detection_rules == ()
     assert result.correlation_rules == ()
+
+
+def test_correlation_inactivity_defaults_to_window():
+    result = load_catalog_data(catalog(correlation(window_seconds=180)))
+
+    assert result.correlation_rules[0].window_seconds == 180
+    assert result.correlation_rules[0].inactivity_seconds == 180
+
+
+def test_correlation_inactivity_can_differ_from_window():
+    result = load_catalog_data(
+        catalog(correlation(window_seconds=180, inactivity_seconds=420))
+    )
+
+    assert result.correlation_rules[0].window_seconds == 180
+    assert result.correlation_rules[0].inactivity_seconds == 420
+
+
+@pytest.mark.parametrize(
+    "value", [True, 0, -1, 86401, 1.5, "300"]
+)
+def test_rejects_invalid_correlation_inactivity(value):
+    with pytest.raises(RuleCatalogError, match="inactivity_seconds"):
+        load_catalog_data(
+            catalog(correlation(inactivity_seconds=value))
+        )
+
+
+@pytest.mark.parametrize("version", [1.0, "1", None])
+def test_rejects_non_integer_catalog_versions(version):
+    with pytest.raises(RuleCatalogError, match="Unsupported catalog version"):
+        load_catalog_data(catalog(version=version))
+
+
+@pytest.mark.parametrize("rule_type", [[], {}])
+def test_rejects_unhashable_rule_types(rule_type):
+    with pytest.raises(RuleCatalogError, match="unsupported rule type"):
+        load_catalog_data(catalog(detection(type=rule_type)))
+
+
+@pytest.mark.parametrize("severity", [[], {}])
+def test_rejects_unhashable_severities(severity):
+    with pytest.raises(RuleCatalogError, match="unsupported severity"):
+        load_catalog_data(catalog(detection(severity=severity)))
+
+
+@pytest.mark.parametrize("operator", [[], {}])
+def test_rejects_unhashable_operators(operator):
+    with pytest.raises(RuleCatalogError, match="unsupported operator"):
+        load_catalog_data(catalog(detection(operator=operator)))
