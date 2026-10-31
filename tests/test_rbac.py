@@ -23,6 +23,8 @@ from server.security import (
     ROLE_VIEWER,
     ROLE_DEFAULT_PERMISSIONS,
     VALID_ROLES,
+    _calculate_effective_permissions,
+    _filter_permission_dependencies,
     current_user_role,
     login_required,
     role_required,
@@ -3454,3 +3456,45 @@ def test_custom_rbac_update_user_persists_role_and_overrides(
     assert effective_permissions == set(permissions)
 
     connection.close()
+
+
+# Direct unit tests for custom RBAC permission calculation.
+def test_filter_permission_dependencies_keeps_permissions_with_prerequisites():
+    permissions = {
+        "clients.view", "updates.view", "jobs.manage",
+        "alerts.view", "alerts.manage",
+    }
+    assert _filter_permission_dependencies(permissions) == frozenset(permissions)
+    assert permissions == {
+        "clients.view", "updates.view", "jobs.manage",
+        "alerts.view", "alerts.manage",
+    }
+
+
+def test_filter_permission_dependencies_removes_permissions_with_missing_prerequisites():
+    assert _filter_permission_dependencies(
+        {"software.view", "updates.view", "packages.search"}
+    ) == frozenset()
+
+
+def test_filter_permission_dependencies_removes_permission_when_one_prerequisite_is_missing():
+    assert _filter_permission_dependencies(
+        {"clients.view", "jobs.manage"}
+    ) == frozenset({"clients.view"})
+
+
+def test_calculate_effective_permissions_applies_grants_denies_and_dependencies():
+    role_permissions = {
+        "clients.view", "updates.view", "jobs.manage",
+        "alerts.view", "alerts.manage",
+    }
+
+    effective = _calculate_effective_permissions(
+        role_permissions,
+        grants={"software.view"},
+        denies={"alerts.view"},
+    )
+
+    assert effective == frozenset({
+        "clients.view", "updates.view", "jobs.manage", "software.view",
+    })
