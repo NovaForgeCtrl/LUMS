@@ -224,15 +224,10 @@ Gjeldende revisjonsområder:
 | #13      | Simulation Tests                         | PASS                      |
 | #14      | Continuous Integration                   | PASS                      |
 | #15      | Application / Audit Logging              | PASS                      |
-| #16      | Versioning / Releases                    | REVIEWED — OPEN BY DESIGN |
+| #16      | Versjonering / utgivelser             | Slå opp gjeldende utgivelser og tagger |
 | #17      | Role-Based Access Control                | PASS                      |
-| #18      | Documentation Review                     | IN PROGRESS               |
 
-Revisjon #16 er bevisst forskjellig fra de tekniske sikkerhetskontrollene ovenfor.
-
-LUMS har for øyeblikket ingen offisiell stabil utgivelse, ingen utgivelsestag og ingen GitHub-utgivelse. Dette er tilsiktet fordi prosjektet fortsatt er under aktiv utvikling.
-
-Revisjon #18 forblir åpen til det fullstendige dokumentasjonssettet er gjennomgått og synkronisert med gjeldende implementasjon.
+Utgivelsesinformasjon er tidsavhengig. Kontroller gjeldende GitHub-utgivelser og Git-tagger i repositoriet i stedet for å utlede status fra denne veiledningen. Sikkerhetsdokumentasjonen skal kontrolleres mot den faktiske implementasjonen og gjeldende konfigurasjon. Skill mellom implementerte kontroller, verifisert produksjonsatferd og planlagte forbedringer, og kontroller relevante tester mot revisjonen som skal distribueres.
 
 # Sikkerhetsrevisjon #01
 
@@ -408,7 +403,7 @@ Følgende revisjonsområder er dokumentert i de påfølgende avsnittene:
 * #16 Versioning / Releases
 * #17 Role-Based Access Control
 
-Revisjon #18 — Documentation Review — forblir åpen til det fullstendige dokumentasjonssettet er gjennomgått og synkronisert med gjeldende implementasjon.
+Dokumentasjonen vedlikeholdes løpende mot faktisk implementasjon og konfigurasjon. Opplysninger om utgivelser og tagger må slås opp i repositoriet.
 
 # Sikkerhetsrevisjon #05
 
@@ -863,44 +858,16 @@ Loggesystemet er ment å støtte både operativ feilsøking og sikkerhetsunders�
 
 # Sikkerhetsrevisjon #16
 
-## Versioning and Releases
+## Versjonering og utgivelser
 
-Versjonering og utgivelseshåndtering ble gjennomgått som en del av sikkerhetsrevisjonen.
-
-LUMS er for øyeblikket under aktiv utvikling og har ennå ikke en offisiell stabil utgivelse.
-
-Gjeldende repositoriumstilstand har derfor bevisst:
-
-* ingen offisiell stabil utgivelsesversjon
-* ingen utgivelsestag
-* ingen GitHub-utgivelse
+Versjonering og utgivelseshåndtering er gjennomgått som en del av sikkerhetsarbeidet. Utgivelsesstatus er tidsavhengig; slå opp gjeldende GitHub-utgivelser og Git-tagger i repositoriet i stedet for å utlede status fra denne veiledningen.
 
 Gjeldende komponentversjoner inkluderer:
 
 * LUMS Agent: `1.7.0`
 * LUMS Watcher: `1.2.1`
 
-Det er for øyeblikket ikke et enkelt formelt versjonsnummer som representerer hele LUMS-applikasjonen.
-
-Dette er en tilsiktet beslutning om prosjekttilstand snarere enn en utilsiktet utelatelse.
-
-Den planlagte utgivelsesprosessen er:
-
-1. Fullfør implementeringsarbeidet.
-2. Fullfør sikkerhetsgjennomgangen.
-3. Gjennomgå og synkroniser dokumentasjonen.
-4. Fullfør det fullstendige automatiserte testsettet.
-5. Verifiser CI.
-6. Definer utgivelsesversjonen.
-7. Opprett den tilsvarende Git-taggen.
-8. Publiser GitHub-utgivelsen.
-9. Bevar utgivelsen som den dokumenterte baselinen.
-
-Ingen offisiell utgivelse opprettes bare fordi sikkerhetsrevisjonen når et bestemt revisjonsnummer.
-
-Utgivelsesopprettelse vil bare finne sted etter at det gjenstående implementerings- og dokumentasjonsarbeidet er fullført.
-
-**Status: REVIEWED — OPEN BY DESIGN**
+Ikke anta at versjoner som er oppført her, eller sikkerhetsbaselinen ellers i dokumentet, beviser at en bestemt distribusjon har aktivert kontrollene. Operatører må verifisere sitt eget miljø.
 
 ---
 
@@ -925,15 +892,9 @@ Følgende sikkerhetsrevisjonsområder er fullført:
 | #13      | Simulation Tests                       | PASS                      |
 | #14      | Continuous Integration                 | PASS                      |
 | #15      | Application / Audit Logging            | PASS                      |
-| #16      | Versioning / Releases                  | REVIEWED — OPEN BY DESIGN |
+| #16      | Versjonering / utgivelser             | Slå opp gjeldende utgivelser og tagger |
 
-Det gjenværende nummererte tekniske revisjonsområdet er:
-
-* #17 Role-Based Access Control
-
-Dokumentasjonsgjennomgangen spores separat som:
-
-* #18 Documentation Review — IN PROGRESS
+De nummererte tekniske revisjonsområdene dekker kontrollene som er oppført i tabellen. Dokumentasjon vedlikeholdes løpende mot faktisk implementasjon og konfigurasjon. Opplysninger om utgivelser kontrolleres i repositoriets gjeldende utgivelser og tagger.
 
 # Sikkerhetsrevisjon #17
 
@@ -1130,75 +1091,11 @@ Serveren forblir den autoritative sikkerhetsgrensen.
 
 **Status: PASS**
 
-# Sikkerhetsrevisjon #18
+## Dokumentasjonsgjennomgang
 
-## Documentation Review
+Sikkerhets- og driftsdokumentasjonen skal kontrolleres mot den faktiske implementasjonen og gjeldende konfigurasjon. Skill tydelig mellom implementerte kontroller, verifisert produksjonsatferd og planlagte forbedringer. Kontroller relevante tester mot revisjonen som skal distribueres.
 
-Sikkerhetsdokumentasjonen gjennomgås mot det nåværende implementerte LUMS-systemet.
-
-Formålet med denne gjennomgangen er å sikre at sikkerhetsdokumentasjonen beskriver den faktiske implementasjonen snarere enn en tidligere utviklingstilstand.
-
-Gjennomgangen dekker:
-
-* autentisering
-* autorisasjon
-* RBAC
-* klientautentisering
-* tokenhåndtering
-* økthåndtering
-* CSRF-beskyttelse
-* hastighetsbegrensning
-* SQLite-konfigurasjon
-* oppdateringskjøring
-* jobbgjenoppretting
-* pakkeadministrasjon
-* containerherding
-* netteksponering
-* håndtering av hemmeligheter
-* avhengighets- og byggesikkerhet
-* filsystemtillatelser
-* applikasjons- og revisjonslogging
-* versjonering og utgivelseshåndtering
-* automatisert sikkerhetstesting
-
-Dokumentasjonen må skille mellom:
-
-* implementerte kontroller
-* verifisert produksjonsatferd
-* planlagte forbedringer
-* bevisste åpne prosjektbeslutninger
-
-Historiske implementasjonsdetaljer må ikke presenteres som gjeldende produksjonskonfigurasjon.
-
-Spesielt gjenspeiler dokumentasjonen gjeldende SQLite-produksjonskonfigurasjon i stedet for gjeldende WAL-konfigurasjon.
-
-Gjeldende produksjonskjøring er dokumentert som:
-
-* `journal_mode = wal`
-* `busy_timeout = 5000`
-* `synchronous = 2`
-* applikasjonsnivå `PRAGMA foreign_keys = ON`
-
-Gjeldende Viewer-RBAC-atferd er også dokumentert i henhold til det implementerte produksjonsgrensesnittet.
-
-Viewer-brukere har tilgang til:
-
-* klientinformasjon
-* installert programvare
-
-Viewer-brukere har ikke tilgang til:
-
-* Oppdateringer
-* Oppdateringsjobber
-* Oppdateringshistorikk
-* Pakkeadministrasjon
-* Systemvedlikehold
-
-Dokumentasjonsgjennomgangen fjerner eller erstatter også utdaterte referanser til tidligere testantall, migreringstilstander, distribusjonskonfigurasjoner og kun-utviklingsatferd.
-
-**Status: IN PROGRESS**
-
----
+Opplysninger om versjoner og utgivelser er tidsavhengige. Kontroller gjeldende GitHub-utgivelser og Git-tagger i repositoriet i stedet for å utlede status fra denne veiledningen.
 
 # Ekstra sikkerhetsherding
 
@@ -1402,15 +1299,12 @@ De nummererte revisjonsresultatene er:
 | #13      | Simulation Tests                       | PASS                      |
 | #14      | Continuous Integration                 | PASS                      |
 | #15      | Application / Audit Logging            | PASS                      |
-| #16      | Versioning / Releases                  | REVIEWED — OPEN BY DESIGN |
+| #16      | Versjonering / utgivelser             | Slå opp gjeldende utgivelser og tagger |
 | #17      | Role-Based Access Control              | PASS                      |
-| #18      | Documentation Review                   | IN PROGRESS               |
 
 De tekniske sikkerhetskontrollene gjennomgått i revisjonene #01–#15 og #17 har bestått.
 
-Revisjon #16 forblir bevisst åpen fordi LUMS ennå ikke har nådd sin første offisielle stabile utgivelse.
-
-Revisjon #18 forblir åpen til den fullstendige prosjektdokumentasjonen er gjennomgått og synkronisert med den endelige implementasjonstilstanden.
+Resultater for tekniske sikkerhetskontroller gjelder den verifiserte revisjonen og er ikke en garanti for senere versjoner eller for en bestemt distribusjon. Operatører må kontrollere at sikkerhetskontrollene faktisk er aktivert i sitt eget miljø, og verifisere relevante tester og konfigurasjon ved distribusjon. Opplysninger om utgivelser og tagger må slås opp i repositoriet.
 
 Ingen sikkerhetsrevisjonsresultat bør tolkes som en garanti for at LUMS er fri for sårbarheter.
 
@@ -1476,20 +1370,9 @@ Sikkerhetsdokumentasjonen bør oppdateres når den verifiserte sikkerhetsbaselin
 
 ---
 
-# Utgivelsesklarhet
+# Oppslag av utgivelsesstatus
 
-Den første offisielle LUMS-utgivelsen vil bare bli opprettet etter at:
-
-1. implementeringsarbeidet er fullført
-2. sikkerhetsgjennomgangen er fullført
-3. dokumentasjonsgjennomgangen er fullført
-4. det fullstendige automatiserte testsettet består
-5. CI består
-6. den endelige versjonen er definert
-7. Git-taggen er opprettet
-8. GitHub-utgivelsen er publisert
-
-Inntil da forblir LUMS et aktivt utviklet prosjekt.
+Utgivelsesstatus er tidsavhengig. Kontroller gjeldende GitHub-utgivelser og Git-tagger i repositoriet i stedet for å utlede status fra denne veiledningen. Sikkerhetsbaselinen dokumenterer implementasjonen som ble gjennomgått, men beviser ikke at kontrollene er aktivert i en bestemt distribusjon. Operatører må verifisere sitt eget miljø.
 
 ---
 
@@ -1503,7 +1386,7 @@ I stedet fungerer autentisering, autorisasjon, validering, kontrollert kjøring,
 
 Prosjektet foretrekker bevisst eksplisitt håndheving på serversiden fremfor sikkerhet gjennom grensesnitt.
 
-Gjeldende sikkerhetsbaseline er dokumentert i henhold til den verifiserte implementasjonstilstanden i stedet for historisk utviklingsatferd.
+Gjeldende sikkerhetsbaseline er dokumentert i henhold til den verifiserte implementasjonstilstanden i stedet for historisk utviklingsatferd. Den er ikke en garanti for en bestemt distribusjon; operatører må verifisere miljøet sitt.
 
 ---
 

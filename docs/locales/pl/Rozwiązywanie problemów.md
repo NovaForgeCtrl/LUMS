@@ -1692,8 +1692,8 @@ Odzyskiwanie musi rozróżniać pracę już wykonaną od pracy, która jeszcze w
 Zasada jest następująca:
 
 ```text
-Completed work remains completed.
-Incomplete work remains recoverable.
+Ukończona praca pozostaje ukończona.
+Niedokończona praca nadal może zostać odzyskana.
 ```
 
 ---

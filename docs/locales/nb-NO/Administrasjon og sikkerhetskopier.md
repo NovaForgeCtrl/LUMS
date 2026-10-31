@@ -239,144 +239,85 @@ Fullstendige Administratormaltillatelser bør bare gis til brukere som
 trenger dem.
 
 Administrative kontoer bør ikke brukes til rutinemessig skrivebeskyttet overvåking når en Operator- eller Viewer-konto er tilstrekkelig.
-5. Operator
+## 5. Operator
 
 Operatørmalen er ment for daglig oppdaterings- og systemadministrasjon.
 
-Operatorer kan:
+Brukere med rollen Operator kan:
 
 * vise administrerte klienter
-
 * vise installert programvare
-
 * vise tilgjengelige oppdateringer
-
-* opprette og utføre oppdateringsjobber
-
+* opprette og kjøre oppdateringsjobber
 * gjennomgå oppdateringshistorikk
-
-* utføre pakkeadministrasjonsoperasjoner
-
+* utføre pakkeadministrasjon
 * utføre systemvedlikehold
 
-Operatørmalen gir ikke:
+Operator-malen gir ikke tillatelse til å:
 
 * opprette eller administrere LUMS-brukere
-
 * tildele brukerroller
-
 * opprette eller deaktivere klienter
-
 * rotere klienttokener
 
-Denne standardseparasjonen tillater rutinemessige oppdateringsoperasjoner uten å gi
-konto- og klientadministrasjonsprivilegier. Individuelle tildelinger kan endres av
-en bruker med users.manage.
-6. Viewer
+Dette standardskillet gjør det mulig å utføre rutinemessig oppdateringsarbeid uten konto- og klientadministrasjonsrettigheter. En bruker med `users.manage` kan endre individuelle tillatelser.
 
-Viewer-malen gir skrivebeskyttet synlighet.
+## 6. Viewer
 
-Viewers kan:
+Viewer-malen gir skrivebeskyttet innsyn.
+
+Brukere med rollen Viewer kan:
 
 * vise administrerte klienter
-
 * vise installert programvare
 
-Viewer-malen gir ikke følgende administrative funksjoner:
+Viewer-malen gir ikke tilgang til følgende administrative funksjoner:
 
 * administrasjon av tilgjengelige oppdateringer
-
-* opprettelse av oppdateringsjobber
-
-* kjøring av oppdateringsjobber
-
+* oppretting eller kjøring av oppdateringsjobber
 * oppdateringshistorikk
-
 * pakkeadministrasjon
-
 * systemvedlikehold
-
 * brukeradministrasjon
-
 * klientadministrasjon
-
 * tokenrotasjon
 
-De tilsvarende muterende API-operasjonene er også beskyttet på serversiden.
+De tilsvarende API-operasjonene som endrer tilstand, er også beskyttet på serveren. Viewer-rollen er beregnet på brukere som trenger innsyn uten driftskontroll.
 
-Viewer-tilgang er derfor ment for brukere som trenger synlighet uten operativ kontroll.
-7. Retningslinjer for valg av rolle
+## 7. Retningslinjer for valg av rolle
 
-Bruk den minste rollen som gir den nødvendige funksjonaliteten.
-Administrator
+Bruk den minst privilegerte rollen som gir nødvendig funksjonalitet.
 
-Bruk når brukeren må administrere:
+### Administrator
 
-* brukere
+Brukes når brukeren må administrere:
 
-* roller
-
-* klienter
-
-* klientautentisering
-
-* tokener
-
-* oppdateringer
-
-* pakker
-
+* brukere og roller
+* klienter, klientautentisering og tokener
+* oppdateringer og pakker
 * systemoperasjoner
 
-## Operator
+### Operator
 
-Bruk når brukeren trenger å utføre rutinemessig operativt arbeid som:
+Brukes når brukeren trenger å utføre rutinemessige driftsoppgaver som å kontrollere oppdateringer, installere, fjerne eller oppdatere pakker, kjøre oppdateringsjobber og gjennomgå jobbhistorikk.
 
-* sjekke oppdateringer
+### Viewer
 
-* installere pakker
+Brukes når brukeren bare trenger innsyn i klienter og installert programvare.
 
-* fjerne pakker
+## 8. Sikkerhetsprinsipp for administrasjon
 
-* oppdatere pakker
+LUMS-administrasjon følger prinsippet om minste privilegium. Administrativ tilgang skal begrenses til funksjonene som er nødvendige for brukerens oppgave.
 
-* utføre oppdateringsjobber
+* Ikke bruk administratorkontoer til rutinemessig visning.
+* Ikke del kontoer mellom administratorer eller klienttokener mellom klienter.
+* Ikke legg legitimasjon i dokumentasjon.
+* Ikke eksponer klienttokener i skjermbilder eller logger.
+* Ikke omgå LUMS-webgrensesnittet ved å endre databasen direkte, med mindre en dokumentert gjenopprettingsprosedyre uttrykkelig krever det.
 
-* gjennomgå jobbhistorikk
+Hvis en administrativ operasjon mislykkes, må årsaken undersøkes før vedvarende tilstand endres. Følg prinsippet:
 
-## Viewer
-
-Bruk når brukeren bare trenger synlighet i:
-
-* klienter
-
-* installert programvare
-
-8. Administrativt sikkerhetsprinsipp
-
-LUMS-administrasjon følger prinsippet om minste privilegium.
-
-Administrativ tilgang bør begrenses til funksjonaliteten som kreves for brukerens oppgave.
-
-Spesielt:
-
-* ikke bruk Administrator-kontoer til rutinemessig visning
-
-* ikke del kontoer mellom administratorer
-
-* ikke del klienttokener
-
-* ikke plasser legitimasjon i dokumentasjon
-
-* ikke eksponer klienttokener i skjermbilder eller logger
-
-* ikke omgå LUMS' webgrensesnitt ved å endre databasen direkte med mindre en dokumentert gjenopprettingsprosedyre eksplisitt krever det
-
-Når en administrativ operasjon mislykkes, undersøk årsaken før du endrer vedvarende tilstand.
-
-Bruk prinsippet:
-
-* Observer først. Endre deretter. Verifiser til slutt.
+> **Observer først. Endre deretter. Verifiser til slutt.**
 
 ## 9. Administrativ arbeidsflyt
 
@@ -840,6 +781,84 @@ Når du legger til eller endrer en klient, verifiser hele kjeden:
 ```
 
 En klient er operativ bare når hele rapporterings- og autentiseringskjeden fungerer.
+## 19. Klientautentisering
+
+Hver administrerte klient autentiserer seg mot LUMS med et klienttoken. Tokenet fungerer som klientens legitimasjon og skal beskyttes like godt som et passord.
+
+Gjør aldri dette:
+
+* legg tokener inn i Git
+* legg tokener i offentlig dokumentasjon
+* ta med tokener i skjermbilder eller feilsøkingsutdata
+* lim tokener inn i sakssystemer
+* del ett klienttoken med en annen klient
+
+Et token skal bare installeres på klienten det ble utstedt for.
+
+## 20. Klientregistrering
+
+En ny klient må først registreres i LUMS. Registreringen oppretter klientidentiteten og autentiseringslegitimasjonen på serversiden.
+
+Etter registrering:
+
+1. Installer LUMS Agent.
+2. Konfigurer klienttokenet og LUMS-serverens endepunkt.
+3. Etabler tillit til TLS-sertifikatet.
+4. Kjør agenten første gang.
+5. Kontroller at klientrapporten blir sendt og godkjent.
+6. Bekreft at klienten vises i LUMS-grensesnittet.
+
+En klient er ikke nødvendigvis i drift bare fordi Agent-tjenesten starter. Serveren må motta og godta en gyldig klientrapport.
+
+## 21. Klientstatus
+
+Bruk klientvisningen til å skille mellom ulike driftsstatuser, for eksempel:
+
+* registrert klient som ikke rapporterer
+* klient som rapporterer normalt eller med utdaterte data
+* deaktivert klient
+* autentiseringsfeil for klienten
+* feil i klientens pakkebehandler
+
+Når en klient slutter å rapportere, undersøk først nettverkstilkobling, TLS-tillit, klientautentisering, agentkjøring, servertilgjengelighet og serverbehandling. Ikke endre klientlegitimasjon før du vet hvilket lag som svikter.
+
+## 22. Rotering av klienttoken
+
+Klienttokener kan roteres ved mistanke om eksponering, i henhold til en rotasjonspolicy, ved administrativt vedlikehold, ved utskifting av klientkonfigurasjon eller som del av hendelseshåndtering.
+
+Etter rotasjon:
+
+1. Hent det nye klienttokenet.
+2. Oppdater klientkonfigurasjonen og kjør agenten.
+3. Verifiser vellykket autentisering og klientrapport.
+4. Bekreft at normal rapportering er gjenopptatt.
+
+Ikke fjern den gamle klientkonfigurasjonen før den nye autentiseringsbanen er verifisert.
+
+## 23. Deaktivere en klient
+
+Deaktiver en klient når den ikke lenger skal delta i LUMS-operasjoner, for eksempel ved avvikling, midlertidig vedlikehold, utskifting eller mistanke om kompromitterte legitimasjoner.
+
+Før deaktivering må du kontrollere om det finnes aktive oppdateringsjobber for klienten. Etterpå skal du verifisere at klienten ikke lenger behandles som operativ, gjennomgå relevant jobbhistorikk og bevare revisjonsinformasjon som trengs for undersøkelser. Ikke slett vedvarende klientdata bare fordi klienten er midlertidig frakoblet.
+
+## 24. Sjekkliste for klientadministrasjon
+
+Når du legger til eller endrer en klient, verifiser hele kjeden:
+
+```text
+[ ] Klienten finnes i LUMS og er aktivert
+[ ] Klienttokenet er gyldig
+[ ] TLS-tilliten er gyldig
+[ ] LUMS Agent er installert og konfigurert
+[ ] Den første rapporten lykkes
+[ ] Klienten vises i webgrensesnittet
+[ ] Installert programvare og tilgjengelige oppdateringer rapporteres
+[ ] Oppdateringsjobber kan spores
+[ ] Resultatene returneres korrekt
+```
+
+En klient er i drift bare når hele rapporterings- og autentiseringskjeden fungerer.
+
 ## 25. Administrativt prinsipp
 
 Brukeradministrasjon og klientadministrasjon bør forbli atskilt.
@@ -1054,6 +1073,25 @@ LUMS validerer pakkeinformasjonen før den oppretter den tilsvarende oppdatering
 Hvis pakken ikke lenger er oppført som oppdaterbar, bør jobbforespørselen ikke behandles som en gyldig oppdateringsoperasjon.
 
 Dette forhindrer at utdatert oppdateringsinformasjon blindt utføres.
+## 33. Oppdatere en pakke
+
+En bestemt pakke kan oppdateres når en oppdatering er tilgjengelig.
+
+```text
+Tilgjengelig oppdatering
+      │
+      ▼
+Gjennomgå pakken
+      │
+      ▼
+Opprett UPDATE_PACKAGE-jobb
+      │
+      ▼
+Agentkjøring og validering av resultat
+```
+
+LUMS validerer pakkeinformasjonen før den tilsvarende oppdateringsjobben opprettes. Hvis pakken ikke lenger er oppført som oppdaterbar, skal forespørselen ikke behandles som en gyldig oppdatering. Dette hindrer at utdatert oppdateringsinformasjon kjøres ukritisk.
+
 ## 34. Oppdatere systemet
 
 UPDATE_SYSTEM utfører en bredere systemoppdatering ved hjelp av klientens native pakkeadministrasjonsmekanisme.
@@ -1109,6 +1147,22 @@ SUCCESS
 En jobb kan også kreve ytterligere håndtering når klienten blir utilgjengelig eller kjøringen avbrytes.
 
 Jobbhistorikken bør brukes som den autoritative driftsregistreringen i stedet for å stole utelukkende på gjeldende klientvisning.
+## 35. Oppdateringsjobber
+
+Alle pakke- og oppdateringsoperasjoner som endrer tilstand, representeres som LUMS-oppdateringsjobber. Dette gir en felles modell for kjøring og sporing.
+
+```text
+PENDING
+   │
+   ▼
+RUNNING
+   ├──────────────► FAILED
+   ▼
+SUCCESS
+```
+
+Det kan være nødvendig med ekstra håndtering hvis klienten blir utilgjengelig eller kjøringen avbrytes. Bruk jobbhistorikken som autoritativ driftsregistrering, ikke bare den gjeldende klientvisningen.
+
 ## 36. Opprettelse av jobb
 
 Før du oppretter en oppdateringsjobb, verifiser den tiltenkte operasjonen nøye.
@@ -1333,6 +1387,58 @@ For rutinemessig pakkevedlikehold:
 ```
 
 Operasjonen er fullført først etter at den resulterende klienttilstanden er verifisert.
+## 41. Låser i pakkebehandleren
+
+APT og pacman kan hindre samtidige pakkeoperasjoner. Hvis en operasjon feiler fordi pakkebehandleren allerede er i bruk:
+
+* Finn den aktive pakkebehandlerprosessen og avklar hvilken operasjon som pågår.
+* Vent til en legitim operasjon er ferdig når det er hensiktsmessig.
+* Prøv deretter LUMS-operasjonen på nytt.
+
+**Ikke** slett låsefiler ukritisk mens pakkebehandleren kjører. Det løser ikke den samtidige operasjonen og kan skade pakkebehandlerens tilstand.
+
+## 42. Kjøring som tar hensyn til inaktivitet
+
+LUMS kan bruke klientens inaktivitetsinformasjon til å avgjøre om en oppdateringsjobb skal kjøres, for å unngå å avbryte aktiv, interaktiv bruk av systemet. Agenten registrerer inaktivitet på klienten. Hvis informasjonen ikke er tilgjengelig, skal agenten rapportere dette i stedet for å finne på en inaktiv tilstand.
+
+Skill mellom klienten er inaktiv, klienten er aktiv, inaktivitet kan ikke fastslås, og klienten er utilgjengelig. Disse tilstandene har ulik driftsmessig betydning.
+
+## 43. Overvåking av oppdateringskjøring
+
+Under vedlikehold må du overvåke jobbtilstand, klienttilkobling, agentaktivitet, pakkebehandlerresultat og omstartskrav.
+
+Ikke anta at en jobb som står i `RUNNING` på ubestemt tid, betyr at pakkebehandleren fortsatt arbeider. Hvis kjøringen ser ut til å ha stoppet opp, undersøk klienten og agenttilstanden før du oppretter en ny jobb.
+
+## 44. Krav om omstart
+
+Enkelte pakke- og systemoppdateringer kan kreve omstart. LUMS sporer omstartstilstanden som rapporteres av klienten.
+
+Etter en systemoppdatering:
+
+1. Undersøk rapportert omstartstilstand og avgjør om omstart kreves.
+2. Utfør omstarten i et egnet vedlikeholdsvindu.
+3. La agenten rapportere på nytt.
+4. Kontroller at klienten er tilbake i normal drift.
+
+Et krav om omstart betyr ikke automatisk at oppdateringen mislyktes.
+
+## 45. Sjekkliste for driftsoppdatering
+
+```text
+[ ] Riktig klient er valgt og kan nås
+[ ] Gjeldende programvaretilstand er gjennomgått
+[ ] Tilgjengelige oppdateringer er kontrollert
+[ ] Riktig pakke og handling er valgt
+[ ] Vedlikeholdskrav er kontrollert
+[ ] Oppdateringsjobb er opprettet og overvåket
+[ ] Jobbresultatet er verifisert
+[ ] Installert programvare og tilgjengelige oppdateringer er kontrollert på nytt
+[ ] Omstartstilstand er kontrollert
+[ ] Jobbhistorikk er gjennomgått ved behov
+```
+
+Operasjonen er først fullført når den resulterende klienttilstanden er verifisert.
+
 ## 46. Prinsipp for pakkeadministrasjon
 
 LUMS tilbyr sentralisert orkestrering og synlighet.
@@ -1671,6 +1777,22 @@ sudo docker logs -f lums
 Når du undersøker et problem, begrens tidsvinduet der det er mulig.
 
 Ikke dump automatisk hele produksjonsloggen når en mindre relevant seksjon er tilstrekkelig.
+## 62. Applikasjonslogger
+
+Applikasjonslogger beskriver den interne driften av LUMS-serveren. Nyttige kilder:
+
+```bash
+sudo docker logs --tail 100 lums
+```
+
+Følg loggen direkte med:
+
+```bash
+sudo docker logs -f lums
+```
+
+Begrens tidsrommet når du undersøker et problem. Ikke hent ut hele produksjonsloggen hvis et mindre, relevant utdrag er tilstrekkelig.
+
 ## 63. Agentlogger
 
 Agentaktivitet på klientsiden kan inspiseres gjennom systemd:
@@ -2184,6 +2306,25 @@ ok
 ```
 
 En produksjonssikkerhetskopi bør aldri testes ved å overskrive den aktive produksjonsdatabasen.
+## 83. Verifisering av sikkerhetskopi
+
+En sikkerhetskopi er ikke pålitelig før den er testet. Kontroller med jevne mellomrom at den kan leses, åpnes som SQLite-data, integritetskontrolleres og gjenopprettes i et isolert testmiljø.
+
+En utpakket testkopi kan for eksempel kontrolleres slik:
+
+```bash
+sqlite3 /path/to/test-copy.db \
+    "PRAGMA integrity_check;"
+```
+
+Forventet resultat:
+
+```text
+ok
+```
+
+En sikkerhetskopi fra produksjon må aldri testes ved å overskrive den aktive produksjonsdatabasen.
+
 ## 84. Gjenopprettingsprinsipp
 
 Gjenoppretting er en kontrollert administrativ operasjon.
@@ -2235,6 +2376,23 @@ Etter en gjenoppretting, verifiser som et minimum:
 ```
 
 En gjenoppretting er fullført først etter at applikasjonen og dens administrerte klienter er verifisert.
+## 85. Verifisering av gjenoppretting
+
+Etter gjenoppretting må du minst kontrollere følgende:
+
+```text
+[ ] Containeren starter og databasen åpnes
+[ ] SQLite-integritetskontrollen består
+[ ] Brukere finnes og rollene er riktige
+[ ] Klienter finnes og klientautentisering fungerer
+[ ] Jobbhistorikk og revisjonsinformasjon er tilgjengelig
+[ ] HTTPS fungerer
+[ ] Klienter kan rapportere
+[ ] Nye operasjoner kan opprettes
+```
+
+Gjenopprettingen er først fullført når både applikasjonen og de administrerte klientene er verifisert.
+
 ## 86. Prinsipp for serversikkerhetskopi
 
 Den viktigste administrative regelen for vedvarende LUMS-data er:
@@ -2354,6 +2512,49 @@ sudo docker build -t lums:new .
 ```
 
 En midlertidig tag lar det kjørende bildet forbli identifiserbart under erstatningsprosessen.
+## 90. Vedlikehold før endringer
+
+Før vedlikehold som kan påvirke LUMS-serveren:
+
+1. Gjennomgå aktive oppdateringsjobber.
+2. Kontroller at klientene ikke er i uventet vedlikehold.
+3. Opprett eller verifiser en aktuell sikkerhetskopi.
+4. Registrer gjeldende container- og bildetilstand.
+5. Dokumenter den planlagte endringen.
+6. Sørg for at det finnes en tilbakerullingsbane.
+
+Ikke start vedlikehold ved straks å stoppe eller slette produksjonskomponenter. Fastslå først gjeldende tilstand.
+
+## 91. Vedlikehold av Docker-bilde
+
+LUMS-applikasjonsbilder skal bygges på nytt fra et gjennomgått kildekodetre. Vertsoppdateringsverktøyet tilbyr for øyeblikket bare kontroller av repositoriet og distribusjonen. Utskifting av produksjonscontaineren er deaktivert inntil sikkerhetskopiering av databasen, migreringssikkerhet og gjenoppretting/tilbakerulling er implementert og testet mot den faktiske distribusjonskonfigurasjonen.
+
+Kjør kontroll av repositoriets ferskhet fra utsjekkingen som vanlig bruker:
+
+```bash
+bash scripts/update-lums.sh --check-repository
+```
+
+Dette henter `origin/main` og sammenligner commit-en med lokal `HEAD`. Det oppdaterer ikke utsjekkingen, bygger ikke et bilde og endrer ikke tjenesten som kjører.
+
+Kontroll av distribusjonen kan kjøres slik:
+
+```bash
+bash scripts/update-lums.sh --check
+```
+
+Den krever en ren utsjekking og validerer gjeldende containerkonfigurasjon. Den kan avvise distribusjoner der volumer, monteringer eller sikkerhetsinnstillinger avviker fra den dokumenterte konfigurasjonen. En vellykket kontroll beviser ikke at gjenoppretting av databasen eller tilbakerulling vil fungere.
+
+Uten `--check` eller `--check-repository` nekter oppdateringsverktøyet fortsatt å erstatte produksjonscontaineren. Ikke bruk verktøyet til å stoppe eller erstatte containeren før den produksjonsspesifikke sikkerhetskopi-, migrerings- og tilbakerullingsprosedyren er implementert og verifisert i et isolert miljø.
+
+Oppdateringsverktøyet kjører ikke hele testsettet. I en utsjekking med prosjektets virtuelle miljø kan relevante tester kjøres slik:
+
+```bash
+.venv/bin/python -m pytest -q tests/test_database_backup.py tests/test_update_lums.py
+```
+
+Fortsett bare når testresultatet er forstått. Beståtte tester erstatter ikke en verifisert sikkerhetskopi- og gjenopprettingstest for den faktiske produksjonsdatabasen.
+
 ## 92. Bildeverifisering
 
 Etter bygging av et nytt bilde, verifiser at bildet eksisterer:
@@ -2665,6 +2866,22 @@ Etter tilbakerulling, verifiser:
 ```
 
 En tilbakerulling er fullført først etter at applikasjonen og klientkommunikasjonsbanen er verifisert.
+## 100. Verifisering av tilbakerulling
+
+Etter tilbakerulling må du kontrollere:
+
+```text
+[ ] LUMS starter og HTTPS fungerer
+[ ] Brukere kan autentisere seg og rollene er riktige
+[ ] Klientene finnes og klientautentisering fungerer
+[ ] Jobbhistorikk og revisjonsinformasjon er tilgjengelig
+[ ] Pakkeinventar er tilgjengelig
+[ ] Oppdateringsjobber kan spores
+[ ] Sikkerhetsbaselinen er intakt
+```
+
+Tilbakerullingen er først fullført når applikasjonen og kommunikasjonsbanen til klientene er verifisert.
+
 ## 101. Nødadministrasjon
 
 Nødadministrasjon bør bevare bevis og vedvarende tilstand når det er mulig.
@@ -2921,4 +3138,3 @@ Når noe fungerer:
 
 Registrer resultatet og behold den kjente gode baselinen.
 text
-

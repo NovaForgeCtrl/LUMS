@@ -1593,7 +1593,7 @@ Periaate on:
 
 ```text
 Completed work remains completed.
-Incomplete work remains recoverable.
+Keskeneräinen työ on edelleen palautettavissa.
 ```
 
 # 35. Keskeytynyt työ
@@ -1783,7 +1783,7 @@ ellet kontrolloitu tietokannan palautusmenettely nimenomaisesti vaadi niitä.
 Jos tietokantatason korjaus on todella tarpeen, säilytä varmuuskopio ja dokumentoi tarkka muutos ennen sen soveltamista.
 
 Normaalit toimintaongelmat tulee ratkaista sovelluksen ja agentin mekanismien kautta.
-43. Valvojan ja agentin diagnostinen matriisi
+# 43. Valvojan ja agentin diagnostinen matriisi
 
 Käytä seuraavaa matriisia tunnistaaksesi todennäköisimmän kerroksen:
 | Oire | Ensimmäinen tarkistettava komponentti |
@@ -2404,7 +2404,7 @@ Page remains open for a long time
 ```
 
 Lataa sivu uudelleen ja muodosta uusi istunto ennen kuin oletat, että palvelinpuolen valtuutus on virheellinen.
-68. RBAC-diagnostinen matriisi
+# 68. RBAC-diagnostinen matriisi
 | Oire | Ensimmäinen tarkistettava komponentti |
 | --- | --- |
 | Viewer näkee hallintakäyttöliittymän | Asiakassivun roolinkäsittely |
@@ -3196,7 +3196,7 @@ Credentials
 Redaktoi arkaluonteiset arvot ennen jakamista.
 
 Älä oleta, että loki on turvallinen vain siksi, että se tuli järjestelmäpalvelusta.
-103. Vikayhdistelmämatriisi
+# 103. Vikayhdistelmämatriisi
 
 Jotkin oireet on helpompi diagnosoida, kun useita komponentteja tarkastellaan yhdessä.
 | Oire | Todennäköisin ensisijainen tarkistusalue |

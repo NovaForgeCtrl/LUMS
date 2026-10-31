@@ -1692,8 +1692,8 @@ La recuperación debe distinguir entre el trabajo que ya se completó y el traba
 El principio es:
 
 ```text
-Completed work remains completed.
-Incomplete work remains recoverable.
+El trabajo completado permanece completado.
+El trabajo incompleto sigue siendo recuperable.
 ```
 
 ---

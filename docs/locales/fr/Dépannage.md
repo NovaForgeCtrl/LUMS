@@ -1692,8 +1692,8 @@ La récupération doit distinguer entre le travail déjà terminé et le travail
 Le principe est :
 
 ```text
-Completed work remains completed.
-Incomplete work remains recoverable.
+Le travail terminé reste terminé.
+Le travail inachevé reste récupérable.
 ```
 
 ---

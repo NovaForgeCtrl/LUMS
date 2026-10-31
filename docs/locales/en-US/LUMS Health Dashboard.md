@@ -84,8 +84,8 @@ and is not an independent restore verification.
 Telemetry requires client authentication. Remote agent connections require
 HTTPS; plain HTTP is accepted only for loopback addresses. Configure a CA
 file when the server uses a private certificate authority. For setup details,
-see [Telemetry](Telemetry_GB.md) and
-[Installation and upgrades](<Installation and upgrades_GB.md>). The English
+see [Telemetry](Telemetry.md) and
+[Installation and upgrades](<Installation and upgrades.md>). The English
 source is [LUMS_Health_Dashboard.md](../../../LUMS_Health_Dashboard.md).
 
 ## Backup-storage status
@@ -118,7 +118,7 @@ troubleshooting shortcut.
    permissions, available space and recent backup logs.
 6. Record the observed status and timestamps before making changes.
 
-See [Troubleshooting](Troubleshooting_GB.md) for diagnostic commands and
-[Administration and backups](<Administration and backups_GB.md>) for routine
+See [Troubleshooting](Troubleshooting.md) for diagnostic commands and
+[Administration and backups](<Administration and backups.md>) for routine
 maintenance and backup procedures. The English source is
 [LUMS_Health_Dashboard.md](../../../LUMS_Health_Dashboard.md).

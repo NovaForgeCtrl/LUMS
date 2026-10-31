@@ -1347,7 +1347,7 @@ La revue de sécurité de LUMS a couvert les domaines suivants :
 * exposition réseau
 * hygiène des artefacts du référentiel
 
-La revue de documentation restante est traitée séparément dans le cadre du processus final de préparation à la version.
+La documentation doit être mise en cohérence avec l'implémentation lorsque le code ou le comportement du déploiement change, afin qu'elle décrive le système réellement présent.
 
 ---
 
@@ -2008,8 +2008,11 @@ L'implémentation actuelle comprend :
 * le transport HTTPS
 * les tests automatisés
 * l'intégration continue
+* la télémétrie facultative du processeur, de la mémoire, des disques, du réseau, de l'hôte et des événements
+* la topologie de l'infrastructure à partir des clients enregistrés et de l'inventaire géré manuellement
+* les enregistrements d'alerte persistants et les points de terminaison de gestion des règles, avec les limites décrites dans `docs/LUMS_REALTIME_ALERTING_IMPLEMENTATION.md`
 
-Le projet est actuellement dans la phase finale de documentation et de préparation à la version.
+Cette liste est un inventaire de haut niveau, et non une affirmation d'exhaustivité fonctionnelle ou de préparation à une release. Les composants facultatifs peuvent nécessiter une installation et une configuration séparées, et certaines fonctions ont des limites documentées. Pour connaître le comportement d'une release précise, consultez la révision du code source et ses tests.
 
 ---
 
@@ -2061,17 +2064,7 @@ La sécurité est traitée comme une responsabilité d'ingénierie continue plut
 
 ---
 
-## État de la version
-
-LUMS ne revendique actuellement aucune version de production stable.
-
-Il n'y a actuellement :
-
-* aucune version sémantique finale
-* aucune étiquette de version stable
-* aucune GitHub Release
-
-Le projet suit délibérément la séquence de version :
+## Processus de release
 
 ```text id="f3c4y9"
 Implementation
@@ -2091,24 +2084,13 @@ Git Tag
 GitHub Release
 ```
 
-La première version officielle ne devrait être créée qu'après que l'implémentation actuelle, la revue de sécurité, la documentation et les tests de régression sont considérés comme terminés.
+La disponibilité des releases et des tags peut évoluer indépendamment de cette documentation ; consultez la page Releases et les tags actuels du dépôt. Une release ne doit être publiée qu'une fois terminés l'implémentation, la revue de sécurité, la documentation et les tests de régression de la révision concernée.
 
 ---
 
 ## Feuille de route
 
 La feuille de route est intentionnellement axée sur la stabilité et la maintenabilité plutôt que sur l'ajout de fonctionnalités sans compléter la fondation existante.
-
-### Phase actuelle
-
-* terminer la revue de documentation
-* supprimer les incohérences de documentation restantes
-* clôturer le travail d'audit de documentation
-* effectuer l'exécution finale complète des tests
-* vérifier CI
-* préparer la version de publication
-* créer la première étiquette Git officielle
-* publier la première GitHub Release
 
 ### Développement futur
 

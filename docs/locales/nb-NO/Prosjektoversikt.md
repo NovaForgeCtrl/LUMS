@@ -1347,7 +1347,7 @@ LUMS' sikkerhetsgjennomgang har dekket følgende områder:
 
 * repositoriumets artefakthygiene
 
-Den gjenstående dokumentasjonsgjennomgangen håndteres separat som en del av den endelige utgivelsesklarhetsprosessen.
+Dokumentasjonen skal vedlikeholdes løpende mot faktisk implementasjon og konfigurasjon. Skill mellom implementerte kontroller, verifisert produksjonsatferd og planlagte forbedringer. Kontroller relevante tester mot revisjonen som skal distribueres.
 Testing og CI
 
 LUMS inkluderer automatiserte tester som dekker kjerneatferd og sikkerhetskontroller.
@@ -1380,26 +1380,13 @@ Antallet tester endres over tid. Det nødvendige resultatet er at hele settet fu
 
 Kontinuerlig integrasjon kjører det automatiserte testsettet før endringer anses som klare.
 
-En vellykket testkjøring er nødvendig, men tester er bare én del av utgivelsesprosessen.
+En vellykket testkjøring er nødvendig, men beviser ikke alene at en bestemt distribusjon er sikker eller korrekt konfigurert. Verifiser miljøet som faktisk skal brukes.
 
-Utgivelsesprosessen krever også:
+Når du trenger informasjon om en utgivelse, kontroller det gjeldende repositoriet:
 ```text
 
-Implementation
-    ↓
-Security Review
-    ↓
-Documentation Review
-    ↓
-Full Test Suite
-    ↓
-CI
-    ↓
-Version
-    ↓
-Git Tag
-    ↓
-GitHub Release
+GitHub Releases
+Git tags
 ```
 
 Utviklingsstatus
@@ -1408,11 +1395,7 @@ LUMS er for tiden under aktiv utvikling.
 
 Kjernearkitekturen for administrasjon, klientkjøringsmodellen, pakkeadministrasjon, RBAC, sikkerhetsherding og gjenopprettingsmekanismer er implementert.
 
-Prosjektet anses bevisst ikke som en ferdig utgivelse bare fordi applikasjonen er funksjonell.
-
-Utgivelsesklarhet krever også at den omkringliggende dokumentasjonen og driftsprosedyrene beskriver det samme gjeldende systemet.
-
-Dette er grunnen til at dokumentasjonskonsistens behandles som en del av ingeniørprosessen i stedet for som en ettertanke.
+Dokumentasjon og driftsprosedyrer vedlikeholdes som en del av utviklingsarbeidet, slik at de samsvarer med systemet som faktisk er implementert.
 Støttede systemer
 
 LUMS er utformet for å administrere Linux-systemer som bruker støttede native pakkebehandlere.
@@ -1966,7 +1949,7 @@ Dokumentasjon behandles som en del av systemet.
 
 En funksjon anses ikke som fullstendig ferdig når koden fungerer, men dokumentasjonen fortsatt beskriver en eldre arkitektur.
 
-Det tiltenkte forholdet er:
+Forholdet mellom implementasjon og dokumentasjon er:
 
 ```text id="0m1m5u"
 Implementation
@@ -1976,7 +1959,7 @@ Implementation
       └── Documentation
                │
                ▼
-          Release Ready
+       Verifiserbar drift
 ```
 
 Dette er spesielt viktig for sikkerhetsfølsomme distribusjons- og administrasjonsprosedyrer.
@@ -2029,8 +2012,11 @@ Gjeldende implementasjon inkluderer:
 * automatisert testing
 
 * kontinuerlig integrasjon
+* valgfri CPU-, minne-, disk-, nettverks-, verts- og hendelsestelemetri
+* infrastrukturtopologi basert på registrerte klienter og manuelt vedlikeholdt inventar
+* vedvarende varselposter og endepunkter for regeladministrasjon; begrensningene er beskrevet i `docs/LUMS_REALTIME_ALERTING_IMPLEMENTATION.md`
 
-Prosjektet er for tiden i den endelige dokumentasjons- og utgivelsesklarhetsfasen.
+Listen er en overordnet oversikt, ikke en påstand om at alle funksjoner er fullstendige eller klare for produksjonssetting. Valgfrie komponenter kan kreve separat installasjon og konfigurering, og funksjonene har individuelle begrensninger. Kontroller kildekoden og testene for den aktuelle revisjonen.
 Sikkerhetsstatus
 
 Hovedområdene for sikkerhetsrevisjonen er implementert og gjennomgått.
@@ -2078,57 +2064,13 @@ Network Security
 Sikkerhet behandles som et pågående ingeniøransvar i stedet for en engangs-sjekkliste.
 Utgivelsesstatus
 
-LUMS hevder for tiden ikke en stabil produksjonsutgivelsesversjon.
-
-Det finnes for tiden:
-
-* ingen endelig semantisk versjon
-
-* ingen stabil utgivelsestag
-
-* ingen GitHub-utgivelse
-
-Prosjektet følger bevisst utgivelsessekvensen:
-
-```text id="f3c4y9"
-Implementation
-      ↓
-Security Review
-      ↓
-Documentation Review
-      ↓
-Full Test Suite
-      ↓
-CI
-      ↓
-Version Assignment
-      ↓
-Git Tag
-      ↓
-GitHub Release
-```
-
-Den første offisielle utgivelsen bør bare opprettes etter at gjeldende implementasjon, sikkerhetsrevisjon, dokumentasjon og regresjonstesting anses som fullstendige.
+Opplysninger om utgivelser er tidsavhengige. Kontroller gjeldende GitHub-utgivelser og Git-tagger i repositoriet i stedet for å utlede status fra denne dokumentasjonen.
 Veikart
 
 Veikartet er bevisst fokusert på stabilitet og vedlikeholdbarhet i stedet for å legge til funksjoner uten å fullføre det eksisterende fundamentet.
 Gjeldende fase
 
-* fullfør dokumentasjonsgjennomgangen
-
-* fjern gjenværende dokumentasjonsinkonsistenser
-
-* avslutt dokumentasjonsrevisjonsarbeidet
-
-* utfør en siste full testkjøring
-
-* verifiser CI
-
-* forbered utgivelsesversjon
-
-* opprett den første offisielle Git-taggen
-
-* publiser den første GitHub-utgivelsen
+Prosjektet er under aktiv utvikling. Denne veiledningen fastsetter ikke en egen milepæl eller fase; se kildekoden, testene og repositoriets gjeldende utgivelser for oppdatert informasjon.
 
 Fremtidig utvikling
 

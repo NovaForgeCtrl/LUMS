@@ -220,15 +220,10 @@ Cada área de auditoría se revisa contra la implementación real, seguida de pr
 | #13       | Pruebas de simulación                   | SUPERADA                  |
 | #14       | Integración continua                    | SUPERADA                  |
 | #15       | Registro de aplicación / auditoría      | SUPERADA                  |
-| #16       | Versionado / Lanzamientos               | REVISADA — ABIERTA POR DISEÑO |
+| #16       | Versionado / Lanzamientos               | Consultar [Releases](https://github.com/NovaForgeCtrl/LUMS/releases) y [etiquetas](https://github.com/NovaForgeCtrl/LUMS/tags) |
 | #17       | Control de acceso basado en roles       | SUPERADA                  |
-| #18       | Revisión de documentación               | EN CURSO                  |
 
-La auditoría #16 es intencionalmente diferente de los controles técnicos de seguridad anteriores.
-
-LUMS actualmente no tiene una versión estable oficial, ni una etiqueta de lanzamiento, ni una GitHub Release. Esto es intencional porque el proyecto sigue en desarrollo activo.
-
-La auditoría #18 permanece abierta hasta que el conjunto completo de documentación haya sido revisado y sincronizado con la implementación actual.
+Esta tabla registra el alcance y los resultados de verificaciones anteriores; no constituye una certificación ni una garantía para revisiones posteriores. Repite las comprobaciones pertinentes sobre el código exacto que se vaya a implementar. La disponibilidad de versiones cambia: consulta [Releases](https://github.com/NovaForgeCtrl/LUMS/releases) y las [etiquetas](https://github.com/NovaForgeCtrl/LUMS/tags) del repositorio en lugar de inferir el estado a partir de este documento.
 
 # Auditoría de seguridad #01
 
@@ -403,8 +398,6 @@ Las siguientes áreas de auditoría se documentan en las secciones posteriores:
 * #15 Registro de aplicación / auditoría
 * #16 Versionado / Lanzamientos
 * #17 Control de acceso basado en roles
-
-La auditoría #18 — Revisión de documentación — permanece abierta hasta que el conjunto completo de documentación haya sido revisado y sincronizado con la implementación actual.
 
 # Auditoría de seguridad #05
 
@@ -860,24 +853,12 @@ El sistema de registro está destinado a soportar tanto la solución de problema
 
 ## Versionado y lanzamientos
 
-El versionado y la gestión de lanzamientos se revisaron como parte de la auditoría de seguridad.
-
-LUMS está actualmente en desarrollo activo y aún no tiene un lanzamiento estable oficial.
-
-Por lo tanto, el estado actual del repositorio tiene intencionalmente:
-
-* sin versión de lanzamiento estable oficial
-* sin etiqueta de lanzamiento
-* sin GitHub Release
+El versionado y la gestión de lanzamientos forman parte de la revisión de seguridad porque los operadores deben poder identificar el código y los artefactos exactos que implementan. La disponibilidad de versiones y las versiones de los componentes cambian independientemente de esta guía. Consulta las [etiquetas](https://github.com/NovaForgeCtrl/LUMS/tags) y la página [Releases](https://github.com/NovaForgeCtrl/LUMS/releases) actuales del repositorio, y revisa los metadatos de versión en la revisión exacta del código fuente que vayas a implementar. No uses este documento como catálogo actualizado de versiones.
 
 Las versiones actuales de los componentes incluyen:
 
 * LUMS Agent: `1.7.0`
 * LUMS Watcher: `1.2.1`
-
-Actualmente no existe un número de versión formal único que represente la aplicación LUMS completa.
-
-Esta es una decisión intencional del estado del proyecto, no una omisión accidental.
 
 El proceso de lanzamiento planificado es:
 
@@ -891,11 +872,7 @@ El proceso de lanzamiento planificado es:
 8. Publicar la GitHub Release.
 9. Preservar el lanzamiento como la línea base documentada.
 
-No se crea un lanzamiento oficial solo porque la auditoría de seguridad alcance un número de auditoría particular.
-
-La creación del lanzamiento tendrá lugar solo después de que el trabajo restante de implementación y documentación haya sido completado.
-
-**Estado: REVISADA — ABIERTA POR DISEÑO**
+Publica una versión solo después de completar la implementación, la revisión de seguridad, la documentación y las pruebas de regresión de esa revisión.
 
 ---
 
@@ -920,15 +897,11 @@ Las siguientes áreas de auditoría de seguridad están completas:
 | #13       | Pruebas de simulación                   | SUPERADA                  |
 | #14       | Integración continua                    | SUPERADA                  |
 | #15       | Registro de aplicación / auditoría      | SUPERADA                  |
-| #16       | Versionado / Lanzamientos               | REVISADA — ABIERTA POR DISEÑO |
+| #16       | Versionado / Lanzamientos               | Consultar [Releases](https://github.com/NovaForgeCtrl/LUMS/releases) y [etiquetas](https://github.com/NovaForgeCtrl/LUMS/tags) |
 
 El área de auditoría técnica numerada restante es:
 
 * #17 Control de acceso basado en roles
-
-La revisión de documentación se rastrea por separado como:
-
-* #18 Revisión de documentación — EN CURSO
 
 # Auditoría de seguridad #17
 
@@ -1093,7 +1066,7 @@ El servidor sigue siendo la frontera de seguridad autoritativa.
 
 **Estado: SUPERADA**
 
-# Auditoría de seguridad #18
+# Política de revisión de la documentación
 
 ## Revisión de documentación
 
@@ -1159,7 +1132,7 @@ Los usuarios Viewer no tienen acceso a:
 
 La revisión de documentación también elimina o reemplaza referencias obsoletas a recuentos de pruebas anteriores, estados de migración, configuraciones de despliegue y comportamiento exclusivo de desarrollo.
 
-**Estado: EN CURSO**
+Esta guía debe revisarse frente a la implementación correspondiente cada vez que cambien las funciones o los controles de seguridad. Las afirmaciones históricas no deben presentarse como estado actual sin verificarlas.
 
 ---
 
@@ -1365,15 +1338,12 @@ Los resultados de la auditoría numerada son:
 | #13       | Pruebas de simulación                   | SUPERADA                  |
 | #14       | Integración continua                    | SUPERADA                  |
 | #15       | Registro de aplicación / auditoría      | SUPERADA                  |
-| #16       | Versionado / Lanzamientos               | REVISADA — ABIERTA POR DISEÑO |
+| #16       | Versionado / Lanzamientos               | Consultar las versiones y etiquetas actuales |
 | #17       | Control de acceso basado en roles       | SUPERADA                  |
-| #18       | Revisión de documentación               | EN CURSO                  |
 
 Los controles técnicos de seguridad revisados en las auditorías #01–#15 y #17 han superado la revisión.
 
-La auditoría #16 permanece intencionalmente abierta porque LUMS aún no ha alcanzado su primer lanzamiento estable oficial.
-
-La auditoría #18 permanece abierta hasta que la documentación completa del proyecto haya sido revisada y sincronizada con el estado final de implementación.
+La disponibilidad de versiones y etiquetas puede cambiar sin que se actualice esta guía. Consulta [Releases](https://github.com/NovaForgeCtrl/LUMS/releases) y las [etiquetas](https://github.com/NovaForgeCtrl/LUMS/tags) del repositorio para conocer el estado actual.
 
 Ningún resultado de auditoría de seguridad debe interpretarse como una garantía de que LUMS está libre de vulnerabilidades.
 
@@ -1385,7 +1355,7 @@ Los cambios en la aplicación, el agente, las dependencias, la configuración de
 
 # Línea base de seguridad
 
-La línea base de seguridad actual se basa en la implementación verificada y el estado de despliegue en producción.
+Esta línea base describe los controles configurados en el código fuente y en las indicaciones de despliegue. No demuestra que una instalación concreta los aplique; verifica la configuración efectiva en el entorno de destino.
 
 La línea base incluye:
 
@@ -1466,7 +1436,7 @@ En su lugar, la autenticación, autorización, validación, ejecución controlad
 
 El proyecto favorece deliberadamente la aplicación explícita en el servidor sobre la seguridad por interfaz.
 
-La línea base de seguridad actual se documenta según el estado verificado de implementación en lugar del comportamiento histórico de desarrollo.
+La línea base de seguridad documenta el estado verificado de la implementación, no el comportamiento histórico de desarrollo. No demuestra por sí sola que una instalación concreta aplique esos controles; verifica la configuración efectiva en el entorno de destino.
 
 ---
 

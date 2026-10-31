@@ -1692,8 +1692,8 @@ Die Wiederherstellung muss zwischen bereits abgeschlossener Arbeit und noch ausz
 Das Prinzip ist:
 
 ```text
-Completed work remains completed.
-Incomplete work remains recoverable.
+Abgeschlossene Arbeiten bleiben abgeschlossen.
+Unvollständige Arbeiten können weiterhin wiederhergestellt werden.
 ```
 
 ---

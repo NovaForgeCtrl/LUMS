@@ -255,15 +255,12 @@ Current audit areas:
 | #13 | Simulation Tests | PASS |
 | #14 | Continuous Integration | PASS |
 | #15 | Application / Audit Logging | PASS |
-| #16 | Versioning / Releases | REVIEWED — OPEN BY DESIGN |
+| #16 | Versioning / Releases | Check current repository releases and tags |
 | #17 | Role-Based Access Control | PASS |
-| #18 | Documentation Review | IN PROGRESS |
-
-Audit #16 is intentionally different from the technical security controls above.
-
-LUMS currently has no official stable release, no release tag, and no GitHub Release. This is intentional because the project remains under active development.
-
-Audit #18 remains open until the complete documentation set has been reviewed and synchronised with the current implementation.
+Release and tag availability changes over time. Check the repository's
+[Releases](https://github.com/NovaForgeCtrl/LUMS/releases) and
+[tags](https://github.com/NovaForgeCtrl/LUMS/tags) for the current state; do
+not infer availability from this document.
 # Security Audit #01
 ## SQLite Foreign Keys
 
@@ -454,7 +451,9 @@ The following audit areas are documented in the subsequent sections:
 
     #17 Role-Based Access Control
 
-Audit #18 — Documentation Review — remains open until the complete documentation set has been reviewed and synchronised with the current implementation.
+Documentation alignment is an ongoing maintenance activity, not a numbered
+security-control audit. The language and guide index is maintained in
+[`docs/README.md`](../../README.md).
 # Security Audit #05
 ## API Input Validation
 
@@ -942,27 +941,19 @@ Status: PASS
 # Security Audit #16
 ## Versioning and Releases
 
-Versioning and release management were reviewed as part of the security audit.
-
-LUMS is currently under active development and does not yet have an official stable release.
-
-The current repository state therefore intentionally has:
-
-* no official stable release version
-
-* no release tag
-
-* no GitHub Release
+Versioning and release management are part of the security review because
+operators must be able to identify the exact code and artefacts they deploy.
+Release availability and component versions change independently of this
+guide. Check the repository's [current tags](https://github.com/NovaForgeCtrl/LUMS/tags)
+and [Releases page](https://github.com/NovaForgeCtrl/LUMS/releases), and inspect the
+version metadata in the exact source revision being deployed. Do not treat
+this document as a live release catalogue.
 
 The current component versions include:
 
 * LUMS Agent: 1.7.0
 
 * LUMS Watcher: 1.2.1
-
-There is currently no single formal version number representing the complete LUMS application.
-
-This is an intentional project-state decision rather than an accidental omission.
 
 The planned release process is:
 
@@ -986,9 +977,11 @@ The planned release process is:
 
 No official release is created solely because the security audit reaches a particular audit number.
 
-Release creation will take place only after the remaining implementation and documentation work has been completed.
+No official release is created solely because the security audit reaches a particular audit number.
 
-Status: REVIEWED — OPEN BY DESIGN
+Release creation should take place only after the implementation and documentation work for that release has been completed.
+
+Status: REVIEWED
 # Audit Status After Part 5
 
 The following security audit areas are complete:
@@ -1009,15 +1002,15 @@ The following security audit areas are complete:
 | #13 | Simulation Tests | PASS |
 | #14 | Continuous Integration | PASS |
 | #15 | Application / Audit Logging | PASS |
-| #16 | Versioning / Releases | REVIEWED — OPEN BY DESIGN |
+| #16 | Versioning / Releases | Check current repository releases and tags |
 
 The remaining numbered technical audit area is:
 
     #17 Role-Based Access Control
 
-The documentation review is tracked separately as:
-
-    #18 Documentation Review — IN PROGRESS
+Documentation alignment is an ongoing maintenance activity, not a numbered
+security-control audit. The language and guide index is maintained in
+[`docs/README.md`](../../README.md).
 
 # Security Audit #17
 ## Role-Based Access Control
@@ -1192,7 +1185,6 @@ The interface therefore does not provide the authorisation mechanism by itself.
 The server remains the authoritative security boundary.
 
 Status: PASS
-# Security Audit #18
 ## Documentation Review
 
 The security documentation is reviewed against the currently implemented LUMS system.
@@ -1285,9 +1277,10 @@ Viewer users do not have access to:
 
 * System Maintenance
 
-The documentation review also removes or replaces outdated references to earlier test counts, migration states, deployment configurations, and development-only behaviour.
-
-Status: IN PROGRESS
+Replace outdated references to earlier test counts, migration states,
+deployment configurations and development-only behaviour whenever they are
+found. These are review criteria, not claims that a particular release has
+completed every review.
 # Additional Security Hardening
 
 The numbered security audit covers the primary application security controls.
@@ -1514,15 +1507,15 @@ The numbered audit results are:
 | #13 | Simulation Tests | PASS |
 | #14 | Continuous Integration | PASS |
 | #15 | Application / Audit Logging | PASS |
-| #16 | Versioning / Releases | REVIEWED — OPEN BY DESIGN |
+| #16 | Versioning / Releases | Check current repository releases and tags |
 | #17 | Role-Based Access Control | PASS |
-| #18 | Documentation Review | IN PROGRESS |
+The technical security controls reviewed in audits #01–#15 and #17 have passed
+their recorded checks. Those results are not a certification or a guarantee
+about a later revision.
 
-The technical security controls reviewed in audits #01–#15 and #17 have passed.
-
-Audit #16 remains intentionally open because LUMS has not yet reached its first official stable release.
-
-Audit #18 remains open until the complete project documentation has been reviewed and synchronised with the final implementation state.
+Release and tag availability can change; consult the repository's current
+[Releases page](https://github.com/NovaForgeCtrl/LUMS/releases) and
+[tags](https://github.com/NovaForgeCtrl/LUMS/tags).
 
 No security audit result should be interpreted as a guarantee that LUMS is free from vulnerabilities.
 
@@ -1531,7 +1524,9 @@ Security is an ongoing process.
 Changes to the application, Agent, dependencies, container configuration, network exposure, authentication model, or deployment architecture should trigger another security review of the affected controls.
 # Security Baseline
 
-The current security baseline is based on the verified implementation and production deployment state.
+This baseline describes controls configured in the source and deployment
+guidance. It is not proof that a particular installation applies them; verify
+the effective settings in the target environment.
 
 The baseline includes:
 
@@ -1611,25 +1606,11 @@ Security testing should be performed before publishing an official release.
 The security documentation should be updated whenever the verified security baseline changes.
 # Release Readiness
 
-The first official LUMS release will be created only after:
-
-1. implementation work is complete
-
-2. security review is complete
-
-3. documentation review is complete
-
-4. the full automated test suite passes
-
-5. CI passes
-
-6. the final version is defined
-
-7. the Git tag is created
-
-8. the GitHub Release is published
-
-Until then, LUMS remains an actively developed project.
+Release and tag availability can change; check the repository's current
+[Releases page](https://github.com/NovaForgeCtrl/LUMS/releases) and
+[tags](https://github.com/NovaForgeCtrl/LUMS/tags). A release should be published only after the
+implementation, security review, documentation and regression tests for that
+revision are complete.
 # Final Statement
 
 LUMS is designed as a controlled Linux update-management platform with security as a core architectural concern.

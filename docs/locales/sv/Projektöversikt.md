@@ -2018,9 +2018,9 @@ Detta är särskilt viktigt för säkerhetskänsliga distributions- och administ
 
 ## Aktuell status
 
-LUMS är en aktivt utvecklad plattform för Linux-uppdateringshantering.
+LUMS är en Linux-plattform för uppdateringshantering under aktiv utveckling.
 
-Den nuvarande implementeringen inkluderar:
+Den nuvarande implementationen omfattar:
 
 * centraliserad klienthantering
 * programvaruinventering
@@ -2034,18 +2034,20 @@ Den nuvarande implementeringen inkluderar:
 * jobbåterställning
 * omstartsdetektering
 * inaktivitetsmedveten körning
-* klienttokenautentisering
-* tokenrotation
+* klienttokenautentisering och tokenrotation
 * administrativ autentisering
-* rollbaserad åtkomstkontroll
+* roll- och behörighetsbaserad åtkomstkontroll
 * användarhantering
 * granskningsloggning
-* containerhärdning
-* HTTPS-transport
-* automatiserad testning
-* kontinuerlig integration
+* containerhärdning och HTTPS-transport
+* automatiserad testning och kontinuerlig integration
+* valfri CPU-, minnes-, disk-, nätverks-, värd- och händelsetelemetri
+* infrastrukturstopologi från registrerade klienter och manuellt underhållet inventarium
+* beständiga larmuppgifter och gränssnitt för regelhantering, med de begränsningar som dokumenteras för implementationen
 
-Projektet befinner sig för närvarande i den slutliga dokumentations- och utgivningsberedskapsfasen.
+Listan är en översikt, inte ett påstående om fullständiga funktioner eller utgivningsberedskap. Valfria komponenter kan behöva installeras och konfigureras separat, och enskilda funktioner har dokumenterade begränsningar. Kontrollera källrevisionen och dess tester för beteendet i en viss utgåva.
+
+Larmregler och deras villkor och tröskelvärden lagras, men servern utvärderar dem inte automatiskt mot telemetri. Larm utlöses manuellt. Leverantörer som anges i eskaleringsvägen kan anropas vid manuell utlösning, men webbappen skapar hanteraren med en tom leverantörskarta och integrationsgränssnitten kan inte konfigurera leverantörer. Gruppering och deduplicering lagras men tillämpas inte. Se de implementerade gränserna i `docs/LUMS_REALTIME_ALERTING_IMPLEMENTATION.md`.
 
 ---
 
@@ -2099,14 +2101,6 @@ Säkerhet behandlas som ett pågående ingenjörsansvar snarare än en engångsk
 
 ## Utgivningsstatus
 
-LUMS gör för närvarande inte anspråk på en stabil produktionsutgivningsversion.
-
-Det finns för närvarande:
-
-* ingen slutlig semantisk version
-* ingen stabil utgivningstagg
-* ingen GitHub-utgivning
-
 Projektet följer avsiktligt utgivningssekvensen:
 
 ```text id="f3c4y9"
@@ -2127,24 +2121,13 @@ Git-tagg
 GitHub-utgivning
 ```
 
-Den första officiella utgivningen bör endast skapas efter att den nuvarande implementeringen, säkerhetsgranskningen, dokumentationen och regressionstestningen anses vara slutförda.
+Tillgängligheten för utgåvor och taggar kan ändras oberoende av dokumentationen. Kontrollera den aktuella statusen på repositoryts [utgivningssida](https://github.com/NovaForgeCtrl/LUMS/releases) och bland [taggarna](https://github.com/NovaForgeCtrl/LUMS/tags). En utgåva bör publiceras först när implementationen, säkerhetsgranskningen, dokumentationen och regressionstesterna för den revisionen är färdiga.
 
 ---
 
 ## Färdplan
 
 Färdplanen är avsiktligt inriktad på stabilitet och underhållbarhet snarare än att lägga till funktioner utan att slutföra den befintliga grunden.
-
-### Nuvarande fas
-
-* slutför dokumentationsgranskningen
-* ta bort kvarvarande dokumentationsinkonsekvenser
-* avsluta dokumentationsgranskningsarbetet
-* utför slutlig fullständig testkörning
-* verifiera CI
-* förbered utgivningsversion
-* skapa den första officiella Git-taggen
-* publicera den första GitHub-utgivningen
 
 ### Framtida utveckling
 

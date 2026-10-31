@@ -1347,7 +1347,7 @@ Przegląd bezpieczeństwa LUMS objął następujące obszary:
 * ekspozycję sieci
 * higienę artefaktów repozytorium
 
-Pozostały przegląd dokumentacji jest obsługiwany oddzielnie jako część końcowego procesu gotowości wydania.
+Przegląd dokumentacji jest częścią bieżącego utrzymania; ten przewodnik nie śledzi fazy projektu przypisanej do gałęzi ani aktualnego statusu wydania.
 
 ---
 
@@ -2008,8 +2008,11 @@ Obecna implementacja obejmuje:
 * transport HTTPS
 * testy automatyczne
 * ciągłą integrację
+* opcjonalną telemetrię procesora, pamięci, dysku, sieci, hosta i zdarzeń
+* topologię infrastruktury opartą na zarejestrowanych klientach i ręcznie utrzymywanym inwentarzu
+* trwałe rekordy alertów i endpointy zarządzania regułami, z ograniczeniami opisanymi w `docs/LUMS_REALTIME_ALERTING_IMPLEMENTATION.md`
 
-Projekt znajduje się obecnie w końcowej fazie dokumentacji i gotowości wydania.
+Ta lista jest ogólnym wykazem, a nie deklaracją kompletności funkcji ani gotowości do wydania. Opcjonalne komponenty mogą wymagać osobnej instalacji i konfiguracji, a poszczególne funkcje mają udokumentowane ograniczenia. Aby poznać zachowanie konkretnego wydania, sprawdź odpowiednią rewizję kodu źródłowego i jej testy.
 
 ---
 
@@ -2061,17 +2064,7 @@ Bezpieczeństwo jest traktowane jako ciągła odpowiedzialność inżynierska, a
 
 ---
 
-## Status wydania
-
-LUMS nie rości sobie obecnie stabilnej wersji produkcyjnej.
-
-Obecnie nie ma:
-
-* końcowej wersji semantycznej
-* stabilnego tagu wydania
-* GitHub Release
-
-Projekt celowo podąża za sekwencją wydania:
+## Proces wydania
 
 ```text id="f3c4y9"
 Implementation
@@ -2091,28 +2084,13 @@ Git Tag
 GitHub Release
 ```
 
-Pierwsze oficjalne wydanie powinno zostać utworzone dopiero po uznaniu bieżącej implementacji, przeglądu bezpieczeństwa, dokumentacji i testów regresji za ukończone.
+Dostępność wydań i tagów może się zmieniać niezależnie od tej dokumentacji; aktualny stan sprawdź na stronie Releases repozytorium i na liście tagów. Wydanie należy opublikować dopiero po ukończeniu implementacji, przeglądu bezpieczeństwa, dokumentacji i testów regresji dla danej rewizji.
 
 ---
 
 ## Plan rozwoju
 
-Plan rozwoju jest celowo skoncentrowany na stabilności i łatwości utrzymania, a nie na dodawaniu funkcji bez ukończenia istniejących podstaw.
-
-### Obecna faza
-
-* ukończyć przegląd dokumentacji
-* usunąć pozostałe niespójności dokumentacji
-* zamknąć pracę audytu dokumentacji
-* wykonać końcowe pełne uruchomienie testów
-* zweryfikować CI
-* przygotować wersję wydania
-* utworzyć pierwszy oficjalny tag Git
-* opublikować pierwszy GitHub Release
-
-### Przyszły rozwój
-
-Potencjalna przyszła praca może obejmować:
+Ten przewodnik nie śledzi fazy projektu przypisanej do konkretnej gałęzi ani harmonogramu. Potencjalne przyszłe prace, po ich wybraniu i zweryfikowaniu, mogą obejmować:
 
 * dodatkowe dystrybucje Linuksa
 * dodatkowe backendy menedżerów pakietów

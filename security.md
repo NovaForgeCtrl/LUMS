@@ -224,15 +224,15 @@ Current audit areas:
 | #13   | Simulation Tests                       | PASS                      |
 | #14   | Continuous Integration                 | PASS                      |
 | #15   | Application / Audit Logging            | PASS                      |
-| #16   | Versioning / Releases                  | REVIEWED — OPEN BY DESIGN |
+| #16   | Versioning / Releases                  | Check current repository releases and tags |
 | #17   | Role-Based Access Control              | PASS                      |
-| #18   | Documentation Review                   | IN PROGRESS               |
 
-Audit #16 is intentionally different from the technical security controls above.
-
-LUMS currently has no official stable release, no release tag, and no GitHub Release. This is intentional because the project remains under active development.
-
-Audit #18 remains open until the complete documentation set has been reviewed and synchronized with the current implementation.
+This table records the scope and outcome of earlier verification; it is not a
+certification or a guarantee about a later revision. Re-run relevant checks
+against the exact code being deployed. Release availability is dynamic, so
+consult the repository's [Releases](https://github.com/NovaForgeCtrl/LUMS/releases)
+and [tags](https://github.com/NovaForgeCtrl/LUMS/tags) rather than inferring
+status from this document.
 
 # Security Audit #01
 
@@ -407,8 +407,6 @@ The following audit areas are documented in the subsequent sections:
 * #15 Application / Audit Logging
 * #16 Versioning / Releases
 * #17 Role-Based Access Control
-
-Audit #18 — Documentation Review — remains open until the complete documentation set has been reviewed and synchronized with the current implementation.
 
 # Security Audit #05
 
@@ -865,24 +863,13 @@ The logging system is intended to support both operational troubleshooting and s
 
 ## Versioning and Releases
 
-Versioning and release management were reviewed as part of the security audit.
-
-LUMS is currently under active development and does not yet have an official stable release.
-
-The current repository state therefore intentionally has:
-
-* no official stable release version
-* no release tag
-* no GitHub Release
-
-The current component versions include:
-
-* LUMS Agent: `1.7.0`
-* LUMS Watcher: `1.2.1`
-
-There is currently no single formal version number representing the complete LUMS application.
-
-This is an intentional project-state decision rather than an accidental omission.
+Versioning and release management are part of the security review because
+operators must be able to identify the exact code and artifacts they deploy.
+Release availability and component versions change independently of this
+guide. Check the repository's [current tags](https://github.com/NovaForgeCtrl/LUMS/tags)
+and [Releases page](https://github.com/NovaForgeCtrl/LUMS/releases), and inspect
+the version metadata in the exact source revision being deployed. Do not treat
+this document as a live release catalogue.
 
 The planned release process is:
 
@@ -931,9 +918,9 @@ The remaining numbered technical audit area is:
 
 * #17 Role-Based Access Control
 
-The documentation review is tracked separately as:
-
-* #18 Documentation Review — IN PROGRESS
+Documentation alignment is an ongoing maintenance activity, not a numbered
+security-control audit. The language and guide index is maintained in
+[`docs/README.md`](docs/README.md).
 
 # Security Audit #17
 
@@ -1131,11 +1118,10 @@ The server remains the authoritative security boundary.
 
 **Status: PASS**
 
-# Security Audit #18
-
 ## Documentation Review
 
-The security documentation is reviewed against the currently implemented LUMS system.
+Review documentation against the implementation whenever code or deployment
+behavior changes.
 
 The purpose of this review is to ensure that security documentation describes the actual implementation rather than an earlier development state.
 
@@ -1171,16 +1157,13 @@ Documentation must distinguish between:
 
 Historical implementation details must not be presented as current production configuration.
 
-In particular, the documentation reflects the current SQLite production configuration rather than the current WAL configuration.
+`server/init_db.py` enables SQLite WAL mode. Connections created by
+`server/app.py` enable foreign-key enforcement and a 5,000 ms busy timeout.
+Confirm the effective runtime settings for the deployment being reviewed
+rather than inferring them from this guide.
 
-The current production runtime is documented as:
-
-* `journal_mode = wal`
-* `busy_timeout = 5000`
-* `synchronous = 2`
-* application-level `PRAGMA foreign_keys = ON`
-
-The current Viewer-RBAC behavior is also documented according to the implemented production interface.
+The Viewer-RBAC description should also be checked against the current
+permission definitions and protected routes.
 
 Viewer users have access to:
 
@@ -1195,9 +1178,9 @@ Viewer users do not have access to:
 * Package Management
 * System Maintenance
 
-The documentation review also removes or replaces outdated references to earlier test counts, migration states, deployment configurations, and development-only behavior.
-
-**Status: IN PROGRESS**
+Replace outdated test counts, migration states, deployment configurations,
+and development-only behavior whenever they are found. These are review
+criteria, not claims that a particular release has completed every review.
 
 ---
 
@@ -1403,15 +1386,16 @@ The numbered audit results are:
 | #13   | Simulation Tests                       | PASS                      |
 | #14   | Continuous Integration                 | PASS                      |
 | #15   | Application / Audit Logging            | PASS                      |
-| #16   | Versioning / Releases                  | REVIEWED — OPEN BY DESIGN |
+| #16   | Versioning / Releases                  | Check current repository releases and tags |
 | #17   | Role-Based Access Control              | PASS                      |
-| #18   | Documentation Review                   | IN PROGRESS               |
 
-The technical security controls reviewed in audits #01–#15 and #17 have passed.
+The technical security controls reviewed in audits #01–#15 and #17 passed their
+recorded checks. Those results are not a certification or a guarantee about a
+later revision.
 
-Audit #16 remains intentionally open because LUMS has not yet reached its first official stable release.
-
-Audit #18 remains open until the complete project documentation has been reviewed and synchronized with the final implementation state.
+Release and tag availability can change; consult the repository's current
+[Releases page](https://github.com/NovaForgeCtrl/LUMS/releases) and
+[tags](https://github.com/NovaForgeCtrl/LUMS/tags).
 
 No security audit result should be interpreted as a guarantee that LUMS is free from vulnerabilities.
 
@@ -1423,7 +1407,9 @@ Changes to the application, Agent, dependencies, container configuration, networ
 
 # Security Baseline
 
-The current security baseline is based on the verified implementation and production deployment state.
+This baseline describes controls configured in the source and deployment
+guidance. It is not proof that a particular installation applies them; verify
+the effective settings in the target environment.
 
 The baseline includes:
 
@@ -1511,4 +1497,3 @@ The current security baseline is documented according to the verified implementa
 **LUMS — Linux Update Management without the noise.**
 
 `segfault // override`
-

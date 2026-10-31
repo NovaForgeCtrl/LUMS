@@ -219,15 +219,12 @@ Aktuella granskningsområden:
 | #13        | Simulation Tests                         | PASS                      |
 | #14        | Continuous Integration                   | PASS                      |
 | #15        | Application / Audit Logging              | PASS                      |
-| #16        | Versioning / Releases                    | REVIEWED — OPEN BY DESIGN |
+| #16        | Versioning / Releases                    | Kontrollera aktuella utgåvor och taggar i repositoryt |
 | #17        | Role-Based Access Control                | PASS                      |
-| #18        | Documentation Review                     | IN PROGRESS               |
 
-Granskning #16 skiljer sig avsiktligt från de tekniska säkerhetskontrollerna ovan.
+Den här granskningen behandlar versionshantering och utgåvor separat från de tekniska säkerhetskontrollerna. Tillgängligheten för utgåvor och Git-taggar kan ändras oberoende av den här dokumentationen. Kontrollera aktuell status på repositoryts [utgivningssida](https://github.com/NovaForgeCtrl/LUMS/releases) och bland [taggarna](https://github.com/NovaForgeCtrl/LUMS/tags).
 
-LUMS har för närvarande ingen officiell stabil release, ingen release-tagg och ingen GitHub Release. Detta är avsiktligt eftersom projektet fortfarande är under aktiv utveckling.
-
-Granskning #18 förblir öppen tills den fullständiga dokumentationen har granskats och synkroniserats med den aktuella implementeringen.
+Dokumentationens överensstämmelse med implementationen är ett löpande underhållsarbete, inte en separat numrerad säkerhetskontroll. Indexet över översatta guider finns i [`docs/README.md`](../../README.md).
 
 # Säkerhetsgranskning #01
 
@@ -403,7 +400,7 @@ Följande granskningsområden dokumenteras i efterföljande avsnitt:
 * #16 Versioning / Releases
 * #17 Role-Based Access Control
 
-Granskning #18 — Dokumentationsgranskning — förblir öppen tills den fullständiga dokumentationen har granskats och synkroniserats med den aktuella implementeringen.
+Dokumentationens överensstämmelse med implementationen är ett löpande underhållsarbete, inte en separat numrerad säkerhetskontroll. Indexet över översatta guider finns i [`docs/README.md`](../../README.md).
 
 # Säkerhetsgranskning #05
 
@@ -856,44 +853,25 @@ Loggsystemet är avsett att stödja både operativ felsökning och säkerhetsutr
 
 # Säkerhetsgranskning #16
 
-## Versionshantering och releaser
+## Versionshantering och utgåvor
 
-Versionshantering och releasehantering granskades som en del av säkerhetsgranskningen.
+Versionshantering och utgåvor ingår i säkerhetsgranskningen eftersom operatörer måste kunna identifiera exakt vilken kod och vilka artefakter de distribuerar. Tillgängligheten för utgåvor och komponentversioner ändras oberoende av den här guiden. Kontrollera repositoryts [aktuella taggar](https://github.com/NovaForgeCtrl/LUMS/tags) och [utgivningssida](https://github.com/NovaForgeCtrl/LUMS/releases), och granska versionsmetadata i den exakta källrevision som ska distribueras. Behandla inte det här dokumentet som en aktuell katalog över utgåvor.
 
-LUMS är för närvarande under aktiv utveckling och har ännu ingen officiell stabil release.
+De komponentversioner som dokumenteras här är LUMS Agent `1.7.0` och LUMS Watcher `1.2.1`.
 
-Det aktuella repositorytillståndet har därför avsiktligt:
-
-* ingen officiell stabil releaseversion
-* ingen release-tagg
-* ingen GitHub Release
-
-De aktuella komponentversionerna inkluderar:
-
-* LUMS Agent: `1.7.0`
-* LUMS Watcher: `1.2.1`
-
-Det finns för närvarande inget enskilt formellt versionsnummer som representerar hela LUMS-applikationen.
-
-Detta är ett avsiktligt projektstatusbeslut snarare än en oavsiktlig utelämning.
-
-Den planerade releaseprocessen är:
+Den planerade utgivningsprocessen är:
 
 1. Slutför implementeringsarbetet.
 2. Slutför säkerhetsgranskningen.
 3. Granska och synkronisera dokumentationen.
-4. Slutför den fullständiga automatiserade testsviten.
+4. Slutför hela den automatiserade testsviten.
 5. Verifiera CI.
-6. Definiera releaseversionen.
+6. Fastställ utgåvans version.
 7. Skapa motsvarande Git-tagg.
-8. Publicera GitHub-releasen.
-9. Bevara releasen som den dokumenterade baslinjen.
+8. Publicera GitHub-utgåvan.
+9. Bevara utgåvan som dokumenterad baslinje.
 
-Ingen officiell release skapas enbart för att säkerhetsgranskningen når ett visst granskningsnummer.
-
-Releaseskapande kommer endast att ske efter att det återstående implementerings- och dokumentationsarbetet har slutförts.
-
-**Status: REVIEWED — OPEN BY DESIGN**
+En officiell utgåva skapas inte enbart för att säkerhetsgranskningen når ett visst granskningsnummer.
 
 ---
 
@@ -918,15 +896,13 @@ Följande säkerhetsgranskningsområden är slutförda:
 | #13        | Simulation Tests                         | PASS                      |
 | #14        | Continuous Integration                   | PASS                      |
 | #15        | Application / Audit Logging              | PASS                      |
-| #16        | Versioning / Releases                    | REVIEWED — OPEN BY DESIGN |
+| #16        | Versioning / Releases                    | Kontrollera aktuella utgåvor och taggar i repositoryt |
 
 Det återstående numrerade tekniska granskningsområdet är:
 
 * #17 Role-Based Access Control
 
-Dokumentationsgranskningen spåras separat som:
-
-* #18 Documentation Review — IN PROGRESS
+Dokumentationens överensstämmelse med implementationen är ett löpande underhållsarbete, inte en separat numrerad säkerhetskontroll. Indexet över översatta guider finns i [`docs/README.md`](../../README.md).
 
 # Säkerhetsgranskning #17
 
@@ -1123,8 +1099,6 @@ Servern förblir den auktoritativa säkerhetsgränsen.
 
 **Status: PASS**
 
-# Säkerhetsgranskning #18
-
 ## Dokumentationsgranskning
 
 Säkerhetsdokumentationen granskas mot det för närvarande implementerade LUMS-systemet.
@@ -1189,7 +1163,6 @@ Viewer-användare har inte åtkomst till:
 
 Dokumentationsgranskningen tar också bort eller ersätter föråldrade referenser till tidigare testantal, migreringstillstånd, distributionskonfigurationer och endast utvecklingsbeteende.
 
-**Status: IN PROGRESS**
 
 ---
 
@@ -1395,15 +1368,12 @@ De numrerade granskningsresultaten är:
 | #13        | Simulation Tests                         | PASS                      |
 | #14        | Continuous Integration                   | PASS                      |
 | #15        | Application / Audit Logging              | PASS                      |
-| #16        | Versioning / Releases                    | REVIEWED — OPEN BY DESIGN |
+| #16        | Versioning / Releases                    | Kontrollera aktuella utgåvor och taggar i repositoryt |
 | #17        | Role-Based Access Control                | PASS                      |
-| #18        | Documentation Review                     | IN PROGRESS               |
 
-De tekniska säkerhetskontrollerna som granskades i granskningarna #01–#15 och #17 har godkänts.
+De tekniska säkerhetskontrollerna som granskades i granskningarna #01–#15 och #17 klarade de dokumenterade kontrollerna. Resultaten är ingen certifiering och ingen garanti för senare revisioner.
 
-Granskning #16 förblir avsiktligt öppen eftersom LUMS ännu inte har nått sin första officiella stabila release.
-
-Granskning #18 förblir öppen tills den fullständiga projektdokumentationen har granskats och synkroniserats med det slutliga implementeringstillståndet.
+Tillgängligheten för utgåvor och taggar kan ändras; kontrollera repositoryts aktuella [utgivningssida](https://github.com/NovaForgeCtrl/LUMS/releases) och [taggar](https://github.com/NovaForgeCtrl/LUMS/tags).
 
 Inget resultat av säkerhetsgranskningen bör tolkas som en garanti för att LUMS är fritt från sårbarheter.
 
@@ -1415,7 +1385,7 @@ Säkerhet är en pågående process.
 
 # Säkerhetsbaslinje
 
-Den aktuella säkerhetsbaslinjen baseras på det verifierade implementerings- och produktionsdistributionstillståndet.
+Den här baslinjen beskriver kontroller som konfigurerats i källkoden och distributionsvägledningen. Den bevisar inte att en viss installation tillämpar dem; verifiera de faktiska inställningarna i målmiljön.
 
 Baslinjen inkluderar:
 

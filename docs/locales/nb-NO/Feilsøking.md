@@ -1577,7 +1577,7 @@ Prinsippet er:
 
 ```text
 Completed work remains completed.
-Incomplete work remains recoverable.
+Ufullført arbeid kan gjenopptas.
 ```
 
 # 35. Avbrutt jobb
@@ -1784,6 +1784,25 @@ Bruk følgende matrise for å identifisere det mest sannsynlige laget:
 | Grensesnittet viser utdatert tilstand | API + siste klientrapport |
 
 Denne matrisen er et utgangspunkt, ikke en erstatning for å inspisere de faktiske loggene og jobbtilstanden.
+# 43. Diagnostikkmatrise for overvåker og agent
+
+Bruk matrisen til å finne laget det er mest sannsynlig at du bør undersøke først:
+
+| Symptom | Første komponent som bør undersøkes |
+| --- | --- |
+| Klienten kan ikke autentisere seg | Agent og LUMS API |
+| Klienten rapporterer, men jobben står som ventende | Kjøringsovervåker |
+| Jobben starter, men blir ikke ferdig | Agent og pakkebehandler |
+| Pakkeoperasjonen mislykkes | Pakkebehandler |
+| Pakkeoperasjonen lykkes, men resultatet mangler | Agentrapportering |
+| Klienten startet på nytt under oppdatering | Agent og gjenoppretting |
+| Jobbtilstanden er fortsatt inkonsekvent etter omstart | Gjenoppretting og databasetilstand |
+| Jobben oppdages aldri | Overvåker og timer |
+| Klienten er ikke kvalifisert for kjøring | Inaktivitets- eller klienttilstand |
+| Grensesnittet viser utdatert tilstand | API og siste klientrapport |
+
+Matrisen er et utgangspunkt, ikke en erstatning for å undersøke de faktiske loggene og jobbtilstanden.
+
 # 44. Neste feilsøkingsområde
 
 Etter å ha verifisert jobbkjøring, er de neste områdene:
@@ -2402,6 +2421,22 @@ Last siden på nytt og etabler en ny økt før du antar at autorisasjonen på se
 | UI og API er uenige | Nettlesertilstand + serverautorisasjon |
 
 Resultatet av autorisasjonen på serversiden er alltid viktigere enn om et grensesnittelement er synlig.
+# 68. Diagnostikkmatrise for RBAC
+
+| Symptom | Første komponent som bør undersøkes |
+| --- | --- |
+| Leser ser administrasjonsgrensesnittet | Rollehåndtering på klientsiden |
+| API-forespørsel fra leser lykkes | RBAC på serversiden |
+| Operatør får `403` | Endepunktets tillatelsesmodell |
+| Administrator får `403` | Økt-, CSRF- eller endepunktsautorisasjon |
+| Bruker kan ikke opprettes | Administratorrolle og validering |
+| Deaktivert bruker kan logge inn | Kontotilstand og økthåndtering |
+| Innlogging er midlertidig blokkert | Hastighetsbegrensning |
+| Forespørsel som endrer tilstand avvises | CSRF og økt |
+| Grensesnitt og API er uenige | Nettlesertilstand og serverautorisasjon |
+
+Resultatet av autorisasjonskontrollen på serveren er alltid viktigere enn om et grensesnittelement vises.
+
 # 69. Neste feilsøkingsområde
 
 De neste diagnostiske områdene er:
@@ -3201,6 +3236,29 @@ Noen symptomer blir lettere å diagnostisere når flere komponenter vurderes sam
 | Port 5050 er eksternt tilgjengelig | Docker / brannmurkonfigurasjon |
 
 Denne tabellen identifiserer det første stedet å undersøke, ikke nødvendigvis den endelige rotårsaken.
+# 103. Matrise over kombinerte feil
+
+Noen symptomer blir enklere å diagnostisere når flere komponenter vurderes samlet:
+
+| Symptom | Mest sannsynlige område å undersøke først |
+| --- | --- |
+| Nettleseren kan ikke koble til | Nginx, TLS og nettverk |
+| Nginx fungerer, men applikasjonen feiler | Docker og LUMS |
+| LUMS fungerer, men klienten rapporterer ikke | Agent, TLS og token |
+| Klienten rapporterer, men jobben står som ventende | Overvåker og kvalifisering |
+| Jobben kjører, men pakken feiler | APT eller pacman |
+| Pakken lykkes, men resultatet mangler | Agentrapportering |
+| Resultatet når serveren, men grensesnittet er utdatert | API, database og nettlesertilstand |
+| Leser kan endre data | RBAC på serversiden |
+| Bruker kan ikke logge inn | Konto, passord og hastighetsbegrensning |
+| Innlogging lykkes, men handling avvises | RBAC og CSRF |
+| Databaseskriving mislykkes | SQLite, disk og tillatelser |
+| Containeren mister data etter gjenoppretting | Konfigurering av vedvarende volum |
+| Applikasjonen skriver til rotfilsystemet | Containerens filsystemkonfigurasjon |
+| Port 5050 er tilgjengelig eksternt | Docker- og brannmurkonfigurasjon |
+
+Tabellen angir hvor du bør begynne å undersøke, ikke nødvendigvis den endelige rotårsaken.
+
 # 104. Vanlige feilsøkingsfeil
 
 Unngå følgende snarveier:

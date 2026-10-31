@@ -219,15 +219,10 @@ Aktuelle Auditbereiche:
 | #13   | Simulationstests                       | BESTANDEN                 |
 | #14   | Kontinuierliche Integration            | BESTANDEN                 |
 | #15   | Anwendungs-/Audit-Logging              | BESTANDEN                 |
-| #16   | Versionierung / Releases               | ÜBERPRÜFT — DESIGNBEDINGT OFFEN |
+| #16   | Versionierung / Releases               | Aktuelle Releases und Tags des Repositorys prüfen |
 | #17   | Rollenbasierte Zugriffskontrolle       | BESTANDEN                 |
-| #18   | Dokumentationsüberprüfung              | IN BEARBEITUNG            |
 
-Audit #16 unterscheidet sich absichtlich von den technischen Sicherheitskontrollen oben.
-
-LUMS hat derzeit kein offizielles stabiles Release, keinen Release-Tag und kein GitHub-Release. Dies ist beabsichtigt, weil das Projekt sich weiterhin in aktiver Entwicklung befindet.
-
-Audit #18 bleibt offen, bis das vollständige Dokumentationsset überprüft und mit der aktuellen Implementierung synchronisiert wurde.
+Diese Tabelle dokumentiert den Umfang und das Ergebnis früherer Verifizierungen; sie ist weder eine Zertifizierung noch eine Garantie für spätere Revisionen. Führe die relevanten Prüfungen für genau den bereitzustellenden Code erneut aus. Die Verfügbarkeit von Releases ändert sich; leite ihren Status daher nicht aus diesem Dokument ab, sondern prüfe die [Releases-Seite](https://github.com/NovaForgeCtrl/LUMS/releases) und die [Tags](https://github.com/NovaForgeCtrl/LUMS/tags) des Repositorys.
 
 # Sicherheitsaudit #01
 
@@ -403,7 +398,7 @@ Die folgenden Auditbereiche sind in den nachfolgenden Abschnitten dokumentiert:
 * #16 Versionierung / Releases
 * #17 Rollenbasierte Zugriffskontrolle
 
-Audit #18 — Dokumentationsüberprüfung — bleibt offen, bis das vollständige Dokumentationsset überprüft und mit der aktuellen Implementierung synchronisiert wurde.
+Überprüfe die Dokumentation bei Änderungen am Code oder am Bereitstellungsverhalten mit der Implementierung. Sie soll das tatsächliche System und nicht einen früheren Entwicklungsstand beschreiben. Behandle diese Überprüfung als fortlaufende Wartungsaufgabe und nicht als zeitgebundenen Auditstatus.
 
 # Sicherheitsaudit #05
 
@@ -858,24 +853,12 @@ Das Logging-System ist darauf ausgelegt, sowohl operative Fehlerbehebung als auc
 
 ## Versionierung und Releases
 
-Versionierung und Release-Management wurden als Teil des Sicherheitsaudits überprüft.
-
-LUMS befindet sich derzeit in aktiver Entwicklung und hat noch kein offizielles stabiles Release.
-
-Der aktuelle Repository-Zustand hat daher absichtlich:
-
-* keine offizielle stabile Release-Version
-* keinen Release-Tag
-* kein GitHub-Release
+Versionierung und Release-Management gehören zur Sicherheitsüberprüfung, da Betreiber den genauen Code und die Artefakte identifizieren können müssen, die sie bereitstellen. Die Verfügbarkeit von Releases und Komponentenversionen ändert sich unabhängig von dieser Anleitung. Prüfe die aktuellen [Tags](https://github.com/NovaForgeCtrl/LUMS/tags) und die [Releases-Seite](https://github.com/NovaForgeCtrl/LUMS/releases) des Repositorys sowie die Versionsmetadaten der konkreten Quellrevision. Dieses Dokument ist kein aktueller Release-Katalog.
 
 Die aktuellen Komponentenversionen umfassen:
 
 * LUMS Agent: `1.7.0`
 * LUMS Watcher: `1.2.1`
-
-Es gibt derzeit keine einzelne formale Versionsnummer, die die vollständige LUMS-Anwendung repräsentiert.
-
-Dies ist eine beabsichtigte Projektzustandsentscheidung und keine versehentliche Auslassung.
 
 Der geplante Release-Prozess ist:
 
@@ -888,12 +871,6 @@ Der geplante Release-Prozess ist:
 7. Den entsprechenden Git-Tag erstellen.
 8. Das GitHub-Release veröffentlichen.
 9. Das Release als dokumentierte Basis bewahren.
-
-Es wird kein offizielles Release allein deshalb erstellt, weil das Sicherheitsaudit eine bestimmte Auditnummer erreicht.
-
-Die Release-Erstellung erfolgt erst, nachdem die verbleibende Implementierungs- und Dokumentationsarbeit abgeschlossen wurde.
-
-**Status: ÜBERPRÜFT — DESIGNBEDINGT OFFEN**
 
 ---
 
@@ -918,15 +895,13 @@ Die folgenden Sicherheitsauditbereiche sind abgeschlossen:
 | #13   | Simulationstests                       | BESTANDEN                 |
 | #14   | Kontinuierliche Integration            | BESTANDEN                 |
 | #15   | Anwendungs-/Audit-Logging              | BESTANDEN                 |
-| #16   | Versionierung / Releases               | ÜBERPRÜFT — DESIGNBEDINGT OFFEN |
+| #16   | Versionierung / Releases               | Aktuelle Releases und Tags des Repositorys prüfen |
 
 Der verbleibende nummerierte technische Auditbereich ist:
 
 * #17 Rollenbasierte Zugriffskontrolle
 
-Die Dokumentationsüberprüfung wird separat verfolgt als:
-
-* #18 Dokumentationsüberprüfung — IN BEARBEITUNG
+Die Dokumentationsüberprüfung ist ein fortlaufender Prozess und wird unabhängig von einem nummerierten Auditstatus durchgeführt.
 
 # Sicherheitsaudit #17
 
@@ -1091,11 +1066,9 @@ Der Server bleibt die maßgebliche Sicherheitsgrenze.
 
 **Status: BESTANDEN**
 
-# Sicherheitsaudit #18
-
 ## Dokumentationsüberprüfung
 
-Die Sicherheitsdokumentation wird gegen das aktuell implementierte LUMS-System überprüft.
+Die Sicherheitsdokumentation muss anhand des aktuell implementierten LUMS-Systems gepflegt werden.
 
 Der Zweck dieser Überprüfung ist sicherzustellen, dass die Sicherheitsdokumentation die tatsächliche Implementierung beschreibt und nicht einen früheren Entwicklungszustand.
 
@@ -1155,9 +1128,7 @@ Viewer-Benutzer haben keinen Zugriff auf:
 * Paketverwaltung
 * Systemwartung
 
-Die Dokumentationsüberprüfung entfernt oder ersetzt auch veraltete Referenzen auf frühere Testanzahlen, Migrationszustände, Bereitstellungskonfigurationen und reine Entwicklungsverhalten.
-
-**Status: IN BEARBEITUNG**
+Überprüfe die Dokumentation erneut, wenn sich Code oder Bereitstellungsverhalten ändern. Entferne oder ersetze dabei veraltete Verweise auf frühere Testanzahlen, Migrationszustände, Bereitstellungskonfigurationen und ausschließlich für die Entwicklung geltendes Verhalten.
 
 ---
 
@@ -1363,15 +1334,12 @@ Die nummerierten Auditergebnisse sind:
 | #13   | Simulationstests                       | BESTANDEN                 |
 | #14   | Kontinuierliche Integration            | BESTANDEN                 |
 | #15   | Anwendungs-/Audit-Logging              | BESTANDEN                 |
-| #16   | Versionierung / Releases               | ÜBERPRÜFT — DESIGNBEDINGT OFFEN |
+| #16   | Versionierung / Releases               | Aktuelle Releases und Tags des Repositorys prüfen |
 | #17   | Rollenbasierte Zugriffskontrolle       | BESTANDEN                 |
-| #18   | Dokumentationsüberprüfung              | IN BEARBEITUNG            |
 
 Die technischen Sicherheitskontrollen, die in den Audits #01–#15 und #17 überprüft wurden, sind bestanden.
 
-Audit #16 bleibt absichtlich offen, weil LUMS noch nicht sein erstes offizielles stabiles Release erreicht hat.
-
-Audit #18 bleibt offen, bis die vollständige Projektdokumentation überprüft und mit dem endgültigen Implementierungszustand synchronisiert wurde.
+Die Verfügbarkeit von Releases und Tags kann sich ändern; prüfe daher die aktuellen Releases und Tags des Repositorys.
 
 Kein Sicherheitsauditergebnis sollte als Garantie interpretiert werden, dass LUMS frei von Schwachstellen ist.
 
@@ -1383,7 +1351,7 @@ Sicherheit ist ein fortlaufender Prozess.
 
 # Sicherheitsbasis
 
-Die aktuelle Sicherheitsbasis basiert auf der verifizierten Implementierung und dem Produktionsbereitstellungszustand.
+Diese Basis beschreibt Kontrollen, die im Quellcode und in den Bereitstellungshinweisen konfiguriert sind. Sie ist kein Beleg dafür, dass eine bestimmte Installation diese Kontrollen anwendet; überprüfe die wirksamen Einstellungen in der Zielumgebung.
 
 Die Basis umfasst:
 
