@@ -5,6 +5,7 @@ import pytest
 
 from server.soc.collector_store import CollectorStore
 from server.soc.worker_migration import run_migration
+from server.soc.worker_schema import inspect_claim_consistency
 
 
 @pytest.fixture
@@ -317,3 +318,108 @@ def test_processing_claim_without_timestamp_is_not_recovered(worker_db):
         None,
         1,
     )
+
+
+def test_claim_consistency_accepts_pending_and_valid_processing_claims(worker_db):
+    _, connection, store = worker_db
+
+    expected = {
+        "consistent": True,
+        "inconsistent_count": 0,
+        "inconsistent_ids": [],
+    }
+
+    # A newly ingested event has no claim metadata.
+    assert inspect_claim_consistency(connection) == expected
+
+    # A valid processing claim has both token and timestamp.
+    claim = store.claim_pending()[0]
+    assert claim["claim_token"]
+    assert inspect_claim_consistency(connection) == expected
+
+
+@pytest.mark.parametrize(
+    ("claim_token", "claimed_at"),
+    [
+        (None, "2026-10-29T09:00:00+00:00"),
+        ("token", None),
+        (None, None),
+        ("", "2026-10-29T09:00:00+00:00"),
+        ("token", ""),
+    ],
+)
+def test_claim_consistency_reports_incomplete_processing_claim(
+    worker_db, claim_token, claimed_at
+):
+    _, connection, store = worker_db
+    claim = store.claim_pending()[0]
+
+    connection.execute(
+        """
+        UPDATE soc_event_inbox
+        SET claim_token = ?, claimed_at = ?
+        WHERE inbox_id = ?
+        """,
+        (claim_token, claimed_at, claim["inbox_id"]),
+    )
+    connection.commit()
+
+    result = inspect_claim_consistency(connection)
+
+    assert result == {
+        "consistent": False,
+        "inconsistent_count": 1,
+        "inconsistent_ids": [claim["inbox_id"]],
+    }
+
+
+@pytest.mark.parametrize("status", ["pending", "processed", "failed"])
+def test_claim_consistency_reports_residual_claim_metadata(worker_db, status):
+    _, connection, store = worker_db
+    claim = store.claim_pending()[0]
+
+    connection.execute(
+        """
+        UPDATE soc_event_inbox
+        SET processing_status = ?, claim_token = ?, claimed_at = ?
+        WHERE inbox_id = ?
+        """,
+        (
+            status,
+            "stale-token",
+            "2026-10-29T09:00:00+00:00",
+            claim["inbox_id"],
+        ),
+    )
+    connection.commit()
+
+    result = inspect_claim_consistency(connection)
+
+    assert result["consistent"] is False
+    assert result["inconsistent_count"] == 1
+    assert result["inconsistent_ids"] == [claim["inbox_id"]]
+
+
+def test_claim_consistency_does_not_modify_database(worker_db):
+    _, connection, store = worker_db
+    claim = store.claim_pending()[0]
+
+    before = connection.execute(
+        """
+        SELECT processing_status, claim_token, claimed_at, attempts
+        FROM soc_event_inbox WHERE inbox_id = ?
+        """,
+        (claim["inbox_id"],),
+    ).fetchone()
+
+    inspect_claim_consistency(connection)
+
+    after = connection.execute(
+        """
+        SELECT processing_status, claim_token, claimed_at, attempts
+        FROM soc_event_inbox WHERE inbox_id = ?
+        """,
+        (claim["inbox_id"],),
+    ).fetchone()
+
+    assert after == before

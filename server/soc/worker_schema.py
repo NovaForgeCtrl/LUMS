@@ -161,3 +161,47 @@ def validate_recovery_index(connection: sqlite3.Connection) -> bool:
         )
 
     return True
+
+
+def inspect_claim_consistency(
+    connection: sqlite3.Connection,
+) -> dict[str, object]:
+    """Report inconsistent inbox claim metadata without modifying the DB."""
+    if not isinstance(connection, sqlite3.Connection):
+        raise TypeError("connection must be a sqlite3.Connection")
+
+    rows = connection.execute(
+        """
+        SELECT inbox_id
+        FROM soc_event_inbox
+        WHERE
+            processing_status NOT IN (
+                'pending', 'processing', 'processed', 'failed'
+            )
+            OR (
+                processing_status = 'processing'
+                AND (
+                    claim_token IS NULL
+                    OR TRIM(claim_token) = ''
+                    OR claimed_at IS NULL
+                    OR TRIM(claimed_at) = ''
+                )
+            )
+            OR (
+                processing_status != 'processing'
+                AND (
+                    claim_token IS NOT NULL
+                    OR claimed_at IS NOT NULL
+                )
+            )
+        ORDER BY inbox_id
+        """
+    ).fetchall()
+
+    inconsistent_ids = [row[0] for row in rows]
+
+    return {
+        "consistent": not inconsistent_ids,
+        "inconsistent_count": len(inconsistent_ids),
+        "inconsistent_ids": inconsistent_ids,
+    }
