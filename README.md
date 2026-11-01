@@ -1406,7 +1406,7 @@ The LUMS security review has covered the following areas:
 * network exposure
 * repository artifact hygiene
 
-The remaining documentation review is handled separately as part of the final release-readiness process.
+Keeping documentation aligned with the implementation is ongoing maintenance, not a separate release gate.
 
 ---
 

@@ -233,7 +233,7 @@ Dokumentaation yhdenmukaisuus toteutuksen kanssa on jatkuvaa ylläpitotyötä, e
 
 # Turvallisuustarkastus #01
 
-## SQLite Foreign Keys
+## SQLite-viiteavaimet
 
 SQLite-viiteavainten valvonta on käytössä sovelluksen tietokantayhteyksille.
 
@@ -256,13 +256,13 @@ Asiakastilaa käsitellään konservatiivisesti.
 
 Tarvittaessa asiakkaat poistetaan käytöstä sen sijaan, että ne poistettaisiin tavalla, joka tuhoaisi historialliset toimintatiedot.
 
-**Tila: PASS**
+**Tila: Hyväksytty**
 
 ---
 
 # Turvallisuustarkastus #02
 
-## SQLite Runtime Configuration
+## SQLite-ajonaikainen määritys
 
 Tuotannon SQLite-tietokannan ajonaikainen konfiguraatio tarkastettiin.
 
@@ -286,13 +286,13 @@ Sovellustason viiteavainasetus varmistaa viite-eheyden jokaiselle tietokantayhte
 
 Tarkastus sisälsi aktiivisen SQLite-konfiguraation tuotantovarmistuksen.
 
-**Tila: PASS**
+**Tila: Hyväksytty**
 
 ---
 
 # Turvallisuustarkastus #03
 
-## Update Timeout and Process Handling
+## Päivityksen aikakatkaisu ja prosessien käsittely
 
 Päivityksen suoritus on suojattu paketinhallintaprosesseilta, jotka estävät loputtomasti.
 
@@ -335,13 +335,13 @@ Nykyinen dokumentoitu LUMS Agent -versio on:
 
 `1.7.0`
 
-**Tila: PASS**
+**Tila: Hyväksytty**
 
 ---
 
 # Turvallisuustarkastus #04
 
-## Login Rate Limiting
+## Kirjautumisen nopeusrajoitus
 
 Hallinnolliset kirjautumisyritykset ovat nopeusrajoitettuja.
 
@@ -374,7 +374,7 @@ Tarkastus kattoi:
 
 Nopeusrajoitin tarjoaa siten palvelinpuolen kontrollin toistuvia todennusyrityksiä vastaan sen sijaan, että se luottaisi asiakaspuolen käyttäytymiseen.
 
-**Tila: PASS**
+**Tila: Hyväksytty**
 
 ---
 
@@ -409,7 +409,7 @@ Dokumentaation yhdenmukaisuus toteutuksen kanssa on jatkuvaa ylläpitotyötä, e
 
 # Turvallisuustarkastus #05
 
-## API Input Validation
+## API-syötteiden validointi
 
 LUMS validoi turvallisuuskriittisen API-syötteen palvelinpuolella.
 
@@ -451,13 +451,13 @@ Tarkastus sisälsi negatiivisen syötteen testausta ja SQL-injektiosuuntautuneit
 
 Validointikontrollit varmennettiin myös automatisoidun testisarjan kautta.
 
-**Tila: PASS**
+**Tila: Hyväksytty**
 
 ---
 
 # Turvallisuustarkastus #06
 
-## Session Revocation
+## Istunnon mitätöinti
 
 LUMS suojaa todennettuja hallinnollisia istuntoja jatkokäytöltä uloskirjautumisen jälkeen.
 
@@ -486,13 +486,13 @@ Tarkastus varmisti, että:
 * aiemmin todennettu istunto ei voi jatkaa suojatun toiminnallisuuden käyttöä mitätöinnin jälkeen
 * roolitiedot arvioidaan palvelinpuolella
 
-**Tila: PASS**
+**Tila: Hyväksytty**
 
 ---
 
 # Turvallisuustarkastus #07
 
-## Client Token Rotation
+## Asiakastunnisteen vaihto
 
 Jokainen hallinnoitu LUMS-asiakas käyttää yksilöllistä todennustunnistetta.
 
@@ -536,13 +536,13 @@ Asiakastunnisteen vaihto on rajoitettu ylläpitäjille.
 
 Operaattorit ja viewerit eivät voi vaihtaa asiakastunnisteita.
 
-**Tila: PASS**
+**Tila: Hyväksytty**
 
 ---
 
 # Turvallisuustarkastus #08
 
-## IP Address Handling and Offline Networks
+## IP-osoitteiden käsittely ja offline-verkot
 
 LUMS ei käytä asiakkaan lähde-IP-osoitetta ainoana todisteena asiakkaan identiteetistä.
 
@@ -577,7 +577,7 @@ Tämä on erityisen tärkeää laboratorioympäristöille ja infrastruktuurille,
 
 Tarkastus varmisti asiakastodennuksen ilman kiinteään lähde-IP-osoitteeseen luottamista.
 
-**Tila: PASS**
+**Tila: Hyväksytty**
 
 ---
 
@@ -605,7 +605,7 @@ Seuraava osio kattaa:
 
 # Turvallisuustarkastus #09
 
-## Job Recovery and Checkpointing
+## Työn palautus ja tarkistuspisteet
 
 LUMS-päivitystyöt on suunniteltu palautumaan turvallisesti keskeytyneestä suorituksesta.
 
@@ -636,13 +636,13 @@ Palautus testattiin töillä, jotka sisälsivät useita pakettitoimintoja ja aie
 
 Tarkastus vahvisti, että suoritettu työ säilytetään ja jäljellä oleva työ voi jatkua toistamatta tarpeettomasti onnistuneita toimintoja.
 
-**Tila: PASS**
+**Tila: Hyväksytty**
 
 ---
 
 # Turvallisuustarkastus #10
 
-## APT Robustness
+## APT:n toimintavarmuus
 
 Debian-pohjaiset pakettitoiminnot suoritetaan LUMS-paketinhallintakerroksen kautta.
 
@@ -668,13 +668,13 @@ Vastaava koventaminen committoitiin seuraavasti:
 
 Tavoitteena on varmistaa, että LUMS ei virheellisesti raportoi paketinhallinnan tilaa pelkästään puutteellisen tai epäselvän komentotulosteen perusteella.
 
-**Tila: PASS**
+**Tila: Hyväksytty**
 
 ---
 
 # Turvallisuustarkastus #11
 
-## Arch Linux Reboot Detection
+## Arch Linuxin uudelleenkäynnistyksen tunnistus
 
 Arch Linux -pakettitoiminnot voivat johtaa järjestelmän tilaan, jossa uudelleenkäynnistys on tarpeen tai suositeltavaa.
 
@@ -694,13 +694,13 @@ Tarkastus varmisti Arch Linux -uudelleenkäynnistyksen tunnistuksen käyttäen t
 
 Toteutus testattiin uudelleenkäynnistysvaatimustilanteita ja normaalin valmistumisen ehtoja vasten.
 
-**Tila: PASS**
+**Tila: Hyväksytty**
 
 ---
 
 # Turvallisuustarkastus #12
 
-## Unit Tests and API Result Validation
+## Yksikkötestit ja API-tulosten validointi
 
 Turvallisuuskriittinen käyttäytyminen on katettu automatisoiduilla testeillä.
 
@@ -722,7 +722,7 @@ nykyisen ajon tulosta tässä asiakirjassa mainitun kiinteän määrän sijaan.
 
 Asiaankuuluvat turvakontrollit varmennettiin lisäksi kohdennetuilla testiajoilla tarkastuksen aikana.
 
-**Tila: PASS**
+**Tila: Hyväksytty**
 
 ---
 
@@ -754,7 +754,7 @@ Seuraava osio kattaa:
 
 # Turvallisuustarkastus #13
 
-## Simulation Tests
+## Simulaatiotestit
 
 LUMS tarjoaa simulaatiomekanismin päivityshallinnan työnkulkujen testaamiseen suorittamatta vastaavaa paketinhallintatoimintoa hallinnoidussa järjestelmässä.
 
@@ -779,13 +779,13 @@ Simulaatiomekanismia käytettiin turvallisuustarkastuksen aikana työn luonnin, 
 
 Simulaatiotila on testausmekanismi eikä korvaa normaalin päivitystoiminnan valtuutuskontrolleja.
 
-**Tila: PASS**
+**Tila: Hyväksytty**
 
 ---
 
 # Turvallisuustarkastus #14
 
-## Continuous Integration
+## Jatkuva integraatio
 
 LUMS käyttää automatisoitua testausta turvallisuus- ja toiminnallisten regressioiden havaitsemiseksi ennen kuin muutokset katsotaan valmiiksi.
 
@@ -812,13 +812,13 @@ Lopullinen varmennettu testisarja valmistui onnistuneesti.
 Testien määrä muuttuu projektin kehittyessä. CI tarjoaa automatisoidun
 regressioesteen turvallisuuskriittisille sovellusmuutoksille.
 
-**Tila: PASS**
+**Tila: Hyväksytty**
 
 ---
 
 # Turvallisuustarkastus #15
 
-## Application and Audit Logging
+## Sovellus- ja valvontalokitus
 
 LUMS tallentaa turvallisuuskriittiset hallinnolliset ja operatiiviset tapahtumat sovellustason valvontalokituksen kautta.
 
@@ -854,7 +854,7 @@ Valvontalokituksen toteutus tarkastettiin seuraavien osalta:
 
 Lokitusjärjestelmä on tarkoitettu tukemaan sekä operatiivista vianmääritystä että turvallisuustutkintaa.
 
-**Tila: PASS**
+**Tila: Hyväksytty**
 
 ---
 
@@ -913,7 +913,7 @@ Dokumentaation yhdenmukaisuus toteutuksen kanssa on jatkuvaa ylläpitotyötä, e
 
 # Turvallisuustarkastus #17
 
-## Role-Based Access Control
+## Roolipohjainen käyttöoikeushallinta
 
 LUMS yhdistää roolimallit yksilöllisesti määritettyihin oikeuksiin. Tuetut
 mallit ovat `administrator`, `operator` ja `viewer`; mallin valitseminen
@@ -926,7 +926,7 @@ käyttämättömissä olevat toiminnot käytettävyyden vuoksi, kun taas palveli
 
 ---
 
-## RBAC Permission Model
+## RBAC-oikeusmalli
 
 | Oikeus            | Myönnetty pääsy |
 | ----------------- | --------------- |
@@ -953,7 +953,7 @@ samoja myönnytyksiä.
 
 ---
 
-## Authorization Enforcement
+## Valtuutuksen valvonta
 
 Suojatut toiminnot käyttävät palvelinpuolen todentamista ja oikeustarkistuksia.
 
@@ -988,7 +988,7 @@ Tämä estää RBAC-mallin ohittamisen kutsumalla suoraan API-päätepistettä, 
 
 ---
 
-## Viewer Restrictions
+## Viewer-rajoitukset
 
 Viewer-malli on tarkoituksella rajoitettu sen oletusoikeusjoukon mukaisesti.
 
@@ -1012,7 +1012,7 @@ Asennettu ohjelmisto on edelleen Viewer-tilien käytettävissä vain luku -tieto
 
 ---
 
-## Administrative User Management
+## Hallinnollinen käyttäjähallinta
 
 Käyttäjähallinta edellyttää `users.manage`-oikeutta.
 
@@ -1045,7 +1045,7 @@ Salasanoja ei koskaan tallenneta selkokielisinä.
 
 ---
 
-## RBAC Database Migration
+## RBAC-tietokantamigraatio
 
 Roolimallitiedot säilyvät käyttäjätietokannan tietueessa. Yksittäiset
 myönnytykset tallennetaan `user_permissions`-tauluun viiteavaimella
@@ -1064,7 +1064,7 @@ oikeuksin ja niiden eheys tarkistetaan ennen julkaisua.
 
 ---
 
-## RBAC Security Testing
+## RBAC-tietoturvatestaus
 
 RBAC-käyttäytyminen on katettu automatisoiduilla testeillä.
 
@@ -1088,7 +1088,7 @@ Administrator-, Operator- ja Viewer-mallit.
 
 ---
 
-## RBAC Security Result
+## RBAC-tietoturvatulos
 
 RBAC-toteutus tarjoaa kerroksittaisen valtuutuksen:
 
@@ -1103,7 +1103,7 @@ Käyttöliittymä ei siten itsessään tarjoa valtuutusmekanismia.
 
 Palvelin pysyy ensisijaisena turvarajana.
 
-**Tila: PASS**
+**Tila: Hyväksytty**
 
 ## Dokumentaation tarkistus
 
@@ -1182,7 +1182,7 @@ Nämä kontrollit on dokumentoitu tässä, koska ne edustavat nykyisen käyttö�
 
 ---
 
-## Container Hardening
+## Kontin koventaminen
 
 Tuotannon LUMS-kontti toimii kovennetulla Docker-konfiguraatiolla.
 
@@ -1214,7 +1214,7 @@ Kovennettu ajonaikainen ympäristö testattiin myös varmistamalla, että:
 
 ---
 
-## Network Exposure
+## Verkon altistus
 
 LUMS-sovellusporttia ei ole suoraan altistettu LAN-verkkoon.
 
@@ -1242,7 +1242,7 @@ Oletusarvoinen Nginx-sivusto poistettiin, jotta liittymätön oletussisältö ei
 
 ---
 
-## Transport Security
+## Siirtoturvallisuus
 
 Hallinnollinen verkkopääsy tarjotaan HTTPS:n kautta.
 
@@ -1260,7 +1260,7 @@ Tuleva käyttöönotto, jossa on suora julkinen internet-altistus, vaatisi lisä
 
 ---
 
-## Secrets and Configuration
+## Salaisuudet ja määritys
 
 Tuotantosalaisuuksia ei tallenneta sovelluksen lähdekoodipuuhun.
 
@@ -1288,7 +1288,7 @@ Arkisto myös ohittaa yleiset väliaikaiset varmuuskopiomallit, joita käytetä�
 
 ---
 
-## Dependency and Build Security
+## Riippuvuus- ja koontiturvallisuus
 
 Tuotannon Docker-kuva käyttää kiinnitettyä Python-peruskuvan tiivistettä.
 
@@ -1310,7 +1310,7 @@ Tämä tarjoaa toistettavan perustason tuotantokuvalle samalla kun koontikonteks
 
 ---
 
-## Filesystem and Runtime Permissions
+## Tiedostojärjestelmän ja ajonaikaiset käyttöoikeudet
 
 Tuotantosovellus toimii omistautuneena `lums`-käyttäjänä root-käyttäjän sijaan.
 

@@ -209,29 +209,29 @@ Gjeldende revisjonsområder:
 
 | Revisjon | Område                                   | Status                    |
 | -------- | ---------------------------------------- | ------------------------- |
-| #01      | SQLite Foreign Keys                      | PASS                      |
-| #02      | SQLite Runtime Configuration             | PASS                      |
-| #03      | Update Timeout Handling                  | PASS                      |
-| #04      | Login Rate Limiting                      | PASS                      |
-| #05      | API Input Validation                     | PASS                      |
-| #06      | Session Revocation                       | PASS                      |
-| #07      | Client Token Rotation                    | PASS                      |
-| #08      | IP Address Handling / Offline Networks   | PASS                      |
-| #09      | Job Recovery / Checkpointing             | PASS                      |
-| #10      | APT Robustness                           | PASS                      |
-| #11      | Arch Reboot Detection                    | PASS                      |
-| #12      | Unit Tests / API Result Validation       | PASS                      |
-| #13      | Simulation Tests                         | PASS                      |
-| #14      | Continuous Integration                   | PASS                      |
-| #15      | Application / Audit Logging              | PASS                      |
+| #01      | SQLite-fremmednøkler                      | BESTÅTT |
+| #02      | SQLite-kjøretidskonfigurasjon             | BESTÅTT |
+| #03      | Håndtering av tidsavbrudd for oppdateringer                  | BESTÅTT |
+| #04      | Hastighetsbegrensning for innlogging                      | BESTÅTT |
+| #05      | Validering av API-inndata                     | BESTÅTT |
+| #06      | Tilbakekalling av økter                       | BESTÅTT |
+| #07      | Rotasjon av klienttokener                    | BESTÅTT |
+| #08      | Håndtering av IP-adresser / frakoblede nettverk   | BESTÅTT |
+| #09      | Jobbgjenoppretting / sjekkpunkter             | BESTÅTT |
+| #10      | APT-robusthet                           | BESTÅTT |
+| #11      | Oppdagelse av omstart på Arch                    | BESTÅTT |
+| #12      | Enhetstester / validering av API-resultater       | BESTÅTT |
+| #13      | Simuleringstester                         | BESTÅTT |
+| #14      | Kontinuerlig integrasjon                   | BESTÅTT |
+| #15      | Applikasjons- og revisjonslogging              | BESTÅTT |
 | #16      | Versjonering / utgivelser             | Slå opp gjeldende utgivelser og tagger |
-| #17      | Role-Based Access Control                | PASS                      |
+| #17      | Rollebasert tilgangskontroll                | BESTÅTT |
 
 Utgivelsesinformasjon er tidsavhengig. Kontroller gjeldende GitHub-utgivelser og Git-tagger i repositoriet i stedet for å utlede status fra denne veiledningen. Sikkerhetsdokumentasjonen skal kontrolleres mot den faktiske implementasjonen og gjeldende konfigurasjon. Skill mellom implementerte kontroller, verifisert produksjonsatferd og planlagte forbedringer, og kontroller relevante tester mot revisjonen som skal distribueres.
 
 # Sikkerhetsrevisjon #01
 
-## SQLite Foreign Keys
+## SQLite-fremmednøkler
 
 SQLite-fremmednøkkelhåndheving er aktivert for applikasjonsdatabaseforbindelser.
 
@@ -254,13 +254,13 @@ Klienttilstand håndteres konservativt.
 
 Der det er hensiktsmessig, deaktiveres klienter i stedet for å fjernes på en måte som ville ødelegge historisk driftsinformasjon.
 
-**Status: PASS**
+**Status: BESTÅTT**
 
 ---
 
 # Sikkerhetsrevisjon #02
 
-## SQLite Runtime Configuration
+## SQLite-kjøretidskonfigurasjon
 
 Produksjons-SQLite-databasen ble gjennomgått for sin kjøringskonfigurasjon.
 
@@ -284,13 +284,13 @@ Innstillingen for fremmednøkler på applikasjonsnivå sikrer referanseintegrite
 
 Revisjonen inkluderte produksjonsverifisering av den aktive SQLite-konfigurasjonen.
 
-**Status: PASS**
+**Status: BESTÅTT**
 
 ---
 
 # Sikkerhetsrevisjon #03
 
-## Update Timeout and Process Handling
+## Tidsavbrudd for oppdateringer og prosesshåndtering
 
 Oppdateringskjøring er beskyttet mot pakkebehandlerprosesser som blokkerer på ubestemt tid.
 
@@ -333,13 +333,13 @@ Den gjeldende dokumenterte LUMS Agent-versjonen er:
 
 `1.7.0`
 
-**Status: PASS**
+**Status: BESTÅTT**
 
 ---
 
 # Sikkerhetsrevisjon #04
 
-## Login Rate Limiting
+## Hastighetsbegrensning for innlogging
 
 Administrative innloggingsforsøk er hastighetsbegrenset.
 
@@ -372,7 +372,7 @@ Revisjonen dekket:
 
 Hastighetsbegrenseren gir derfor en kontroll på serversiden mot gjentatte autentiseringsforsøk i stedet for å stole på klientsidens atferd.
 
-**Status: PASS**
+**Status: BESTÅTT**
 
 ---
 
@@ -382,32 +382,32 @@ De fire første sikkerhetsrevisjonsområdene er fullført:
 
 | Revisjon | Område                            | Status |
 | -------- | --------------------------------- | ------ |
-| #01      | SQLite Foreign Keys               | PASS   |
-| #02      | SQLite Runtime Configuration      | PASS   |
-| #03      | Update Timeout / Process Handling | PASS   |
-| #04      | Login Rate Limiting               | PASS   |
+| #01      | SQLite-fremmednøkler               | BESTÅTT |
+| #02      | SQLite-kjøretidskonfigurasjon      | BESTÅTT |
+| #03      | Tidsavbrudd / prosesshåndtering for oppdateringer | BESTÅTT |
+| #04      | Hastighetsbegrensning for innlogging               | BESTÅTT |
 
 Følgende revisjonsområder er dokumentert i de påfølgende avsnittene:
 
-* #05 API Input Validation
-* #06 Session Revocation
-* #07 Client Token Rotation
-* #08 IP Address Handling / Offline Networks
-* #09 Job Recovery / Checkpointing
-* #10 APT Robustness
-* #11 Arch Reboot Detection
-* #12 Unit Tests / API Result Validation
-* #13 Simulation Tests
-* #14 Continuous Integration
-* #15 Application / Audit Logging
-* #16 Versioning / Releases
-* #17 Role-Based Access Control
+* #05 Validering av API-inndata
+* #06 Tilbakekalling av økter
+* #07 Rotasjon av klienttokener
+* #08 Håndtering av IP-adresser / frakoblede nettverk
+* #09 Jobbgjenoppretting / sjekkpunkter
+* #10 APT-robusthet
+* #11 Oppdagelse av omstart på Arch
+* #12 Enhetstester / validering av API-resultater
+* #13 Simuleringstester
+* #14 Kontinuerlig integrasjon
+* #15 Applikasjons- og revisjonslogging
+* #16 Versjonering / utgivelser
+* #17 Rollebasert tilgangskontroll
 
 Dokumentasjonen vedlikeholdes løpende mot faktisk implementasjon og konfigurasjon. Opplysninger om utgivelser og tagger må slås opp i repositoriet.
 
 # Sikkerhetsrevisjon #05
 
-## API Input Validation
+## Validering av API-inndata
 
 LUMS validerer sikkerhetsfølsom API-input på serversiden.
 
@@ -449,13 +449,13 @@ Revisjonen inkluderte negativ inputtesting og SQL-injeksjonsorienterte testtilfe
 
 Valideringskontrollene ble også verifisert gjennom det automatiserte testsettet.
 
-**Status: PASS**
+**Status: BESTÅTT**
 
 ---
 
 # Sikkerhetsrevisjon #06
 
-## Session Revocation
+## Tilbakekalling av økter
 
 LUMS beskytter autentiserte administrative økter mot fortsatt bruk etter utlogging.
 
@@ -484,13 +484,13 @@ Revisjonen verifiserte at:
 * en tidligere autentisert økt ikke kan fortsette å bruke beskyttet funksjonalitet etter tilbakekalling
 * rolleinformasjon evalueres på serversiden
 
-**Status: PASS**
+**Status: BESTÅTT**
 
 ---
 
 # Sikkerhetsrevisjon #07
 
-## Client Token Rotation
+## Rotasjon av klienttokener
 
 Hver administrert LUMS-klient bruker et individuelt autentiseringstoken.
 
@@ -534,13 +534,13 @@ Klienttokenrotasjon er begrenset til administratorer.
 
 Operatorer og viewers kan ikke rotere klienttokener.
 
-**Status: PASS**
+**Status: BESTÅTT**
 
 ---
 
 # Sikkerhetsrevisjon #08
 
-## IP Address Handling and Offline Networks
+## Håndtering av IP-adresser og frakoblede nettverk
 
 LUMS bruker ikke en klients kilde-IP-adresse som eneste bevis på klientidentitet.
 
@@ -575,7 +575,7 @@ Dette er spesielt viktig for laboratoriemiljøer og infrastruktur der nettverkst
 
 Revisjonen verifiserte klientautentisering uten å stole på en fast kilde-IP-adresse.
 
-**Status: PASS**
+**Status: BESTÅTT**
 
 ---
 
@@ -585,25 +585,25 @@ Følgende sikkerhetsrevisjonsområder er fullført:
 
 | Revisjon | Område                                 | Status |
 | -------- | -------------------------------------- | ------ |
-| #01      | SQLite Foreign Keys                    | PASS   |
-| #02      | SQLite Runtime Configuration           | PASS   |
-| #03      | Update Timeout / Process Handling      | PASS   |
-| #04      | Login Rate Limiting                    | PASS   |
-| #05      | API Input Validation                   | PASS   |
-| #06      | Session Revocation                     | PASS   |
-| #07      | Client Token Rotation                  | PASS   |
-| #08      | IP Address Handling / Offline Networks | PASS   |
+| #01      | SQLite-fremmednøkler                    | BESTÅTT |
+| #02      | SQLite-kjøretidskonfigurasjon           | BESTÅTT |
+| #03      | Tidsavbrudd / prosesshåndtering for oppdateringer      | BESTÅTT |
+| #04      | Hastighetsbegrensning for innlogging                    | BESTÅTT |
+| #05      | Validering av API-inndata                   | BESTÅTT |
+| #06      | Tilbakekalling av økter                     | BESTÅTT |
+| #07      | Rotasjon av klienttokener                  | BESTÅTT |
+| #08      | Håndtering av IP-adresser / frakoblede nettverk | BESTÅTT |
 
 Neste avsnitt dekker:
 
-* #09 Job Recovery / Checkpointing
-* #10 APT Robustness
-* #11 Arch Reboot Detection
-* #12 Unit Tests / API Result Validation
+* #09 Jobbgjenoppretting / sjekkpunkter
+* #10 APT-robusthet
+* #11 Oppdagelse av omstart på Arch
+* #12 Enhetstester / validering av API-resultater
 
 # Sikkerhetsrevisjon #09
 
-## Job Recovery and Checkpointing
+## Jobbgjenoppretting og sjekkpunkter
 
 LUMS-oppdateringsjobber er utformet for å gjenopprette trygt fra avbrutt kjøring.
 
@@ -634,13 +634,13 @@ Gjenoppretting ble testet med jobber som inneholdt flere pakkeoperasjoner og med
 
 Revisjonen bekreftet at fullført arbeid bevares, og at gjenstående arbeid kan fortsette uten unødvendig å gjenta vellykkede operasjoner.
 
-**Status: PASS**
+**Status: BESTÅTT**
 
 ---
 
 # Sikkerhetsrevisjon #10
 
-## APT Robustness
+## APT-robusthet
 
 Debian-baserte pakkeoperasjoner utføres gjennom LUMS-pakkebehandlerlaget.
 
@@ -666,13 +666,13 @@ Den tilsvarende herdingen ble committet som:
 
 Målet er å sikre at LUMS ikke feilaktig rapporterer pakkeadministrasjonstilstand utelukkende basert på ufullstendige eller tvetydige kommando-utdata.
 
-**Status: PASS**
+**Status: BESTÅTT**
 
 ---
 
 # Sikkerhetsrevisjon #11
 
-## Arch Linux Reboot Detection
+## Oppdagelse av omstart på Arch Linux
 
 Arch Linux-pakkeoperasjoner kan resultere i en systemtilstand der en omstart er nødvendig eller anbefalt.
 
@@ -692,13 +692,13 @@ Revisjonen verifiserte Arch Linux-omstartsdeteksjon ved hjelp av den faktiske pa
 
 Implementasjonen ble testet mot forhold der omstart er nødvendig, og normale fullføringsbetingelser.
 
-**Status: PASS**
+**Status: BESTÅTT**
 
 ---
 
 # Sikkerhetsrevisjon #12
 
-## Unit Tests and API Result Validation
+## Enhetstester og validering av API-resultater
 
 Sikkerhetsfølsom atferd er dekket av automatiserte tester.
 
@@ -720,7 +720,7 @@ resultatet av gjeldende kjøring i stedet for et fast antall i dette dokumentet.
 
 De relevante sikkerhetskontrollene ble i tillegg verifisert gjennom fokuserte testkjøringer under revisjonen.
 
-**Status: PASS**
+**Status: BESTÅTT**
 
 ---
 
@@ -730,29 +730,29 @@ Følgende sikkerhetsrevisjonsområder er fullført:
 
 | Revisjon | Område                                 | Status |
 | -------- | -------------------------------------- | ------ |
-| #01      | SQLite Foreign Keys                    | PASS   |
-| #02      | SQLite Runtime Configuration           | PASS   |
-| #03      | Update Timeout / Process Handling      | PASS   |
-| #04      | Login Rate Limiting                    | PASS   |
-| #05      | API Input Validation                   | PASS   |
-| #06      | Session Revocation                     | PASS   |
-| #07      | Client Token Rotation                  | PASS   |
-| #08      | IP Address Handling / Offline Networks | PASS   |
-| #09      | Job Recovery / Checkpointing           | PASS   |
-| #10      | APT Robustness                         | PASS   |
-| #11      | Arch Reboot Detection                  | PASS   |
-| #12      | Unit Tests / API Result Validation     | PASS   |
+| #01      | SQLite-fremmednøkler                    | BESTÅTT |
+| #02      | SQLite-kjøretidskonfigurasjon           | BESTÅTT |
+| #03      | Tidsavbrudd / prosesshåndtering for oppdateringer      | BESTÅTT |
+| #04      | Hastighetsbegrensning for innlogging                    | BESTÅTT |
+| #05      | Validering av API-inndata                   | BESTÅTT |
+| #06      | Tilbakekalling av økter                     | BESTÅTT |
+| #07      | Rotasjon av klienttokener                  | BESTÅTT |
+| #08      | Håndtering av IP-adresser / frakoblede nettverk | BESTÅTT |
+| #09      | Jobbgjenoppretting / sjekkpunkter           | BESTÅTT |
+| #10      | APT-robusthet                         | BESTÅTT |
+| #11      | Oppdagelse av omstart på Arch                  | BESTÅTT |
+| #12      | Enhetstester / validering av API-resultater     | BESTÅTT |
 
 Neste avsnitt dekker:
 
-* #13 Simulation Tests
-* #14 Continuous Integration
-* #15 Application / Audit Logging
-* #16 Versioning / Releases
+* #13 Simuleringstester
+* #14 Kontinuerlig integrasjon
+* #15 Applikasjons- og revisjonslogging
+* #16 Versjonering / utgivelser
 
 # Sikkerhetsrevisjon #13
 
-## Simulation Tests
+## Simuleringstester
 
 LUMS tilbyr en simuleringsmekanisme for testing av oppdateringsadministrasjonsarbeidsflyter uten å utføre den tilsvarende pakkeadministrasjonsoperasjonen på det administrerte systemet.
 
@@ -777,13 +777,13 @@ Simuleringsmekanismen ble brukt under sikkerhetsrevisjonen for å verifisere job
 
 Simuleringsmodus er en testmekanisme og erstatter ikke autorisasjonskontrollene for normale oppdateringsoperasjoner.
 
-**Status: PASS**
+**Status: BESTÅTT**
 
 ---
 
 # Sikkerhetsrevisjon #14
 
-## Continuous Integration
+## Kontinuerlig integrasjon
 
 LUMS bruker automatisert testing for å oppdage sikkerhets- og funksjonelle regresjoner før endringer anses som fullstendige.
 
@@ -810,13 +810,13 @@ Det endelige verifiserte testsettet ble fullført vellykket.
 Testantallet endres etter hvert som prosjektet utvikler seg. CI gir en automatisert
 regresjonsbarriere for sikkerhetsrelevante applikasjonsendringer.
 
-**Status: PASS**
+**Status: BESTÅTT**
 
 ---
 
 # Sikkerhetsrevisjon #15
 
-## Application and Audit Logging
+## Applikasjons- og revisjonslogging
 
 LUMS registrerer sikkerhetsfølsomme administrative og operative hendelser gjennom revisjonslogging på applikasjonsnivå.
 
@@ -852,7 +852,7 @@ Implementasjonen av revisjonslogging ble gjennomgått for:
 
 Loggesystemet er ment å støtte både operativ feilsøking og sikkerhetsundersøkelser.
 
-**Status: PASS**
+**Status: BESTÅTT**
 
 ---
 
@@ -877,28 +877,28 @@ Følgende sikkerhetsrevisjonsområder er fullført:
 
 | Revisjon | Område                                 | Status                    |
 | -------- | -------------------------------------- | ------------------------- |
-| #01      | SQLite Foreign Keys                    | PASS                      |
-| #02      | SQLite Runtime Configuration           | PASS                      |
-| #03      | Update Timeout / Process Handling      | PASS                      |
-| #04      | Login Rate Limiting                    | PASS                      |
-| #05      | API Input Validation                   | PASS                      |
-| #06      | Session Revocation                     | PASS                      |
-| #07      | Client Token Rotation                  | PASS                      |
-| #08      | IP Address Handling / Offline Networks | PASS                      |
-| #09      | Job Recovery / Checkpointing           | PASS                      |
-| #10      | APT Robustness                         | PASS                      |
-| #11      | Arch Reboot Detection                  | PASS                      |
-| #12      | Unit Tests / API Result Validation     | PASS                      |
-| #13      | Simulation Tests                       | PASS                      |
-| #14      | Continuous Integration                 | PASS                      |
-| #15      | Application / Audit Logging            | PASS                      |
+| #01      | SQLite-fremmednøkler                    | BESTÅTT |
+| #02      | SQLite-kjøretidskonfigurasjon           | BESTÅTT |
+| #03      | Tidsavbrudd / prosesshåndtering for oppdateringer      | BESTÅTT |
+| #04      | Hastighetsbegrensning for innlogging                    | BESTÅTT |
+| #05      | Validering av API-inndata                   | BESTÅTT |
+| #06      | Tilbakekalling av økter                     | BESTÅTT |
+| #07      | Rotasjon av klienttokener                  | BESTÅTT |
+| #08      | Håndtering av IP-adresser / frakoblede nettverk | BESTÅTT |
+| #09      | Jobbgjenoppretting / sjekkpunkter           | BESTÅTT |
+| #10      | APT-robusthet                         | BESTÅTT |
+| #11      | Oppdagelse av omstart på Arch                  | BESTÅTT |
+| #12      | Enhetstester / validering av API-resultater     | BESTÅTT |
+| #13      | Simuleringstester                       | BESTÅTT |
+| #14      | Kontinuerlig integrasjon                 | BESTÅTT |
+| #15      | Applikasjons- og revisjonslogging            | BESTÅTT |
 | #16      | Versjonering / utgivelser             | Slå opp gjeldende utgivelser og tagger |
 
 De nummererte tekniske revisjonsområdene dekker kontrollene som er oppført i tabellen. Dokumentasjon vedlikeholdes løpende mot faktisk implementasjon og konfigurasjon. Opplysninger om utgivelser kontrolleres i repositoriets gjeldende utgivelser og tagger.
 
 # Sikkerhetsrevisjon #17
 
-## Role-Based Access Control
+## Rollebasert tilgangskontroll
 
 LUMS kombinerer rollemaler med individuelt tildelte tillatelser. De
 støttede malene er `administrator`, `operator` og `viewer`; valg av en
@@ -911,7 +911,7 @@ utilgjengelige funksjoner for brukervennlighet, mens serveren forblir sikkerhets
 
 ---
 
-## RBAC Permission Model
+## RBAC-tillatelsesmodell
 
 | Tillatelse        | Tilgang gitt |
 | ----------------- | ------------ |
@@ -938,7 +938,7 @@ de samme tillatelsene.
 
 ---
 
-## Authorization Enforcement
+## Håndheving av autorisasjon
 
 Beskyttede operasjoner bruker autentisering og tillatelseskontroller på serversiden.
 
@@ -974,7 +974,7 @@ Dette forhindrer omgåelse av RBAC-modellen ved å kalle et API-endepunkt som er
 
 ---
 
-## Viewer Restrictions
+## Begrensninger for Viewer
 
 Viewer-malen er bevisst begrenset av sitt standard tillatelsessett.
 
@@ -998,7 +998,7 @@ Installert programvare forblir tilgjengelig for Viewer-kontoer som en skrivebesk
 
 ---
 
-## Administrative User Management
+## Administrativ brukeradministrasjon
 
 Brukeradministrasjon krever tillatelsen `users.manage`.
 
@@ -1031,7 +1031,7 @@ Passord lagres aldri i klartekst.
 
 ---
 
-## RBAC Database Migration
+## RBAC-databasemigrering
 
 Informasjon om rollemal forblir i brukerdatabaseregistreringen. Individuelle
 tillatelser lagres i `user_permissions`-tabellen med en fremmednøkkel til
@@ -1050,7 +1050,7 @@ tillatelser og kontrolleres for integritet før publisering.
 
 ---
 
-## RBAC Security Testing
+## RBAC-sikkerhetstesting
 
 RBAC-atferd er dekket av automatiserte tester.
 
@@ -1074,7 +1074,7 @@ Administrator, Operator og Viewer.
 
 ---
 
-## RBAC Security Result
+## RBAC-sikkerhetsresultat
 
 RBAC-implementasjonen gir lagdelt autorisasjon:
 
@@ -1089,7 +1089,7 @@ Grensesnittet gir derfor ikke autorisasjonsmekanismen i seg selv.
 
 Serveren forblir den autoritative sikkerhetsgrensen.
 
-**Status: PASS**
+**Status: BESTÅTT**
 
 ## Dokumentasjonsgjennomgang
 
@@ -1284,23 +1284,23 @@ De nummererte revisjonsresultatene er:
 
 | Revisjon | Område                                 | Status                    |
 | -------- | -------------------------------------- | ------------------------- |
-| #01      | SQLite Foreign Keys                    | PASS                      |
-| #02      | SQLite Runtime Configuration           | PASS                      |
-| #03      | Update Timeout / Process Handling      | PASS                      |
-| #04      | Login Rate Limiting                    | PASS                      |
-| #05      | API Input Validation                   | PASS                      |
-| #06      | Session Revocation                     | PASS                      |
-| #07      | Client Token Rotation                  | PASS                      |
-| #08      | IP Address Handling / Offline Networks | PASS                      |
-| #09      | Job Recovery / Checkpointing           | PASS                      |
-| #10      | APT Robustness                         | PASS                      |
-| #11      | Arch Reboot Detection                  | PASS                      |
-| #12      | Unit Tests / API Result Validation     | PASS                      |
-| #13      | Simulation Tests                       | PASS                      |
-| #14      | Continuous Integration                 | PASS                      |
-| #15      | Application / Audit Logging            | PASS                      |
+| #01      | SQLite-fremmednøkler                    | BESTÅTT |
+| #02      | SQLite-kjøretidskonfigurasjon           | BESTÅTT |
+| #03      | Tidsavbrudd / prosesshåndtering for oppdateringer      | BESTÅTT |
+| #04      | Hastighetsbegrensning for innlogging                    | BESTÅTT |
+| #05      | Validering av API-inndata                   | BESTÅTT |
+| #06      | Tilbakekalling av økter                     | BESTÅTT |
+| #07      | Rotasjon av klienttokener                  | BESTÅTT |
+| #08      | Håndtering av IP-adresser / frakoblede nettverk | BESTÅTT |
+| #09      | Jobbgjenoppretting / sjekkpunkter           | BESTÅTT |
+| #10      | APT-robusthet                         | BESTÅTT |
+| #11      | Oppdagelse av omstart på Arch                  | BESTÅTT |
+| #12      | Enhetstester / validering av API-resultater     | BESTÅTT |
+| #13      | Simuleringstester                       | BESTÅTT |
+| #14      | Kontinuerlig integrasjon                 | BESTÅTT |
+| #15      | Applikasjons- og revisjonslogging            | BESTÅTT |
 | #16      | Versjonering / utgivelser             | Slå opp gjeldende utgivelser og tagger |
-| #17      | Role-Based Access Control              | PASS                      |
+| #17      | Rollebasert tilgangskontroll              | BESTÅTT |
 
 De tekniske sikkerhetskontrollene gjennomgått i revisjonene #01–#15 og #17 har bestått.
 

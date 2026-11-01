@@ -17,7 +17,7 @@ Turvallisuusarkkitehtuuri ja tarkastustiedot on dokumentoitu erikseen tiedostoss
 ## Aloittaminen: Päivittäinen hallinta
 
 Tämä opas on tarkoitettu henkilölle, joka vastaa olemassa olevasta LUMS-asennuksesta.
-Yksityiskohtaiset tekniset osiot ylläpidetään englanniksi. Aloita näistä termeistä:
+Alla ovat oppaan tärkeimmät käsitteet ja toimintaperiaatteet:
 
 * **Käyttäjätili:** määrittää, mitä henkilö voi tehdä LUMSin verkkokäyttöliittymässä.
   Älä jaa tilejä; anna jokaiselle henkilölle oma tili.

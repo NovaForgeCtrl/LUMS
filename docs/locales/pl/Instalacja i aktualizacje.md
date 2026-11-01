@@ -5863,3 +5863,70 @@ Document
 ```
 
 Instalacja LUMS powinna zawsze pozostać powtarzalna, audytowalna i odtwarzalna.
+
+---
+
+## Opcjonalny agent telemetrii procesora i pami?ci
+
+Informacje o pomiarach telemetrii, bezpiecze?stwie, przechowywaniu danych i rozwi?zywaniu problem?w znajduj? si? w [telemetria.md](telemetria.md).
+
+Agent telemetrii jest oddzielny od istniej?cych Agent i Watcher raportuj?cych. Wysy?a pomiary procesora i pami?ci do uwierzytelnionego endpointu `POST /api/telemetry`. Panel odczytuje pomiary za po?rednictwem uwierzytelnionego API telemetrii klient?w.
+
+### Pliki instalacyjne
+
+Przed instalacj? zapoznaj si? z plikami repozytorium:
+
+- `agent/telemetry.py`
+- `agent/lums-telemetry.service`
+- `agent/lums-telemetry.timer`
+- `scripts/install-telemetry-agent.sh`
+- `tests/test_telemetry_agent.py`
+
+Po skonfigurowaniu `/etc/default/lums-agent` zgodnie z poni?szym opisem zaktualizuj kopi? repozytorium na kliencie Debian i uruchom polecenie z katalogu g??wnego repozytorium:
+
+```sh
+sudo bash scripts/install-telemetry-agent.sh
+```
+
+Instalator sprawdza obecno?? `LUMS_BASE` i `LUMS_TOKEN` bez wy?wietlania ich warto?ci. Instaluje lub aktualizuje kolektor oraz jednostki systemd, w??cza pi?ciosekundowy timer i wykonuje jedn? natychmiastow? pr?bk?, aby sprawdzi? po??czenie. Je?li us?uga zawiedzie, wy?wietla ostatnie logi us?ugi telemetrii. Token pozostaje w istniej?cej konfiguracji klienta i nie jest kopiowany do innego pliku.
+
+Zainstaluj skrypt telemetrii jako `/usr/local/lib/lums-telemetry/telemetry.py`, kt?rego w?a?cicielem jest root i do kt?rego konto us?ugi nie ma prawa zapisu. Zainstaluj jednostki us?ugi i timera jako `/etc/systemd/system/lums-telemetry.service` oraz `/etc/systemd/system/lums-telemetry.timer`.
+
+Us?uga u?ywa `DynamicUser=yes`, dzia?a z ograniczonymi uprawnieniami i nale?y do grupy `systemd-journal`, aby uzyska? tylko do odczytu dost?p do systemowych dziennik?w zdarze?. Umo?liwia to tworzenie ograniczonych podsumowa? bezpiecze?stwa i logowa? w panelu; surowe komunikaty dziennik?w nie s? wysy?ane na serwer. Jest to jednorazowa us?uga uruchamiana przez oddzielny timer; nie zast?puje istniej?cego Agent ani Watcher LUMS.
+
+Aktywny klient LUMS nie oznacza, ?e ten oddzielny timer telemetrii jest zainstalowany lub w??czony. Strona `/monitoring` wyja?nia, czy wybrany klient nie wys?a? pr?bek, przesy?a tylko podstawowe metryki, czy ma nieaktualne szczeg??owe dane.
+
+### Konfiguracja i TLS
+
+Skonfiguruj `/etc/default/lums-agent`, podaj?c adres serwera i indywidualny token klienta:
+
+```sh
+LUMS_BASE=https://lums.example.invalid
+LUMS_TOKEN=REPLACE_WITH_THIS_CLIENTS_TOKEN
+LUMS_CA_FILE=/etc/ssl/certs/lums-ca.crt
+```
+
+Zast?p przyk?adowy adres i token rzeczywistymi warto?ciami ?rodowiska. Zabezpiecz plik konfiguracyjny tak, aby m?g? go odczyta? wy??cznie root, na przyk?ad ustawiaj?c tryb `0600`. Nigdy nie zapisuj prawdziwego tokena w systemie kontroli wersji ani nie wsp??dziel go mi?dzy klientami.
+
+Opcjonalnie wybierz jednostki us?ug systemd do raportowania za pomoc? rozdzielonej przecinkami listy dozwolonych us?ug:
+
+```sh
+LUMS_MONITORED_SERVICES=lums-agent.service,lums-telemetry.service,ssh.service,wazuh-agent.service,suricata.service
+```
+
+Je?li zmienna nie jest ustawiona, agent u?ywa wbudowanej listy us?ug LUMS, Docker i SSH. Wazuh i Suricata s? opcjonalne: dodaj tylko jednostki zainstalowane na kliencie, a nast?pnie w??cz ich wiersze stanu na panelu `/health`. Raportowany jest wy??cznie stan systemd; nie wymaga to ani nie przechowuje po?wiadcze? API i nie pobiera kana??w alert?w bezpiecze?stwa.
+
+Je?li potrzebny jest prywatny urz?d certyfikacji, zainstaluj jego certyfikat w lokalizacji czytelnej dla procesu us?ugi, np. `/etc/ssl/certs/lums-ca.crt`, i odpowiednio ustaw `LUMS_CA_FILE`. Nie wy??czaj weryfikacji certyfikat?w. Gdy `LUMS_CA_FILE` nie jest ustawione, agent u?ywa domy?lnego magazynu zaufanych urz?d?w CA systemu operacyjnego. Je?li wymagany jest prywatny urz?d CA, jawnie ustaw `LUMS_CA_FILE` na istniej?cy plik certyfikatu CA, kt?ry mo?e odczyta? proces us?ugi. Jawnie skonfigurowany, ale brakuj?cy lub nieczytelny plik CA powoduje b??d agenta zamiast cichego przej?cia do innego magazynu zaufania. Nie wy??czaj weryfikacji certyfikat?w ani nie os?abiaj uprawnie? katalog?w, aby obej?? problemy z konfiguracj? certyfikat?w.
+
+### Weryfikacja przed w??czeniem
+
+Najpierw uruchom testy projektu i sprawd? pliki jednostek:
+
+```sh
+.venv/bin/python -m pytest -q tests/test_telemetry.py tests/test_telemetry_agent.py
+systemd-analyze verify agent/lums-telemetry.service agent/lums-telemetry.timer
+```
+
+Na kliencie testowym zainstaluj pliki i konfiguracj?, prze?aduj systemd, a przed w??czeniem timera uruchom us?ug? r?cznie. Potwierd? prawid?owe uwierzytelnianie i odbieranie pr?bek w panelu. Dopiero wtedy w??cz timer na tym kliencie testowym. Nie w??czaj go na klientach produkcyjnych przed sprawdzeniem i zatwierdzeniem wydania po stronie serwera.
+
+Agent raportuje co pi?? sekund. Serwer przechowuje pomiary przez siedem dni, a API panelu zwraca maksymalnie 1000 r?wnomiernie roz?o?onych pr?bek dla ka?dego ??danego przedzia?u historii, zachowuj?c pierwsz? i najnowsz? pr?bk?.

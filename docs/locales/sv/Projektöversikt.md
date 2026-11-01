@@ -280,6 +280,19 @@ Token är:
 
 Tokenrotation gör det möjligt för en administratör att ogiltigförklara en tidigare utfärdad klientuppgift utan att återskapa klienten.
 
+
+---
+
+### Hälsopanel
+
+Den autentiserade panelen på `/health` sammanfattar databasstatus, klienternas rapporteringsstatus, synlighet för säkerhetskopieringslagring samt CPU-/minnestelemetri om den har konfigurerats. Det är en snabb driftöversikt, inte en ersättning för att granska container-, proxy-, värd- och säkerhetskopieringsloggar eller att testa en återställning. Se [guiden till LUMS-hälsopanelen](LUMS-hälsopanel.md).
+
+---
+
+### Larm
+
+LUMS har ett API för larmhantering och en grundläggande panel för lagrade larmposter. Administratörer kan hantera regler, utlösa larm manuellt samt kvittera, lösa eller manuellt eskalera ett aktivt larm. Villkor och tröskelvärden lagras som konfiguration, men servern utvärderar dem inte automatiskt mot telemetri. E-post-, Slack-, PagerDuty- och generiska webhookintegrationer är inte tillgängliga via API:t, och massradering är avstängd för att bevara historiken. Se [implementationens gränser för larmhantering](Larmhantering.md).
+
 ---
 
 ### Granskningsbarhet

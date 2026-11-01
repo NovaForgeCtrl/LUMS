@@ -2932,7 +2932,7 @@ Un diagnostic utile consiste à vérifier que le fichier existe et a les permiss
 
 # 82. Le fichier secret est manquant
 
-Si le fichier secret n'existe pas sur l'hôte, le conteneur ne peut pas s'authentifier ou s'initialiser correctement.
+Si le fichier secret n'existe pas sur l'hôte et qu'aucune valeur de repli `LUMS_SECRET_KEY` n'est définie, l'application échoue immédiatement au démarrage avec `RuntimeError: LUMS secret is not configured. Provide LUMS_SECRET_KEY_FILE or LUMS_SECRET_KEY.` (`server/app.py`). Il s'agit d'un échec de démarrage, et pas seulement d'un symptôme d'authentification. Voir la section 114 pour le détail du repli entre fichier et variable.
 
 Déterminez d'abord si le chemin secret attendu existe.
 
@@ -3863,7 +3863,8 @@ Database:
 SQLite
 
 SQLite journal mode:
-delete
+WAL (enabled by server/init_db.py; verify on your database with
+sqlite3 <db> "pragma journal_mode;")
 
 SQLite busy timeout:
 5000 ms
@@ -3890,16 +3891,186 @@ Viewer:
 Clients + Installed Software only
 
 Full test suite:
-Passing baseline
+Run on Linux (the CI reference is Ubuntu with Python 3.13). Some tests
+assume Linux features such as os.geteuid() or an installed apt/pacman and
+can fail on Windows; check the CI result for the revision you deploy.
 ```
 
-Le nombre exact de tests peut changer à mesure que le projet grandit.
+Ne considérez pas cette base comme la preuve qu'une installation donnée est saine ; vérifiez chaque valeur sur le système cible.
 
 Les propriétés de sécurité et d'architecture sont la base importante.
 
 ---
 
-# 114. Fin du guide de dépannage
+# 114. Pièges de la configuration de démarrage
+
+**Symptôme :** Le conteneur s'arrête immédiatement, ou le serveur utilise une autre base de données ou un autre répertoire de sauvegarde que ne le laisse supposer le volume Docker.
+
+**Faits issus du code (`server/app.py`) :**
+
+- Sans secret, l'application lève `RuntimeError: LUMS secret is not configured. Provide LUMS_SECRET_KEY_FILE or LUMS_SECRET_KEY.`
+- Si le fichier désigné par `LUMS_SECRET_KEY_FILE` n'existe pas, le code se rabat sur `LUMS_SECRET_KEY`. Seul un fichier manquant est traité ainsi ; un fichier illisible (permissions) peut provoquer à la place une erreur du système de fichiers.
+- `LUMS_DB_PATH` et `LUMS_BACKUP_DIR` remplacent les valeurs par défaut `/var/lib/lums/lums.db` et `/var/backups/lums`. Un remplacement obsolète fait pointer LUMS silencieusement vers un autre emplacement que le volume monté.
+
+**Vérifier (lecture seule) :**
+
+```text
+docker compose logs lums | grep "LUMS secret"
+docker inspect lums --format '{{range .Config.Env}}{{println .}}{{end}}'
+ls -l <secret file>   # permissions only; never print the contents
+```
+
+**Correction :** Corrigez le chemin du secret ou ses permissions, ou supprimez les remplacements obsolètes de `LUMS_DB_PATH` / `LUMS_BACKUP_DIR`. Ne générez pas à la légère un nouveau secret (voir la section 82).
+
+---
+
+# 115. L'agent ne démarre pas à cause des vérifications à l'import
+
+**Symptôme :** `lums-agent` échoue avant de lire son jeton, par exemple avec `RuntimeError: No supported package manager found. Supported package managers: apt, pacman`, ou avec une erreur SSL concernant le fichier CA.
+
+**Cause :** `agent/agent.py` détecte le gestionnaire de paquets et crée le contexte TLS lors de l'import du module. Les hôtes sans `apt` ni `pacman` (ou avec un `LUMS_CA_FILE` manquant ou illisible) échouent donc dès le démarrage. Il en va de même pour des environnements de test tels que Windows.
+
+**Vérifier :**
+
+```text
+systemctl status lums-agent --no-pager
+journalctl -u lums-agent -n 50 --no-pager
+```
+
+**Correction :** Utilisez une distribution prise en charge, vérifiez que le gestionnaire de paquets figure dans le `PATH` du service, et que `LUMS_CA_FILE` existe et est lisible par l'utilisateur du service.
+
+---
+
+# 116. L'agent utilise une mauvaise adresse de serveur (port 5000 ou 5050)
+
+**Symptôme :** L'agent signale « connection refused » alors que le serveur est sain.
+
+**Cause :** La valeur par défaut intégrée à l'agent est `LUMS_BASE=http://127.0.0.1:5000`, alors que le conteneur documenté publie `127.0.0.1:5050`. Les exemples avec le port `5050` dans ce guide décrivent le port publié du serveur, pas la valeur par défaut de l'agent.
+
+**Vérifier :**
+
+```text
+systemctl show lums-agent --property=Environment
+ss -lntp | grep -E ':5000|:5050'
+```
+
+**Correction :** Définissez explicitement `LUMS_BASE` sur le point d'accès réel joignable depuis le client (normalement l'URL HTTPS de votre déploiement). N'exposez pas publiquement le port `5050` pour contourner le problème.
+
+---
+
+# 117. Le watcher se termine avec le statut 1
+
+**Symptôme :** `lums-watcher` se termine avec un statut d'échec et journalise l'un des messages : `CLIENT LOOKUP FAILED`, `RUNNING JOB LOOKUP FAILED`, `JOB LOOKUP FAILED`, `IDLE CHECK FAILED`, `JOB CLAIM FAILED`, `UPDATE EXECUTION FAILED`.
+
+**Cause :** Le watcher est une unité à exécution unique. Il intercepte toute erreur, la journalise, se termine avec le statut 1 et ne réessaie pas dans le même processus ; la prochaine exécution du timer repart de zéro. Il ne reprend que les tâches dont le statut est exactement `running`. Sinon il recherche des tâches en attente, et `NO UPDATE JOB // SYSTEM CLEAN` est un résultat normal.
+
+**Vérifier :**
+
+```text
+journalctl -u lums-watcher -n 100 --no-pager
+systemctl status lums-watcher lums-watcher.timer
+```
+
+**Correction :** Résolvez l'échec indiqué (joignabilité de l'API, jeton, vérification d'inactivité, verrou du gestionnaire de paquets) et laissez le timer s'exécuter de nouveau. Consultez l'état des tâches via l'interface ou l'API ; ne modifiez jamais les états de tâches à la main dans SQLite.
+
+---
+
+# 118. Le host updater journalise sans cesse des échecs de heartbeat
+
+**Symptôme :** `lums-host-updater` reste actif mais journalise de façon répétée `Heartbeat failed (ValueError)` ou `Heartbeat failed (HTTPError)`.
+
+**Cause :** Le host updater intercepte volontairement les erreurs dans sa boucle et réessaie. Raisons sous-jacentes typiques (`host_updater/agent.py`) :
+
+- `Host-updater token is missing or too short` — le fichier de jeton est absent ou fait moins de 32 caractères.
+- `Only a loopback LUMS endpoint is permitted` — l'URL doit utiliser `http` ou `https`, l'hôte doit être exactement `127.0.0.1`, un port doit être présent, et les identifiants, la query ou le fragment ne sont pas autorisés (exemple : `http://127.0.0.1:5050`).
+- HTTP `401` avec `host_updater_authentication_required` — le jeton bearer est invalide.
+- HTTP `503` avec `host_updater_not_configured` — aucun jeton de host updater n'est configuré sur le serveur.
+- Le service s'arrête avec `Unexpected update-execution state; stopping` (statut de sortie 1) lorsque la réponse du heartbeat ne signale pas explicitement `update_execution_enabled: false`. Vérifiez que les versions du serveur et du host updater correspondent.
+
+**Vérifier (n'affichez pas le jeton) :**
+
+```text
+journalctl -u lums-host-updater -n 100 --no-pager
+systemctl show lums-host-updater --property=Environment
+stat /etc/lums-host-updater/token
+```
+
+**Correction :** Réparez le propriétaire et le mode du fichier de jeton, corrigez l'URL loopback, puis redémarrez le service une seule fois.
+
+---
+
+# 119. Les requêtes d'intégration d'alertes renvoient 501
+
+**Symptôme :** La configuration, le test ou la suppression d'une intégration e-mail, Slack, PagerDuty ou webhook renvoie `501` avec `Notification integrations are disabled pending secure persistent configuration`.
+
+**Cause :** C'est voulu (`server/alerts_routes.py`). Les intégrations ne sont pas disponibles, `POST /alerts/clear-all` renvoie également `501`, et les règles ne sont pas évaluées automatiquement. Ne réessayez pas et ne saisissez pas de secrets de fournisseur.
+
+**Voir aussi :** Ces routes exigent `alerts.manage` et la protection CSRF. Un jeton CSRF manquant ou incorrect produit `403` avec `csrf_validation_failed` avant tout `501`. Ne désactivez pas CSRF. Voir `docs/LUMS_REALTIME_ALERTING_IMPLEMENTATION.md`.
+
+---
+
+# 120. Échecs de connexion : CSRF, limitation de débit et verrouillages
+
+**Symptôme :** Un mot de passe valide est rejeté après plusieurs tentatives échouées, ou une entrée d'audit `login.rate_limit` apparaît.
+
+**Cause :** Les tentatives de connexion sont limitées par nom d'utilisateur et par source, et l'état est stocké dans SQLite (`login_rate_limits`, avec `locked_until`), il survit donc aux redémarrages. La route `/login` est exemptée de la vérification CSRF ; un jeton CSRF manquant n'est donc pas la cause d'une connexion qui échoue. Examinez plutôt les identifiants, les cookies et la limitation de débit.
+
+**Vérifier (lecture seule) :**
+
+```text
+sqlite3 /var/lib/lums/lums.db "select rate_limit_key, locked_until from login_rate_limits;"
+```
+
+**Correction :** Attendez l'expiration du verrouillage et corrigez la source des échecs. Ne supprimez pas de lignes à la main et ne martelez pas la connexion pour la tester.
+
+---
+
+# 121. SQLite est occupé ou les migrations visent la mauvaise base
+
+**Symptôme :** Les écritures échouent sous contention, ou une migration semble réussie alors que le serveur en cours d'exécution n'a toujours pas les tables ou fonctionnalités.
+
+**Cause :** Les connexions de l'application utilisent `PRAGMA busy_timeout = 5000`, une écriture attend donc au maximum cinq secondes. La base fonctionne en mode WAL (`server/init_db.py`), les fichiers `-wal` et `-shm` sont donc normaux. Les scripts de migration lisent `LUMS_DB_PATH` de façon autonome et peuvent modifier un autre fichier que celui utilisé par le serveur.
+
+**Vérifier :**
+
+```text
+sqlite3 /var/lib/lums/lums.db "pragma busy_timeout; pragma journal_mode;"
+docker inspect lums --format '{{range .Config.Env}}{{println .}}{{end}}'
+```
+
+**Correction :** Trouvez et arrêtez le processus concurrent, conservez les fichiers WAL et SHM, et alignez l'environnement de migration sur celui du serveur. Ne supprimez jamais les fichiers `-wal` ou `-shm`.
+
+---
+
+# 122. La restauration refuse de s'exécuter (WAL/SHM présents)
+
+**Symptôme :** Une restauration s'arrête avec `Restore verweigert: SQLite-WAL/SHM-Datei vorhanden.` (le message est en allemand dans le code).
+
+**Cause :** `server/database_backup.py` s'arrête par précaution lorsque des fichiers annexes de la base cible existent, afin de ne pas mélanger anciennes et nouvelles données.
+
+**Vérifier :** `find /var/lib/lums -maxdepth 1 -type f -name 'lums.db*'`
+
+**Correction :** Arrêtez ou mettez au repos l'application et utilisez le flux de restauration documenté. Ne supprimez jamais les fichiers annexes à la main.
+
+---
+
+# 123. Erreurs de snapshot et de vérification de release
+
+**Symptôme et cause (`scripts/volume_snapshot.py`, `scripts/release_verification.py`) :**
+
+| Message | Signification |
+| --- | --- |
+| `Could not create or publish the snapshot.` | La destination existe déjà ou n'est pas accessible en écriture ; les snapshots n'écrasent jamais. |
+| `Source tree changed during snapshot creation.` | Des fichiers ont changé pendant la copie ; mettez les écritures au repos et réessayez. |
+| `Invalid snapshot filename.` / `Invalid restore target.` | Un chemin ou nom de fichier dangereux a été rejeté. |
+| `Duplicate restore target: ...` | L'archive contient des entrées en double ; utilisez une archive issue de l'outil pris en charge. |
+| La vérification de release échoue sur les données de somme de contrôle | Les métadonnées de somme de contrôle sont limitées à 4096 octets ; obtenez le fichier de sommes de contrôle officiel au lieu de contourner la vérification. |
+
+Les restaurations sans root n'appliquent volontairement pas des propriétaires archivés arbitraires. Exécutez la restauration documentée sous le compte de service prévu plutôt que de faire tourner le conteneur en root. Listez les membres de l'archive avec `tar -tf` sans les extraire.
+
+---
+
+# 124. Fin du guide de dépannage
 
 Le dépannage LUMS doit rester fondé sur les preuves et conscient de la sécurité.
 

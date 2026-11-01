@@ -9,12 +9,12 @@ configuration-management system.
 
 ## Data sources and ownership
 
-- Registered LUMS clients are read from the existing client registry and
-  appear automatically, including their reported hostname, IP address,
-  operating system and enabled/reporting status. Disabled clients remain
-  visible so existing relationships stay understandable. These entries are
-  read-only in the topology page; manage a client through the normal
-  client-management workflow.
+- Registered LUMS clients are read from the existing client registry and appear
+  automatically, including their reported hostname, IP address, operating
+  system and enabled/reporting status. Disabled clients remain visible so
+  existing relationships stay understandable. These entries are read-only in
+  the topology page; manage a client through the normal client-management
+  workflow.
 - Servers, virtual machines, containers, network devices, services and
   storage can be entered manually with a hostname, IP address, role, location
   and notes.
@@ -38,15 +38,13 @@ records. Removing a client removes relationships that reference that client.
 
 ## Reading the map
 
-The map arranges nodes by category and draws each recorded relationship with
-a directional edge. A **shared dependency** is a node that at least two
-other nodes point to using `depends on`. This is a useful review signal for
-a potential central failure point, not a complete availability or impact
+The map arranges nodes by category and draws each recorded relationship with a
+directional edge. A **shared dependency** is a node that at least two other
+nodes point to using `depends on`. This is a useful review signal for a
+potential central failure point, not a complete availability or impact
 analysis. The map does not account for redundancy, failover, capacity,
 network segmentation or unrecorded dependencies.
 
-Use the inventory and relationship tables for the exact hostname, IP
-address, role, location and relationship details. The topology uses the
-currently selected LUMS theme and works with the shared collapsible sidebar.
-The English source is
-[LUMS_Infrastructure_Topology.md](../../../LUMS_Infrastructure_Topology.md).
+Use the inventory and relationship tables for the exact hostname, IP address,
+role, location and relationship details. The topology uses the currently
+selected LUMS theme and works with the shared collapsible sidebar.

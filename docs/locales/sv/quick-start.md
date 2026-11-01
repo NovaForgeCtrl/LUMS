@@ -2,10 +2,7 @@
 
 Den här korta guiden är för dig som är ny på LUMS eller Linux. I
 [dokumentationsindexet](../../README.md) finns en fullständig översikt över
-tillgängliga översättningar för användare och administratörer. Alla tekniska
-källdokument är inte fullständigt översatta; de engelska källorna är
-fortfarande auktoritativa. Använd dem om en översättning är ofullständig eller
-avviker från källan, särskilt innan du gör ändringar i ett produktionssystem.
+tillgängliga översättningar för användare och administratörer. Guiderna är avsedda för både användare och administratörer. Kontrollera alltid inställningarna och beteendet för den version du använder innan du ändrar ett produktionssystem.
 
 ## Vad är LUMS?
 

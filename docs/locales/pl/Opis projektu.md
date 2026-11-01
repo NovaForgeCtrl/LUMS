@@ -262,6 +262,18 @@ Rotacja tokenów pozwala administratorowi unieważnić wcześniej wydane poświa
 
 ---
 
+### Panel zdrowia
+
+Uwierzytelniony panel zdrowia pod adresem `/health` podsumowuje stan bazy danych, status raportowania klient?w, dost?pno?? informacji o magazynie kopii zapasowych oraz telemetri? procesora i pami?ci, je?li zosta?a skonfigurowana. Jest to szybki widok operacyjny, a nie zamiennik sprawdzania log?w kontenera, odwrotnego proxy, hosta i kopii zapasowych ani testu przywracania. Zob. [panel-zdrowia-lums.md](panel-zdrowia-lums.md).
+
+---
+
+### Alerty
+
+LUMS zawiera API zarz?dzania alertami i podstawowy panel przechowywanych rekord?w alert?w. Administratorzy mog? tworzy? regu?y i zarz?dza? nimi, r?cznie wyzwala? alert oraz potwierdza?, rozwi?zywa? lub r?cznie eskalowa? aktywny alert. Warunki i progi regu? s? przechowywane jako konfiguracja; obecny serwer nie ocenia ich automatycznie na podstawie telemetrii. Integracje powiadomie? (e-mail, Slack, PagerDuty i og?lne webhooki) nie s? dost?pne przez API, a zbiorcze czyszczenie jest wy??czone, aby zachowa? histori? alert?w. Opis zaimplementowanych ogranicze? znajduje si? w [Zarz?dzanie alertami](Zarz%C4%85dzanie%20alertami.md).
+
+---
+
 ### Audytowalność
 
 Działania administracyjne i istotne dla bezpieczeństwa są rejestrowane poprzez system dziennika audytu LUMS.
@@ -1946,6 +1958,26 @@ Rutynowa administracja, konserwacja, kopie zapasowe, aktualizacje, procedury ope
 ### `security.md`
 
 Architektura bezpieczeństwa, kontrole bezpieczeństwa, wyniki audytu, utwardzanie i informacje o bezpieczeństwie gotowości wydania.
+
+### `telemetry.md`
+
+Opcjonalna telemetria procesora, pami?ci, dysku, sieci, hosta i operacji; konfiguracja agenta, przechowywanie danych, bezpiecze?stwo i rozwi?zywanie problem?w.
+
+### `LUMS_Health_Dashboard.md`
+
+Zakres informacji uwierzytelnionego panelu zdrowia, klasyfikacja stanu klient?w, limity telemetrii, interpretacja widoczno?ci magazynu kopii zapasowych i kontrole operacyjne.
+
+### `LUMS_Infrastructure_Topology.md`
+
+Spos?b importowania zarejestrowanych klient?w przez LUMS, zarz?dzania infrastruktur? i zale?no?ciami, ochrony edycji topologii oraz identyfikowania potencjalnych wsp?lnych punkt?w awarii.
+
+### `server/static/backup-restore.md`
+
+Ostro?ne odzyskiwanie zweryfikowanej kopii zapasowej SQLite za pomoc? Docker, w tym kontrole integralno?ci i zapasowa kopia aktywnej bazy danych.
+
+### `docs/update-tools-package.md`
+
+Zawarto?? pobieranego artefaktu narz?dzi aktualizacyjnych, spos?b publikowania go przez CI oraz kontrole wymagane przed u?yciem w ?rodowisku produkcyjnym.
 
 ### `troubleshooting.md`
 

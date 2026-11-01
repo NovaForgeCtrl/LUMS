@@ -6,13 +6,13 @@ The authenticated dashboard at `/health` gives an operator a quick view of
 selected LUMS and fleet state:
 
 - database status as determined by the application;
-- total, online, unknown and offline client counts;
-- recent CPU, memory and network telemetry for enabled clients, when
+- total, online, unknown, and offline client counts;
+- recent CPU, memory and network telemetry for an enabled client, when
   telemetry is installed and samples exist;
 - alert history and detected telemetry interruptions;
-- whether the configured backup directory can be inspected, the latest
-  backup file recognised by the application, and the last successful backup
-  creation recorded in the audit log;
+- whether the configured backup directory can be inspected and the latest
+  backup file that the application recognizes, and the last successful backup
+  creation recorded in the audit log.
 - optional Wazuh and Suricata systemd service-state rows when configured.
 
 Detailed per-client host and network readings, temperatures, service and
@@ -21,20 +21,20 @@ container states, and security-event summaries are on the separate
 journal for event summaries; it does not send raw log messages, usernames or
 source addresses. Container details are unavailable unless the telemetry
 service account can inspect the runtime without additional privileges. These
-pages do not prove that the host, Docker daemon, reverse proxy, network or
-every managed client is healthy. A listed backup is not proof that it is
-restorable; periodically perform a controlled restore test.
+pages do not prove that the host, Docker daemon, reverse proxy, network, or
+every managed client is healthy. A listed backup is not proof that the backup
+is restorable; periodically perform a controlled restore test.
 
 ## Access control
 
-The `/health` page requires a signed-in user with the `clients.view`
-permission. Access is subject to the application's normal authentication and
-authorisation checks. Do not make the dashboard public by bypassing the login
-or reverse proxy controls.
+The `/health` page requires a signed-in user with the `clients.view` permission.
+Access is subject to the application's normal authentication and authorization
+checks. Do not make the dashboard public by bypassing the login or reverse
+proxy controls.
 
 The separate `GET /api/health` endpoint is a lightweight liveness response.
 A successful response means that the route can answer; it is not a complete
-database, backup or client-health assessment.
+database, backup, or client-health assessment.
 
 ## Client status interpretation
 
@@ -48,32 +48,32 @@ The dashboard classifies clients using their last reported timestamp:
 
 These thresholds describe reporting recency, not whether a machine is powered
 on or whether every service on it is working. Network delays, suspended
-machines, a stopped agent or reporting failures can all affect the result.
+machines, a stopped agent, or reporting failures can all affect the result.
 Treat `unknown` as insufficient information rather than as proof of failure.
 
 ## CPU and memory telemetry
 
-Telemetry is optional and separate from the reporting Agent and execution
+Telemetry is optional and is separate from the reporting Agent and execution
 Watcher. The telemetry service submits a sample approximately every five
 seconds when its systemd timer is enabled and the client can reach the server.
 
-The dashboard provides 1-hour, 24-hour and 7-day history ranges and refreshes
-fleet telemetry every five seconds. Detailed host data on `/monitoring` is
-the latest reported snapshot; per-interface bandwidth is calculated from
+The dashboard provides 1-hour, 24-hour, and 7-day history ranges and refreshes
+fleet telemetry every five seconds. Detailed host data on `/monitoring` is the
+latest reported snapshot; per-interface bandwidth is calculated from
 consecutive snapshots. History queries are limited to 1–168 hours and may be
 downsampled to at most 1,000 points. Samples older than seven days are removed
 during processing of new telemetry submissions; if all submissions stop, do
-not assume that retention clean-up runs independently.
+not assume that retention cleanup runs independently.
 
 The monitoring page limits each journal query to 500 matching records; a
 displayed count of `500+` means the count may be higher. Login/logout history
 is limited to 20 events and boot history to 10 entries. The health dashboard
-has a fixed layout and uses the existing per-user CPU/RAM/disk thresholds
-(default 90%). Threshold crossings and telemetry interruptions are derived
-from the retained sample history; service transitions and newly reported SSH
-failures are recorded as timestamped events for up to seven days. CSV/JSON
-exports provide all samples for the selected range; interactive charts are
-capped at 1,000 points.
+uses a fixed layout and the existing per-user CPU/RAM/disk thresholds (default
+90%). Threshold crossings and telemetry interruptions are derived from the
+retained sample history; service transitions and newly reported SSH failures
+are recorded as timestamped events for up to seven days. CSV/JSON exports
+provide all samples for the selected range; the interactive charts are capped
+at 1,000 points.
 
 Wazuh and Suricata rows are opt-in and report only systemd service states.
 They require the corresponding installed unit to be included in
@@ -82,18 +82,16 @@ import their alert feeds. The backup-run timestamp comes from the audit log
 and is not an independent restore verification.
 
 Telemetry requires client authentication. Remote agent connections require
-HTTPS; plain HTTP is accepted only for loopback addresses. Configure a CA
-file when the server uses a private certificate authority. For setup details,
-see [Telemetry](Telemetry.md) and
-[Installation and upgrades](<Installation and upgrades.md>). The English
-source is [LUMS_Health_Dashboard.md](../../../LUMS_Health_Dashboard.md).
+HTTPS; plain HTTP is accepted only for loopback addresses. Configure a CA file
+when the server uses a private certificate authority. For setup details, see
+[telemetry.md](../../../telemetry.md) and [install.md](../../../install.md).
 
 ## Backup-storage status
 
-The backup section reflects what the application can inspect in its
-configured backup directory and the latest backup file it recognises. It
-does not independently verify the contents of every backup, confirm
-off-host replication or prove that a database restore will succeed.
+The backup section reflects what the application can inspect in its configured
+backup directory and the latest backup file it recognizes. It does not
+independently verify the contents of every backup, confirm off-host replication,
+or prove that a database restore will succeed.
 
 A sensible operational routine is to:
 
@@ -102,8 +100,8 @@ A sensible operational routine is to:
 3. verify that the backup is copied to an appropriate protected destination;
 4. periodically test restoration in a separate, controlled location.
 
-Do not delete or overwrite the live database or backup files as a
-troubleshooting shortcut.
+Do not delete or overwrite the live database or backup files as a troubleshooting
+shortcut.
 
 ## Recommended checks when a status looks wrong
 
@@ -113,12 +111,11 @@ troubleshooting shortcut.
 3. For a client marked unknown/offline, inspect its reporting Agent and
    Watcher timers and recent journal entries.
 4. For missing telemetry, inspect `lums-telemetry.timer`,
-   `lums-telemetry.service` and the client/server configuration.
+   `lums-telemetry.service`, and the client/server configuration.
 5. For backup warnings, verify the configured backup path, filesystem
-   permissions, available space and recent backup logs.
+   permissions, available space, and recent backup logs.
 6. Record the observed status and timestamps before making changes.
 
-See [Troubleshooting](Troubleshooting.md) for diagnostic commands and
-[Administration and backups](<Administration and backups.md>) for routine
-maintenance and backup procedures. The English source is
-[LUMS_Health_Dashboard.md](../../../LUMS_Health_Dashboard.md).
+See [troubleshooting.md](../../../troubleshooting.md) for diagnostic commands and
+[administration.md](../../../administration.md) for routine maintenance and backup
+procedures.

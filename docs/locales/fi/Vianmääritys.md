@@ -2698,15 +2698,10 @@ Tarkista, että salaisuuden liitos on olemassa ja vain luku -tilassa.
 Hyödyllinen diagnostinen tarkistus on varmistaa, että tiedosto on olemassa ja sillä on odotetut oikeudet näyttämättä sen sisältöä.
 # 82. Salaisuustiedosto puuttuu
 
-Jos salaisuustiedostoa ei ole isännällä, kontti ei voi todentaa tai alustaa oikein.
+Jos salaisuustiedostoa ei ole isännällä eikä `LUMS_SECRET_KEY`-varamuuttujaa ole asetettu, sovellus epäonnistuu heti käynnistyksessä virheellä `RuntimeError: LUMS secret is not configured. Provide LUMS_SECRET_KEY_FILE or LUMS_SECRET_KEY.` (`server/app.py`). Kyse on käynnistysvirheestä, ei pelkästä todennusongelmasta. Tiedoston ja muuttujan varakäyttäytyminen kuvataan kohdassa 114.
 
-Selvitä ensin, onko odotettu salaisuuden polku olemassa.
+Selvitä ensin, onko odotettu polku olemassa. Älä luo salaisuutta satunnaisesti; sen korvaaminen voi mitätöidä istuntoja tai muuta kryptografista tilaa ja on käsiteltävä hallittuna turvallisuustoimenpiteenä.
 
-Älä luo salaisuutta uudelleen satunnaisesti.
-
-Korvaava salaisuus voi mitätöidä olemassa olevat istunnot tai muun kryptografisen tilan riippuen siitä, miten sovellus käyttää sitä.
-
-Kaikki tarkoituksellinen salaisuuden korvaaminen on siksi käsiteltävä kontrolloituna turvatoimenpiteenä.
 # 83. Pysyvä taltio ei ole kirjoitettavissa
 
 Jos LUMS ei voi kirjoittaa sovellustietoja, tarkista taltio:
@@ -3527,7 +3522,7 @@ Kun tuotannon käyttäytyminen muuttuu, päivitä asiaankuuluva dokumentaatio en
 
 Tämän vianmääritysoppaan dokumentoima nykyinen LUMS-perustaso sisältää:
 
-```text id="m4x8qp"
+```text
 Agent version: 1.7.0
 Watcher version: 1.2.1
 
@@ -3538,7 +3533,8 @@ Database:
 SQLite
 
 SQLite journal mode:
-delete
+WAL (enabled by server/init_db.py; verify on your database with
+sqlite3 <db> "pragma journal_mode;")
 
 SQLite busy timeout:
 5000 ms
@@ -3565,19 +3561,148 @@ Viewer:
 Clients + Installed Software only
 
 Full test suite:
-Passing baseline
+Run on Linux (the CI reference is Ubuntu with Python 3.13). Some tests
+assume Linux features such as os.geteuid() or an installed apt/pacman and
+can fail on Windows; check the CI result for the revision you deploy.
 ```
 
-Tarkka testien määrä voi muuttua projektin kasvaessa.
+Älä pidä tätä perustasoa todisteena yksittäisen asennuksen terveydestä; varmista jokainen arvo kohdejärjestelmässä. Turvallisuus- ja arkkitehtuuriominaisuudet ovat tärkeä perustaso.
 
-Turvallisuus- ja arkkitehtuuriominaisuudet ovat tärkeä perustaso.
-# 114. Vianmääritysoppaan loppu
+# 114. Käynnistyksen määritysvirheet
+
+**Oire:** Kontti sulkeutuu heti tai käyttää eri tietokantaa tai varmuuskopiohakemistoa kuin Docker-taltio antaa olettaa.
+
+**Koodin faktat (`server/app.py`):**
+
+- Ilman salaisuutta sovellus nostaa virheen `RuntimeError: LUMS secret is not configured. Provide LUMS_SECRET_KEY_FILE or LUMS_SECRET_KEY.`
+- Jos `LUMS_SECRET_KEY_FILE`-tiedostoa ei ole, koodi käyttää varalla `LUMS_SECRET_KEY`-muuttujaa. Tämä koskee vain puuttuvaa tiedostoa; lukuoikeuden puute voi aiheuttaa tiedostojärjestelmävirheen.
+- `LUMS_DB_PATH` ja `LUMS_BACKUP_DIR` ohittavat oletukset `/var/lib/lums/lums.db` ja `/var/backups/lums`. Vanhentunut ohitus voi ohjata LUMSin pois liitetystä taltiosta.
+
+```text
+docker compose logs lums | grep "LUMS secret"
+docker inspect lums --format '{{range .Config.Env}}{{println .}}{{end}}'
+ls -l <secret file>   # permissions only; never print the contents
+```
+
+Korjaa salaisuustiedoston polku/käyttöoikeudet tai poista vanhentuneet ohitukset. Älä luo korvaavaa salaisuutta huolimattomasti (kohta 82).
+
+---
+
+# 115. Agentti ei käynnisty tuonnin yhteydessä tehtävien tarkistusten vuoksi
+
+`lums-agent` voi epäonnistua ennen tunnisteen lukemista virheellä `RuntimeError: No supported package manager found. Supported package managers: apt, pacman` tai CA-tiedoston SSL-virheellä. `agent/agent.py` tunnistaa paketinhallinnan ja luo TLS-kontekstin moduulin tuonnin yhteydessä. Isännät ilman `apt`/`pacman`-ohjelmaa tai puuttuvalla/lukukelvottomalla `LUMS_CA_FILE`-tiedostolla epäonnistuvat käynnistyksessä; sama koskee Windowsin kaltaisia testiympäristöjä. Käytä tuettua jakelua, varmista palvelun `PATH` ja CA-tiedoston luettavuus.
+
+```text
+systemctl status lums-agent --no-pager
+journalctl -u lums-agent -n 50 --no-pager
+```
+
+---
+
+# 116. Agentti käyttää väärää palvelinosoitetta (portti 5000 vs. 5050)
+
+Agentin oletusarvo on `LUMS_BASE=http://127.0.0.1:5000`, mutta dokumentoitu kontti julkaisee `127.0.0.1:5050`. Oppaan porttia `5050` koskevat esimerkit kuvaavat julkaistua palvelinporttia, eivät agentin oletusta.
+
+```text
+systemctl show lums-agent --property=Environment
+ss -lntp | grep -E ':5000|:5050'
+```
+
+Aseta `LUMS_BASE` asiakkaan tavoittamaan oikeaan päätepisteeseen (tavallisesti HTTPS-osoitteeseen). Älä avaa porttia `5050` julkiseen verkkoon.
+
+---
+
+# 117. Watcher sulkeutuu tilakoodilla 1
+
+`lums-watcher` voi kirjata `CLIENT LOOKUP FAILED`, `RUNNING JOB LOOKUP FAILED`, `JOB LOOKUP FAILED`, `IDLE CHECK FAILED`, `JOB CLAIM FAILED` tai `UPDATE EXECUTION FAILED`. Watcher on kertaluonteinen: se kirjaa virheen, päättyy tilakoodilla 1 eikä yritä uudelleen saman ajon aikana. Ajastimen seuraava käynnistys aloittaa uuden ajon. Se jatkaa vain töitä, joiden tila on täsmälleen `running`; muuten se etsii odottavia töitä. `NO UPDATE JOB // SYSTEM CLEAN` on normaali tulos.
+
+```text
+journalctl -u lums-watcher -n 100 --no-pager
+systemctl status lums-watcher lums-watcher.timer
+```
+
+Korjaa nimetty ongelma (API, tunniste, lepotilan tarkistus tai paketinhallinnan lukko). Tarkastele työtä käyttöliittymästä/API:sta; älä muuta tilaa suoraan SQLite-tietokannassa.
+
+---
+
+# 118. Isäntäkoneen päivittäjän sykevirheet
+
+`lums-host-updater` sieppaa silmukan virheet ja yrittää uudelleen. Tavallisia syitä (`host_updater/agent.py`): tunnistetiedosto puuttuu tai on alle 32 merkkiä (`Host-updater token is missing or too short`); URL rikkoo loopback-vaatimuksia (`Only a loopback LUMS endpoint is permitted`: vain `http`/`https`, isäntä täsmälleen `127.0.0.1`, pakollinen portti, ei tunnistetietoja/kyselyä/fragmenttia, esim. `http://127.0.0.1:5050`); HTTP `401` / `host_updater_authentication_required` tarkoittaa virheellistä Bearer-tunnistetta; HTTP `503` / `host_updater_not_configured` tarkoittaa, ettei palvelin ole määritetty. Jos vastaus ei nimenomaisesti ilmoita `update_execution_enabled: false`, palvelu päättyy viestillä `Unexpected update-execution state; stopping` (tila 1); tarkista versioiden yhteensopivuus.
+
+```text
+journalctl -u lums-host-updater -n 100 --no-pager
+systemctl show lums-host-updater --property=Environment
+stat /etc/lums-host-updater/token
+```
+
+Älä tulosta tunnistetta. Korjaa tiedoston omistajuus/käyttöoikeudet ja loopback-URL; käynnistä palvelu kerran uudelleen.
+
+---
+
+# 119. Hälytysintegratioiden pyynnöt palauttavat 501
+
+Sähköposti-, Slack-, PagerDuty- tai webhook-integraation määritys/testaus/poisto palauttaa `501` ja `Notification integrations are disabled pending secure persistent configuration`. Tämä on tarkoituksellista (`server/alerts_routes.py`): integraatiot eivät ole käytössä, `POST /alerts/clear-all` palauttaa myös `501`, eikä sääntöjä arvioida automaattisesti. Älä yritä uudelleen tai syötä palveluntarjoajan salaisuuksia.
+
+Reitit vaativat `alerts.manage`-oikeuden ja CSRF-suojauksen. Puuttuva/väärä CSRF-tunniste palauttaa ensin `403` ja `csrf_validation_failed`. Älä poista CSRF:ää käytöstä. Katso `docs/LUMS_REALTIME_ALERTING_IMPLEMENTATION.md`.
+
+---
+
+# 120. Kirjautumisvirheet: CSRF, nopeusrajoitus ja lukitus
+
+Oikea salasana voidaan hylätä useiden yritysten jälkeen; lokissa voi olla `login.rate_limit`. Yrityksiä rajoitetaan käyttäjänimen ja lähteen mukaan, ja tila säilyy SQLite-taulussa `login_rate_limits` (sarake `locked_until`) uudelleenkäynnistyksissä. `/login` on vapautettu CSRF-tarkistuksesta; tarkista tunnistetiedot, evästeet ja rajoitus.
+
+```text
+sqlite3 /var/lib/lums/lums.db "select rate_limit_key, locked_until from login_rate_limits;"
+```
+
+Odota lukituksen päättymistä ja korjaa virheiden lähde. Älä poista rivejä käsin tai kuormita kirjautumisreittiä testataksesi sitä.
+
+---
+
+# 121. SQLite on varattu tai migraatio kohdistuu väärään tietokantaan
+
+Kirjoitus voi epäonnistua kuormituksessa tai migraatio onnistua ilman, että palvelimelle tulee tauluja/ominaisuuksia. `PRAGMA busy_timeout = 5000` rajaa odotuksen viiteen sekuntiin. Tietokanta käyttää WAL-tilaa (`server/init_db.py`), joten `-wal`- ja `-shm`-tiedostot ovat normaaleja. Migraatiot lukevat oman `LUMS_DB_PATH`-arvonsa ja voivat muuttaa eri tiedostoa kuin palvelin.
+
+```text
+sqlite3 /var/lib/lums/lums.db "pragma busy_timeout; pragma journal_mode;"
+docker inspect lums --format '{{range .Config.Env}}{{println .}}{{end}}'
+```
+
+Pysäytä kilpaileva prosessi, säilytä WAL/SHM-tiedostot ja kohdista migraatio palvelimen tietokantaan. Älä poista sivutiedostoja.
+
+---
+
+# 122. Palautus kieltäytyy suorittamasta (WAL/SHM)
+
+Palautus keskeytyy virheellä `Restore verweigert: SQLite-WAL/SHM-Datei vorhanden.` (koodin viesti on saksaksi). `server/database_backup.py` keskeyttää turvallisesti, kun kohdetietokannan sivutiedostoja on olemassa, jotta tiedot eivät sekoitu.
+
+Tarkista: `find /var/lib/lums -maxdepth 1 -type f -name 'lums.db*'`
+
+Pysäytä sovellus tai estä sen kirjoitukset ja käytä dokumentoitua palautusmenettelyä. Älä poista sivutiedostoja käsin.
+
+---
+
+# 123. Tilannevedoksen ja julkaisun varmennuksen virheet
+
+(`scripts/volume_snapshot.py`, `scripts/release_verification.py`)
+
+| Viesti | Merkitys |
+| --- | --- |
+| `Could not create or publish the snapshot.` | Kohde on olemassa tai ei ole kirjoitettavissa; tilannevedoksia ei ylikirjoiteta. |
+| `Source tree changed during snapshot creation.` | Tiedostot muuttuivat kopioitaessa; pysäytä kirjoitukset ja yritä uudelleen. |
+| `Invalid snapshot filename.` / `Invalid restore target.` | Vaarallinen polku/tiedostonimi hylättiin. |
+| `Duplicate restore target: ...` | Arkistossa on kaksoiskohteita; käytä tuetulla työkalulla luotua arkistoa. |
+| Tarkistussummatiedon varmennus epäonnistuu | Metadata on enintään 4096 tavua; hanki virallinen tarkistussummatiedosto varmennuksen ohittamisen sijasta. |
+
+Pääkäyttäjää tarvitsematon palautus ei sovella mielivaltaisia arkistoituja omistajuustietoja. Käytä tarkoitettua palvelukäyttäjää äläkä muuta konttia root-käyttäjäksi. Listaa arkiston sisältö komennolla `tar -tf` purkamatta sitä.
+
+# 124. Vianmääritysoppaan loppu
 
 LUMS-vianmäärityksen tulee pysyä todisteisiin perustuvana ja turvallisuustietoisena.
 
-Kun olet epävarma:
+Epävarmassa tilanteessa:
 
-```text id="r9x4kw"
+```text
 Preserve the state.
 Inspect the evidence.
 Identify the failing layer.
@@ -3586,6 +3711,6 @@ Verify the result.
 Document what happened.
 ```
 
-Älä vaihda turvallisuutta tai datan eheyttä nopeaan kiertotiehen.
+Älä tingi turvallisuudesta tai tietojen eheydestä nopean kiertotien vuoksi.
 
 LUMS-vianmääritysoppaan loppu
