@@ -1,8 +1,8 @@
-# LUMS alert management: current implementation
+# LUMS Alert Management: Current Implementation
 
 This note describes the alert-management code currently present in LUMS. It
 is a code reference, not a feature roadmap or a promise that every visible
-control is operational. The implementation is centred on
+control is operational. The implementation is centered on
 `server/alerts.py` and `server/alerts_routes.py`.
 
 ## What is implemented
@@ -17,7 +17,7 @@ The current API supports:
 - listing, creating, updating and deleting alert rules;
 - manually triggering an alert for an existing enabled rule;
 - viewing active alerts and paginated alert history;
-- acknowledging, resolving or manually escalating an active alert.
+- acknowledging, resolving and manually escalating an active alert.
 
 The alert severity values are `critical`, `warning` and `info`. The stored
 alert states are `triggered`, `acknowledged`, `resolved` and `escalated`.
@@ -31,13 +31,11 @@ The rule model stores a condition, threshold, severity, escalation path,
 grouping flag and deduplication flag. The current server does **not** evaluate
 conditions against telemetry or other measurements. A rule does not trigger
 automatically: an authenticated caller must invoke `POST /alerts/trigger`.
-Grouping and deduplication values are stored but are not applied.
-
-When an alert is triggered manually, the manager can attempt to send it
-through providers named in the rule's escalation path. However, the web
-application creates each manager with an empty provider map, and its
-integration endpoints cannot configure providers. Consequently, alerts
-triggered by the application currently have no notification delivery.
+Grouping and deduplication values are stored but are not applied. When an alert
+is triggered, the manager attempts to send it through providers named in the
+rule's escalation path. The web application creates each manager with an empty
+provider map, and its integration endpoints cannot configure providers, so
+application-triggered alerts currently have no notification delivery.
 
 The `AlertManager` defines email, Slack, PagerDuty and generic webhook provider
 classes, but these classes are not configured through the application. The
@@ -81,7 +79,7 @@ permission configuration.
 
 ## Persistent tables
 
-`AlertManager` initialises these tables when it is created:
+`AlertManager` initializes these tables when it is created:
 
 - `alert_rules`: rule definitions and their configured values;
 - `alerts`: alert records and current lifecycle state;

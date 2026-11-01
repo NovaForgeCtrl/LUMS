@@ -2,13 +2,20 @@
 
 This guide provides troubleshooting procedures for the LUMS server, Linux agents, execution watcher, update jobs, authentication, package management, database, and Docker deployment.
 
-The troubleshooting process should always begin with observation before modification.
+The troubleshooting process should always begin with **observation before modification**.
 
 The objective is to identify the first component where the expected behaviour stops without unnecessarily changing configuration, database state, credentials, or security controls.
+
+---
+
 ## Getting Started: Troubleshoot Safely
 
-If you are new to Linux, an error does not automatically mean that data has been lost. Do not change several things at once. Start with the checks below and note when the problem occurs and what action happened immediately before it.
-First checks on the LUMS server
+If you are new to Linux, an error does not automatically mean that data has
+been lost. Do not change several things at once. Start with the checks below
+and note **when** the problem occurs and **what action** happened immediately
+before it.
+
+### First checks on the LUMS server
 
 ```bash
 sudo docker ps -a --filter name=lums
@@ -17,8 +24,12 @@ sudo systemctl status nginx --no-pager
 sudo nginx -t
 ```
 
-docker ps -a also shows stopped containers. docker logs reads recent application messages. systemctl status shows whether Nginx is running; nginx -t checks its configuration without changing it. If nginx -t fails, do not reload Nginx until the cause has been corrected.
-First checks on a managed client
+`docker ps -a` also shows stopped containers. `docker logs` reads recent
+application messages. `systemctl status` shows whether Nginx is running;
+`nginx -t` checks its configuration without changing it. If `nginx -t` fails,
+do **not** reload Nginx until the cause has been corrected.
+
+### First checks on a managed client
 
 ```bash
 sudo systemctl status lums-agent.service --no-pager
@@ -27,12 +38,26 @@ sudo systemctl status lums-agent-watcher.service --no-pager
 sudo journalctl -u lums-agent-watcher.service -n 100 --no-pager
 ```
 
-The Agent and Watcher are separate services: a successful Agent report does not prove that the Watcher can run update jobs. For a oneshot service, inactive can be normal after a successful run; check the result and log messages as well.
+The Agent and Watcher are separate services: a successful Agent report does
+not prove that the Watcher can run update jobs. For a `oneshot` service,
+`inactive` can be normal after a successful run; check the result and log
+messages as well.
+
 ### Before sharing command output
 
-Check logs and configuration for passwords, client tokens, session or API keys, private keys, and personal information. Never share secret-file contents or complete environment-variable values. If you need help, share only the relevant error messages after removing sensitive information.
+Check logs and configuration for passwords, client tokens, session or API
+keys, private keys, and personal information. Never share secret-file contents
+or complete environment-variable values. If you need help, share only the
+relevant error messages after removing sensitive information.
 
-Do not start by deleting the database or Docker volume, running the container as privileged, disabling security options, removing package-manager lock files, or rotating tokens. These actions can damage data, erase evidence, or make the problem worse. If a check fails, save its output and continue to the relevant section below.
+**Do not start by** deleting the database or Docker volume, running the
+container as privileged, disabling security options, removing package-manager
+lock files, or rotating tokens. These actions can damage data, erase evidence,
+or make the problem worse. If a check fails, save its output and continue to
+the relevant section below.
+
+---
+
 # 1. Troubleshooting Philosophy
 
 LUMS consists of several independent components.
@@ -94,7 +119,7 @@ LUMS API
 SQLite
 ```
 
-When troubleshooting, identify the first failing component.
+When troubleshooting, identify the **first failing component**.
 
 For example:
 
@@ -115,20 +140,17 @@ Check LUMS API
 Do not immediately:
 
 * modify the database
-
 * delete the Docker volume
-
 * reinstall the Agent
-
 * rotate credentials
-
 * remove package-manager lock files
-
 * disable security controls
-
 * make the container privileged
 
 These actions can destroy useful diagnostic information or create additional problems.
+
+---
+
 # 2. Diagnostic Baseline
 
 Before investigating a specific problem, establish the current state of the main components.
@@ -178,7 +200,10 @@ Client / Browser
     LUMS :5000
 ```
 
+---
+
 # 3. First Diagnostic Checks
+
 ## 3.1 Check the LUMS Container
 
 On the LUMS server:
@@ -187,7 +212,7 @@ On the LUMS server:
 sudo docker ps
 ```
 
-The lums container should be running.
+The `lums` container should be running.
 
 For a complete container overview:
 
@@ -199,6 +224,9 @@ sudo docker ps -a \
 Do not remove stopped containers before investigating them.
 
 Older fallback containers may contain useful information when investigating a deployment problem.
+
+---
+
 ## 3.2 Check Recent Application Logs
 
 Inspect the most recent LUMS logs:
@@ -220,6 +248,9 @@ sudo docker logs \
 When investigating a specific request or job, start the log inspection before reproducing the problem where possible.
 
 This makes it easier to correlate the client action with the corresponding server-side event.
+
+---
+
 ## 3.3 Check Nginx
 
 Check the reverse proxy:
@@ -243,6 +274,9 @@ test is successful
 ```
 
 If Nginx is not running, HTTPS access to LUMS will normally fail even when the Docker container itself is healthy.
+
+---
+
 ## 3.4 Check the Agent
 
 On a managed Linux client:
@@ -262,7 +296,7 @@ sudo journalctl \
     --no-pager
 ```
 
-For a Type=oneshot service, an inactive state after a successful execution can be normal.
+For a `Type=oneshot` service, an inactive state after a successful execution can be normal.
 
 The important information is the execution result.
 
@@ -271,6 +305,8 @@ A successful execution should end with:
 ```text
 status=0/SUCCESS
 ```
+
+---
 
 ## 3.5 Check the Execution Watcher
 
@@ -293,7 +329,10 @@ sudo journalctl \
     --no-pager
 ```
 
-A successful Agent report therefore does not prove that the execution watcher is functioning correctly.
+A successful Agent report therefore does **not** prove that the execution watcher is functioning correctly.
+
+---
+
 ## 3.6 Check LUMS Timers
 
 Check all relevant timers:
@@ -306,9 +345,12 @@ sudo systemctl list-timers \
 The expected timers include the Agent and watcher scheduling mechanisms.
 
 If a timer is missing or inactive, inspect the corresponding unit before changing anything.
+
+---
+
 # 4. LUMS Container Is Not Running
 
-If the lums container is not running, do not immediately recreate it.
+If the `lums` container is not running, do not immediately recreate it.
 
 First inspect its state:
 
@@ -350,6 +392,9 @@ Health/startup problem
 ```
 
 If the container exited unexpectedly, preserve the logs and container state before replacing it.
+
+---
+
 # 5. Container Starts but LUMS Is Not Reachable
 
 The LUMS application is not intended to be accessed directly through the Docker application port from the network.
@@ -393,16 +438,15 @@ LUMS :5000
 If the container is running but HTTPS fails, investigate the layers individually:
 
 1. Docker container
-
 2. Local application port
-
 3. Nginx configuration
-
 4. TLS
-
 5. Firewall/network path
 
-Do not expose port 5050 publicly as a troubleshooting shortcut.
+Do not expose port `5050` publicly as a troubleshooting shortcut.
+
+---
+
 # 6. Nginx Returns an Error
 
 Check the service:
@@ -452,6 +496,9 @@ LUMS
 ```
 
 Test the layers separately rather than changing several components at once.
+
+---
+
 # 7. HTTPS / TLS Problems
 
 First test the HTTPS endpoint:
@@ -494,6 +541,9 @@ Clients using a private certificate authority must trust the appropriate CA cert
 Do not disable TLS certificate verification as a permanent workaround.
 
 A successful connectivity test that bypasses certificate validation does not prove that the production TLS configuration is correct.
+
+---
+
 # 8. Agent Service Fails
 
 Check the service:
@@ -550,11 +600,14 @@ Package-manager errors
 ```
 
 Do not reinstall the Agent simply because a single execution failed.
-# 9. Agent Reports LUMS_TOKEN Missing
+
+---
+
+# 9. Agent Reports `LUMS_TOKEN` Missing
 
 The Agent normally receives its production configuration through its systemd service environment.
 
-If the Agent is started manually from a shell, the systemd EnvironmentFile is not automatically loaded into that shell.
+If the Agent is started manually from a shell, the systemd `EnvironmentFile` is not automatically loaded into that shell.
 
 Therefore:
 
@@ -590,6 +643,9 @@ sudo journalctl \
 Do not copy production tokens into shell commands unnecessarily.
 
 Never print a production token into a diagnostic log.
+
+---
+
 # 10. Agent Cannot Reach the Server
 
 Start with network connectivity:
@@ -635,6 +691,9 @@ sudo docker logs \
 This helps determine whether the request reaches LUMS at all.
 
 If the client sees a connection failure and the server shows no corresponding request, investigate the network or TLS path before changing application configuration.
+
+---
+
 # 11. Continue Troubleshooting
 
 If the basic server, Docker, Nginx, TLS, and Agent layers are working, continue with:
@@ -649,6 +708,7 @@ Pending Jobs
 ```
 
 The next section continues with client authentication and token-related problems.
+
 # 12. Client Authentication
 
 LUMS uses client-specific authentication for Agent communication.
@@ -656,6 +716,9 @@ LUMS uses client-specific authentication for Agent communication.
 When a client is registered, the client receives credentials that are used for authenticated communication with the LUMS server.
 
 Authentication failures should be investigated without exposing the client token.
+
+---
+
 ## 12.1 Client Is Not Accepted by LUMS
 
 If an Agent reports an authentication failure, first inspect the Agent log:
@@ -685,9 +748,9 @@ Unknown client
 Authentication failure
 ```
 
-A 401 response generally indicates an authentication problem.
+A `401` response generally indicates an authentication problem.
 
-A 403 response may indicate that authentication succeeded but the requested operation is not permitted.
+A `403` response may indicate that authentication succeeded but the requested operation is not permitted.
 
 Do not immediately rotate the token.
 
@@ -703,6 +766,8 @@ Malformed request
 Server-side authentication failure
 ```
 
+---
+
 ## 12.2 Client Exists but Authentication Fails
 
 Verify that the client still exists in the LUMS administration interface.
@@ -714,6 +779,9 @@ If the client exists, compare the configured client identity with the identity u
 The production token itself must never be printed into diagnostic output.
 
 Use configuration metadata and service status for troubleshooting instead of exposing credentials.
+
+---
+
 # 13. Client Token Rotation
 
 Client token rotation invalidates the previous token and replaces it with a new credential.
@@ -742,6 +810,9 @@ Agent reports again
 ```
 
 If the Agent continues using the old token, authentication will fail.
+
+---
+
 ## 13.1 After Token Rotation
 
 Check the Agent service:
@@ -779,6 +850,9 @@ sudo docker logs \
 Do not rotate the token repeatedly.
 
 Repeated rotation can make it harder to determine which credential is currently deployed on the client.
+
+---
+
 # 14. Client Is Disabled
 
 A disabled client must not be treated as an active managed client.
@@ -797,6 +871,9 @@ Agent configuration
 Do not re-enable the client merely to make an error disappear.
 
 Determine why the client was disabled first.
+
+---
+
 # 15. Update Detection
 
 Update detection consists of several independent steps.
@@ -804,15 +881,10 @@ Update detection consists of several independent steps.
 The Agent must:
 
 1. execute the package-manager query
-
 2. parse the result
-
 3. send the result to LUMS
-
 4. LUMS must validate the result
-
 5. LUMS must persist the result
-
 6. the UI must display the current state
 
 A failure in any step can make update information appear incorrect.
@@ -838,6 +910,8 @@ SQLite
 Web UI
 ```
 
+---
+
 ## 15.1 No Updates Are Displayed
 
 First determine whether the client actually reported successfully.
@@ -860,6 +934,9 @@ sudo docker logs \
 ```
 
 If the Agent completed successfully but no updates are displayed, investigate the API and database state before changing the package manager.
+
+---
+
 ## 15.2 Debian / Ubuntu Update Detection
 
 The Debian package manager uses APT.
@@ -875,9 +952,12 @@ Do not automatically run package upgrades during troubleshooting.
 The purpose of this test is to determine whether repository metadata can be refreshed successfully.
 
 If APT reports repository, DNS, TLS, signature, or lock errors, resolve the underlying APT problem before investigating LUMS.
+
+---
+
 ## 15.3 Arch Linux Update Detection
 
-Arch Linux uses pacman.
+Arch Linux uses `pacman`.
 
 Check repository metadata:
 
@@ -889,7 +969,10 @@ Use this only when repository metadata refresh is actually required for the diag
 
 Do not combine an unnecessary system upgrade with a diagnostic test.
 
-For package-related errors, inspect the exact pacman output before changing configuration.
+For package-related errors, inspect the exact `pacman` output before changing configuration.
+
+---
+
 # 16. Available Updates Differ Between LUMS and the Client
 
 Update information can change between two observations.
@@ -919,6 +1002,8 @@ Package-manager state
 Repository metadata
 Displayed update state
 ```
+
+---
 
 # 17. Package Management
 
@@ -971,6 +1056,8 @@ Agent
 APT / pacman
 ```
 
+---
+
 ## 17.1 Package Search Returns No Results
 
 First verify that the Agent is operational:
@@ -997,6 +1084,9 @@ For Arch-based clients, verify pacman repository metadata.
 Do not assume that an empty search result means the LUMS database is empty.
 
 The search is performed through the client package manager.
+
+---
+
 ## 17.2 Package Search Works but Installation Fails
 
 A successful search only proves that the package manager could locate the package.
@@ -1019,6 +1109,9 @@ Package-manager errors
 Inspect the corresponding update job.
 
 The Agent journal should contain the package-manager result.
+
+---
+
 # 18. Package Installation Jobs
 
 Package installation uses the normal update-job infrastructure.
@@ -1032,11 +1125,8 @@ INSTALL_PACKAGE
 When troubleshooting an installation:
 
 1. Check the job state in LUMS.
-
 2. Check the Agent execution.
-
 3. Check the package-manager output.
-
 4. Check the final result reported to LUMS.
 
 Do not manually modify the job status in SQLite.
@@ -1062,6 +1152,9 @@ FAILED
 ```
 
 A failed package installation should remain traceable through the normal job and audit mechanisms.
+
+---
+
 # 19. Package Removal Jobs
 
 Package removal follows the same job lifecycle.
@@ -1084,6 +1177,9 @@ Final job result
 Do not manually remove database records to hide a failed package operation.
 
 A failed job is useful diagnostic information.
+
+---
+
 # 20. Package Update Jobs
 
 A package-specific update uses:
@@ -1097,14 +1193,14 @@ The package must be known to LUMS as having an available update before the job i
 If the UI does not offer the expected package update:
 
 1. refresh update information
-
 2. verify the package manager state
-
 3. verify the available-update result
-
 4. inspect the server logs if the state is inconsistent
 
 Do not manually insert update records into SQLite.
+
+---
+
 # 21. System Update Jobs
 
 A complete system update uses:
@@ -1130,6 +1226,8 @@ Result collection
 Reboot detection
 Post-reboot reporting
 ```
+
+---
 
 # 22. Package Manager Locks
 
@@ -1165,6 +1263,8 @@ Wait or resolve the process safely
 Retry operation
 ```
 
+---
+
 # 23. Package Manager Failure vs. LUMS Failure
 
 Always distinguish between a package-manager failure and an LUMS failure.
@@ -1194,6 +1294,9 @@ LUMS never receives SUCCESS
 Here the package operation may have succeeded while the LUMS reporting path failed.
 
 The package-manager result and the LUMS job result must therefore be investigated separately.
+
+---
+
 # 24. Useful Diagnostic Separation
 
 When a package job fails, classify the failure first:
@@ -1214,6 +1317,9 @@ A package-manager error should not automatically result in a Docker rebuild.
 A UI display problem should not automatically result in deleting the database.
 
 An authentication failure should not automatically result in reinstalling the Agent.
+
+---
+
 # 25. Next Troubleshooting Area
 
 If client authentication, update detection, and package management are functioning, the next diagnostic area is the execution lifecycle itself:
@@ -1234,7 +1340,8 @@ Checkpoint / Recovery
 Final Job State
 ```
 
-The next section covers Execution Watcher, Idle Detection, Job State, Recovery, and reboot handling.
+The next section covers **Execution Watcher, Idle Detection, Job State, Recovery, and reboot handling**.
+
 # 26. Update Job Execution
 
 LUMS update jobs are executed asynchronously through the Agent and Execution Watcher.
@@ -1275,9 +1382,12 @@ SQLite
 A job that is visible in the UI is not necessarily already being executed.
 
 Always determine the current job state first.
-## 26.1 Job Is Stuck in PENDING
 
-If a job remains in PENDING, check the Execution Watcher before investigating the Agent.
+---
+
+## 26.1 Job Is Stuck in `PENDING`
+
+If a job remains in `PENDING`, check the Execution Watcher before investigating the Agent.
 
 Check the watcher:
 
@@ -1318,9 +1428,12 @@ Job is not eligible for execution yet
 ```
 
 Do not manually change the job state in SQLite.
-# 27. Job Is Stuck in RUNNING
 
-A RUNNING job indicates that execution has started.
+---
+
+# 27. Job Is Stuck in `RUNNING`
+
+A `RUNNING` job indicates that execution has started.
 
 First determine whether the Agent is actually executing the job.
 
@@ -1356,7 +1469,10 @@ Reboot requirements
 Do not terminate an active package operation solely because the UI has not updated yet.
 
 First determine whether the underlying process is still active.
-# 28. Job Is FAILED
+
+---
+
+# 28. Job Is `FAILED`
 
 A failed job does not necessarily indicate a LUMS server failure.
 
@@ -1386,7 +1502,10 @@ Recovery failure
 The original error should be preserved whenever possible.
 
 Do not replace a failed job with a manually created successful record.
-# 29. Job Is SUCCESS but the Package Was Not Changed
+
+---
+
+# 29. Job Is `SUCCESS` but the Package Was Not Changed
 
 A successful LUMS job means that the requested operation completed according to the Agent result.
 
@@ -1407,7 +1526,7 @@ pacman -Q \
     PACKAGE_NAME
 ```
 
-Replace PACKAGE_NAME with the package being investigated.
+Replace `PACKAGE_NAME` with the package being investigated.
 
 Then compare the local package state with the LUMS result.
 
@@ -1421,6 +1540,9 @@ The job result was generated before another local change
 ```
 
 Do not modify the LUMS database until the discrepancy has been identified.
+
+---
+
 # 30. Execution Watcher
 
 The Execution Watcher is responsible for discovering jobs that are eligible for execution.
@@ -1452,6 +1574,9 @@ sudo journalctl \
 ```
 
 If the Agent works but jobs never start, the watcher should be one of the first components investigated.
+
+---
+
 # 31. Watcher Runs but Does Not Execute Jobs
 
 A watcher execution does not automatically mean that a job will be started.
@@ -1474,6 +1599,9 @@ Execution conditions are satisfied
 If the client is not eligible, the watcher may correctly leave the job pending.
 
 This is not necessarily an error.
+
+---
+
 # 32. Idle Detection
 
 LUMS can use client idle information when deciding whether a job should be executed.
@@ -1497,6 +1625,8 @@ Job eligible?
      ↓
 Watcher executes
 ```
+
+---
 
 ## 32.1 Client Reports but Is Not Considered Idle
 
@@ -1533,6 +1663,9 @@ Client eligible for maintenance execution
 ```
 
 These are separate states.
+
+---
+
 # 33. Idle Detection Is Unavailable
 
 Some systems may not provide all idle-state information.
@@ -1551,6 +1684,9 @@ Idle duration
 ```
 
 If the platform cannot provide the expected idle information, investigate the Agent's platform-specific implementation rather than modifying the server database.
+
+---
+
 # 34. Update Job Recovery
 
 LUMS uses checkpointing and recovery to prevent interrupted update jobs from being treated as completed.
@@ -1575,6 +1711,8 @@ The principle is:
 Completed work remains completed.
 Incomplete work remains recoverable.
 ```
+
+---
 
 # 35. Interrupted Job
 
@@ -1601,6 +1739,9 @@ sudo journalctl \
 Do not manually mark the job as successful.
 
 The recovery mechanism should determine which package items were already completed.
+
+---
+
 # 36. Recovery Repeats a Package Operation
 
 When recovery is triggered, already successful package items should not be executed again unnecessarily.
@@ -1620,6 +1761,9 @@ Job
 Recovery should preserve the successful items and continue with the remaining work.
 
 If this behaviour appears incorrect, inspect the job and package-item history before changing the database.
+
+---
+
 # 37. Client Reboots During an Update
 
 A reboot can interrupt the Agent process.
@@ -1659,6 +1803,8 @@ sudo journalctl \
     --no-pager
 ```
 
+---
+
 # 38. Reboot Detection
 
 Reboot detection is used to determine whether a system reboot occurred as part of an update operation.
@@ -1678,6 +1824,8 @@ Actual reboot state
 Post-reboot Agent report
 Final LUMS job state
 ```
+
+---
 
 # 39. Job Result Was Not Reported
 
@@ -1701,6 +1849,9 @@ sudo docker logs \
 ```
 
 If the Agent reports an error while the package operation itself succeeded, classify the problem as a reporting failure rather than a package-management failure.
+
+---
+
 # 40. Server Restart During Job Execution
 
 A server restart must not automatically be treated as proof that an update operation failed.
@@ -1721,6 +1872,9 @@ Watcher state
 The recovery mechanism is responsible for determining whether interrupted work can safely continue.
 
 Do not manually rewrite job states after a server restart.
+
+---
+
 # 41. Database Is Available but Job State Looks Wrong
 
 If SQLite is accessible but the job state appears inconsistent, inspect the application and audit logs before modifying the database.
@@ -1742,6 +1896,9 @@ Audit events
 The database is an application data store, not a manual repair interface.
 
 Direct modifications can bypass validation, authorisation, auditing, and recovery logic.
+
+---
+
 # 42. Manual Job-State Changes
 
 Manual SQL changes to update-job state should not be used as normal troubleshooting.
@@ -1763,23 +1920,30 @@ unless a controlled database-recovery procedure explicitly requires them.
 If a database-level repair is genuinely necessary, preserve a backup and document the exact change before applying it.
 
 Normal operational problems should be resolved through the application and Agent mechanisms.
+
+---
+
 # 43. Watcher and Agent Diagnostic Matrix
 
 Use the following matrix to identify the most likely layer:
-| Symptom | First component to inspect |
-| --- | --- |
-| Client cannot authenticate | Agent + LUMS API |
-| Client reports successfully but job stays pending | Execution Watcher |
-| Job becomes running but does not finish | Agent + package manager |
-| Package operation fails | Package manager |
-| Package operation succeeds but result is missing | Agent reporting |
-| Client rebooted during update | Agent + recovery |
-| Job remains inconsistent after restart | Recovery + database state |
-| Job is never discovered | Watcher + timer |
-| Client is not eligible | Idle / client state |
-| UI shows outdated state | API + latest client report |
+
+| Symptom                                           | First component to inspect |
+| ------------------------------------------------- | -------------------------- |
+| Client cannot authenticate                        | Agent + LUMS API           |
+| Client reports successfully but job stays pending | Execution Watcher          |
+| Job becomes running but does not finish           | Agent + package manager    |
+| Package operation fails                           | Package manager            |
+| Package operation succeeds but result is missing  | Agent reporting            |
+| Client rebooted during update                     | Agent + recovery           |
+| Job remains inconsistent after restart            | Recovery + database state  |
+| Job is never discovered                           | Watcher + timer            |
+| Client is not eligible                            | Idle / client state        |
+| UI shows outdated state                           | API + latest client report |
 
 This matrix is a starting point, not a substitute for inspecting the actual logs and job state.
+
+---
+
 # 44. Next Troubleshooting Area
 
 After verifying job execution, the next areas are:
@@ -1794,6 +1958,7 @@ Tests and CI
 ```
 
 These areas should be investigated separately from package execution.
+
 # 45. SQLite and Database Troubleshooting
 
 LUMS uses SQLite as its application database.
@@ -1816,6 +1981,8 @@ Data consistency
 Migration state
 Application logic
 ```
+
+---
 
 # 46. Database Is Not Available
 
@@ -1847,6 +2014,8 @@ Update jobs
 Audit data
 Application state
 ```
+
+---
 
 # 47. SQLite Database Locking
 
@@ -1883,6 +2052,9 @@ Filesystem problem
 ```
 
 Do not delete SQLite journal files manually.
+
+---
+
 # 48. SQLite Foreign Keys
 
 LUMS explicitly enables SQLite foreign-key enforcement at the application level.
@@ -1894,6 +2066,9 @@ If a foreign-key-related error occurs, inspect the application logs first.
 Do not disable foreign-key enforcement to make an operation succeed.
 
 A foreign-key failure can indicate an application logic or data-integrity problem.
+
+---
+
 # 49. SQLite Database Integrity
 
 If database corruption is suspected, stop making unnecessary changes first.
@@ -1926,6 +2101,8 @@ Recreate database
 Recreate Docker volume
 ```
 
+---
+
 # 50. Database Migrations
 
 LUMS uses application migrations to introduce database schema changes.
@@ -1952,6 +2129,9 @@ Migration already applied
 Do not manually edit migration records unless the migration system specifically requires a controlled recovery procedure.
 
 A migration that has already been applied should not normally be executed manually again.
+
+---
+
 # 51. Database Volume
 
 The LUMS database is stored in the persistent Docker volume:
@@ -1982,6 +2162,9 @@ Persistent database
 ```
 
 Recreating the container must not be confused with recreating the data volume.
+
+---
+
 # 52. Database Disk Space
 
 SQLite requires available filesystem space for normal operation.
@@ -2001,6 +2184,9 @@ df -i
 Low disk space can produce database errors that initially look like application problems.
 
 If the database suddenly becomes read-only or writes begin failing, verify filesystem capacity before modifying SQLite configuration.
+
+---
+
 # 53. RBAC Troubleshooting
 
 LUMS uses role-based access control.
@@ -2014,6 +2200,9 @@ Viewer
 ```
 
 The permissions are intentionally different.
+
+---
+
 ## 53.1 Administrator
 
 Administrators can:
@@ -2033,6 +2222,9 @@ Manage roles
 ```
 
 Administrator-only operations include user management and role administration.
+
+---
+
 ## 53.2 Operator
 
 Operators can:
@@ -2055,6 +2247,8 @@ Manage roles
 Create or disable clients
 Rotate client tokens
 ```
+
+---
 
 ## 53.3 Viewer
 
@@ -2080,6 +2274,9 @@ System Maintenance
 This is an intentional security control.
 
 If a Viewer can access one of these functions, treat the problem as an RBAC issue rather than simply a UI issue.
+
+---
+
 # 54. Viewer Sees Too Much
 
 If a Viewer sees functionality that should not be available, check both layers:
@@ -2087,26 +2284,25 @@ If a Viewer sees functionality that should not be available, check both layers:
 ```text id="x5j3mq"
 Browser UI
     +
+Server-side authorization
 ```
-Server-side authorisation
 
 Hiding an element in JavaScript or HTML is not sufficient security.
 
-The API must also reject unauthorised operations.
+The API must also reject unauthorized operations.
 
 When investigating:
 
 1. Determine the authenticated user's role.
-
 2. Identify the affected endpoint.
-
 3. Check the server response.
-
 4. Inspect the application logs if necessary.
-
 5. Verify the relevant RBAC test.
 
 Do not solve an authorisation problem by only hiding the UI element.
+
+---
+
 # 55. Viewer Cannot See Expected Data
 
 A Viewer should still be able to access the information explicitly permitted by the current RBAC model.
@@ -2128,9 +2324,12 @@ Inspect browser console if necessary
 Do not grant additional permissions merely because a page currently appears incomplete.
 
 Determine whether the missing information is intentionally restricted first.
+
+---
+
 # 56. Operator Cannot Perform an Operation
 
-If an Operator receives 403 Forbidden, first determine whether the requested action is Administrator-only.
+If an Operator receives `403 Forbidden`, first determine whether the requested action is Administrator-only.
 
 Operator access does not include:
 
@@ -2144,6 +2343,9 @@ Client token rotation
 If the operation should be allowed for Operators, inspect the endpoint's authorisation decorator and corresponding RBAC tests.
 
 Do not temporarily promote the user to Administrator as a diagnostic shortcut.
+
+---
+
 # 57. Administrator Cannot Perform an Operation
 
 An Administrator should have access to all currently supported administrative operations.
@@ -2155,7 +2357,7 @@ Verify authenticated session
         ↓
 Verify current role
         ↓
-Verify endpoint authorisation
+Verify endpoint authorization
         ↓
 Inspect CSRF requirements
         ↓
@@ -2165,6 +2367,9 @@ Inspect application logs
 For state-changing operations, a valid session alone may not be sufficient.
 
 CSRF protection must also be satisfied where required.
+
+---
+
 # 58. User Management
 
 User management is restricted to Administrators.
@@ -2197,6 +2402,9 @@ Application logs
 Do not create users directly in SQLite.
 
 Direct database insertion bypasses password hashing, validation, authorisation, and audit logging.
+
+---
+
 # 59. User Creation Fails
 
 If user creation fails, inspect the browser response and server logs.
@@ -2215,6 +2423,9 @@ CSRF token
 If the request is rejected, determine which validation rule was triggered.
 
 Do not weaken validation merely to make one account creation request succeed.
+
+---
+
 # 60. Password Problems
 
 LUMS stores user passwords using a password-hashing mechanism rather than plaintext passwords.
@@ -2236,6 +2447,9 @@ Inspect authentication logs
 Never store or log plaintext passwords.
 
 Do not copy passwords into diagnostic commands or log files.
+
+---
+
 # 61. Disabled User Account
 
 A disabled account must not be treated as an active login account.
@@ -2248,12 +2462,15 @@ Authentication lookup
 Session state
 Session revocation
 Browser session
+Server-side authorization
 ```
-Server-side authorisation
 
 Do not simply delete the account.
 
 Preserving the account can be important for audit history.
+
+---
+
 # 62. Session Problems
 
 LUMS uses server-side session handling.
@@ -2272,6 +2489,9 @@ CSRF protection
 ```
 
 Do not disable session security controls to bypass a login problem.
+
+---
+
 # 63. Session Revocation
 
 Session revocation is relevant when:
@@ -2289,6 +2509,9 @@ If a user appears to retain access after an account change, determine whether th
 Test with a fresh browser session only after confirming the account state.
 
 Do not assume that deleting browser cookies alone proves that server-side session revocation works.
+
+---
+
 # 64. Login Rate Limiting
 
 LUMS applies login rate limiting to repeated failed authentication attempts.
@@ -2309,11 +2532,14 @@ If login attempts are unexpectedly blocked, inspect the authentication state bef
 A rate-limit response is not automatically an authentication failure.
 
 It may indicate that the account has reached the configured failed-attempt threshold.
-# 65. Login Works but API Returns 403
+
+---
+
+# 65. Login Works but API Returns `403`
 
 A successful login proves authentication, not authorisation.
 
-A 403 Forbidden response may indicate:
+A `403 Forbidden` response may indicate:
 
 ```text id="m9c2vx"
 Insufficient role
@@ -2331,11 +2557,15 @@ The correct troubleshooting question is:
 ```
 
 followed by:
-text
 
-"Is this authenticated user authorised for this operation?"
+```text id="x8v5md"
+"Is this authenticated user authorized for this operation?"
+```
 
 These are separate security checks.
+
+---
+
 # 66. CSRF Errors
 
 State-changing browser requests are protected against cross-site request forgery.
@@ -2357,6 +2587,9 @@ Inspect server response
 Do not disable CSRF protection as a troubleshooting workaround.
 
 A failed CSRF check is a security control working as intended.
+
+---
+
 # 67. Browser UI and API Disagree
 
 If the UI shows that an action is available but the API rejects it:
@@ -2368,8 +2601,8 @@ Displayed role/state
    ↓
 API request
    ↓
+Server-side authorization
 ```
-Server-side authorisation
 
 The server-side result is authoritative.
 
@@ -2383,20 +2616,27 @@ Page remains open for a long time
 ```
 
 Reload the page and establish a fresh session before assuming that the server-side authorisation is incorrect.
+
+---
+
 # 68. RBAC Diagnostic Matrix
-| Symptom | First component to inspect |
-| --- | --- |
-| Viewer sees management UI | Client page role handling |
-| Viewer API request succeeds | Server-side RBAC |
-| Operator receives 403 | Endpoint permission model |
-| Administrator receives 403 | Session / CSRF / endpoint authorisation |
-| User cannot be created | Admin role + validation |
-| Disabled user can log in | Account state + session handling |
-| Login temporarily blocked | Rate limiting |
-| State-changing request rejected | CSRF / session |
-| UI and API disagree | Browser state + server authorisation |
+
+| Symptom                         | First component to inspect              |
+| ------------------------------- | --------------------------------------- |
+| Viewer sees management UI       | Client page role handling               |
+| Viewer API request succeeds     | Server-side RBAC                        |
+| Operator receives `403`         | Endpoint permission model               |
+| Administrator receives `403`    | Session / CSRF / endpoint authorisation |
+| User cannot be created          | Admin role + validation                 |
+| Disabled user can log in        | Account state + session handling        |
+| Login temporarily blocked       | Rate limiting                           |
+| State-changing request rejected | CSRF / session                          |
+| UI and API disagree             | Browser state + server authorisation    |
 
 The server-side authorisation result is always more important than whether an interface element is visible.
+
+---
+
 # 69. Next Troubleshooting Area
 
 The next diagnostic areas are:
@@ -2412,6 +2652,7 @@ Final recovery checklist
 ```
 
 These areas should be investigated without weakening the security baseline.
+
 # 70. Application Logging
 
 LUMS uses application logging to provide diagnostic information without exposing sensitive credentials.
@@ -2448,6 +2689,8 @@ Database operation
 Agent interaction
 ```
 
+---
+
 # 71. Application Logs Contain an Error
 
 First identify the component that produced the message.
@@ -2459,7 +2702,7 @@ Flask application
 Gunicorn
 Database layer
 Authentication
-Authorisation
+Authorization
 Package management
 Job execution
 Client reporting
@@ -2480,6 +2723,8 @@ Error
 Result
 ```
 
+---
+
 # 72. Audit Logging
 
 LUMS records security-relevant application actions in the audit log.
@@ -2499,23 +2744,25 @@ Security-relevant state changes
 An audit event should be treated as evidence of an application event, not as a replacement for system logs.
 
 Use application logs for technical execution details and audit logs for security-relevant application actions.
+
+---
+
 # 73. Audit Event Is Missing
 
 If an expected audit event is missing:
 
 1. Identify the exact action.
-
 2. Identify the API endpoint.
-
 3. Verify that the action actually reached the server.
-
 4. Inspect the application logs.
-
 5. Determine whether the action was rejected before the audit event should have been created.
 
 Do not manually insert audit records simply to make an audit trail appear complete.
 
 An audit record should correspond to a real application event.
+
+---
+
 # 74. Audit Log and Application Log Differ
 
 The two logging systems have different purposes.
@@ -2533,6 +2780,9 @@ Audit log
 A package-manager error may therefore appear in the application or Agent log without representing a separate administrative audit event.
 
 Conversely, a user-management action should produce an auditable application event even if the operation itself is technically simple.
+
+---
+
 # 75. Sensitive Information in Logs
 
 Never intentionally place the following into diagnostic output:
@@ -2549,6 +2799,9 @@ TLS private material
 If a diagnostic command would expose one of these values, use a redacted or metadata-only check instead.
 
 When sharing logs for troubleshooting, review them for secrets before copying them into tickets, documentation, GitHub issues, or chat.
+
+---
+
 # 76. Docker Container Security
 
 The production LUMS container is intentionally hardened.
@@ -2569,6 +2822,9 @@ Restricted temporary filesystems
 If one of these properties changes unexpectedly, treat it as configuration drift.
 
 Do not weaken the container to solve an application problem unless the security impact has been explicitly evaluated.
+
+---
+
 # 77. Verify Container Runtime Security
 
 Inspect the container:
@@ -2597,6 +2853,9 @@ SecurityOpt=[no-new-privileges:true]
 The exact formatting may vary between Docker versions.
 
 The security properties themselves are what matter.
+
+---
+
 # 78. Container Runs as Root
 
 The LUMS application should run as its dedicated unprivileged application user.
@@ -2614,6 +2873,9 @@ Then inspect the Dockerfile.
 Do not solve application permission problems by switching the production container to root.
 
 If a directory requires write access, identify the exact path and determine whether it should be persistent application data or temporary data.
+
+---
+
 # 79. Read-Only Root Filesystem
 
 The production container uses a read-only root filesystem.
@@ -2629,7 +2891,7 @@ Cannot create file
 Cannot write temporary data
 ```
 
-first determine where the application is attempting to write.
+first determine **where** the application is attempting to write.
 
 Expected writable locations are deliberately limited.
 
@@ -2641,8 +2903,11 @@ Persistent application data belongs in:
 
 Temporary runtime data may use the configured temporary filesystems.
 
-Do not disable --read-only merely because an application path is unexpectedly writable.
-# 80. /tmp Is Not Writable
+Do not disable `--read-only` merely because an application path is unexpectedly writable.
+
+---
+
+# 80. `/tmp` Is Not Writable
 
 If the application requires temporary storage, verify the temporary filesystem:
 
@@ -2652,11 +2917,14 @@ sudo docker inspect \
     lums
 ```
 
-The production container provides a restricted /tmp.
+The production container provides a restricted `/tmp`.
 
 The temporary filesystem is intended for transient data only.
 
 Persistent data must not be stored there.
+
+---
+
 # 81. Secret Mount Problems
 
 The LUMS application secret is provided through a protected file mount.
@@ -2675,9 +2943,12 @@ Check that the secret mount exists and is read-only.
 Do not print the contents of the secret.
 
 A useful diagnostic is to verify that the file exists and has the expected permissions without displaying its contents.
+
+---
+
 # 82. Secret File Is Missing
 
-If the secret file does not exist on the host, the container cannot authenticate or initialise correctly.
+If the secret file does not exist on the host and no `LUMS_SECRET_KEY` fallback is set, the application fails immediately at startup with `RuntimeError: LUMS secret is not configured. Provide LUMS_SECRET_KEY_FILE or LUMS_SECRET_KEY.` (`server/app.py`). This is a startup failure, not merely an authentication symptom. See section 114 for the file-versus-variable fallback details.
 
 First determine whether the expected secret path exists.
 
@@ -2686,6 +2957,9 @@ Do not recreate the secret randomly.
 A replacement secret may invalidate existing sessions or other cryptographic state depending on how the application uses it.
 
 Any intentional secret replacement must therefore be treated as a controlled security operation.
+
+---
+
 # 83. Persistent Volume Is Not Writable
 
 If LUMS cannot write application data, inspect the volume:
@@ -2708,6 +2982,9 @@ The application database must reside on the persistent writable volume.
 Do not make the entire container filesystem writable as a workaround.
 
 The correct solution is to identify the specific path that requires persistence.
+
+---
+
 # 84. Docker Container Starts but Application Fails
 
 If the container starts and immediately exits:
@@ -2730,7 +3007,7 @@ Common causes include:
 ```text id="w3j8kc"
 Application startup error
 Missing secret
-Database initialisation error
+Database initialization error
 Migration failure
 Invalid environment configuration
 Permission problem
@@ -2740,6 +3017,9 @@ Dependency problem
 Do not immediately rebuild the image.
 
 Determine whether the problem is in the image, runtime configuration, persistent data, or external configuration.
+
+---
+
 # 85. Docker Image vs. Container Configuration
 
 A working image can still fail because of incorrect runtime configuration.
@@ -2777,6 +3057,9 @@ Application startup failure
 ```
 
 Do not rebuild an otherwise valid image to fix a runtime configuration problem.
+
+---
+
 # 86. Docker Build Problems
 
 If a new image cannot be built, inspect the Dockerfile first.
@@ -2797,16 +3080,18 @@ Application source
 Build context
 ```
 
-# 87. .dockerignore Problems
+---
+
+# 87. `.dockerignore` Problems
 
 The Docker build context should not contain unnecessary local files or sensitive material.
 
-The repository uses .dockerignore to exclude files such as:
+The repository uses `.dockerignore` to exclude files such as:
 
 ```text id="k2x8vw"
 Local backups
 Temporary files
-Editor artefacts
+Editor artifacts
 Backup copies
 Other unnecessary runtime material
 ```
@@ -2818,6 +3103,9 @@ cat .dockerignore
 ```
 
 Do not solve build-context problems by copying sensitive files into the image.
+
+---
+
 # 88. Filesystem Permission Problems
 
 If LUMS reports permission errors, identify the exact path first.
@@ -2850,6 +3138,9 @@ Host configuration
 Each has different expected permissions.
 
 Do not recursively change ownership or permissions across the entire filesystem as a troubleshooting shortcut.
+
+---
+
 # 89. Production Configuration Drift
 
 Configuration drift occurs when the running environment no longer matches the intended security baseline.
@@ -2869,16 +3160,15 @@ Unexpected container running
 If drift is detected:
 
 1. Record the current state.
-
 2. Determine when it changed.
-
 3. Identify the responsible configuration.
-
 4. Correct the configuration deliberately.
-
 5. Re-run the relevant security verification.
 
 Do not make several unrelated changes at once.
+
+---
+
 # 90. Unexpected Network Exposure
 
 The application port should remain local:
@@ -2893,7 +3183,7 @@ Check listeners:
 sudo ss -lntp
 ```
 
-If 5050 is exposed on a non-loopback address, investigate the Docker port mapping immediately.
+If `5050` is exposed on a non-loopback address, investigate the Docker port mapping immediately.
 
 Do not expose the application port simply because Nginx appears difficult to diagnose.
 
@@ -2908,6 +3198,8 @@ Nginx :443
    ↓
 LUMS
 ```
+
+---
 
 # 91. Unexpected Docker Containers
 
@@ -2931,6 +3223,9 @@ Restart policy
 ```
 
 Do not delete an unknown container without determining whether it is part of the LUMS deployment or a required fallback environment.
+
+---
+
 # 92. Docker Volume Must Not Be Deleted During Normal Troubleshooting
 
 The following operation is destructive:
@@ -2944,6 +3239,9 @@ It must not be used as a general troubleshooting step.
 Deleting the volume can remove the application database and associated persistent state.
 
 If a clean installation is intentionally required, treat it as a separate migration or recovery operation and verify backups first.
+
+---
+
 # 93. Security Baseline After Runtime Changes
 
 After changing production Docker configuration, verify the security baseline again.
@@ -2962,6 +3260,9 @@ Application port is loopback-only
 ```
 
 A configuration that makes the application work but weakens these properties should not be considered a successful fix.
+
+---
+
 # 94. Next Troubleshooting Area
 
 The remaining troubleshooting topics are:
@@ -2975,6 +3276,7 @@ Final troubleshooting checklist
 ```
 
 The final sections provide a compact procedure for collecting enough information to diagnose a problem without unnecessarily changing the production environment.
+
 # 95. Tests and CI
 
 Automated tests are an important part of troubleshooting LUMS.
@@ -2991,7 +3293,12 @@ Run the complete test suite from the repository:
 
 A successful run should report all tests as passed.
 
-The number of tests changes as additional tests are added. The important condition is that the complete test suite succeeds rather than relying on a fixed test count.
+The number of tests changes as additional tests are added. The important
+condition is that the complete test suite succeeds rather than relying on a
+fixed test count.
+
+---
+
 # 96. A Test Failure Does Not Automatically Mean Production Is Broken
 
 A failed test can be caused by:
@@ -3029,6 +3336,8 @@ Run relevant tests
 Run full test suite
 ```
 
+---
+
 # 97. RBAC Test Failures
 
 When investigating authorisation problems, run the RBAC tests first:
@@ -3049,6 +3358,9 @@ If the problem concerns the client page, use the relevant subset when appropriat
 Do not weaken authorisation to make a test pass.
 
 A failed authorisation test may indicate a security regression.
+
+---
+
 # 98. Package Search Test Failures
 
 Package-management functionality has dedicated test coverage.
@@ -3071,6 +3383,8 @@ Agent problem
 Integration problem
 ```
 
+---
+
 # 99. Job Result Validation Tests
 
 Job-result handling is security-sensitive because the server must not blindly trust arbitrary client input.
@@ -3085,6 +3399,9 @@ Run the relevant tests when investigating result validation:
 A failure here should be treated as an application correctness and security issue.
 
 Do not bypass result validation to make a client report succeed.
+
+---
+
 # 100. CI Failures
 
 LUMS uses continuous integration to verify the project before changes are accepted.
@@ -3092,20 +3409,17 @@ LUMS uses continuous integration to verify the project before changes are accept
 If CI fails:
 
 1. Identify the failed job.
-
 2. Read the complete error.
-
 3. Determine whether the failure is code, dependency, test, or environment related.
-
 4. Reproduce locally where possible.
-
 5. Fix the root cause.
-
 6. Run the relevant tests.
-
 7. Run the complete test suite.
 
 Do not ignore CI failures simply because the production environment currently appears functional.
+
+---
+
 # 101. Diagnostic Snapshot
 
 When asking for help with a LUMS problem, collect a minimal diagnostic snapshot.
@@ -3118,36 +3432,29 @@ A useful snapshot includes:
 sudo docker ps
 ```
 
-
 ```bash id="c5m7vz"
 sudo docker logs --tail 100 lums
 ```
-
 
 ```bash id="f2w9yk"
 sudo systemctl status nginx --no-pager
 ```
 
-
 ```bash id="n6r3tx"
 sudo systemctl status lums-agent.service --no-pager
 ```
-
 
 ```bash id="q7v4mc"
 sudo systemctl status lums-agent-watcher.service --no-pager
 ```
 
-
 ```bash id="z3k8wp"
 sudo journalctl -u lums-agent.service -n 100 --no-pager
 ```
 
-
 ```bash id="h5m2rx"
 sudo journalctl -u lums-agent-watcher.service -n 100 --no-pager
 ```
-
 
 ```bash id="p9x6kc"
 sudo ss -lntp
@@ -3156,6 +3463,9 @@ sudo ss -lntp
 Use only the commands relevant to the problem.
 
 Do not dump the complete environment into a support request.
+
+---
+
 # 102. Diagnostic Snapshot Must Not Contain Secrets
 
 Before sharing diagnostic output, check for:
@@ -3173,31 +3483,39 @@ Credentials
 Redact sensitive values before sharing.
 
 Do not assume that a log is safe simply because it came from a system service.
+
+---
+
 # 103. Failure Combination Matrix
 
 Some symptoms become easier to diagnose when several components are considered together.
-| Symptom | Most likely area to inspect first |
-| --- | --- |
-| Browser cannot connect | Nginx / TLS / network |
-| Nginx works but application fails | Docker / LUMS |
-| LUMS works but client cannot report | Agent / TLS / token |
-| Client reports but job stays pending | Watcher / eligibility |
-| Job runs but package fails | APT / pacman |
-| Package succeeds but result is missing | Agent reporting |
-| Result reaches server but UI is stale | API / database / browser state |
-| Viewer can mutate data | Server-side RBAC |
-| User cannot log in | Account / password / rate limiting |
-| Login works but action is rejected | RBAC / CSRF |
-| Database writes fail | SQLite / disk / permissions |
-| Container loses data after recreation | Persistent volume configuration |
-| Application writes to root filesystem | Container filesystem configuration |
-| Port 5050 is externally reachable | Docker / firewall configuration |
+
+| Symptom                                | Most likely area to inspect first  |
+| -------------------------------------- | ---------------------------------- |
+| Browser cannot connect                 | Nginx / TLS / network              |
+| Nginx works but application fails      | Docker / LUMS                      |
+| LUMS works but client cannot report    | Agent / TLS / token                |
+| Client reports but job stays pending   | Watcher / eligibility              |
+| Job runs but package fails             | APT / pacman                       |
+| Package succeeds but result is missing | Agent reporting                    |
+| Result reaches server but UI is stale  | API / database / browser state     |
+| Viewer can mutate data                 | Server-side RBAC                   |
+| User cannot log in                     | Account / password / rate limiting |
+| Login works but action is rejected     | RBAC / CSRF                        |
+| Database writes fail                   | SQLite / disk / permissions        |
+| Container loses data after recreation  | Persistent volume configuration    |
+| Application writes to root filesystem  | Container filesystem configuration |
+| Port 5050 is externally reachable      | Docker / firewall configuration    |
 
 This table identifies the first place to investigate, not necessarily the final root cause.
+
+---
+
 # 104. Common Troubleshooting Mistakes
 
 Avoid the following shortcuts:
-Do not delete the database
+
+## Do not delete the database
 
 ```text id="h7k2px"
 Deleting lums.db
@@ -3205,6 +3523,9 @@ Deleting lums-data
 ```
 
 can destroy persistent application state.
+
+---
+
 ## Do not disable security controls
 
 Do not permanently disable:
@@ -3220,6 +3541,9 @@ Capability restrictions
 ```
 
 A workaround that removes a security control is not a completed fix.
+
+---
+
 ## Do not run the container as privileged
 
 Avoid:
@@ -3231,6 +3555,9 @@ Avoid:
 as a troubleshooting solution.
 
 If the application requires additional access, determine exactly what access is required.
+
+---
+
 ## Do not expose port 5050
 
 Do not change:
@@ -3248,6 +3575,9 @@ to:
 simply to bypass Nginx.
 
 The application is intentionally protected behind the reverse proxy.
+
+---
+
 ## Do not modify job states manually
 
 Avoid directly changing:
@@ -3260,19 +3590,29 @@ update_job_packages
 to hide an operational problem.
 
 Use the application, Agent, watcher, and recovery mechanisms.
+
+---
+
 ## Do not delete package-manager locks blindly
 
 A lock may indicate an active package-manager process.
 
 Identify the process first.
+
+---
+
 ## Do not rotate credentials repeatedly
 
 Repeated token or secret rotation can create additional authentication problems.
 
 First determine which credential is currently configured and which credential the server expects.
+
+---
+
 # 105. Recovery Principles
 
 The following principles apply to all LUMS troubleshooting:
+
 ### Preserve first
 
 Keep:
@@ -3287,9 +3627,11 @@ Error messages
 ```
 
 until the problem is understood.
+
 ### Change one thing at a time
 
 When several changes are made simultaneously, the original cause becomes harder to identify.
+
 ### Verify after every change
 
 After a controlled change:
@@ -3304,9 +3646,13 @@ Confirm security properties
 ### Prefer reversible changes
 
 Whenever possible, use changes that can be reverted without destroying application state.
+
 ### Keep security controls active
 
 A successful troubleshooting result must not introduce an unnecessary security regression.
+
+---
+
 # 106. Production Troubleshooting Sequence
 
 For a general LUMS production problem, use this order:
@@ -3334,6 +3680,9 @@ For a general LUMS production problem, use this order:
 ```
 
 This order prevents unrelated components from being changed unnecessarily.
+
+---
+
 # 107. Full System Diagnostic Path
 
 When the affected component is unknown, follow the complete path:
@@ -3393,7 +3742,10 @@ Did it produce the expected result?
 Did the next component receive that result?
 ```
 
-The first NO normally identifies the area that requires investigation.
+The first `NO` normally identifies the area that requires investigation.
+
+---
+
 # 108. Release Troubleshooting
 
 Before preparing a release, verify:
@@ -3407,13 +3759,16 @@ Production configuration matches the documented baseline
 No unexpected debug configuration remains
 No secrets are included in the repository
 Docker hardening remains active
-RBAC behaviour is correct
+RBAC behavior is correct
 Package management works
 Update-job execution works
+Recovery behavior is verified
 ```
-Recovery behaviour is verified
 
 A release should not be created merely because the application starts successfully.
+
+---
+
 # 109. Troubleshooting Checklist
 
 Use this checklist before declaring a production problem resolved:
@@ -3433,8 +3788,10 @@ Use this checklist before declaring a production problem resolved:
 [ ] Job state verified
 [ ] Recovery state verified
 [ ] Database state verified where relevant
+[ ] Documentation updated if behavior changed
 ```
-[ ] Documentation updated if behaviour changed
+
+---
 
 # 110. When to Stop Troubleshooting
 
@@ -3453,11 +3810,14 @@ Security controls remain intact
 If the root cause is not understood, preserve the current state rather than repeatedly changing the environment.
 
 A cleanly preserved failure is easier to diagnose than a partially modified system.
+
+---
+
 # 111. Final Recovery Principle
 
 The most important LUMS troubleshooting rule is:
 
-    Observe first. Change second. Verify third.
+> **Observe first. Change second. Verify third.**
 
 LUMS contains several independent security and execution layers.
 
@@ -3480,6 +3840,9 @@ Document
 ```
 
 This keeps troubleshooting controlled, reproducible, and compatible with the LUMS security baseline.
+
+---
+
 # 112. Documentation Maintenance
 
 This document should be updated whenever a documented operational behaviour changes.
@@ -3489,10 +3852,10 @@ Documentation changes should remain consistent with:
 ```text id="q7m3vx"
 Security documentation
 Deployment documentation
-Agent behaviour
-Watcher behaviour
+Agent behavior
+Watcher behavior
 RBAC model
-Package-management behaviour
+Package-management behavior
 Docker runtime configuration
 Test baseline
 ```
@@ -3500,6 +3863,9 @@ Test baseline
 Outdated troubleshooting instructions can be dangerous when they recommend deprecated commands or security-weakening workarounds.
 
 When a production behaviour changes, update the relevant documentation before treating the troubleshooting procedure as complete.
+
+---
+
 # 113. Current Baseline
 
 The current LUMS baseline documented by this troubleshooting guide includes:
@@ -3515,7 +3881,8 @@ Database:
 SQLite
 
 SQLite journal mode:
-delete
+WAL (enabled by server/init_db.py; verify on your database with
+sqlite3 <db> "pragma journal_mode;")
 
 SQLite busy timeout:
 5000 ms
@@ -3542,13 +3909,186 @@ Viewer:
 Clients + Installed Software only
 
 Full test suite:
-Passing baseline
+Run on Linux (the CI reference is Ubuntu with Python 3.13). Some tests
+assume Linux features such as os.geteuid() or an installed apt/pacman and
+can fail on Windows; check the CI result for the revision you deploy.
 ```
 
-The exact test count may change as the project grows.
+Do not treat this baseline as proof that a particular installation is healthy; verify each value on the target system.
 
 The security and architectural properties are the important baseline.
-# 114. End of Troubleshooting Guide
+
+---
+
+# 114. Startup Configuration Pitfalls
+
+**Symptom:** The container exits immediately, or the server uses a different database or backup directory than the Docker volume suggests.
+
+**Facts from the code (`server/app.py`):**
+
+- Without a secret the application raises `RuntimeError: LUMS secret is not configured. Provide LUMS_SECRET_KEY_FILE or LUMS_SECRET_KEY.`
+- If the file named by `LUMS_SECRET_KEY_FILE` does not exist, the code falls back to `LUMS_SECRET_KEY`. Only a missing file is handled this way; an unreadable file (permissions) can raise a filesystem error instead.
+- `LUMS_DB_PATH` and `LUMS_BACKUP_DIR` override the default `/var/lib/lums/lums.db` and `/var/backups/lums`. A stale override silently points LUMS at a different location than the mounted volume.
+
+**Verify (read-only):**
+
+```text
+docker compose logs lums | grep "LUMS secret"
+docker inspect lums --format '{{range .Config.Env}}{{println .}}{{end}}'
+ls -l <secret file>   # permissions only; never print the contents
+```
+
+**Fix:** Correct the secret path or its permissions, or remove stale `LUMS_DB_PATH` / `LUMS_BACKUP_DIR` overrides. Do not generate a replacement secret casually (see section 82).
+
+---
+
+# 115. Agent Cannot Start Because of Import-Time Checks
+
+**Symptom:** `lums-agent` fails before it reads its token, for example with `RuntimeError: No supported package manager found. Supported package managers: apt, pacman`, or with an SSL error about the CA file.
+
+**Cause:** `agent/agent.py` detects the package manager and creates the TLS context when the module is imported. Hosts without `apt` or `pacman` (or a missing or unreadable `LUMS_CA_FILE`) therefore fail at startup. The same applies to test environments such as Windows.
+
+**Verify:**
+
+```text
+systemctl status lums-agent --no-pager
+journalctl -u lums-agent -n 50 --no-pager
+```
+
+**Fix:** Use a supported distribution, confirm the package manager is on `PATH` for the service, and confirm `LUMS_CA_FILE` exists and is readable by the service user.
+
+---
+
+# 116. Agent Uses the Wrong Server Address (Port 5000 vs 5050)
+
+**Symptom:** The agent reports connection refused although the server is healthy.
+
+**Cause:** The agent's built-in default is `LUMS_BASE=http://127.0.0.1:5000`, while the documented container publishes `127.0.0.1:5050`. The port `5050` examples in this guide describe the server's published port, not the agent default.
+
+**Verify:**
+
+```text
+systemctl show lums-agent --property=Environment
+ss -lntp | grep -E ':5000|:5050'
+```
+
+**Fix:** Set `LUMS_BASE` explicitly to the real endpoint reachable from the client (normally the HTTPS URL of your deployment). Do not expose port `5050` publicly to work around this.
+
+---
+
+# 117. Watcher Exits With Status 1
+
+**Symptom:** `lums-watcher` finishes with a failure status and logs one of: `CLIENT LOOKUP FAILED`, `RUNNING JOB LOOKUP FAILED`, `JOB LOOKUP FAILED`, `IDLE CHECK FAILED`, `JOB CLAIM FAILED`, `UPDATE EXECUTION FAILED`.
+
+**Cause:** The watcher is a one-shot unit. It catches every error, logs it, exits with status 1 and does not retry in-process; the next timer run starts fresh. It resumes only jobs whose status is exactly `running`. Otherwise it looks for pending jobs, and `NO UPDATE JOB // SYSTEM CLEAN` is a normal result.
+
+**Verify:**
+
+```text
+journalctl -u lums-watcher -n 100 --no-pager
+systemctl status lums-watcher lums-watcher.timer
+```
+
+**Fix:** Resolve the named failure (API reachability, token, idle check, package-manager lock) and let the timer run again. Inspect job state through the interface or API; never edit job states in SQLite by hand.
+
+---
+
+# 118. Host Updater Keeps Logging Heartbeat Failures
+
+**Symptom:** `lums-host-updater` stays running but logs `Heartbeat failed (ValueError)` or `Heartbeat failed (HTTPError)` repeatedly.
+
+**Cause:** The host updater intentionally catches errors inside its loop and retries. Typical underlying reasons (`host_updater/agent.py`):
+
+- `Host-updater token is missing or too short` — the token file is absent or shorter than 32 characters.
+- `Only a loopback LUMS endpoint is permitted` — the URL must use `http` or `https`, the host must be exactly `127.0.0.1`, a port must be present, and credentials, query or fragment are not allowed (example: `http://127.0.0.1:5050`).
+- HTTP `401` with `host_updater_authentication_required` — the bearer token is invalid.
+- HTTP `503` with `host_updater_not_configured` — the server has no host-updater token configured.
+- The service stops with `Unexpected update-execution state; stopping` (exit status 1) when the heartbeat response does not explicitly report `update_execution_enabled: false`. Check that server and host updater versions match.
+
+**Verify (do not print the token):**
+
+```text
+journalctl -u lums-host-updater -n 100 --no-pager
+systemctl show lums-host-updater --property=Environment
+stat /etc/lums-host-updater/token
+```
+
+**Fix:** Repair the token file ownership and mode, correct the loopback URL, then restart the service once.
+
+---
+
+# 119. Alert Integration Requests Return 501
+
+**Symptom:** Configuring, testing or removing an email, Slack, PagerDuty or webhook integration returns `501` with `Notification integrations are disabled pending secure persistent configuration`.
+
+**Cause:** This is deliberate (`server/alerts_routes.py`). Integrations are not available, `POST /alerts/clear-all` also returns `501`, and rules are not evaluated automatically. Do not retry or enter provider secrets.
+
+**Related:** These routes require `alerts.manage` and CSRF protection. A missing or wrong CSRF token produces `403` with `csrf_validation_failed` before any `501`. Do not disable CSRF. See `docs/LUMS_REALTIME_ALERTING_IMPLEMENTATION.md`.
+
+---
+
+# 120. Login Failures: CSRF, Rate Limiting and Lockouts
+
+**Symptom:** A valid password is rejected after several failed attempts, or an audit entry `login.rate_limit` appears.
+
+**Cause:** Login attempts are limited per username and source, and the state is stored in SQLite (`login_rate_limits`, with `locked_until`), so it survives restarts. The `/login` route is exempt from the CSRF check, so a missing CSRF token is not the cause of a failing login; look at credentials, cookies and the rate limit instead.
+
+**Verify (read-only):**
+
+```text
+sqlite3 /var/lib/lums/lums.db "select rate_limit_key, locked_until from login_rate_limits;"
+```
+
+**Fix:** Wait until the lock expires and fix the source of the failures. Do not delete rows manually or hammer the login to test it.
+
+---
+
+# 121. SQLite Is Busy or Migrations Hit the Wrong Database
+
+**Symptom:** Writes fail under contention, or a migration seems successful but the running server still lacks tables or features.
+
+**Cause:** Application connections use `PRAGMA busy_timeout = 5000`, so a write waits at most five seconds. The database runs in WAL mode (`server/init_db.py`), so `-wal` and `-shm` files are normal. Migration scripts read `LUMS_DB_PATH` on their own and can modify a different file than the server uses.
+
+**Verify:**
+
+```text
+sqlite3 /var/lib/lums/lums.db "pragma busy_timeout; pragma journal_mode;"
+docker inspect lums --format '{{range .Config.Env}}{{println .}}{{end}}'
+```
+
+**Fix:** Find and stop the competing process, keep the WAL and SHM files, and align the migration environment with the server. Never delete `-wal` or `-shm` files.
+
+---
+
+# 122. Restore Refuses to Run (WAL/SHM Present)
+
+**Symptom:** A restore stops with `Restore verweigert: SQLite-WAL/SHM-Datei vorhanden.` (the message is German in the code).
+
+**Cause:** `server/database_backup.py` fails closed when sidecar files of the target database exist, to avoid mixing old and new data.
+
+**Verify:** `find /var/lib/lums -maxdepth 1 -type f -name 'lums.db*'`
+
+**Fix:** Stop or quiesce the application and use the documented restore flow. Never remove the sidecars by hand.
+
+---
+
+# 123. Snapshot and Release-Verification Errors
+
+**Symptom and cause (`scripts/volume_snapshot.py`, `scripts/release_verification.py`):**
+
+| Message | Meaning |
+| --- | --- |
+| `Could not create or publish the snapshot.` | The destination already exists or cannot be written; snapshots never overwrite. |
+| `Source tree changed during snapshot creation.` | Files changed while copying; quiesce writes and retry. |
+| `Invalid snapshot filename.` / `Invalid restore target.` | Unsafe path or file name was rejected. |
+| `Duplicate restore target: ...` | The archive contains duplicate entries; use an archive from the supported tool. |
+| Release verification fails on checksum data | Checksum metadata is limited to 4096 bytes; obtain the official checksum file instead of bypassing verification. |
+
+Non-root restores intentionally do not apply arbitrary archived ownership. Run the documented restore under the intended service account instead of making the container root. List archive members with `tar -tf` without extracting.
+
+---
+
+# 124. End of Troubleshooting Guide
 
 LUMS troubleshooting should remain evidence-driven and security-conscious.
 
@@ -3565,4 +4105,6 @@ Document what happened.
 
 Do not trade security or data integrity for a quick workaround.
 
-End of LUMS Troubleshooting Guide
+---
+
+**End of LUMS Troubleshooting Guide**

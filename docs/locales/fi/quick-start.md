@@ -2,10 +2,7 @@
 
 Tämä lyhyt opas on tarkoitettu LUMSin tai Linuxin uusille käyttäjille. Katso
 [dokumentaation kielihakemistosta](../../README.md) kaikki saatavilla olevat
-käännökset käyttäjille ja ylläpitäjille. Kaikkia teknisiä lähdeohjeita ei ole
-käännetty kokonaan: englanninkieliset lähdetiedostot ovat ensisijainen lähde,
-joten tarkista ne, jos käännös on puutteellinen tai poikkeaa lähteestä,
-erityisesti ennen tuotantojärjestelmään tehtäviä muutoksia.
+käännökset käyttäjille ja ylläpitäjille. Oppaat on tarkoitettu käyttäjille ja ylläpitäjille; varmista tuotantojärjestelmään tehtävissä muutoksissa aina myös oman julkaisusi asetukset ja lähdekoodin mukainen toiminta.
 
 ## Mikä LUMS on?
 

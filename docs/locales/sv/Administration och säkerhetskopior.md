@@ -18,8 +18,7 @@ Säkerhetsarkitektur och revisionsinformation dokumenteras separat i `security.m
 ## Komma igång: Daglig administration
 
 Den här handboken riktar sig till den person som ansvarar för en befintlig LUMS-installation.
-De detaljerade tekniska avsnitten är underhållna på engelska. Börja med dessa
-termer:
+Nedan följer handbokens viktigaste begrepp och arbetssätt:
 
 * **Användarkonto:** bestämmer vad en person kan göra i LUMS webbgränssnitt.
   Dela inte konton; ge varje person ett eget konto.

@@ -2932,16 +2932,7 @@ Przydatną diagnostyką jest sprawdzenie, czy plik istnieje i ma oczekiwane upra
 
 # 82. Brak pliku sekretu
 
-Jeśli plik sekretu nie istnieje na hoście, kontener nie może uwierzytelnić się ani zainicjalizować poprawnie.
-
-Najpierw ustal, czy oczekiwana ścieżka sekretu istnieje.
-
-Nie odtwarzaj sekretu losowo.
-
-Zastępczy sekret może unieważnić istniejące sesje lub inny stan kryptograficzny w zależności od tego, jak aplikacja go używa.
-
-Dlatego każde celowe zastąpienie sekretu musi być traktowane jako kontrolowana operacja bezpieczeństwa.
-
+Je?li plik sekretu nie istnieje na ho?cie i nie ustawiono zapasowej warto?ci `LUMS_SECRET_KEY`, aplikacja natychmiast ko?czy uruchamianie b??dem `RuntimeError: LUMS secret is not configured. Provide LUMS_SECRET_KEY_FILE or LUMS_SECRET_KEY.` (`server/app.py`). Jest to b??d uruchamiania, a nie tylko objaw problemu z uwierzytelnianiem. Szczeg??y dotycz?ce zapasowej warto?ci z pliku lub zmiennej znajduj? si? w sekcji 114.
 ---
 
 # 83. Trwały wolumen nie jest zapisywalny
@@ -3850,9 +3841,9 @@ Gdy zachowanie produkcyjne się zmienia, zaktualizuj odpowiednią dokumentację,
 
 ---
 
-# 113. Bieżąca podstawa
+# 113. Bie??ca podstawa
 
-Bieżąca podstawa LUMS udokumentowana w tym przewodniku rozwiązywania problemów obejmuje:
+Bie??ca podstawa LUMS udokumentowana w tym przewodniku rozwi?zywania problem?w obejmuje:
 
 ```text id="m4x8qp"
 Agent version: 1.7.0
@@ -3865,7 +3856,8 @@ Database:
 SQLite
 
 SQLite journal mode:
-delete
+WAL (enabled by server/init_db.py; verify on your database with
+sqlite3 <db> "pragma journal_mode;")
 
 SQLite busy timeout:
 5000 ms
@@ -3892,20 +3884,190 @@ Viewer:
 Clients + Installed Software only
 
 Full test suite:
-Passing baseline
+Run on Linux (the CI reference is Ubuntu with Python 3.13). Some tests
+assume Linux features such as os.geteuid() or an installed apt/pacman and
+can fail on Windows; check the CI result for the revision you deploy.
 ```
 
-Dokładna liczba testów może się zmieniać w miarę rozwoju projektu.
+Nie traktuj tej podstawy jako dowodu prawid?owego dzia?ania konkretnej instalacji; sprawd? ka?d? warto?? w systemie docelowym.
 
-Właściwości bezpieczeństwa i architektury są ważną podstawą.
+W?a?ciwo?ci bezpiecze?stwa i architektury stanowi? istotn? podstaw?.
 
 ---
 
-# 114. Koniec przewodnika rozwiązywania problemów
+# 114. Pu?apki konfiguracji podczas uruchamiania
 
-Rozwiązywanie problemów LUMS powinno pozostać oparte na dowodach i świadome bezpieczeństwa.
+**Objaw:** Kontener natychmiast si? zamyka albo serwer u?ywa innej bazy danych lub katalogu kopii zapasowych, ni? sugeruje wolumen Docker.
 
-W razie wątpliwości:
+**Fakty wynikaj?ce z kodu (`server/app.py`):**
+
+- Bez sekretu aplikacja zg?asza `RuntimeError: LUMS secret is not configured. Provide LUMS_SECRET_KEY_FILE or LUMS_SECRET_KEY.`
+- Je?li plik wskazany przez `LUMS_SECRET_KEY_FILE` nie istnieje, kod u?ywa zapasowego `LUMS_SECRET_KEY`. W ten spos?b obs?ugiwany jest wy??cznie brak pliku; nieczytelny plik (z powodu uprawnie?) mo?e zamiast tego wywo?a? b??d systemu plik?w.
+- `LUMS_DB_PATH` i `LUMS_BACKUP_DIR` zast?puj? domy?lne ?cie?ki `/var/lib/lums/lums.db` i `/var/backups/lums`. Nieaktualne nadpisanie po cichu kieruje LUMS do innej lokalizacji ni? zamontowany wolumen.
+
+**Weryfikacja (tylko do odczytu):**
+
+```text
+docker compose logs lums | grep "LUMS secret"
+docker inspect lums --format '{{range .Config.Env}}{{println .}}{{end}}'
+ls -l <secret file>   # permissions only; never print the contents
+```
+
+**Naprawa:** Popraw ?cie?k? sekretu lub jego uprawnienia albo usu? nieaktualne nadpisania `LUMS_DB_PATH` / `LUMS_BACKUP_DIR`. Nie generuj pochopnie nowego sekretu (zob. sekcja 82).
+
+---
+
+# 115. Agent nie mo?e si? uruchomi? z powodu kontroli podczas importu
+
+**Objaw:** `lums-agent` zawodzi, zanim odczyta token, na przyk?ad z b??dem `RuntimeError: No supported package manager found. Supported package managers: apt, pacman` albo b??dem SSL dotycz?cym pliku CA.
+
+**Przyczyna:** Podczas importowania modu?u `agent/agent.py` wykrywa mened?er pakiet?w i tworzy kontekst TLS. Hosty bez `apt` lub `pacman` (albo z brakuj?cym lub nieczytelnym `LUMS_CA_FILE`) nie uruchomi? si?. Dotyczy to r?wnie? ?rodowisk testowych, takich jak Windows.
+
+**Weryfikacja:**
+
+```text
+systemctl status lums-agent --no-pager
+journalctl -u lums-agent -n 50 --no-pager
+```
+
+**Naprawa:** U?yj obs?ugiwanej dystrybucji, sprawd?, czy mened?er pakiet?w znajduje si? w `PATH` us?ugi, oraz czy u?ytkownik us?ugi mo?e odczyta? istniej?cy `LUMS_CA_FILE`.
+
+---
+
+# 116. Agent u?ywa nieprawid?owego adresu serwera (port 5000 zamiast 5050)
+
+**Objaw:** Agent zg?asza odmow? po??czenia, chocia? serwer dzia?a prawid?owo.
+
+**Przyczyna:** Wbudowany adres domy?lny agenta to `LUMS_BASE=http://127.0.0.1:5000`, natomiast udokumentowany kontener udost?pnia `127.0.0.1:5050`. Przyk?ady z portem `5050` w tym przewodniku opisuj? port udost?pniany przez serwer, a nie warto?? domy?ln? agenta.
+
+**Weryfikacja:**
+
+```text
+systemctl show lums-agent --property=Environment
+ss -lntp | grep -E ':5000|:5050'
+```
+
+**Naprawa:** Ustaw jawnie `LUMS_BASE` na rzeczywisty punkt ko?cowy dost?pny dla klienta (zwykle adres HTTPS wdro?enia). Nie wystawiaj publicznie portu `5050` jako obej?cia.
+
+---
+
+# 117. Watcher ko?czy dzia?anie ze statusem 1
+
+**Objaw:** `lums-watcher` ko?czy si? b??dem i zapisuje jeden z komunikat?w: `CLIENT LOOKUP FAILED`, `RUNNING JOB LOOKUP FAILED`, `JOB LOOKUP FAILED`, `IDLE CHECK FAILED`, `JOB CLAIM FAILED`, `UPDATE EXECUTION FAILED`.
+
+**Przyczyna:** Watcher jest jednostk? jednorazow?. Przechwytuje ka?dy b??d, zapisuje go, ko?czy si? ze statusem 1 i nie ponawia pr?by w tym samym procesie; nast?pne uruchomienie timera zaczyna od nowa. Wznawia tylko zadania, kt?rych status to dok?adnie `running`. W przeciwnym razie szuka oczekuj?cych zada?, a `NO UPDATE JOB // SYSTEM CLEAN` to normalny wynik.
+
+**Weryfikacja:**
+
+```text
+journalctl -u lums-watcher -n 100 --no-pager
+systemctl status lums-watcher lums-watcher.timer
+```
+
+**Naprawa:** Rozwi?? wskazany problem (dost?pno?? API, token, kontrola bezczynno?ci, blokada mened?era pakiet?w) i pozw?l timerowi uruchomi? si? ponownie. Sprawdzaj stan zada? przez interfejs lub API; nigdy nie zmieniaj r?cznie ich stan?w w SQLite.
+
+---
+
+# 118. Host Updater stale zapisuje b??dy heartbeat
+
+**Objaw:** `lums-host-updater` nadal dzia?a, ale wielokrotnie zapisuje `Heartbeat failed (ValueError)` lub `Heartbeat failed (HTTPError)`.
+
+**Przyczyna:** Host Updater celowo przechwytuje b??dy w p?tli i ponawia pr?b?. Typowe przyczyny (`host_updater/agent.py`):
+
+- `Host-updater token is missing or too short` ? plik tokena nie istnieje lub zawiera mniej ni? 32 znaki.
+- `Only a loopback LUMS endpoint is permitted` ? URL musi u?ywa? `http` lub `https`, host musi mie? dok?adn? warto?? `127.0.0.1`, port musi by? podany, a dane logowania, zapytanie i fragment s? niedozwolone (np. `http://127.0.0.1:5050`).
+- HTTP `401` z `host_updater_authentication_required` ? token bearer jest nieprawid?owy.
+- HTTP `503` z `host_updater_not_configured` ? serwer nie skonfigurowa? tokena Host Updatera.
+- Us?uga zatrzymuje si? z komunikatem `Unexpected update-execution state; stopping` (kod wyj?cia 1), gdy odpowied? heartbeat nie zawiera jawnie `update_execution_enabled: false`. Sprawd? zgodno?? wersji serwera i Host Updatera.
+
+**Weryfikacja (nie wy?wietlaj tokena):**
+
+```text
+journalctl -u lums-host-updater -n 100 --no-pager
+systemctl show lums-host-updater --property=Environment
+stat /etc/lums-host-updater/token
+```
+
+**Naprawa:** Popraw w?a?ciciela i tryb pliku tokena, ustaw prawid?owy adres loopback, a nast?pnie tylko raz uruchom us?ug? ponownie.
+
+---
+
+# 119. ??dania integracji alert?w zwracaj? 501
+
+**Objaw:** Konfigurowanie, testowanie lub usuwanie integracji e-mail, Slack, PagerDuty albo webhooka zwraca `501` z komunikatem `Notification integrations are disabled pending secure persistent configuration`.
+
+**Przyczyna:** To dzia?anie jest zamierzone (`server/alerts_routes.py`). Integracje s? niedost?pne, `POST /alerts/clear-all` r?wnie? zwraca `501`, a regu?y nie s? automatycznie oceniane. Nie ponawiaj pr?by i nie wprowadzaj sekret?w dostawc?w.
+
+**Powi?zane:** Te trasy wymagaj? `alerts.manage` i ochrony CSRF. Brakuj?cy lub nieprawid?owy token CSRF powoduje `403` z `csrf_validation_failed` przed odpowiedzi? `501`. Nie wy??czaj CSRF. Zob. `docs/LUMS_REALTIME_ALERTING_IMPLEMENTATION.md`.
+
+---
+
+# 120. Problemy z logowaniem: CSRF, ograniczanie pr?b i blokady
+
+**Objaw:** Prawid?owe has?o zostaje odrzucone po kilku nieudanych pr?bach albo pojawia si? wpis audytu `login.rate_limit`.
+
+**Przyczyna:** Pr?by logowania s? ograniczane wed?ug nazwy u?ytkownika i ?r?d?a, a stan jest przechowywany w SQLite (`login_rate_limits`, z `locked_until`), wi?c przetrwa ponowne uruchomienia. Trasa `/login` jest wy??czona z kontroli CSRF; brak tokena CSRF nie powoduje niepowodzenia logowania. Sprawd? dane uwierzytelniaj?ce, pliki cookie i ograniczenie pr?b.
+
+**Weryfikacja (tylko do odczytu):**
+
+```text
+sqlite3 /var/lib/lums/lums.db "select rate_limit_key, locked_until from login_rate_limits;"
+```
+
+**Naprawa:** Poczekaj na wyga?ni?cie blokady i usu? ?r?d?o nieudanych pr?b. Nie usuwaj r?cznie wierszy ani nie testuj przez wielokrotne pr?by logowania.
+
+---
+
+# 121. SQLite jest zaj?te lub migracje trafiaj? do niew?a?ciwej bazy danych
+
+**Objaw:** Zapisy zawodz? z powodu wsp??bie?no?ci albo migracja pozornie ko?czy si? powodzeniem, ale uruchomionemu serwerowi nadal brakuje tabel lub funkcji.
+
+**Przyczyna:** Po??czenia aplikacji u?ywaj? `PRAGMA busy_timeout = 5000`, wi?c zapis czeka maksymalnie pi?? sekund. Baza dzia?a w trybie WAL (`server/init_db.py`), dlatego pliki `-wal` i `-shm` s? normalne. Skrypty migracji samodzielnie odczytuj? `LUMS_DB_PATH` i mog? zmodyfikowa? inny plik ni? u?ywany przez serwer.
+
+**Weryfikacja:**
+
+```text
+sqlite3 /var/lib/lums/lums.db "pragma busy_timeout; pragma journal_mode;"
+docker inspect lums --format '{{range .Config.Env}}{{println .}}{{end}}'
+```
+
+**Naprawa:** Znajd? i zatrzymaj konkuruj?cy proces, zachowaj pliki WAL i SHM oraz dostosuj ?rodowisko migracji do ?rodowiska serwera. Nigdy nie usuwaj plik?w `-wal` ani `-shm`.
+
+---
+
+# 122. Przywracanie odmawia dzia?ania (obecne pliki WAL/SHM)
+
+**Objaw:** Przywracanie zatrzymuje si? z komunikatem `Restore verweigert: SQLite-WAL/SHM-Datei vorhanden.` (komunikat w kodzie jest po niemiecku).
+
+**Przyczyna:** `server/database_backup.py` odmawia dzia?ania, je?li istniej? pliki pomocnicze docelowej bazy, aby unikn?? mieszania starych i nowych danych.
+
+**Weryfikacja:** `find /var/lib/lums -maxdepth 1 -type f -name 'lums.db*'`
+
+**Naprawa:** Zatrzymaj lub wstrzymaj aplikacj? i u?yj udokumentowanej procedury przywracania. Nigdy nie usuwaj r?cznie plik?w pomocniczych.
+
+---
+
+# 123. B??dy migawki i weryfikacji wydania
+
+**Objawy i przyczyny (`scripts/volume_snapshot.py`, `scripts/release_verification.py`):**
+
+| Komunikat | Znaczenie |
+| --- | --- |
+| `Could not create or publish the snapshot.` | Miejsce docelowe ju? istnieje lub nie mo?na w nim zapisywa?; migawki nigdy nie s? nadpisywane. |
+| `Source tree changed during snapshot creation.` | Pliki zmieni?y si? podczas kopiowania; wstrzymaj zapisy i pon?w pr?b?. |
+| `Invalid snapshot filename.` / `Invalid restore target.` | Odrzucono niebezpieczn? ?cie?k? lub nazw? pliku. |
+| `Duplicate restore target: ...` | Archiwum zawiera zduplikowane wpisy; u?yj archiwum utworzonego obs?ugiwanym narz?dziem. |
+| Weryfikacja wydania nie powiod?a si? dla danych sumy kontrolnej | Metadane sumy kontrolnej s? ograniczone do 4096 bajt?w; pobierz oficjalny plik sum kontrolnych zamiast pomija? weryfikacj?. |
+
+Przywracanie bez uprawnie? roota celowo nie stosuje dowolnych w?a?cicieli z archiwum. Wykonaj udokumentowane przywracanie jako w?a?ciwe konto us?ugi, zamiast uruchamia? kontener jako root. Wy?wietl list? element?w poleceniem `tar -tf`, nie rozpakowuj?c archiwum.
+
+---
+
+# 124. Koniec przewodnika rozwi?zywania problem?w
+
+Rozwi?zywanie problem?w LUMS powinno pozosta? oparte na dowodach i ?wiadome bezpiecze?stwa.
+
+W razie w?tpliwo?ci:
 
 ```text id="r9x4kw"
 Preserve the state.
@@ -3916,8 +4078,8 @@ Verify the result.
 Document what happened.
 ```
 
-Nie wymieniaj bezpieczeństwa ani integralności danych na szybkie obejście.
+Nie po?wi?caj bezpiecze?stwa ani integralno?ci danych dla szybkiego obej?cia.
 
 ---
 
-**Koniec przewodnika rozwiązywania problemów LUMS**
+**Koniec przewodnika rozwi?zywania problem?w LUMS**

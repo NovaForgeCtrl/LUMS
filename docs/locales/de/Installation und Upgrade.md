@@ -5863,3 +5863,70 @@ Document
 ```
 
 Eine LUMS-Installation sollte immer reproduzierbar, auditierbar und wiederherstellbar bleiben.
+
+---
+
+## Optionaler CPU- und Arbeitsspeicher-Telemetrie-Agent
+
+Einen Überblick über Telemetriemessungen, Sicherheit, Datenaufbewahrung und Fehlersuche finden Sie in [telemetry.md](telemetrie.md).
+
+Der Telemetrie-Agent ist vom vorhandenen Reporting-Agent und vom Watcher getrennt. Er sendet CPU- und Arbeitsspeichermessungen an den authentifizierten Endpunkt `POST /api/telemetry`. Das Dashboard liest die Messungen über die authentifizierte Client-Telemetrie-API.
+
+### Installationsdateien
+
+Prüfen Sie vor der Installation diese Repository-Dateien:
+
+- `agent/telemetry.py`
+- `agent/lums-telemetry.service`
+- `agent/lums-telemetry.timer`
+- `scripts/install-telemetry-agent.sh`
+- `tests/test_telemetry_agent.py`
+
+Aktualisieren Sie nach der Konfiguration von `/etc/default/lums-agent` (siehe unten) den Repository-Checkout auf dem Debian-Client und führen Sie aus dessen Wurzelverzeichnis aus:
+
+```sh
+sudo bash scripts/install-telemetry-agent.sh
+```
+
+Das Installationsskript prüft, ob `LUMS_BASE` und `LUMS_TOKEN` vorhanden sind, ohne deren Werte auszugeben. Es installiert oder aktualisiert den Collector und die systemd-Units, aktiviert den Fünf-Sekunden-Timer und führt ein sofortiges Sample aus, um die Verbindung zu prüfen. Schlägt der Dienst fehl, gibt es aktuelle Protokolle des Telemetrie-Dienstes aus. Das Token verbleibt in der vorhandenen Client-Konfiguration und wird in keine andere Datei kopiert.
+
+Installieren Sie das Telemetrie-Skript unter `/usr/local/lib/lums-telemetry/telemetry.py`, im Besitz von root und für das Dienstkonto nicht beschreibbar. Installieren Sie Dienst und Timer als `/etc/systemd/system/lums-telemetry.service` und `/etc/systemd/system/lums-telemetry.timer`.
+
+Der Dienst verwendet `DynamicUser=yes`, läuft mit eingeschränkten Rechten und wird der Gruppe `systemd-journal` hinzugefügt, um systemweite Ereignisprotokolle schreibgeschützt zu lesen. Das ermöglicht die begrenzten Sicherheits- und Anmeldezusammenfassungen des Dashboards; rohe Protokollmeldungen werden nicht an den Server gesendet. Es ist ein One-Shot-Dienst, der von einem separaten Timer gestartet wird; er ersetzt weder den vorhandenen LUMS-Agent noch den Watcher.
+
+Ein online gemeldeter normaler LUMS-Client bedeutet nicht, dass dieser separate Telemetrie-Timer installiert oder aktiviert ist. Die Seite `/monitoring` erklärt, ob der gewählte Client keine Samples gesendet hat, nur Basismetriken sendet oder veraltete Detaildaten hat.
+
+### Konfiguration und TLS
+
+Konfigurieren Sie `/etc/default/lums-agent` mit der Server-URL und dem individuellen Client-Token:
+
+```sh
+LUMS_BASE=https://lums.example.invalid
+LUMS_TOKEN=REPLACE_WITH_THIS_CLIENTS_TOKEN
+LUMS_CA_FILE=/etc/ssl/certs/lums-ca.crt
+```
+
+Ersetzen Sie die Beispiel-URL und das Token durch die tatsächlichen Werte der Umgebung. Schützen Sie die Konfigurationsdatei so, dass nur root sie lesen kann, zum Beispiel mit Modus `0600`. Committen Sie niemals ein echtes Token in die Versionsverwaltung und teilen Sie es nicht zwischen Clients.
+
+Optional können Sie mit einer kommagetrennten Allowlist festlegen, welche systemd-Service-Units gemeldet werden:
+
+```sh
+LUMS_MONITORED_SERVICES=lums-agent.service,lums-telemetry.service,ssh.service,wazuh-agent.service,suricata.service
+```
+
+Ist die Variable nicht gesetzt, verwendet der Agent seine eingebaute Liste mit LUMS-, Docker- und SSH-Diensten. Wazuh und Suricata sind optional: Fügen Sie nur Service-Units hinzu, die auf dem Client installiert sind, und aktivieren Sie dann deren Statuszeilen im `/health`-Dashboard. Gemeldet wird nur der systemd-Status; es werden weder API-Zugangsdaten benötigt oder gespeichert noch Sicherheitsalarm-Feeds abgerufen.
+
+Wird eine private Zertifizierungsstelle benötigt, installieren Sie deren Zertifikat unter einem für den Dienstprozess lesbaren Pfad, etwa `/etc/ssl/certs/lums-ca.crt`, und setzen Sie `LUMS_CA_FILE` entsprechend. Deaktivieren Sie die Zertifikatsprüfung nicht. Ist `LUMS_CA_FILE` nicht gesetzt, verwendet der Agent den Standard-CA-Vertrauensspeicher des Betriebssystems. Wird eine private CA benötigt, setzen Sie `LUMS_CA_FILE` ausdrücklich auf eine vorhandene, für den Dienstprozess lesbare CA-Zertifikatsdatei. Eine ausdrücklich konfigurierte, aber fehlende oder nicht lesbare CA-Datei führt dazu, dass der Agent fehlschlägt, statt stillschweigend auf einen anderen Vertrauensspeicher zurückzufallen. Deaktivieren Sie die Zertifikatsprüfung nicht und schwächen Sie keine Verzeichnisberechtigungen, um Zertifikatsprobleme zu umgehen.
+
+### Validierung vor der Aktivierung
+
+Führen Sie zuerst die Projekttests aus und prüfen Sie die Unit-Dateien:
+
+```sh
+.venv/bin/python -m pytest -q tests/test_telemetry.py tests/test_telemetry_agent.py
+systemd-analyze verify agent/lums-telemetry.service agent/lums-telemetry.timer
+```
+
+Installieren Sie auf einem Test-Client die Dateien und die Konfiguration, laden Sie systemd neu und führen Sie den Dienst manuell aus, bevor Sie den Timer aktivieren. Bestätigen Sie die erfolgreiche Authentifizierung und eingehende Samples im Dashboard. Aktivieren Sie den Timer erst dann auf diesem Test-Client. Aktivieren Sie ihn nicht auf Produktions-Clients, bevor das serverseitige Release geprüft und freigegeben wurde.
+
+Der Agent meldet alle fünf Sekunden. Der Server bewahrt Messungen sieben Tage auf, und die Dashboard-API liefert pro angefordertem Verlaufsfenster höchstens 1.000 gleichmäßig verteilte Samples, wobei das erste und das letzte Sample erhalten bleiben.

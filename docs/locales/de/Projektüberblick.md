@@ -263,6 +263,18 @@ Durch eine Token-Erneuerung kann ein Administrator bisherige Zugangsdaten ungül
 
 ---
 
+### Systemstatus-Dashboard
+
+Das authentifizierte Systemstatus-Dashboard unter `/health` fasst den Datenbankstatus, den Meldestatus der Clients, die Sichtbarkeit des Backup-Speichers und – sofern Telemetrie konfiguriert ist – CPU-/Speichertelemetrie zusammen. Es ist eine schnelle Betriebsübersicht und kein Ersatz für die Prüfung von Container-, Reverse-Proxy-, Host- und Backup-Protokollen oder für einen Wiederherstellungstest. Siehe [LUMS_Health_Dashboard.md](systemstatus-dashboard.md).
+
+---
+
+### Alarme
+
+LUMS enthält eine API zur Alarmverwaltung und ein einfaches Dashboard für gespeicherte Alarmeinträge. Administratoren können Regeln anlegen und verwalten, einen Alarm manuell auslösen und einen aktiven Alarm bestätigen, auflösen oder manuell eskalieren. Regelbedingungen und Schwellenwerte werden als Konfiguration gespeichert; der aktuelle Server wertet sie nicht automatisch gegen Telemetrie aus. Benachrichtigungsintegrationen (E-Mail, Slack, PagerDuty und generische Webhooks) sind über die API nicht verfügbar, und das Massenlöschen ist deaktiviert, um die Alarmhistorie zu erhalten. Die implementierten Grenzen beschreibt [`docs/LUMS_REALTIME_ALERTING_IMPLEMENTATION.md`](../../LUMS_REALTIME_ALERTING_IMPLEMENTATION.md).
+
+---
+
 ### Nachvollziehbarkeit
 
 Administrative und sicherheitsrelevante Aktionen werden über das LUMS-Audit-Log-System erfasst.
@@ -1938,6 +1950,26 @@ Regelmäßige Administration, Wartung, Backups, Aktualisierungen, Betriebsverfah
 ### `security.md`
 
 Sicherheitsarchitektur, Sicherheitskontrollen, Prüfergebnisse, Härtung und Informationen zur Release-Sicherheit.
+
+### `telemetry.md`
+
+Optionale CPU-, Speicher-, Datenträger-, Netzwerk-, Host- und Betriebstelemetrie, Agent-Konfiguration, Datenaufbewahrung, Sicherheit und Fehlersuche.
+
+### `LUMS_Health_Dashboard.md`
+
+Was das authentifizierte Systemstatus-Dashboard meldet, wie der Clientstatus klassifiziert wird, Telemetriegrenzen, Interpretation des Backup-Speichers und betriebliche Prüfungen.
+
+### `LUMS_Infrastructure_Topology.md`
+
+Wie LUMS registrierte Clients importiert, Infrastruktur und Abhängigkeiten verwaltet, Topologieänderungen schützt und mögliche gemeinsame Ausfallpunkte erkennt.
+
+### `server/static/backup-restore.md`
+
+Sorgfältige Docker-basierte Wiederherstellung eines geprüften SQLite-Backups, einschließlich Integritätsprüfungen und einer Ausweichkopie der aktiven Datenbank.
+
+### `docs/update-tools-package.md`
+
+Was das herunterladbare Updater-Tools-Artefakt enthält, wie die CI es veröffentlicht und welche Prüfungen vor dem Produktionseinsatz nötig sind.
 
 ### `troubleshooting.md`
 

@@ -262,6 +262,18 @@ La rotación de tokens permite a un administrador invalidar una credencial de cl
 
 ---
 
+### Panel de estado
+
+El panel de estado autenticado en `/health` resume el estado de la base de datos, el estado de los informes de clientes, la visibilidad del almacenamiento de copias de seguridad y la telemetr?a de CPU y memoria cuando est? configurada. Es una vista operativa r?pida, no sustituye la comprobaci?n de los registros del contenedor, del proxy inverso, del host y de las copias de seguridad, ni la realizaci?n de una prueba de restauraci?n. Consulte [panel-estado-sistema.md](panel-estado-sistema.md).
+
+---
+
+### Alertas
+
+LUMS incluye una API de gesti?n de alertas y un panel b?sico para los registros de alertas almacenados. Los administradores pueden crear y gestionar reglas, activar una alerta manualmente y reconocer, resolver o escalar manualmente una alerta activa. Las condiciones y los umbrales de las reglas se almacenan como configuraci?n; el servidor actual no los eval?a autom?ticamente frente a la telemetr?a. Las integraciones de notificaci?n (correo electr?nico, Slack, PagerDuty y webhooks gen?ricos) no est?n disponibles mediante la API, y la eliminaci?n masiva est? deshabilitada para preservar el historial de alertas. Consulte [Gesti?n de alertas](Gesti%C3%B3n%20de%20alertas.md) para conocer los l?mites implementados.
+
+---
+
 ### Auditabilidad
 
 Las acciones administrativas y relevantes para la seguridad se registran a través del sistema de registro de auditoría de LUMS.
@@ -1946,6 +1958,26 @@ Administración de rutina, mantenimiento, copias de seguridad, actualizaciones, 
 ### `security.md`
 
 Arquitectura de seguridad, controles de seguridad, hallazgos de auditoría, endurecimiento e información de seguridad para la preparación de la versión.
+
+### `telemetry.md`
+
+Telemetr?a opcional de CPU, memoria, disco, red, host y operaciones; configuraci?n del agente, retenci?n de datos, seguridad y soluci?n de problemas.
+
+### `LUMS_Health_Dashboard.md`
+
+Qu? informa el panel de estado autenticado, c?mo se clasifica el estado de los clientes, los l?mites de telemetr?a, la interpretaci?n del almacenamiento de copias de seguridad y las comprobaciones operativas.
+
+### `LUMS_Infrastructure_Topology.md`
+
+C?mo LUMS importa los clientes registrados, gestiona la infraestructura y sus dependencias, protege las ediciones de topolog?a e identifica posibles puntos comunes de fallo.
+
+### `server/static/backup-restore.md`
+
+Recuperaci?n cuidadosa de una copia de seguridad SQLite verificada mediante Docker, incluidas las comprobaciones de integridad y una copia alternativa de la base de datos activa.
+
+### `docs/update-tools-package.md`
+
+Contenido del artefacto descargable de herramientas de actualizaci?n, c?mo lo publica CI y las comprobaciones necesarias antes de utilizarlo en producci?n.
 
 ### `troubleshooting.md`
 

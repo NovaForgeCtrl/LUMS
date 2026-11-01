@@ -249,6 +249,17 @@ Tunnisteet ovat:
 * validoitu ennen asiakasraporttien hyväksymistä
 
 Tunnisteen vaihto mahdollistaa ylläpitäjän mitätöidä aiemmin myönnetyn asiakastunnisteen luomatta asiakasta uudelleen.
+
+
+### Terveystilan koontinäyttö
+
+Kirjautumisen takana oleva `/health`-koontinäyttö kokoaa yhteen tietokannan tilan, asiakkaiden raportoinnin, varmuuskopioinnin tallennustilan näkyvyyden sekä CPU- ja muistitietotelemetrian, jos se on määritetty. Se on nopea käyttötilannekuva, ei korvike kontin, välityspalvelimen, isännän tai varmuuskopioiden lokien tarkastamiselle tai palautustestille. Katso [terveystilan opas](LUMS-terveystila.md).
+
+---
+
+### Hälytykset
+
+LUMS tarjoaa tallennettujen hälytystietueiden hallintaan rajapinnan ja peruskoontinäytön. Ylläpitäjä voi hallita sääntöjä, käynnistää hälytyksen manuaalisesti sekä kuitata, ratkaista tai eskaloida aktiivisen hälytyksen. Sääntöjen ehtoja ja kynnysarvoja tallennetaan asetuksina, mutta palvelin ei arvioi niitä automaattisesti telemetrian perusteella. Ilmoitusintegraatiot (sähköposti, Slack, PagerDuty ja yleiset webhookit) eivät ole käytettävissä API:n kautta, ja historiatiedot säilytetään poistamalla massatyhjennys käytöstä. Katso [hälytysten hallinnan toteutusrajat](<Hälytysten hallinta.md>).
 Valvottavuus
 
 Ylläpitoon ja turvallisuuteen liittyvät toiminnot tallennetaan LUMSin valvontalokijärjestelmän kautta.

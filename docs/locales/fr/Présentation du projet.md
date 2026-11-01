@@ -262,6 +262,18 @@ La rotation des tokens permet à un administrateur d'invalider un identifiant cl
 
 ---
 
+### Tableau de bord santé
+
+Le tableau de bord santé authentifié, disponible sur `/health`, résume l'état de la base de données, l'état des rapports des clients, la visibilité du stockage des sauvegardes et, lorsque la télémétrie est configurée, la télémétrie CPU/mémoire. C'est une vue opérationnelle rapide, et non un substitut à l'examen des journaux du conteneur, du reverse proxy, de l'hôte et des sauvegardes, ni à un test de restauration. Voir [LUMS_Health_Dashboard.md](tableau-de-bord-sante.md).
+
+---
+
+### Alertes
+
+LUMS inclut une API de gestion des alertes et un tableau de bord simple pour les enregistrements d'alertes stockés. Les administrateurs peuvent créer et gérer des règles, déclencher une alerte manuellement, et acquitter, résoudre ou escalader manuellement une alerte active. Les conditions et seuils des règles sont stockés comme configuration ; le serveur actuel ne les évalue pas automatiquement par rapport à la télémétrie. Les intégrations de notification (e-mail, Slack, PagerDuty et webhooks génériques) ne sont pas disponibles via l'API, et l'effacement en masse est désactivé afin de préserver l'historique des alertes. Voir [`docs/LUMS_REALTIME_ALERTING_IMPLEMENTATION.md`](../../LUMS_REALTIME_ALERTING_IMPLEMENTATION.md) pour les limites implémentées.
+
+---
+
 ### Auditabilité
 
 Les actions administratives et relatives à la sécurité sont enregistrées via le système de journalisation d'audit de LUMS.
@@ -1946,6 +1958,26 @@ Administration de routine, maintenance, sauvegardes, mises à niveau, procédure
 ### `security.md`
 
 Architecture de sécurité, contrôles de sécurité, résultats d'audit, durcissement et informations de sécurité pour la préparation à la version.
+
+### `telemetry.md`
+
+Télémétrie facultative CPU, mémoire, disque, réseau, hôte et opérationnelle, configuration de l'agent, conservation des données, sécurité et dépannage.
+
+### `LUMS_Health_Dashboard.md`
+
+Ce que rapporte le tableau de bord santé authentifié, comment l'état des clients est classé, limites de la télémétrie, interprétation du stockage des sauvegardes et vérifications opérationnelles.
+
+### `LUMS_Infrastructure_Topology.md`
+
+Comment LUMS importe les clients enregistrés, gère l'infrastructure et les dépendances, protège les modifications de topologie et identifie les points de défaillance partagés potentiels.
+
+### `server/static/backup-restore.md`
+
+Récupération prudente, basée sur Docker, d'une sauvegarde SQLite vérifiée, avec contrôles d'intégrité et copie de secours de la base active.
+
+### `docs/update-tools-package.md`
+
+Contenu de l'artefact téléchargeable d'outils de mise à jour, manière dont la CI le publie et vérifications requises avant l'usage en production.
 
 ### `troubleshooting.md`
 

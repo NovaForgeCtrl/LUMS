@@ -5863,3 +5863,70 @@ Document
 ```
 
 Une installation LUMS devrait toujours rester reproductible, auditable et récupérable.
+
+---
+
+## Agent de télémétrie CPU et mémoire facultatif
+
+Pour un aperçu des mesures de télémétrie, de la sécurité, de la conservation des données et du dépannage, voir [telemetry.md](telemetrie.md).
+
+L'agent de télémétrie est distinct de l'agent de rapport existant et du watcher. Il envoie des mesures de CPU et de mémoire au point d'accès authentifié `POST /api/telemetry`. Le tableau de bord lit les mesures via l'API de télémétrie client authentifiée.
+
+### Fichiers d'installation
+
+Examinez ces fichiers du dépôt avant l'installation :
+
+- `agent/telemetry.py`
+- `agent/lums-telemetry.service`
+- `agent/lums-telemetry.timer`
+- `scripts/install-telemetry-agent.sh`
+- `tests/test_telemetry_agent.py`
+
+Après avoir configuré `/etc/default/lums-agent` comme décrit ci-dessous, mettez à jour le checkout du dépôt sur le client Debian et exécutez depuis sa racine :
+
+```sh
+sudo bash scripts/install-telemetry-agent.sh
+```
+
+Le programme d'installation vérifie que `LUMS_BASE` et `LUMS_TOKEN` sont présents sans afficher leurs valeurs. Il installe ou met à jour le collecteur et les unités systemd, active le timer de cinq secondes et exécute un échantillon immédiat pour vérifier la connexion. Si le service échoue, il affiche les journaux récents du service de télémétrie. Le jeton reste dans la configuration client existante et n'est copié dans aucun autre fichier.
+
+Installez le script de télémétrie dans `/usr/local/lib/lums-telemetry/telemetry.py`, appartenant à root et non modifiable par le compte de service. Installez le service et le timer sous les noms `/etc/systemd/system/lums-telemetry.service` et `/etc/systemd/system/lums-telemetry.timer`.
+
+Le service utilise `DynamicUser=yes`, s'exécute avec des privilèges restreints et est ajouté au groupe `systemd-journal` pour un accès en lecture seule aux journaux d'événements du système. Cela alimente les synthèses limitées de sécurité et de connexions du tableau de bord ; les messages de journal bruts ne sont pas envoyés au serveur. C'est un service à exécution unique planifié par un timer distinct ; il ne remplace ni l'agent LUMS existant ni le watcher.
+
+Un client LUMS normal en ligne n'implique pas que ce timer de télémétrie distinct soit installé ou activé. La page `/monitoring` indique si le client sélectionné n'a envoyé aucun échantillon, n'envoie que des métriques de base, ou possède des données détaillées périmées.
+
+### Configuration et TLS
+
+Configurez `/etc/default/lums-agent` avec l'URL du serveur et le jeton individuel du client :
+
+```sh
+LUMS_BASE=https://lums.example.invalid
+LUMS_TOKEN=REPLACE_WITH_THIS_CLIENTS_TOKEN
+LUMS_CA_FILE=/etc/ssl/certs/lums-ca.crt
+```
+
+Remplacez l'URL d'exemple et le jeton par les valeurs réelles de l'environnement. Protégez le fichier de configuration pour que seul root puisse le lire, par exemple avec le mode `0600`. N'enregistrez jamais un vrai jeton dans le contrôle de version et ne le partagez pas entre clients.
+
+Vous pouvez éventuellement choisir les unités de service systemd à signaler avec une liste d'autorisation séparée par des virgules :
+
+```sh
+LUMS_MONITORED_SERVICES=lums-agent.service,lums-telemetry.service,ssh.service,wazuh-agent.service,suricata.service
+```
+
+Si elle n'est pas définie, l'agent utilise sa liste intégrée de services LUMS, Docker et SSH. Wazuh et Suricata sont facultatifs : n'ajoutez que les unités de service installées sur le client, puis activez leurs lignes d'état dans le tableau de bord `/health`. Seul l'état systemd est signalé ; aucun identifiant d'API n'est requis ni stocké, et aucun flux d'alertes de sécurité n'est récupéré.
+
+Si une autorité de certification privée est nécessaire, installez son certificat à un emplacement lisible par le processus du service, par exemple `/etc/ssl/certs/lums-ca.crt`, et définissez `LUMS_CA_FILE` en conséquence. Ne désactivez pas la vérification des certificats. Lorsque `LUMS_CA_FILE` n'est pas défini, l'agent utilise le magasin de confiance CA par défaut du système d'exploitation. Si une CA privée est nécessaire, définissez explicitement `LUMS_CA_FILE` sur un fichier de certificat CA existant et lisible par le processus du service. Un fichier CA explicitement configuré mais manquant ou illisible fait échouer l'agent au lieu de se rabattre silencieusement sur un autre magasin de confiance. Ne désactivez pas la vérification des certificats et n'affaiblissez pas les permissions des répertoires pour contourner des problèmes de configuration de certificat.
+
+### Validation avant activation
+
+Exécutez d'abord les tests du projet et vérifiez les fichiers d'unité :
+
+```sh
+.venv/bin/python -m pytest -q tests/test_telemetry.py tests/test_telemetry_agent.py
+systemd-analyze verify agent/lums-telemetry.service agent/lums-telemetry.timer
+```
+
+Sur un client de test, installez les fichiers et la configuration, rechargez systemd et exécutez le service manuellement avant d'activer son timer. Confirmez l'authentification réussie et l'arrivée des échantillons dans le tableau de bord. Activez ensuite seulement le timer sur ce client de test. Ne l'activez pas sur des clients de production avant que la version côté serveur ait été examinée et approuvée.
+
+L'agent envoie un rapport toutes les cinq secondes. Le serveur conserve les mesures pendant sept jours et l'API du tableau de bord renvoie au plus 1 000 échantillons uniformément espacés par fenêtre d'historique demandée, en préservant le premier et le dernier échantillon.

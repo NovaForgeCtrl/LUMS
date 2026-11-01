@@ -453,7 +453,7 @@ Etter opprettelsen, verifiser at:
 * brukeren kan autentisere seg vellykket
 
 Ikke overfør passord gjennom dokumentasjon, saksbehandlingssystemer, skjermbilder eller andre usikre kanaler.
-## Database Backup Interface
+## Grensesnitt for databasesikkerhetskopi
 
 Brukere med tillatelsen backups.manage kan opprette SQLite-sikkerhetskopier fra
 Datenbank-Backups. Administrator-kontoer mottar denne tillatelsen gjennom

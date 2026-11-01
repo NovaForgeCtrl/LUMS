@@ -5,7 +5,7 @@
 
 * **Projekt:** LUMS
 
-* **Slogan:** *Linux Update Management without the noise.*
+* **Slogan:** *Linux-uppdateringshantering utan onödigt brus.*
 
 * **Repository:** `NovaForgeCtrl/LUMS`
 

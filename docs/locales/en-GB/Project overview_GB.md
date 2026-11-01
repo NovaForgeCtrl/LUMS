@@ -15,13 +15,12 @@ your account may not have permission to use it. Ask your administrator for
 help; do not share accounts or use a client token as a web password.
 
 **Installing or operating LUMS?** Start with the
-[installation guide](Installation%20and%20upgrades_GB.md), then read the
-[administration guide](Administration%20and%20backups_GB.md). If something goes
-wrong, use the [troubleshooting guide](Troubleshooting_GB.md). The
-[documentation index](../../README.md) lists translated user and administrator
-guides by language. Translation coverage may vary; the English documents at
-the repository root remain the technical source of truth. Consult the English
-source if a translated procedure is incomplete or differs.
+[installation guide](../../../install.md), then read the
+[administration guide](../../../administration.md). If something goes wrong, use the
+[troubleshooting guide](../../../troubleshooting.md). Localized user and administrator
+guides are listed in [`docs/README.md`](../../README.md). English root guides
+remain the technical source of truth; if a translated procedure appears
+incomplete or differs, follow the English source.
 
 A test run or a successfully built Docker image is **not** a production
 installation. A production deployment also needs HTTPS, a protected application
@@ -38,7 +37,8 @@ choose one, LUMS tries to use the browser language; after sign-in, a language
 saved to your account takes precedence. Some technical or dynamic text may
 remain in its original language when a translation is not available. Markdown
 guides are separate from the web interface and are not translated
-automatically.
+automatically. Translated Markdown guides are maintained separately; use the
+documentation index to find the available coverage by language.
 
 ---
 
@@ -91,6 +91,8 @@ The basic architecture is:
       └─────────────────┘             └─────────────────┘
 ```
 
+---
+
 ## Why LUMS?
 
 Linux systems already provide excellent package-management tools.
@@ -100,29 +102,24 @@ LUMS does not attempt to replace them.
 Instead, LUMS provides a management layer around those tools so that administrators can centrally answer questions such as:
 
 * Which clients exist?
-
 * Which software is installed?
-
 * Which updates are available?
-
 * Which packages should be installed or removed?
-
 * Which update jobs are running?
-
 * What happened during an update?
-
 * Did the client successfully report the result?
-
 * Was a reboot required?
-
 * Can an interrupted job recover safely?
-
 * Who initiated an administrative action?
 
 The goal is not to hide the underlying Linux package manager.
 
-The goal is to make its operation manageable and auditable.
+The goal is to make its operation **manageable and auditable**.
+
+---
+
 ## Core Features
+
 ### Client Management
 
 LUMS maintains registered Linux clients and their authentication state.
@@ -134,14 +131,12 @@ Client tokens are not stored as plaintext credentials. The server stores a SHA-2
 Administrators can:
 
 * register clients
-
 * disable clients
-
 * rotate client tokens
-
 * inspect client status
-
 * monitor client reporting
+
+---
 
 ### Software Inventory
 
@@ -152,38 +147,43 @@ The server stores the inventory and exposes it through the management interface.
 The installed-software view is intentionally separate from package-management search.
 
 This allows administrators and read-only users to inspect installed software without automatically exposing package-management operations.
+
+---
+
 ### Update Inventory
 
 Clients periodically determine whether package updates are available.
 
-The server stores the reported update information and makes it available to authorised users.
+The server stores the reported update information and makes it available to authorized users.
 
 Update information can be used as the basis for controlled update jobs.
+
+---
+
 ### Package Management
 
 LUMS provides package-management operations through the client agent.
 
 Supported package operations include:
 
-* INSTALL_PACKAGE
-
-* REMOVE_PACKAGE
-
-* UPDATE_PACKAGE
-
-* UPDATE_SYSTEM
+* `INSTALL_PACKAGE`
+* `REMOVE_PACKAGE`
+* `UPDATE_PACKAGE`
+* `UPDATE_SYSTEM`
 
 The package-management layer abstracts the underlying package manager.
 
 Current supported package-manager families are:
 
-* Debian / Ubuntu: APT / dpkg
-
-* Arch Linux: pacman
+* **Debian / Ubuntu:** APT / dpkg
+* **Arch Linux:** pacman
 
 Package search is also available through LUMS.
 
 Search requests are sent to the target client, executed using the local package manager, and returned to the server for display.
+
+---
+
 ### Update Jobs
 
 Update operations are represented as persistent jobs.
@@ -204,6 +204,9 @@ RUNNING
 ```
 
 Package-level results are tracked independently so that interrupted jobs can be recovered without unnecessarily repeating operations that already completed successfully.
+
+---
+
 ### Controlled Execution
 
 LUMS does not execute arbitrary shell commands supplied by the web interface.
@@ -226,17 +229,22 @@ Agent
 Package Manager
 ```
 
+---
+
 ### Idle-Aware Execution
 
 LUMS can defer update execution while a client is considered active.
 
-The current idle threshold is 300 seconds.
+The current idle threshold is **300 seconds**.
 
-Where supported, the agent uses the local system's session/idle information through loginctl.
+Where supported, the agent uses the local system's session/idle information through `loginctl`.
 
 If idle detection is unavailable, LUMS does not pretend that the client is idle.
 
-This distinction is important because unknown idle state is not the same as confirmed idle state.
+This distinction is important because **unknown idle state is not the same as confirmed idle state**.
+
+---
+
 ### Job Recovery
 
 Update jobs are designed to survive interruptions.
@@ -249,7 +257,9 @@ This provides a checkpoint-like execution model for multi-package operations.
 
 The goal is:
 
-    Recover the job, not blindly restart the entire job.
+> **Recover the job, not blindly restart the entire job.**
+
+---
 
 ### Reboot Detection
 
@@ -258,6 +268,9 @@ Some package operations can require a system reboot.
 LUMS therefore treats reboot detection as part of update-result handling rather than assuming that a successful package-manager exit always means that the system is fully operational.
 
 The client reports the detected reboot requirement back to the server.
+
+---
+
 ### Client Authentication
 
 Client communication is authenticated using per-client tokens.
@@ -265,14 +278,38 @@ Client communication is authenticated using per-client tokens.
 Tokens are:
 
 * individually assigned
-
 * rotatable
-
 * stored server-side only as SHA-256 digests
-
 * validated before accepting client reports
 
 Token rotation allows an administrator to invalidate a previously issued client credential without recreating the client.
+
+---
+
+### Health dashboard
+
+The authenticated health dashboard at `/health` summarizes the database status,
+client reporting status, backup-storage visibility, and CPU/memory telemetry
+when telemetry is configured. It is a quick operational view, not a substitute
+for checking container, reverse-proxy, host, and backup logs or for performing
+a restore test. See [LUMS_Health_Dashboard.md](../../../LUMS_Health_Dashboard.md).
+
+---
+
+### Alerts
+
+LUMS includes an alert-management API and a basic dashboard for stored alert
+records. Administrators can create and manage rules, trigger an alert manually,
+and acknowledge, resolve, or manually escalate an active alert. Rule conditions
+and thresholds are stored as configuration; the current server does not
+evaluate them automatically against telemetry. Notification integrations
+(email, Slack, PagerDuty, and generic webhooks) are not available through the
+API, and bulk clearing is disabled to preserve alert history. See
+[`docs/LUMS_REALTIME_ALERTING_IMPLEMENTATION.md`](../../LUMS_REALTIME_ALERTING_IMPLEMENTATION.md)
+for the implemented boundaries.
+
+---
+
 ### Auditability
 
 Administrative and security-relevant actions are recorded through the LUMS audit-log system.
@@ -288,11 +325,14 @@ With which result?
 ```
 
 This includes security-sensitive operations such as authentication-related actions, client management, user management, and update-job creation.
+
+---
+
 ## Design Principle
 
 LUMS follows a simple principle:
 
-    Make Linux update management visible, controlled, recoverable, and auditable — without hiding the Linux tools underneath.
+> **Make Linux update management visible, controlled, recoverable, and auditable — without hiding the Linux tools underneath.**
 
 ## Architecture
 
@@ -349,32 +389,31 @@ Browser
           └────────────────────┘
 ```
 
+---
+
 ## Server Components
 
 The LUMS server provides the central management layer.
+
 ### Web Application
 
 The web application provides the administrative interface for:
 
 * client management
-
 * software inventory
-
 * update information
-
 * update jobs
-
 * package management
-
 * update history
-
 * user management
-
 * system maintenance
 
 The interface respects the current user's RBAC role.
 
 Frontend visibility is therefore adapted to the user's permissions, but authorisation is always enforced server-side as well.
+
+---
+
 ### API
 
 The API connects the web interface and Linux clients to the server-side application logic.
@@ -382,22 +421,18 @@ The API connects the web interface and Linux clients to the server-side applicat
 It handles operations such as:
 
 * client registration and management
-
 * client reports
-
 * package searches
-
 * package-search results
-
 * update jobs
-
 * job results
-
 * user management
-
 * audit events
 
 API endpoints validate their input before performing state-changing operations.
+
+---
+
 ### Authentication and Sessions
 
 Administrative users authenticate through the LUMS web application.
@@ -407,30 +442,31 @@ Sessions are server-controlled and support explicit session revocation.
 Authentication security includes:
 
 * password hashing using Argon2
-
 * session management
-
 * session revocation
-
 * login rate limiting
-
 * CSRF protection
-
-    role-based authorisation
+* role-based authorisation
 
 Client authentication is separate from administrative authentication.
+
+---
+
 ### RBAC
 
 LUMS combines role templates with per-user permissions. The Administrator,
 Operator, and Viewer templates provide starting permission sets that can be
-customised for each account.
+customized for each account.
 
-Authorisation is enforced on the server using the account's stored permissions.
+authorisation is enforced on the server using the account's stored permissions.
 
 The frontend additionally hides functionality that the user's permissions do
 not allow.
 
 This means that hiding a button is never treated as a security boundary.
+
+---
+
 ### SQLite Persistence
 
 LUMS uses SQLite for persistent application state.
@@ -438,23 +474,14 @@ LUMS uses SQLite for persistent application state.
 The database stores information such as:
 
 * users
-
 * sessions
-
 * clients
-
 * client authentication state
-
 * software inventory
-
 * available updates
-
 * update jobs
-
 * package-level job results
-
 * package-search requests and results
-
 * audit information
 
 The application explicitly enables SQLite foreign-key enforcement for database connections.
@@ -469,6 +496,9 @@ foreign_keys = ON
 ```
 
 LUMS uses SQLite WAL mode in the current production configuration.
+
+---
+
 ## Container Architecture
 
 The LUMS server is deployed as a hardened Docker container.
@@ -505,6 +535,9 @@ The application is exposed internally through:
 ```
 
 External HTTPS access is provided through the reverse proxy.
+
+---
+
 ## Persistent and Disposable Components
 
 LUMS separates persistent state from replaceable runtime components.
@@ -526,9 +559,13 @@ Disposable
 Replacing the application container therefore does not inherently remove the LUMS database.
 
 This separation is important for upgrades and recovery.
+
+---
+
 ## Client Architecture
 
 The Linux client consists of several cooperating components.
+
 ### LUMS Agent
 
 The agent is responsible for interaction with the LUMS server and the local Linux system.
@@ -542,22 +579,16 @@ Current agent version:
 The agent handles:
 
 * authentication
-
 * inventory collection
-
 * update detection
-
 * package search
-
 * package operations
-
 * update-job execution
-
 * result reporting
-
 * reboot detection
-
 * idle-state handling
+
+---
 
 ### Package Manager Layer
 
@@ -579,6 +610,9 @@ Package Manager Abstraction
 ```
 
 This keeps distribution-specific package handling inside the client.
+
+---
+
 ### Execution Watcher
 
 The watcher monitors update-job execution on the client.
@@ -592,6 +626,9 @@ Current watcher version:
 The watcher works together with the agent and the server-side job state.
 
 Its purpose is to ensure that jobs which are expected to execute do not remain indefinitely unprocessed.
+
+---
+
 ## Reporting Path
 
 Normal client reporting follows this direction:
@@ -613,6 +650,9 @@ Web UI
 For example, an update check performed by the client produces information that is reported to the server and stored as the client's current update state.
 
 The browser does not directly query the client's package manager.
+
+---
+
 ## Package Search Path
 
 Package search follows a different request/response flow:
@@ -643,6 +683,9 @@ Browser
 The server therefore does not need to maintain a complete remote package repository index for every client.
 
 The search is performed using the client's own package-management environment.
+
+---
+
 ## Update Execution Path
 
 An update job follows the general architecture:
@@ -683,7 +726,9 @@ Browser
 
 This creates the central LUMS execution chain:
 
-    Browser → API → SQLite → Agent → Package Manager → Result → SQLite → UI
+> **Browser → API → SQLite → Agent → Package Manager → Result → SQLite → UI**
+
+---
 
 ## Atomic Job Claiming
 
@@ -694,6 +739,9 @@ Before execution, the agent must obtain a job that is eligible for execution.
 Job claiming is performed atomically so that the same pending job is not unintentionally claimed by multiple execution paths.
 
 This is particularly important when timers, retries, recovery, or multiple client-side processes are involved.
+
+---
+
 ## Job Execution
 
 The server creates structured jobs.
@@ -712,6 +760,9 @@ UPDATE_SYSTEM
 Package names are validated before a package job is created.
 
 The agent does not treat package names as arbitrary shell fragments.
+
+---
+
 ## Package Management Abstraction
 
 Package operations are deliberately implemented behind a package-manager abstraction.
@@ -729,6 +780,9 @@ INSTALL_PACKAGE
 ```
 
 The same principle applies to removal and package updates.
+
+---
+
 ## Debian / Ubuntu
 
 On Debian-family systems, LUMS uses the native APT/dpkg tooling.
@@ -736,22 +790,19 @@ On Debian-family systems, LUMS uses the native APT/dpkg tooling.
 Typical responsibilities include:
 
 * package search
-
 * package metadata lookup
-
 * package installation
-
 * package removal
-
 * package updates
-
 * system updates
-
 * update detection
 
 The LUMS agent does not replace APT.
 
 It provides controlled orchestration around it.
+
+---
+
 ## Arch Linux
 
 On Arch Linux systems, LUMS uses the native pacman package manager.
@@ -759,20 +810,17 @@ On Arch Linux systems, LUMS uses the native pacman package manager.
 Typical responsibilities include:
 
 * package search
-
 * package metadata lookup
-
 * package installation
-
 * package removal
-
 * package updates
-
 * system updates
-
 * update detection
 
 Distribution-specific behaviour remains inside the package-manager layer.
+
+---
+
 ## Package Search
 
 Package search is separate from the installed-software inventory.
@@ -792,14 +840,14 @@ Package Management Search
 Search results may contain package information such as:
 
 * package name
-
 * version
-
 * description
-
 * repository information where available
 
 Search results are returned to the LUMS server and displayed in the Package Management interface.
+
+---
+
 ## Package Management Permissions
 
 Package management is a privileged operation.
@@ -815,6 +863,9 @@ Viewer        → not allowed
 A Viewer can still inspect installed software.
 
 The Package Management interface itself is hidden for Viewers, and corresponding server-side mutation endpoints enforce authorisation independently.
+
+---
+
 ## Update Result Handling
 
 LUMS treats the result of an update operation as structured state rather than simply displaying raw command output.
@@ -822,18 +873,16 @@ LUMS treats the result of an update operation as structured state rather than si
 Relevant information can include:
 
 * success or failure
-
 * package-level result
-
 * execution state
-
 * error information
-
 * reboot requirement
-
 * completion timestamps
 
 This allows the server to maintain a meaningful update history.
+
+---
+
 ## Reboot Detection
 
 After package operations, the client checks whether the operation indicates that a reboot is required.
@@ -841,6 +890,9 @@ After package operations, the client checks whether the operation indicates that
 The result is reported to the server as part of the job result.
 
 A reboot requirement therefore remains associated with the update operation instead of being lost in a client-side terminal session.
+
+---
+
 ## Client Authentication Boundary
 
 The client API uses a separate authentication mechanism from administrative web sessions.
@@ -864,6 +916,9 @@ Linux Client
 ```
 
 This separation prevents administrative browser sessions and client credentials from becoming interchangeable authentication mechanisms.
+
+---
+
 ## Audit Trail
 
 Security-relevant and administrative actions are recorded by the server-side audit system.
@@ -875,6 +930,9 @@ Logging answers questions about application behaviour.
 Audit logging additionally records important administrative actions and their context.
 
 This distinction is useful when investigating changes to clients, users, authentication state, or update jobs.
+
+---
+
 ## Operational Principle
 
 LUMS deliberately separates:
@@ -883,7 +941,7 @@ LUMS deliberately separates:
 Management
      │
      ▼
-Policy / Authorisation
+Policy / Authorization
      │
      ▼
 Job
@@ -904,6 +962,7 @@ The agent executes.
 The package manager performs the actual system change.
 
 The result travels back through the same controlled chain.
+
 ## Role-Based Access Control
 
 LUMS uses three administrative roles:
@@ -914,34 +973,25 @@ Operator
 Viewer
 ```
 
-Authorisation is enforced server-side.
+authorisation is enforced server-side.
 
 The frontend additionally adapts the visible interface to the user's
 permissions, but frontend visibility is never considered a security boundary.
+
 ### Administrator
 
 Administrators have access to:
 
 * view clients
-
 * view installed software
-
 * view available updates
-
 * create and execute update jobs
-
 * view update history
-
 * use package management
-
 * perform system maintenance
-
 * create and disable clients
-
 * rotate client tokens
-
 * create and manage users
-
 * manage roles and user access
 
 ### Operator
@@ -949,27 +999,18 @@ Administrators have access to:
 Operators have access to:
 
 * view clients
-
 * view installed software
-
 * view available updates
-
 * create and execute update jobs
-
 * view update history
-
 * use package management
-
 * perform system maintenance
 
 Operators do not have access to:
 
 * user management
-
 * role administration
-
 * client creation or disabling
-
 * client-token rotation
 
 ### Viewer
@@ -977,27 +1018,24 @@ Operators do not have access to:
 Viewers have read-only access to:
 
 * clients
-
 * installed software
 
 The following functionality is unavailable to Viewers:
 
 * available-update management
-
 * update jobs
-
 * update history
-
 * package management
-
 * system maintenance
-
 * other state-changing administrative operations
 
 The server independently enforces these restrictions.
+
+---
+
 ## User Management
 
-LUMS provides user management to accounts with the users.manage permission.
+LUMS provides user management to accounts with the `users.manage` permission.
 
 Users with this permission can create accounts using a role template and
 then assign permissions individually or explicitly apply that template. New
@@ -1005,9 +1043,9 @@ accounts start without permissions; the permission editor opens after creation.
 User managers can also save private administrative notes that are not visible
 to the account owner.
 
-Administrators with backups.manage can create validated .db or .db.gz
+Administrators with `backups.manage` can create validated `.db` or `.db.gz`
 database backups in a server-configured directory and choose a safe subfolder
-within that mounted location. See administration.md and
+within that mounted location. See [`administration.md`](../../../administration.md) and
 the in-app Markdown restore guide for Docker storage setup and recovery.
 
 User passwords are stored using Argon2 password hashing rather than plaintext or reversible encryption.
@@ -1015,18 +1053,16 @@ User passwords are stored using Argon2 password hashing rather than plaintext or
 User-management operations are protected by:
 
 * authentication
-
-    permission-based authorisation
-
+* permission-based authorisation
 * CSRF protection
-
 * input validation
-
 * duplicate-user checks
-
 * audit logging
 
-The user-management interface is not exposed without users.manage.
+The user-management interface is not exposed without `users.manage`.
+
+---
+
 ## Session Security
 
 Administrative authentication uses server-side session handling.
@@ -1034,18 +1070,16 @@ Administrative authentication uses server-side session handling.
 Session security includes:
 
 * authenticated session state
-
 * session revocation
-
 * CSRF protection for state-changing requests
-
 * login rate limiting
-
 * disabled-account enforcement
-
 * role checks
 
 Revoking a session invalidates the corresponding authenticated state rather than merely hiding the user interface.
+
+---
+
 ## Login Rate Limiting
 
 Repeated failed login attempts are subject to progressive rate limiting.
@@ -1064,6 +1098,9 @@ The relevant state is persisted in SQLite.
 Successful authentication clears the applicable failure state.
 
 This prevents a simple application restart from being used to bypass the login protection.
+
+---
+
 ## Client Token Security
 
 Each registered client has its own authentication token.
@@ -1089,6 +1126,8 @@ Rotate
 Old token invalid
 ```
 
+---
+
 ## API Security
 
 LUMS validates API input before performing state-changing operations.
@@ -1096,22 +1135,18 @@ LUMS validates API input before performing state-changing operations.
 Security controls include:
 
 * authentication
-
-    per-user permission authorisation
-
+* per-user permission authorisation
 * CSRF protection where applicable
-
 * input validation
-
 * package-name validation
-
 * structured job actions
-
 * parameterized database queries
-
 * controlled error handling
 
 The application does not use user-provided package names as unrestricted shell commands.
+
+---
+
 ## SQL Injection Protection
 
 Database operations use parameterized SQL statements.
@@ -1121,20 +1156,17 @@ User-controlled values are not directly concatenated into SQL queries.
 This applies to areas such as:
 
 * authentication
-
 * client management
-
 * user management
-
 * package searches
-
 * update jobs
-
 * audit data
-
 * result reporting
 
 The goal is to keep data values separate from SQL instructions.
+
+---
+
 ## SQLite Security Baseline
 
 The current production SQLite configuration is:
@@ -1151,6 +1183,9 @@ Foreign-key enforcement is explicitly enabled by the application for database co
 The current configuration uses WAL mode.
 
 The database is stored in the persistent Docker volume rather than inside the disposable application container filesystem.
+
+---
+
 ## Job Recovery and Checkpointing
 
 LUMS treats update jobs as persistent state machines.
@@ -1172,6 +1207,9 @@ not completed
 ```
 
 This reduces the risk of blindly repeating completed package operations after an interruption.
+
+---
+
 ## Controlled Update Execution
 
 LUMS deliberately limits the actions that can be requested through the update-job API.
@@ -1190,23 +1228,33 @@ The server validates the action and relevant package information before creating
 The agent then maps the structured action to the appropriate package-manager operation.
 
 This avoids turning the update system into a generic remote-command execution mechanism.
+
+---
+
 ## Package Operations
 
 Package operations are executed through the native package manager of the client.
+
 ### Installation
 
 A validated package name is passed to the package-manager abstraction for installation.
+
 ### Removal
 
 A validated package name is passed to the package-manager abstraction for removal.
+
 ### Package Update
 
 A specific package can be updated when the client reports it as an available update.
-### System Update
+
+### Client System Update
 
 The system update operation delegates the update process to the native package manager.
 
 All operations return structured results to the LUMS server.
+
+---
+
 ## Package Manager Safety
 
 LUMS treats the package manager as a privileged local component.
@@ -1216,16 +1264,15 @@ The agent therefore does not attempt to emulate package-manager behaviour itself
 Instead, it:
 
 1. validates the requested operation
-
 2. selects the appropriate package-manager implementation
-
 3. executes the controlled operation
-
 4. captures the result
-
 5. reports the result to the server
 
 Distribution-specific behaviour remains isolated inside the package-manager layer.
+
+---
+
 ## Reboot Handling
 
 Some package operations may require a reboot.
@@ -1246,6 +1293,9 @@ Reboot required
 ```
 
 The reboot requirement is therefore part of the operational state rather than being treated as an unrelated notification.
+
+---
+
 ## Audit Logging
 
 LUMS maintains an application audit trail for important administrative and security-relevant actions.
@@ -1253,15 +1303,10 @@ LUMS maintains an application audit trail for important administrative and secur
 Examples include:
 
 * authentication-related events
-
 * client management
-
 * token operations
-
 * user management
-
 * update-job creation
-
 * security-sensitive state changes
 
 Audit logging is separate from ordinary diagnostic logging.
@@ -1269,25 +1314,23 @@ Audit logging is separate from ordinary diagnostic logging.
 Diagnostic logs help troubleshoot the application.
 
 Audit records provide an administrative history of relevant actions.
+
+---
+
 ## Security Hardening
 
 The current deployment includes multiple layers of hardening.
+
 ### Container Hardening
 
 The production container uses:
 
 * non-root application execution
-
 * read-only root filesystem
-
 * dropped Linux capabilities
-
-* no-new-privileges
-
+* `no-new-privileges`
 * restricted temporary filesystems
-
 * read-only secret mount
-
 * dedicated persistent data volume
 
 ### Network Hardening
@@ -1303,6 +1346,7 @@ The application port is therefore not directly exposed as a LAN service.
 External access is handled through the HTTPS reverse proxy.
 
 The firewall does not expose the internal application port.
+
 ### Transport Security
 
 Administrative access is provided through HTTPS.
@@ -1310,6 +1354,7 @@ Administrative access is provided through HTTPS.
 The reverse proxy handles external TLS termination.
 
 HTTP requests are redirected to HTTPS.
+
 ### Secrets and Configuration
 
 Sensitive runtime credentials are kept outside the application source tree.
@@ -1317,72 +1362,54 @@ Sensitive runtime credentials are kept outside the application source tree.
 The production secret is mounted into the container as a read-only secret file.
 
 Repository and Docker build context rules prevent common backup, secret, database, and certificate artifacts from unintentionally entering the image build context.
+
 ### Dependency and Build Security
 
 The production Python dependencies are pinned.
 
 The production Python base image is pinned by digest.
 
-The Docker build context is restricted through .dockerignore.
+The Docker build context is restricted through `.dockerignore`.
 
 These controls improve build reproducibility and reduce accidental inclusion of sensitive files.
+
+---
+
 ## Security Audit Status
 
 The LUMS security review has covered the following areas:
 
 * SQLite foreign-key enforcement
-
 * SQLite runtime configuration
-
 * update timeout and process handling
-
 * login rate limiting
-
 * API input validation
-
 * session revocation
-
 * client-token rotation
-
 * offline/IP handling
-
 * job recovery and checkpointing
-
 * APT robustness
-
 * Arch reboot detection
-
 * unit and API result validation
-
 * simulation testing
-
 * continuous integration
-
 * application and audit logging
-
 * versioning and release handling
-
 * RBAC
-
 * session and CSRF security
-
 * credential security
-
 * dependency and build security
-
 * Docker/container hardening
-
 * secrets and build-context protection
-
 * HTTP/transport security
-
 * filesystem/runtime permissions
-
 * network exposure
+* repository artefact hygiene
 
-* repository artifact hygiene
+Keeping documentation aligned with the implementation is ongoing maintenance, not a separate release gate.
 
-Documentation is reviewed alongside implementation changes and maintained as part of the operational guidance.
+---
+
 ## Testing and CI
 
 LUMS includes automated tests covering core application behaviour and security controls.
@@ -1398,22 +1425,14 @@ suite finishes successfully with no failures. The test suite includes coverage
 for areas such as:
 
 * authentication
-
 * RBAC
-
 * client management
-
 * user management
-
 * package search
-
 * update jobs
-
 * job-result validation
-
-    security behaviour
-
-    API behaviour
+* security behaviour
+* API behaviour
 
 Continuous integration executes the automated test suite before changes are considered ready.
 
@@ -1439,6 +1458,8 @@ Git Tag
 GitHub Release
 ```
 
+---
+
 ## Development Status
 
 LUMS is currently in active development.
@@ -1450,9 +1471,11 @@ The project is intentionally not considered a finished release merely because th
 Release readiness also requires the surrounding documentation and operational procedures to describe the same current system.
 
 This is why documentation consistency is treated as part of the engineering process rather than as an afterthought.
+
 ## Supported Systems
 
 LUMS is designed to manage Linux systems using supported native package managers.
+
 ### Debian / Ubuntu
 
 Supported package-management stack:
@@ -1465,17 +1488,11 @@ dpkg
 The client uses the native Debian package-management tooling for:
 
 * package inventory
-
 * update detection
-
 * package search
-
 * package installation
-
 * package removal
-
 * package updates
-
 * system updates
 
 ### Arch Linux
@@ -1489,90 +1506,69 @@ pacman
 The client uses the native Arch package-management tooling for:
 
 * package inventory
-
 * update detection
-
 * package search
-
 * package installation
-
 * package removal
-
 * package updates
-
 * system updates
+
+---
 
 ## Client Requirements
 
 A managed Linux client requires:
 
 * a supported Linux distribution
-
 * the LUMS agent
-
 * network connectivity to the LUMS server
-
 * a registered client token
-
 * a working native package manager
-
 * systemd for the timer/service-based execution components
 
 The client does not require the LUMS server to directly access its package database.
 
 The client performs local package operations and reports the results to the server.
+
+---
+
 ## Technology Stack
+
 ### Server
 
 * Python
-
 * Flask
-
 * Gunicorn
-
 * SQLite
-
 * HTML
-
 * CSS
-
 * JavaScript
-
 * Nginx
-
 * Docker
 
 ### Authentication and Security
 
 * Argon2 password hashing
-
 * server-side sessions
-
 * CSRF protection
-
 * role templates with per-user permissions
-
 * SHA-256 client-token digests
-
 * HTTPS
-
 * audit logging
 
 ### Client
 
 * Python
-
 * systemd
-
 * APT / dpkg
-
 * pacman
+* `loginctl` where idle-state information is available
 
-* loginctl where idle-state information is available
+---
 
 ## Project Structure
 
-The repository is organised into separate server, client, frontend, and test components.
+The repository is organized into separate server, client, frontend, and test components.
 
 A simplified structure is:
 
@@ -1605,6 +1601,9 @@ LUMS/
 The exact repository layout may evolve as LUMS develops.
 
 The architectural separation between server, agent, package-manager abstraction, frontend, and tests is intentional.
+
+---
+
 ## Server Application
 
 The Flask application provides the central LUMS API and web interface.
@@ -1612,32 +1611,24 @@ The Flask application provides the central LUMS API and web interface.
 Its responsibilities include:
 
 * authentication
-
-    authorisation
-
+* authorisation
 * session handling
-
 * client management
-
 * user management
-
 * software inventory
-
 * update inventory
-
 * package search
-
 * update jobs
-
 * job-result handling
-
 * audit logging
-
 * database persistence
 
 The application is served by Gunicorn inside the container.
 
 Nginx provides the external HTTPS entry point.
+
+---
+
 ## Agent
 
 The LUMS agent is installed directly on managed Linux clients.
@@ -1653,24 +1644,19 @@ The agent is responsible for the client-side part of the LUMS execution chain.
 Its responsibilities include:
 
 * reporting client state
-
 * collecting installed software
-
 * detecting available updates
-
 * searching packages
-
 * executing package operations
-
 * reporting job results
-
 * detecting reboot requirements
-
 * handling idle-state information
-
 * participating in job recovery
 
 The agent does not provide an unrestricted remote shell.
+
+---
+
 ## Package Manager Layer
 
 The package-manager implementation isolates distribution-specific behaviour from the rest of the agent.
@@ -1691,6 +1677,9 @@ Package Manager Interface
 ```
 
 This allows the higher-level update-job system to work with structured operations without needing to know every distribution-specific command.
+
+---
+
 ## Watcher
 
 The LUMS execution watcher monitors jobs that are expected to execute on the client.
@@ -1704,6 +1693,9 @@ Current watcher version:
 The watcher operates together with the agent and server-side job state.
 
 This architecture allows LUMS to detect execution situations where a job remains pending or otherwise requires attention.
+
+---
+
 ## systemd Integration
 
 The client uses systemd for scheduled and controlled execution.
@@ -1711,14 +1703,15 @@ The client uses systemd for scheduled and controlled execution.
 Relevant components include service and timer units for:
 
 * client reporting
-
 * update detection
-
 * job execution/watching
 
 This provides predictable execution without requiring a continuously running foreground process for every periodic operation.
 
 The client agent can also be executed manually during installation and troubleshooting.
+
+---
+
 ## Idle-Aware Execution
 
 Idle-aware execution is designed to reduce interference with active users.
@@ -1731,7 +1724,7 @@ The current idle threshold is:
 
 The client determines idle state using the available local session information.
 
-Where supported, loginctl is used.
+Where supported, `loginctl` is used.
 
 The agent distinguishes between:
 
@@ -1744,6 +1737,9 @@ idle state unavailable
 An unavailable idle state is not silently interpreted as idle.
 
 This makes the execution decision explicit and diagnosable.
+
+---
+
 ## Update Job Lifecycle
 
 The complete lifecycle of an update job can be represented as:
@@ -1776,6 +1772,9 @@ Execute
 A job is persisted before execution.
 
 This means the server retains knowledge of the intended operation even if the client or application is interrupted.
+
+---
+
 ## Job Types
 
 LUMS currently supports structured update actions including:
@@ -1790,6 +1789,9 @@ UPDATE_SYSTEM
 These actions are intentionally limited.
 
 LUMS is an update-management system, not a general-purpose remote-command framework.
+
+---
+
 ## Package-Level Job State
 
 Jobs containing multiple packages can track package-level progress.
@@ -1806,6 +1808,9 @@ package-d → PENDING
 ```
 
 Recovery can therefore operate on the incomplete portions of the job rather than blindly repeating successful package operations.
+
+---
+
 ## Job Recovery
 
 Recovery is designed around persistent checkpoints.
@@ -1818,7 +1823,9 @@ If execution is interrupted, the server can determine which work has already com
 
 The intended recovery principle is:
 
-    Continue from known state instead of assuming that nothing happened.
+> **Continue from known state instead of assuming that nothing happened.**
+
+---
 
 ## Result Validation
 
@@ -1829,21 +1836,20 @@ This protects the job state from malformed or incomplete result submissions.
 Validation is applied to relevant fields such as:
 
 * job identity
-
 * execution state
-
 * package result data
-
 * error information
-
 * reboot information
 
 The result-processing layer therefore acts as another boundary between an authenticated client and persistent server state.
+
+---
+
 ## User Management
 
-User management requires the users.manage permission.
+User management requires the `users.manage` permission.
 
-Authorised users can create users from a role template and customise the
+Authorized users can create users from a role template and customize the
 individual permissions assigned to each account.
 
 The current roles are:
@@ -1856,6 +1862,9 @@ Viewer
 
 User-management actions are authenticated, permission-checked, validated,
 protected against CSRF where applicable, and recorded in the audit trail.
+
+---
+
 ## Client Management
 
 Administrators can manage registered clients.
@@ -1863,36 +1872,37 @@ Administrators can manage registered clients.
 Client-management functions include:
 
 * registration
-
 * disabling
-
 * token rotation
-
 * client status inspection
 
 Client authentication is independent for every registered client.
 
 Disabling a client prevents it from continuing normal authenticated communication with the server.
+
+---
+
 ## Update History
 
 LUMS maintains persistent update-job state so that completed and failed operations remain visible after execution.
 
-Authorised users can inspect the history of update operations according to their role.
+Authorized users can inspect the history of update operations according to their role.
 
 The history is intended to provide operational context rather than merely showing the latest package inventory.
+
+---
+
 ## Auditability
 
 LUMS maintains two related but distinct forms of operational information:
+
 ### Application Logs
 
 Used primarily for:
 
 * diagnostics
-
 * errors
-
-    runtime behaviour
-
+* runtime behaviour
 * troubleshooting
 
 ### Audit Logs
@@ -1900,50 +1910,48 @@ Used primarily for:
 Used primarily for:
 
 * administrative actions
-
 * security-relevant events
-
 * changes to important state
-
 * accountability
 
 Keeping these concepts separate makes troubleshooting and administrative review easier.
+
+---
+
 ## Testing Strategy
 
 The LUMS test suite covers multiple layers of the application.
+
 ### Authentication
 
 Tests cover authentication behaviour, session handling, and security controls.
+
 ### RBAC
 
 Tests verify that:
 
 * Administrators can perform administrative actions
-
 * Operators receive their permitted management functions
-
 * Viewers remain read-only
 
 ### Package Management
 
 Tests cover package-search behaviour and package-management-related API handling.
+
 ### Update Jobs
 
 Tests cover:
 
 * job creation
-
 * validation
-
 * state transitions
-
 * result handling
-
-    recovery behaviour
+* recovery behaviour
 
 ### Security
 
 Tests cover security-sensitive application behaviour and regression cases.
+
 ### Full Suite
 
 Run the complete test suite from the repository root:
@@ -1954,6 +1962,9 @@ Run the complete test suite from the repository root:
 
 The test count changes as the project evolves; rely on the command's result,
 not a fixed number printed in this document.
+
+---
+
 ## Continuous Integration
 
 The project uses continuous integration to run automated checks against changes.
@@ -1977,29 +1988,64 @@ Release Preparation
 ```
 
 A successful CI run does not replace manual security or documentation review.
+
+---
+
 ## Documentation
 
 LUMS maintains separate documentation for different operational concerns.
-### README.md
+
+### `README.md`
 
 Project overview, architecture, features, security baseline, development status, and project direction.
-### install.md
+
+### `install.md`
 
 Installation, deployment, client setup, validation, upgrade, and removal procedures.
-### administration.md
+
+### `administration.md`
 
 Routine administration, maintenance, backups, upgrades, operational procedures, and emergency administration.
-### security.md
+
+### `security.md`
 
 Security architecture, security controls, audit findings, hardening, and release-readiness security information.
-### troubleshooting.md
+
+### `telemetry.md`
+
+Optional CPU, memory, disk, network, host and operational telemetry, agent
+configuration, data retention, security, and troubleshooting.
+
+### `LUMS_Health_Dashboard.md`
+
+What the authenticated health dashboard reports, how client status is classified, telemetry limits, backup-storage interpretation, and operational checks.
+
+### `LUMS_Infrastructure_Topology.md`
+
+How LUMS imports registered clients, manages infrastructure and dependencies, protects topology edits, and identifies potential shared failure points.
+
+### `server/static/backup-restore.md`
+
+Careful Docker-based recovery of a verified SQLite backup, including integrity
+checks and a fallback copy of the active database.
+
+### `docs/update-tools-package.md`
+
+What the downloadable updater-tools artefact contains, how CI publishes it,
+and the checks required before production use.
+
+### `troubleshooting.md`
 
 Diagnostic procedures for server, client, jobs, package management, authentication, database, container, and network problems.
-### LUMS_Optional_Theme_System.md
+
+### `LUMS_Optional_Theme_System.md`
 
 Architecture and maintenance guidance for optional LUMS frontend themes.
 
-The documentation is intentionally separated by responsibility so that operational instructions do not become mixed with security design or visual customisation.
+The documentation is intentionally separated by responsibility so that operational instructions do not become mixed with security design or visual customization.
+
+---
+
 ## Documentation Principle
 
 Documentation is treated as part of the system.
@@ -2020,13 +2066,14 @@ Implementation
 ```
 
 This is particularly important for security-sensitive deployment and administration procedures.
+
 ## Current Status
 
 LUMS is an actively developed Linux update-management platform.
 
 The current implementation includes:
 
-* centralised client management
+* centralized client management
 * software inventory
 * update detection
 * package search
@@ -2058,9 +2105,14 @@ readiness claim. Optional components may need separate installation and
 configuration, and individual features have documented limits. Check the
 source revision and its tests for the behaviour of a specific release.
 
-## Security Status
+---
 
-The major security-review areas have been implemented and reviewed.
+## Security Baseline
+
+The security model is implemented in the application and documented in
+[`security.md`](../../../security.md). Its controls and verification status are
+revision-specific; consult the tests and deployment checks for the exact
+source revision being used. This document is not a security certification.
 
 The current security baseline includes:
 
@@ -2071,7 +2123,7 @@ Authentication
     ├── session revocation
     └── login rate limiting
 
-Authorisation
+Authorization
     ├── Administrator
     ├── Operator
     └── Viewer
@@ -2103,6 +2155,9 @@ Network Security
 ```
 
 Security is treated as an ongoing engineering responsibility rather than a one-time checklist.
+
+---
+
 ## Release Process
 
 ```text id="f3c4y9"
@@ -2127,7 +2182,7 @@ Release and tag availability can change independently of this documentation;
 check the repository's [Releases](https://github.com/NovaForgeCtrl/LUMS/releases)
 and [tags](https://github.com/NovaForgeCtrl/LUMS/tags) for the current state.
 A release should only be published after the implementation, security review,
-documentation and regression tests for that revision are complete.
+documentation, and regression tests for that revision are complete.
 
 ---
 
@@ -2153,20 +2208,17 @@ Future features should preserve the existing architectural boundaries.
 LUMS is intentionally not designed as:
 
 * a general-purpose remote shell
-
 * a replacement for APT, dpkg, or pacman
-
 * a full configuration-management platform
-
 * an endpoint-management suite for every operating system
-
 * a cloud-only service
-
 * an uncontrolled command-execution framework
 
 LUMS focuses on a narrower problem:
 
-    Controlled Linux software and update management with persistent state and auditability.
+> **Controlled Linux software and update management with persistent state and auditability.**
+
+---
 
 ## Development Philosophy
 
@@ -2187,16 +2239,13 @@ A feature is not considered complete simply because it works in the developer en
 It should also be:
 
 * tested
-
 * security-reviewed
-
 * documented
-
 * reproducible
-
 * understandable
-
 * recoverable where appropriate
+
+---
 
 ## Change Philosophy
 
@@ -2205,20 +2254,17 @@ Changes should be made deliberately.
 A typical change should answer:
 
 1. What problem does this solve?
-
 2. Which component should own the change?
-
 3. Does the change affect security?
-
 4. Does it affect persistent state?
-
 5. Does it affect clients?
-
 6. Does it require documentation changes?
-
 7. Which tests prove that existing functionality still works?
 
 This reduces the risk of fixing one part of the system while silently breaking another.
+
+---
+
 ## Development Workflow
 
 The preferred development workflow is:
@@ -2240,13 +2286,19 @@ Regression Test
 ```
 
 Security-sensitive changes receive additional verification before being considered complete.
+
+---
+
 ## Repository
 
 The project repository is hosted on GitHub:
 
-NovaForgeCtrl/LUMS
+**NovaForgeCtrl/LUMS**
 
 The repository contains the application source code, client components, tests, container configuration, and project documentation.
+
+---
+
 ## Documentation Set
 
 The current documentation set consists of:
@@ -2286,24 +2338,18 @@ guides document those operational features. The optional theme reference and
 document records the current implementation and its unavailable features.
 [`docs/README.md`](../../README.md) indexes the documentation by language.
 
-### Additional English (UK) user and administrator guides
+---
 
-* [Telemetry](Telemetry_GB.md)
-* [Health dashboard](LUMS%20Health%20Dashboard_GB.md)
-* [Infrastructure topology](LUMS%20Infrastructure%20Topology_GB.md)
-* [Database backup and restore](Backup%20and%20restore_GB.md)
-* [Update-tools package](Update%20tools%20package_GB.md)
+## licence
 
-For the complete list of translated documents, see the
-[documentation index](../../README.md). The English root-level guides remain
-the technical source of truth.
-## License
-
-LUMS is released under the MIT License.
+LUMS is released under the MIT licence.
 
 The licence is intended to keep the project open and accessible while allowing use, modification, and redistribution under the terms of the licence.
 
 See the repository licence file for the complete legal text.
+
+---
+
 ## Community and Contributions
 
 LUMS is an open-source project and contributions are welcome.
@@ -2311,22 +2357,18 @@ LUMS is an open-source project and contributions are welcome.
 Useful contributions can include:
 
 * bug reports
-
 * security reports
-
 * documentation improvements
-
 * tests
-
 * package-manager support
-
 * frontend improvements
-
 * backend improvements
-
 * deployment improvements
 
 Contributions should preserve the project's architectural and security principles.
+
+---
+
 ## Security Reports
 
 Security issues should not be treated like ordinary feature requests.
@@ -2334,11 +2376,14 @@ Security issues should not be treated like ordinary feature requests.
 When reporting a security problem, provide enough information to reproduce and understand the issue without unnecessarily exposing sensitive information.
 
 Security-related changes should be reviewed carefully before being merged.
+
+---
+
 ## Project Identity
 
 LUMS is built around a simple idea:
 
-    Linux update management without the noise.
+> **Linux update management without the noise.**
 
 The project does not attempt to hide complexity by pretending that Linux package management is simple.
 
@@ -2359,6 +2404,9 @@ What state remains?
 ```
 
 That information is the foundation of controlled update management.
+
+---
+
 ## Final Architecture
 
 At its highest level, LUMS can be understood as five layers:
@@ -2371,7 +2419,7 @@ At its highest level, LUMS can be understood as five layers:
                         │
 ┌───────────────────────▼───────────────────────┐
 │                    API                        │
-│    Authentication, authorisation, validation  │
+│    Authentication, authorization, validation  │
 └───────────────────────┬───────────────────────┘
                         │
 ┌───────────────────────▼───────────────────────┐
@@ -2401,12 +2449,15 @@ SQLite provides persistent state.
 The agent performs controlled client-side execution.
 
 The native package manager performs the actual system change.
+
+---
+
 ## Final Principle
 
 LUMS is built around one central principle:
 
-    Observe the system. Control the change. Record the result.
+> **Observe the system. Control the change. Record the result.**
 
 That principle applies to the software architecture, update execution, security model, recovery mechanisms, and documentation.
 
-Linux Update Management without the noise.
+**Linux Update Management without the noise.**

@@ -228,7 +228,7 @@ Dokumentationens överensstämmelse med implementationen är ett löpande underh
 
 # Säkerhetsgranskning #01
 
-## SQLite Foreign Keys
+## SQLite-främmande nycklar
 
 SQLite-främmandenyckeltvingande är aktiverat för applikationens databasanslutningar.
 
@@ -251,13 +251,13 @@ Klienttillstånd hanteras konservativt.
 
 Där det är lämpligt inaktiveras klienter snarare än tas bort på ett sätt som skulle förstöra historisk operativ information.
 
-**Status: PASS**
+**Status: Godkänd**
 
 ---
 
 # Säkerhetsgranskning #02
 
-## SQLite Runtime-konfiguration
+## SQLite-körningskonfiguration
 
 Produktions-SQLite-databasen granskades för sin runtime-konfiguration.
 
@@ -281,7 +281,7 @@ Inställningen för främmandenycklar på applikationsnivå säkerställer refer
 
 Granskningen inkluderade produktionsverifiering av den aktiva SQLite-konfigurationen.
 
-**Status: PASS**
+**Status: Godkänd**
 
 ---
 
@@ -330,7 +330,7 @@ Den aktuella dokumenterade LUMS Agent-versionen är:
 
 `1.7.0`
 
-**Status: PASS**
+**Status: Godkänd**
 
 ---
 
@@ -369,7 +369,7 @@ Granskningen omfattade:
 
 Hastighetsbegränsaren tillhandahåller därför en kontroll på serversidan mot upprepade autentiseringsförsök snarare än att förlita sig på klientsidans beteende.
 
-**Status: PASS**
+**Status: Godkänd**
 
 ---
 
@@ -446,7 +446,7 @@ Granskningen inkluderade negativ indatatesta och SQL-injektionsorienterade testf
 
 Valideringskontrollerna verifierades också genom den automatiserade testsviten.
 
-**Status: PASS**
+**Status: Godkänd**
 
 ---
 
@@ -481,7 +481,7 @@ Granskningen verifierade att:
 * en tidigare autentiserad session inte kan fortsätta använda skyddad funktionalitet efter ogiltigförklaring
 * rollinformation utvärderas på serversidan
 
-**Status: PASS**
+**Status: Godkänd**
 
 ---
 
@@ -531,7 +531,7 @@ Klienttokenrotation är begränsad till administratörer.
 
 Operatorer och viewers kan inte rotera klienttokens.
 
-**Status: PASS**
+**Status: Godkänd**
 
 ---
 
@@ -572,7 +572,7 @@ Detta är särskilt viktigt för laboratoriemiljöer och infrastruktur där nät
 
 Granskningen verifierade klientautentisering utan att förlita sig på en fast käll-IP-adress.
 
-**Status: PASS**
+**Status: Godkänd**
 
 ---
 
@@ -600,7 +600,7 @@ Nästa avsnitt täcker:
 
 # Säkerhetsgranskning #09
 
-## Jobbåterställning och checkpoints
+## Jobbåterställning och kontrollpunkter
 
 LUMS uppdateringsjobb är utformade för att återställas säkert från avbruten exekvering.
 
@@ -631,7 +631,7 @@ Granskningen verifierade återställning av avbrutna jobb och checkpoint-beteend
 
 Granskningen bekräftade att slutfört arbete bevaras och att återstående arbete kan fortsätta utan att onödigtvis upprepa lyckade operationer.
 
-**Status: PASS**
+**Status: Godkänd**
 
 ---
 
@@ -663,7 +663,7 @@ Motsvarande härdning committades som:
 
 Målet är att säkerställa att LUMS inte felaktigt rapporterar pakethanteringstillstånd enbart baserat på ofullständig eller tvetydig kommando-utdata.
 
-**Status: PASS**
+**Status: Godkänd**
 
 ---
 
@@ -689,7 +689,7 @@ Granskningen verifierade Arch Linux omstartsdetektering med den faktiska paketha
 
 Implementeringen testades mot omstartskrävande förhållanden och normala slutförandeförhållanden.
 
-**Status: PASS**
+**Status: Godkänd**
 
 ---
 
@@ -716,7 +716,7 @@ Kör den fullständiga automatiserade testsviten från repositoryts rot med
 
 De relevanta säkerhetskontrollerna verifierades dessutom genom fokuserade testkörningar under granskningen.
 
-**Status: PASS**
+**Status: Godkänd**
 
 ---
 
@@ -773,7 +773,7 @@ Simuleringsmekanismen användes under säkerhetsgranskningen för att verifiera 
 
 Simuleringsläge är en testmekanism och ersätter inte auktoriseringskontrollerna för normala uppdateringsoperationer.
 
-**Status: PASS**
+**Status: Godkänd**
 
 ---
 
@@ -805,7 +805,7 @@ Den slutliga verifierade testsviten slutfördes framgångsrikt.
 
 Testantalet ändras när projektet utvecklas. CI tillhandahåller en automatiserad regressionsbarriär för säkerhetsrelevanta applikationsändringar.
 
-**Status: PASS**
+**Status: Godkänd**
 
 ---
 
@@ -847,7 +847,7 @@ Implementeringen av granskningsloggning granskades för:
 
 Loggsystemet är avsett att stödja både operativ felsökning och säkerhetsutredning.
 
-**Status: PASS**
+**Status: Godkänd**
 
 ---
 
@@ -1097,7 +1097,7 @@ Gränssnittet tillhandahåller därför inte auktoriseringsmekanismen i sig.
 
 Servern förblir den auktoritativa säkerhetsgränsen.
 
-**Status: PASS**
+**Status: Godkänd**
 
 ## Dokumentationsgranskning
 
@@ -1304,7 +1304,7 @@ Detta ger en reproducerbar baslinje för produktionsavbildningen samtidigt som b
 
 ---
 
-## Filsystem- och runtime-behörigheter
+## Filsystems- och körningsbehörigheter
 
 Produktionsapplikationen körs som den dedikerade användaren `lums` snarare än root.
 
