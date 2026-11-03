@@ -22,6 +22,7 @@ from typing import Any
 from .collector_store import CollectorStore
 from .incident_builder import IncidentBuilder
 from .incident_store import IncidentStore
+from .ingestion import EventIngestor
 from .pipeline import SOCPipeline
 from .rule_catalog import LoadedRuleCatalog, load_catalog
 from .worker_schema import (
@@ -253,7 +254,11 @@ class SOCWorker:
         self.incidents = IncidentStore(
             connection, initialize_schema=False
         )
-        self.pipeline = SOCPipeline()
+        self.pipeline = SOCPipeline(
+            ingestor=EventIngestor(
+                max_batch_events=history_limit + 1
+            )
+        )
         self.builder = IncidentBuilder()
         self.catalog = catalog
         self.batch_size = batch_size
@@ -273,45 +278,65 @@ class SOCWorker:
         cutoff = event_time - timedelta(seconds=max_window_seconds)
         future_limit = datetime.now(timezone.utc) + timedelta(minutes=5)
 
-        rows = self.connection.execute(
-            """
-            SELECT inbox_id, agent_id, event_id, payload_json
-            FROM soc_event_inbox
-            WHERE processing_status = 'processed'
-              AND inbox_id < ?
-            ORDER BY inbox_id DESC
-            LIMIT ?
-            """,
-            (current_inbox_id, self.history_limit),
-        ).fetchall()
-
         payloads: list[dict[str, Any]] = []
+        before_inbox_id = current_inbox_id
 
-        for row in reversed(rows):
-            try:
-                payload = json.loads(row["payload_json"])
-                timestamp = _utc_datetime(payload["timestamp"])
+        # Read backwards in bounded pages. Filtering only after applying
+        # history_limit to the SQL query could let irrelevant or malformed
+        # newer records hide older events inside the correlation window.
+        page_size = min(self.history_limit, 500)
 
-                if timestamp < cutoff or timestamp > future_limit:
+        while len(payloads) < self.history_limit:
+            rows = self.connection.execute(
+                """
+                SELECT inbox_id, agent_id, event_id, payload_json
+                FROM soc_event_inbox
+                WHERE processing_status = 'processed'
+                  AND inbox_id < ?
+                ORDER BY inbox_id DESC
+                LIMIT ?
+                """,
+                (before_inbox_id, page_size),
+            ).fetchall()
+
+            if not rows:
+                break
+
+            for row in rows:
+                try:
+                    payload = json.loads(row["payload_json"])
+                    timestamp = _utc_datetime(payload["timestamp"])
+
+                    if timestamp < cutoff or timestamp > future_limit:
+                        continue
+
+                    historical_payload = _payload_for_engine(
+                        row["agent_id"], row["event_id"], payload
+                    )
+                except (
+                    ValueError,
+                    TypeError,
+                    KeyError,
+                    json.JSONDecodeError,
+                    SOCWorkerError,
+                ):
+                    # Old malformed records are excluded without breaking
+                    # processing of the current event.
                     continue
 
-                historical_payload = _payload_for_engine(
-                    row["agent_id"], row["event_id"], payload
-                )
-            except (
-                ValueError,
-                TypeError,
-                KeyError,
-                json.JSONDecodeError,
-                SOCWorkerError,
-            ):
-                # Old malformed records are excluded without breaking
-                # processing of the current event.
-                continue
+                payloads.append(historical_payload)
 
-            payloads.append(historical_payload)
+                if len(payloads) >= self.history_limit:
+                    break
 
-        return payloads
+            if len(payloads) >= self.history_limit or len(rows) < page_size:
+                break
+
+            # Continue below the oldest inbox ID from this page.
+            before_inbox_id = rows[-1]["inbox_id"]
+
+        # Rows were read newest-first; restore chronological inbox order.
+        return list(reversed(payloads))
 
     def _process_claim(self, claim: dict[str, object]) -> int:
         inbox_id = claim["inbox_id"]

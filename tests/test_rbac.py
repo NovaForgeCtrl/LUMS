@@ -3179,21 +3179,18 @@ def create_custom_rbac_user_test_database(
             migration.ALERTING_PERMISSIONS_MIGRATION_VERSION,
         )
 
-        # Complete migration 008 before switching to custom RBAC.
-        if not migration.migrate_permission_delegation(connection):
-            raise RuntimeError(
-                "Test fixture has no eligible permission manager for migration 008"
-            )
-        migration.record_migration(
-            connection,
-            migration.PERMISSION_DELEGATION_MIGRATION_VERSION,
-        )
-
+        # Commit the legacy permission state before custom RBAC.
         connection.commit()
 
         # Mirror the production transaction boundary for migration 018.
         connection.execute("BEGIN IMMEDIATE")
-        migration.migrate_custom_rbac(connection)
+        migrated = migration.migrate_custom_rbac(connection)
+
+        if not migrated:
+            raise RuntimeError(
+                "Test fixture has no eligible permission manager for migration 018"
+            )
+
         migration.record_migration(
             connection,
             migration.CUSTOM_RBAC_MIGRATION_VERSION,

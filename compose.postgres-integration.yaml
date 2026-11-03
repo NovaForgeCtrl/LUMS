@@ -1,0 +1,56 @@
+name: lums-pg-integration-20261102
+
+services:
+  postgres:
+    image: postgres:18.6-trixie@sha256:3a4264520e121176619f54ff867d12774bc81e95e7b84db58d63bccdb6144b81
+    platform: linux/amd64
+    container_name: lums-pg-integration-20261102
+    restart: "no"
+    stop_grace_period: 60s
+
+    environment:
+      POSTGRES_DB: lums_integration
+      POSTGRES_USER: lums_pg_bootstrap
+      POSTGRES_PASSWORD_FILE: /run/secrets/postgres_bootstrap_password
+      POSTGRES_INITDB_ARGS: "--auth-host=scram-sha-256"
+      PGDATA: /var/lib/postgresql/18/docker
+
+    secrets:
+      - postgres_bootstrap_password
+
+    volumes:
+      - lums_pg_integration_data:/var/lib/postgresql
+
+    ports:
+      - "127.0.0.1:55439:5432"
+
+    networks:
+      - integration
+
+    shm_size: 128mb
+
+    security_opt:
+      - no-new-privileges:true
+
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - 'pg_isready -U "$${POSTGRES_USER}" -d "$${POSTGRES_DB}"'
+      interval: 5s
+      timeout: 3s
+      retries: 20
+      start_period: 15s
+
+volumes:
+  lums_pg_integration_data:
+    name: lums-pg-integration-data-20261102
+
+networks:
+  integration:
+    name: lums-pg-integration-net-20261102
+    driver: bridge
+    internal: true
+
+secrets:
+  postgres_bootstrap_password:
+    file: /tmp/lums-pg-integration-20261102/postgres_bootstrap_password

@@ -81,7 +81,6 @@ def activate_custom_rbac_after_cli_bootstrap(
         }
 
     assert migration.PERMISSIONS_MIGRATION_VERSION in versions
-    assert migration.PERMISSION_DELEGATION_MIGRATION_VERSION not in versions
     assert migration.CUSTOM_RBAC_MIGRATION_VERSION not in versions
 
     create_admin_without_prompt(
@@ -104,7 +103,6 @@ def activate_custom_rbac_after_cli_bootstrap(
             )
         }
 
-    assert migration.PERMISSION_DELEGATION_MIGRATION_VERSION in versions
     assert migration.CUSTOM_RBAC_MIGRATION_VERSION in versions
 
 

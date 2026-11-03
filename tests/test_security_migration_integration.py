@@ -328,7 +328,7 @@ def test_full_migration_delegates_permission_to_one_active_admin(tmp_path):
                 "SELECT version FROM schema_migrations"
             )
         }
-        assert migration.PERMISSION_DELEGATION_MIGRATION_VERSION in versions
+        assert migration.CUSTOM_RBAC_MIGRATION_VERSION in versions
     finally:
         connection.close()
 
@@ -392,7 +392,7 @@ def test_delegation_migration_stays_pending_without_eligible_user(tmp_path):
                 "SELECT version FROM schema_migrations"
             )
         }
-        assert migration.PERMISSION_DELEGATION_MIGRATION_VERSION not in versions
+        assert migration.CUSTOM_RBAC_MIGRATION_VERSION not in versions
 
         grants = connection.execute("""
             SELECT COUNT(*)

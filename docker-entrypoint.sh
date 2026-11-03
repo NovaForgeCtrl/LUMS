@@ -25,4 +25,5 @@ exec gunicorn \
     --log-level info \
     --access-logfile - \
     --error-logfile - \
+    --no-control-socket \
     app:app

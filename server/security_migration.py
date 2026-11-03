@@ -35,7 +35,6 @@ USER_NOTES_MIGRATION_VERSION = "004-user-admin-notes"
 BACKUP_PERMISSION_MIGRATION_VERSION = "005-backup-permission"
 USER_LANGUAGE_MIGRATION_VERSION = "006-user-language"
 USER_PROFILES_MIGRATION_VERSION = "007-user-profiles"
-PERMISSION_DELEGATION_MIGRATION_VERSION = "008-permission-delegation"
 TELEMETRY_MIGRATION_VERSION = "009-telemetry"
 TELEMETRY_RETENTION_INDEX_MIGRATION_VERSION = "010-telemetry-retention-index"
 TELEMETRY_NETWORK_MIGRATION_VERSION = "011-telemetry-network"
@@ -372,108 +371,6 @@ def migrate_user_profiles(connection):
     )
 
 
-def migrate_permission_delegation(connection):
-    """
-    Ensure every permissions.manage grant belongs to an enabled user
-    who also has users.manage and clients.view.
-
-    Keep all valid delegates. If none remain, grant the permission to
-    the first eligible enabled user. Return False if no such user exists,
-    allowing the migration runner to retry later.
-    """
-    connection.execute("""
-        DELETE FROM user_permissions
-        WHERE permission = 'permissions.manage'
-          AND NOT EXISTS (
-              SELECT 1
-              FROM users
-              WHERE users.id = user_permissions.user_id
-                AND users.enabled = 1
-                AND EXISTS (
-                    SELECT 1
-                    FROM user_permissions AS user_admin
-                    WHERE user_admin.user_id = users.id
-                      AND user_admin.permission = 'users.manage'
-                )
-                AND EXISTS (
-                    SELECT 1
-                    FROM user_permissions AS client_view
-                    WHERE client_view.user_id = users.id
-                      AND client_view.permission = 'clients.view'
-                )
-          )
-    """)
-
-    active_delegate = connection.execute("""
-        SELECT users.id
-        FROM users
-        JOIN user_permissions AS delegated
-            ON delegated.user_id = users.id
-           AND delegated.permission = 'permissions.manage'
-        WHERE users.enabled = 1
-          AND EXISTS (
-              SELECT 1
-              FROM user_permissions AS user_admin
-              WHERE user_admin.user_id = users.id
-                AND user_admin.permission = 'users.manage'
-          )
-          AND EXISTS (
-              SELECT 1
-              FROM user_permissions AS client_view
-              WHERE client_view.user_id = users.id
-                AND client_view.permission = 'clients.view'
-          )
-        ORDER BY users.id
-        LIMIT 1
-    """).fetchone()
-
-    if active_delegate is not None:
-        print(
-            "[INFO] Valid enabled permission manager exists "
-            f"(user_id={active_delegate[0]})"
-        )
-        return True
-
-    eligible = connection.execute("""
-        SELECT users.id
-        FROM users
-        WHERE users.enabled = 1
-          AND EXISTS (
-              SELECT 1
-              FROM user_permissions AS user_admin
-              WHERE user_admin.user_id = users.id
-                AND user_admin.permission = 'users.manage'
-          )
-          AND EXISTS (
-              SELECT 1
-              FROM user_permissions AS client_view
-              WHERE client_view.user_id = users.id
-                AND client_view.permission = 'clients.view'
-          )
-        ORDER BY users.id
-        LIMIT 1
-    """).fetchone()
-
-    if eligible is None:
-        print(
-            "[WARN] Migration 008 cannot grant permissions.manage: "
-            "no enabled user has both users.manage and clients.view. "
-            "The migration will be retried on a later run."
-        )
-        return False
-
-    connection.execute("""
-        INSERT INTO user_permissions (user_id, permission)
-        VALUES (?, 'permissions.manage')
-    """, (eligible[0],))
-
-    print(
-        "[OK] Granted permissions.manage to eligible enabled "
-        f"user_id={eligible[0]}"
-    )
-    return True
-
-
 def migrate_clients(connection):
     add_column_if_missing(
         connection,
@@ -732,8 +629,9 @@ def migrate_custom_rbac(connection):
     Introduce custom RBAC without changing existing effective permissions.
 
     Existing users receive protected migration roles representing their
-    exact current effective permission sets. Legacy user_permissions remains
-    untouched as a compatibility and verification source.
+    effective permission sets. Legacy user_permissions remains available
+    as a compatibility source; permissions.manage grants are normalized
+    before permissions are copied into the new RBAC schema.
     """
 
     foreign_keys_enabled = connection.execute(
@@ -746,11 +644,10 @@ def migrate_custom_rbac(connection):
             "to be enabled"
         )
 
-    # Migration 008 must complete before custom RBAC becomes authoritative.
-    # Otherwise a later legacy permissions.manage grant would be ignored.
+    # The combined RBAC migration runs after the legacy permission
+    # foundation and the final legacy permission extension (017).
     required_migrations = (
         PERMISSIONS_MIGRATION_VERSION,
-        PERMISSION_DELEGATION_MIGRATION_VERSION,
         ALERTING_PERMISSIONS_MIGRATION_VERSION,
     )
 
@@ -782,6 +679,99 @@ def migrate_custom_rbac(connection):
         )
 
     _validate_legacy_rbac_schema(connection)
+
+    # Remove invalid legacy delegation grants.
+    connection.execute("""
+        DELETE FROM user_permissions
+        WHERE permission = 'permissions.manage'
+          AND NOT EXISTS (
+              SELECT 1
+              FROM users
+              WHERE users.id = user_permissions.user_id
+                AND users.enabled = 1
+                AND EXISTS (
+                    SELECT 1
+                    FROM user_permissions AS user_admin
+                    WHERE user_admin.user_id = users.id
+                      AND user_admin.permission = 'users.manage'
+                )
+                AND EXISTS (
+                    SELECT 1
+                    FROM user_permissions AS client_view
+                    WHERE client_view.user_id = users.id
+                      AND client_view.permission = 'clients.view'
+                )
+          )
+    """)
+
+    # Find an eligible delegate after invalid legacy grants
+    # have been removed. If none exists, the caller commits only the
+    # cleanup and leaves migration 018 pending for a later retry.
+    eligible = connection.execute("""
+        SELECT users.id
+        FROM users
+        WHERE users.enabled = 1
+          AND EXISTS (
+              SELECT 1
+              FROM user_permissions AS user_admin
+              WHERE user_admin.user_id = users.id
+                AND user_admin.permission = 'users.manage'
+          )
+          AND EXISTS (
+              SELECT 1
+              FROM user_permissions AS client_view
+              WHERE client_view.user_id = users.id
+                AND client_view.permission = 'clients.view'
+          )
+        ORDER BY users.id
+        LIMIT 1
+    """).fetchone()
+
+    if eligible is None:
+        print(
+            "[WARN] RBAC migration remains pending: no enabled user "
+            "has both users.manage and clients.view."
+        )
+        return False
+
+    active_delegate = connection.execute("""
+        SELECT users.id
+        FROM users
+        JOIN user_permissions AS delegated
+            ON delegated.user_id = users.id
+           AND delegated.permission = 'permissions.manage'
+        WHERE users.enabled = 1
+          AND EXISTS (
+              SELECT 1
+              FROM user_permissions AS user_admin
+              WHERE user_admin.user_id = users.id
+                AND user_admin.permission = 'users.manage'
+          )
+          AND EXISTS (
+              SELECT 1
+              FROM user_permissions AS client_view
+              WHERE client_view.user_id = users.id
+                AND client_view.permission = 'clients.view'
+          )
+        ORDER BY users.id
+        LIMIT 1
+    """).fetchone()
+
+    if active_delegate is None:
+        connection.execute("""
+            INSERT INTO user_permissions (user_id, permission)
+            VALUES (?, 'permissions.manage')
+        """, (eligible[0],))
+        print(
+            "[OK] Granted permissions.manage to eligible enabled "
+            f"user_id={eligible[0]}"
+        )
+    else:
+        print(
+            "[INFO] Valid enabled permission manager exists "
+            f"(user_id={active_delegate[0]})"
+        )
+
 
     target_tables = (
         "roles",
@@ -1153,6 +1143,7 @@ def migrate_custom_rbac(connection):
         f"{len(grouped_users)} protected migration roles"
     )
 
+    return True
 
 def print_schema(connection):
     print()
@@ -1474,41 +1465,6 @@ def run_migration(db_path, admin_username, skip_admin):
 
         if migration_already_applied(
             connection,
-            CUSTOM_RBAC_MIGRATION_VERSION
-        ):
-            print(
-                f"[INFO] Migration {PERMISSION_DELEGATION_MIGRATION_VERSION} "
-                "skipped because custom RBAC is already active"
-            )
-        elif migration_already_applied(
-            connection,
-            PERMISSION_DELEGATION_MIGRATION_VERSION
-        ):
-            print(
-                f"[INFO] Migration {PERMISSION_DELEGATION_MIGRATION_VERSION} "
-                "is already recorded"
-            )
-        else:
-            if migrate_permission_delegation(connection):
-                record_migration(
-                    connection,
-                    PERMISSION_DELEGATION_MIGRATION_VERSION
-                )
-                connection.commit()
-                print(
-                    f"[OK] Migration "
-                    f"{PERMISSION_DELEGATION_MIGRATION_VERSION} completed"
-                )
-            else:
-                connection.commit()
-                print(
-                    f"[WARN] Migration "
-                    f"{PERMISSION_DELEGATION_MIGRATION_VERSION} "
-                    "remains pending; custom RBAC activation is deferred"
-                )
-
-        if migration_already_applied(
-            connection,
             TELEMETRY_MIGRATION_VERSION
         ):
             print(
@@ -1702,33 +1658,34 @@ def run_migration(db_path, admin_username, skip_admin):
                 f"{CUSTOM_RBAC_MIGRATION_VERSION} "
                 "is already recorded"
             )
-        elif not migration_already_applied(
-            connection,
-            PERMISSION_DELEGATION_MIGRATION_VERSION
-        ):
-            print(
-                f"[WARN] Migration "
-                f"{CUSTOM_RBAC_MIGRATION_VERSION} remains pending: "
-                f"{PERMISSION_DELEGATION_MIGRATION_VERSION} "
-                "has not completed"
-            )
         else:
             connection.execute("BEGIN IMMEDIATE")
             try:
-                migrate_custom_rbac(connection)
-                record_migration(
-                    connection,
-                    CUSTOM_RBAC_MIGRATION_VERSION
-                )
-                connection.commit()
+                migrated = migrate_custom_rbac(connection)
+
+                if not migrated:
+                    # Commit invalid-delegation cleanup only.
+                    # Migration 018 remains unrecorded and can be retried.
+                    connection.commit()
+                    print(
+                        f"[WARN] Migration "
+                        f"{CUSTOM_RBAC_MIGRATION_VERSION} remains pending; "
+                        "invalid delegation grants were cleaned, but no "
+                        "eligible permission manager exists"
+                    )
+                else:
+                    record_migration(
+                        connection,
+                        CUSTOM_RBAC_MIGRATION_VERSION
+                    )
+                    connection.commit()
+                    print(
+                        f"[OK] Migration "
+                        f"{CUSTOM_RBAC_MIGRATION_VERSION} completed"
+                    )
             except Exception:
                 connection.rollback()
                 raise
-
-            print(
-                f"[OK] Migration "
-                f"{CUSTOM_RBAC_MIGRATION_VERSION} completed"
-            )
 
         print_schema(connection)
 

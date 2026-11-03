@@ -1,0 +1,69 @@
+<aside class="lums-sidebar" id="lums-sidebar"
+       aria-label="{{ tr('Main navigation') }}">
+    <div class="lums-sidebar-brand">
+        <span class="lums-sidebar-mark" aria-hidden="true">
+            <img src="{{ url_for('static', filename='images/LUMS_Logo.jpg') }}" alt="" />
+        </span>
+        <div class="lums-sidebar-brand-text">
+            <strong>LUMS</strong>
+            <small>{{ tr("Linux Update Management Server") }}</small>
+        </div>
+    </div>
+
+    <nav class="lums-sidebar-nav" id="lums-sidebar-nav"
+         data-user-id="{{ session.get('user_id', 'anonymous') }}">
+        <a href="{{ url_for('index') }}"
+           data-nav-id="dashboard"
+           class="lums-sidebar-link{% if request.path == '/' %} is-active{% endif %}">
+            <span class="lums-sidebar-icon" aria-hidden="true">⌂</span>
+            <span class="lums-sidebar-label">{{ tr("Dashboard") }}</span>
+        </a>
+
+        {% if "clients.view" in user_permissions %}
+        <a href="{{ url_for('infrastructure_page') }}"
+           data-nav-id="infrastructure"
+           class="lums-sidebar-link{% if request.path == '/infrastructure' %} is-active{% endif %}"
+           {% if request.path == '/infrastructure' %}aria-current="page"{% endif %}>
+            <span class="lums-sidebar-icon" aria-hidden="true">⌘</span>
+            <span class="lums-sidebar-label">{{ tr("Infrastructure topology") }}</span>
+        </a>
+        {% endif %}
+
+        {% if "alerts.view" in user_permissions %}
+        <a href="{{ url_for('postgres_alert_dashboard') }}"
+           data-nav-id="alerts"
+           class="lums-sidebar-link{% if request.path == '/alerts' %} is-active{% endif %}"
+           {% if request.path == '/alerts' %}aria-current="page"{% endif %}>
+            <span class="lums-sidebar-icon" aria-hidden="true">!</span>
+            <span class="lums-sidebar-label">{{ tr("Alerts") }}</span>
+        </a>
+        {% endif %}
+    </nav>
+
+    <div class="lums-sidebar-footer">
+        <form action="{{ url_for('postgres_auth.change_language') }}"
+              method="POST" class="lums-sidebar-language">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            <label for="lums-sidebar-language">{{ tr("Language") }}</label>
+            <select id="lums-sidebar-language" name="language">
+                {% for code, name in languages.items() %}
+                <option value="{{ code }}"
+                    {% if code == language %}selected{% endif %}>
+                    {{ name }}
+                </option>
+                {% endfor %}
+            </select>
+            <button type="submit">{{ tr("Save") }}</button>
+        </form>
+
+        <form action="{{ url_for('postgres_logout') }}"
+              method="POST" class="lums-sidebar-logout">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            <button type="submit" class="lums-sidebar-link">
+                <span class="lums-sidebar-icon" aria-hidden="true">↪</span>
+                <span class="lums-sidebar-label">{{ tr("Sign out") }}</span>
+            </button>
+        </form>
+    </div>
+</aside>
+<div class="lums-sidebar-scrim" id="lums-sidebar-scrim" hidden></div>
