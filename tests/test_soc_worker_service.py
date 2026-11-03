@@ -1,6 +1,6 @@
 import json
 import sqlite3
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 import pytest
 
@@ -1389,5 +1389,105 @@ def test_preflight_rejects_malformed_claim_column_definition(tmp_path):
             match="incompatible column definitions",
         ):
             validate_worker_schema(connection)
+    finally:
+        connection.close()
+
+
+def test_worker_pipeline_accepts_history_limit_plus_current_event(tmp_path):
+    connection = _create_migrated_worker_database(tmp_path)
+    try:
+        worker = SOCWorker(
+            connection,
+            load_catalog("server/soc/rules.json"),
+            history_limit=500,
+        )
+
+        timestamp = datetime.now(timezone.utc).isoformat()
+        payloads = [
+            {
+                "event_id": f"worker-batch-{index}",
+                "source": "linux01",
+                "event_type": "linux.auth.failure",
+                "timestamp": timestamp,
+                "fields": {"sequence": index},
+            }
+            for index in range(501)
+        ]
+
+        result = worker.pipeline.process_batch(payloads)
+
+        assert result.event_count == 501
+        assert worker.pipeline.ingestor.max_batch_events == 501
+    finally:
+        connection.close()
+
+
+def test_historical_payloads_continue_past_irrelevant_newer_records(tmp_path):
+    connection = _create_migrated_worker_database(tmp_path)
+    try:
+        collector = CollectorStore(connection)
+        now = datetime.now(timezone.utc)
+
+        relevant_time = (now - timedelta(seconds=30)).isoformat()
+        irrelevant_time = (now - timedelta(hours=2)).isoformat()
+        current_time = now.isoformat()
+
+        collector.ingest_batch("linux01", [
+            {
+                "event_id": "linux01:history:relevant",
+                "source": "linux01",
+                "event_type": "linux.auth.failure",
+                "timestamp": relevant_time,
+                "fields": {"message": "relevant historical event"},
+            },
+            {
+                "event_id": "linux01:history:irrelevant",
+                "source": "linux01",
+                "event_type": "linux.auth.failure",
+                "timestamp": irrelevant_time,
+                "fields": {"message": "outside correlation window"},
+            },
+            {
+                "event_id": "linux01:history:current",
+                "source": "linux01",
+                "event_type": "linux.auth.failure",
+                "timestamp": current_time,
+                "fields": {"message": "current event"},
+            },
+        ])
+
+        connection.execute("""
+            UPDATE soc_event_inbox
+            SET processing_status = 'processed'
+            WHERE event_id IN (?, ?)
+        """, (
+            "linux01:history:relevant",
+            "linux01:history:irrelevant",
+        ))
+        connection.commit()
+
+        current_row = connection.execute("""
+            SELECT inbox_id
+            FROM soc_event_inbox
+            WHERE event_id = ?
+        """, ("linux01:history:current",)).fetchone()
+
+        worker = SOCWorker(
+            connection,
+            load_catalog("server/soc/rules.json"),
+            history_limit=1,
+        )
+
+        historical = worker._historical_payloads(
+            current_inbox_id=current_row[0],
+            current_event_timestamp=current_time,
+            max_window_seconds=60,
+        )
+
+        assert len(historical) == 1
+        assert (
+            historical[0]["fields"]["_lums_original_event_id"]
+            == "linux01:history:relevant"
+        )
     finally:
         connection.close()

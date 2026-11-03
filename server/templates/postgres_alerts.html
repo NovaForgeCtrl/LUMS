@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="{{ language }}" data-locale="{{ language_locale }}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="csrf-token" content="{{ csrf_token }}">
+    <title>{{ tr("Alerts") }} – LUMS</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='alerts.css') }}">
+</head>
+<body class="lums-sidebar-layout">
+    {% include "_postgres_sidebar.html" %}
+
+    <header class="lums-pagebar">
+        <button type="button" class="lums-sidebar-toggle"
+            id="lums-sidebar-toggle"
+            aria-label="{{ tr('Toggle navigation') }}"
+            aria-controls="lums-sidebar" aria-expanded="true">
+            <span aria-hidden="true">&#9776;</span>
+        </button>
+        <div class="lums-pagebar-brand">
+            <strong>LUMS</strong>
+            <span>{{ tr("Alerts") }}</span>
+        </div>
+        <div class="lums-pagebar-status" id="alerts-connection"
+            data-state="connecting">
+            <span class="status-dot" aria-hidden="true"></span>
+            <span id="alerts-connection-label">{{ tr("Connecting…") }}</span>
+        </div>
+    </header>
+
+    <main class="container alerts-page">
+        <section class="alerts-hero">
+            <div>
+                <span class="alerts-eyebrow">LUMS / OPERATIONS</span>
+                <h1>{{ tr("Alerts & Monitoring") }}</h1>
+                <p>{{ tr("Monitor alert activity and respond to incidents.") }}</p>
+            </div>
+            <span class="alerts-live-indicator">
+                <span class="alerts-live-dot" aria-hidden="true"></span>
+                {{ PostgreSQL }}
+            </span>
+        </section>
+
+        <div id="alerts-dashboard"
+            data-current-url="{{ url_for('postgres_alert_current') }}"
+            data-history-url="{{ url_for('postgres_alert_history') }}"
+            data-rules-url="{{ url_for('postgres_alert_list_rules') }}"
+            data-ack-url="{{ url_for('postgres_alert_acknowledge', alert_id='__ALERT_ID__') }}"
+            data-resolve-url="{{ url_for('postgres_alert_resolve', alert_id='__ALERT_ID__') }}"
+            data-escalate-url="{{ url_for('postgres_alert_escalate', alert_id='__ALERT_ID__') }}"
+            data-rule-update-url="{{ url_for('postgres_alert_update_rule', rule_id='__RULE_ID__') }}"
+            data-rule-delete-url="{{ url_for('postgres_alert_delete_rule', rule_id='__RULE_ID__') }}"
+            data-rule-create-url="{{ url_for('postgres_alert_create_rule') }}"
+            data-csrf-token="{{ csrf_token }}"
+            data-can-manage="{{ 'true' if can_manage else 'false' }}"
+            data-locale="{{ language_locale }}"
+            data-label-acknowledge="{{ tr('Acknowledge') }}"
+            data-label-resolve="{{ tr('Resolve') }}"
+            data-label-escalate="{{ tr('Escalate') }}"
+            data-label-edit="{{ tr('Edit') }}"
+            data-label-delete="{{ tr('Delete') }}"
+            data-label-enabled="{{ tr('Enabled') }}"
+            data-label-disabled="{{ tr('Disabled') }}"
+            data-label-no-alerts="{{ tr('No alerts found.') }}"
+            data-label-no-rules="{{ tr('No alert rules configured.') }}"
+            data-label-loading="{{ tr('Loading alerts…') }}"
+            data-message-load-failed="{{ tr('Alerts could not be loaded.') }}"
+            data-message-action-failed="{{ tr('The alert action failed.') }}"
+            data-message-delete-confirm="{{ tr('Delete alert rule') }}"
+            data-label-connecting="{{ tr('Connecting…') }}"
+            data-label-connected="{{ tr('Connected') }}"
+            data-label-offline="{{ tr('Alerts could not be loaded.') }}"
+            data-status-triggered="{{ tr('Alert triggered') }}"
+            data-status-acknowledged="{{ tr('Acknowledged') }}"
+            data-status-resolved="{{ tr('Alert resolved') }}"
+            data-status-escalated="{{ tr('Alert escalated') }}"
+            data-severity-critical="{{ tr('Critical') }}"
+            data-severity-warning="{{ tr('Warning') }}"
+            data-severity-info="{{ tr('Info') }}"
+            data-message-rule-created="{{ tr('Rule created successfully') }}"
+            data-message-rule-updated="{{ tr('Rule updated successfully') }}"
+            data-message-rule-deleted="{{ tr('Rule deleted successfully') }}"
+            data-message-threshold-json-invalid="{{ tr('Threshold must be valid JSON.') }}"
+            data-message-escalation-json-invalid="{{ tr('Escalation path must be a valid JSON array of non-empty strings.') }}">
+
+            <section class="alerts-metrics" aria-label="{{ tr('Alert overview') }}">
+                <article class="alerts-metric">
+                    <span>{{ tr("Active alerts") }}</span>
+                    <strong id="alerts-metric-active">—</strong>
+                </article>
+                <article class="alerts-metric alerts-metric-critical">
+                    <span>{{ tr("Critical") }}</span>
+                    <strong id="alerts-metric-critical">—</strong>
+                </article>
+                <article class="alerts-metric">
+                    <span>{{ tr("Alert triggered") }}</span>
+                    <strong id="alerts-metric-triggered">—</strong>
+                </article>
+                <article class="alerts-metric alerts-metric-warning">
+                    <span>{{ tr("Warning") }}</span>
+                    <strong id="alerts-metric-warning">—</strong>
+                </article>
+            </section>
+
+            <p id="alerts-feedback" class="alerts-feedback"
+                role="status" aria-live="polite"></p>
+
+            <section class="panel alerts-workspace"
+                aria-labelledby="alerts-current-heading">
+                <div class="alerts-panel-heading">
+                    <div>
+                        <h2 id="alerts-current-heading">{{ tr("Active alerts") }}</h2>
+                        <p>{{ tr("Monitor alert activity and respond to incidents.") }}</p>
+                    </div>
+                    <button type="button" class="alerts-refresh"
+                        id="alerts-refresh">{{ tr("Refresh") }}</button>
+                </div>
+                <div class="alerts-table-wrap">
+                    <table class="alerts-table">
+                        <thead>
+                            <tr>
+                                <th>{{ tr("Alert triggered") }}</th>
+                                <th>{{ tr("Source") }}</th>
+                                <th>{{ tr("Description") }}</th>
+                                <th>{{ tr("Severity level") }}</th>
+                                <th>{{ tr("Status") }}</th>
+                                <th>{{ tr("Escalations") }}</th>
+                                {% if can_manage %}<th>{{ tr("Actions") }}</th>{% endif %}
+                            </tr>
+                        </thead>
+                        <tbody id="alerts-current-body">
+                            <tr><td colspan="{{ 7 if can_manage else 6 }}">{{ tr("Loading alerts…") }}</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <section class="panel alerts-workspace"
+                aria-labelledby="alerts-history-heading">
+                <div class="alerts-panel-heading">
+                    <div>
+                        <h2 id="alerts-history-heading">{{ tr("Alert history") }}</h2>
+                        <p>{{ tr("Monitor alert activity and respond to incidents.") }}</p>
+                    </div>
+                    <button type="button" class="alerts-refresh"
+                        id="alerts-history-refresh">{{ tr("Refresh") }}</button>
+                </div>
+                <div class="alerts-table-wrap">
+                    <table class="alerts-table">
+                        <thead>
+                            <tr>
+                                <th>{{ tr("Alert triggered") }}</th>
+                                <th>{{ tr("Source") }}</th>
+                                <th>{{ tr("Description") }}</th>
+                                <th>{{ tr("Severity level") }}</th>
+                                <th>{{ tr("Status") }}</th>
+                                <th>{{ tr("Escalations") }}</th>
+                            </tr>
+                        </thead>
+                        <tbody id="alerts-history-body">
+                            <tr><td colspan="6">{{ tr("Loading alerts…") }}</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <section class="panel alerts-rules-panel"
+                aria-labelledby="alerts-rules-heading">
+                <div class="alerts-panel-heading">
+                    <div>
+                        <h2 id="alerts-rules-heading">{{ tr("Alert rules") }}</h2>
+                        <p>{{ tr("Configure alert rules and their thresholds.") }}</p>
+                    </div>
+                    {% if can_manage %}
+                    <button type="button" id="alerts-rule-new">{{ tr("Create alert rule") }}</button>
+                    {% endif %}
+                </div>
+
+                {% if can_manage %}
+                <form id="alerts-rule-form" class="alerts-rule-form" hidden>
+                    <input type="hidden" id="alerts-rule-id">
+                    <div class="alerts-rule-fields">
+                        <label>
+                            {{ tr("Name") }}
+                            <input id="alerts-rule-name" maxlength="120" required>
+                        </label>
+                        <label>
+                            {{ tr("Condition") }}
+                            <input id="alerts-rule-condition" maxlength="120" required>
+                        </label>
+                        <label class="alerts-rule-threshold">
+                            {{ tr("Description") }}
+                            <textarea id="alerts-rule-description" maxlength="1000" rows="2"></textarea>
+                        </label>
+                        <label class="alerts-rule-threshold">
+                            {{ tr("Threshold") }}
+                            <textarea id="alerts-rule-threshold" rows="3" required>null</textarea>
+                        </label>
+                        <label>
+                            {{ tr("Severity level") }}
+                            <select id="alerts-rule-severity">
+                                <option value="critical">{{ tr("Critical") }}</option>
+                                <option value="warning" selected>{{ tr("Warning") }}</option>
+                                <option value="info">{{ tr("Info") }}</option>
+                            </select>
+                        </label>
+                        <label class="alerts-rule-threshold">
+                            {{ tr("Escalation path") }}
+                            <textarea id="alerts-rule-escalation" rows="2">[]</textarea>
+                        </label>
+                    </div>
+                    <div class="alerts-rule-options">
+                        <label><input type="checkbox" id="alerts-rule-enabled" checked> {{ tr("Enabled") }}</label>
+                        <label><input type="checkbox" id="alerts-rule-group" checked> {{ tr("Group similar alerts") }}</label>
+                        <label><input type="checkbox" id="alerts-rule-deduplicate" checked> {{ tr("Deduplicate alerts") }}</label>
+                    </div>
+                    <div class="alerts-rule-form-actions">
+                        <button type="submit" id="alerts-rule-submit">{{ tr("Save") }}</button>
+                        <button type="button" id="alerts-rule-cancel">{{ tr("Cancel") }}</button>
+                    </div>
+                </form>
+                {% endif %}
+
+                <div class="alerts-table-wrap">
+                    <table class="alerts-table">
+                        <thead>
+                            <tr>
+                                <th>{{ tr("Name") }}</th>
+                                <th>{{ tr("Condition") }}</th>
+                                <th>{{ tr("Severity level") }}</th>
+                                <th>{{ tr("Status") }}</th>
+                                {% if can_manage %}<th>{{ tr("Actions") }}</th>{% endif %}
+                            </tr>
+                        </thead>
+                        <tbody id="alerts-rules-body">
+                            <tr><td colspan="{{ 5 if can_manage else 4 }}">{{ tr("Loading alerts…") }}</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+
+        </div>
+    </main>
+
+    <script type="application/json" id="lums-config">{{ {
+        "lumsT": translations,
+        "lumsLocale": language_locale
+    } | tojson }}</script>
+    <script src="{{ url_for('static', filename='config.js') }}" defer></script>
+    <script src="{{ url_for('static', filename='theme.js') }}" defer></script>
+    <script src="{{ url_for('static', filename='sidebar.js') }}" defer></script>
+    <script src="{{ url_for('static', filename='postgres_alerts.js') }}" defer></script>
+</body>
+</html>

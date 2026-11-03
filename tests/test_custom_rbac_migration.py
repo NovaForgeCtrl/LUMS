@@ -43,7 +43,6 @@ def create_legacy_rbac_database(
 
     markers = (
         migration.PERMISSIONS_MIGRATION_VERSION,
-        migration.PERMISSION_DELEGATION_MIGRATION_VERSION,
         migration.ALERTING_PERMISSIONS_MIGRATION_VERSION,
     )
 
@@ -98,15 +97,29 @@ def run_custom_rbac_migration(connection):
     """Mirror the transaction boundary used by the production runner."""
     # Commit fixture setup before opening the migration transaction.
     connection.commit()
+
+    if migration.migration_already_applied(
+        connection,
+        migration.CUSTOM_RBAC_MIGRATION_VERSION,
+    ):
+        return True
+
     connection.execute("BEGIN IMMEDIATE")
 
     try:
-        migration.migrate_custom_rbac(connection)
+        migrated = migration.migrate_custom_rbac(connection)
+
+        if not migrated:
+            # Commit cleanup, but leave migration 018 pending.
+            connection.commit()
+            return False
+
         migration.record_migration(
             connection,
             migration.CUSTOM_RBAC_MIGRATION_VERSION,
         )
         connection.commit()
+        return True
     except Exception:
         connection.rollback()
         raise
@@ -151,12 +164,24 @@ def test_custom_rbac_migration_preserves_effective_permissions():
         add_permissions(
             connection,
             1,
-            {"clients.view", "updates.view", "jobs.manage"},
+            {
+                "users.manage",
+                "clients.view",
+                "updates.view",
+                "jobs.manage",
+                "permissions.manage",
+            },
         )
         add_permissions(
             connection,
             2,
-            {"clients.view", "updates.view", "jobs.manage"},
+            {
+                "users.manage",
+                "clients.view",
+                "updates.view",
+                "jobs.manage",
+                "permissions.manage",
+            },
         )
         add_permissions(
             connection,
@@ -280,7 +305,14 @@ def test_custom_rbac_migration_seeds_system_roles():
     connection = create_legacy_rbac_database()
 
     try:
-        run_custom_rbac_migration(connection)
+        add_user(connection, 1, "role-seed-admin", "administrator")
+        add_permissions(
+            connection,
+            1,
+            {"users.manage", "clients.view"},
+        )
+
+        assert run_custom_rbac_migration(connection) is True
 
         for role_key in ("administrator", "operator", "viewer"):
             role = connection.execute(
@@ -326,7 +358,6 @@ def test_custom_rbac_migration_seeds_system_roles():
     "missing_marker",
     [
         migration.PERMISSIONS_MIGRATION_VERSION,
-        migration.PERMISSION_DELEGATION_MIGRATION_VERSION,
         migration.ALERTING_PERMISSIONS_MIGRATION_VERSION,
     ],
 )
@@ -388,6 +419,11 @@ def test_custom_rbac_migration_rejects_invalid_legacy_role():
 
     try:
         add_user(connection, 1, "invalid-role", "unknown-role")
+        add_permissions(
+            connection,
+            1,
+            {"users.manage", "clients.view"},
+        )
 
         with pytest.raises(
             RuntimeError,
@@ -411,7 +447,15 @@ def test_custom_rbac_migration_rejects_unknown_permission():
 
     try:
         add_user(connection, 1, "unknown-permission", "viewer")
-        add_permissions(connection, 1, {"permission.does.not.exist"})
+        add_permissions(
+            connection,
+            1,
+            {
+                "users.manage",
+                "clients.view",
+                "permission.does.not.exist",
+            },
+        )
 
         with pytest.raises(
             RuntimeError,
@@ -436,6 +480,13 @@ def test_custom_rbac_migration_rejects_orphaned_permission():
     )
 
     try:
+        add_user(connection, 1, "orphan-check-admin", "administrator")
+        add_permissions(
+            connection,
+            1,
+            {"users.manage", "clients.view"},
+        )
+
         connection.execute(
             """
             INSERT INTO user_permissions (user_id, permission)
@@ -472,6 +523,13 @@ def test_custom_rbac_migration_rejects_preexisting_target_table():
     connection = create_legacy_rbac_database()
 
     try:
+        add_user(connection, 1, "preexisting-table-admin", "administrator")
+        add_permissions(
+            connection,
+            1,
+            {"users.manage", "clients.view"},
+        )
+
         connection.execute("""
             CREATE TABLE roles (
                 id INTEGER PRIMARY KEY
@@ -502,7 +560,11 @@ def test_custom_rbac_migration_rolls_back_all_changes_on_late_failure(
 
     try:
         add_user(connection, 1, "rollback-user", "viewer")
-        add_permissions(connection, 1, {"clients.view"})
+        add_permissions(
+            connection,
+            1,
+            {"users.manage", "clients.view"},
+        )
 
         original_permissions = connection.execute(
             """
@@ -636,6 +698,209 @@ def test_custom_rbac_migration_rejects_invalid_legacy_schema(
             connection,
             migration.CUSTOM_RBAC_MIGRATION_VERSION,
         )
+
+    finally:
+        connection.close()
+
+
+def test_custom_rbac_migration_stays_pending_and_can_be_retried():
+    connection = create_legacy_rbac_database()
+
+    try:
+        add_user(
+            connection,
+            1,
+            "temporarily-disabled-admin",
+            "administrator",
+            enabled=0,
+        )
+        add_permissions(
+            connection,
+            1,
+            {
+                "users.manage",
+                "clients.view",
+                "permissions.manage",
+            },
+        )
+
+        assert run_custom_rbac_migration(connection) is False
+
+        assert not migration.migration_already_applied(
+            connection,
+            migration.CUSTOM_RBAC_MIGRATION_VERSION,
+        )
+        assert not {
+            "roles",
+            "role_permissions",
+            "user_roles",
+            "user_permission_overrides",
+        } & table_names(connection)
+
+        # Invalid delegation cleanup must survive the pending migration.
+        assert connection.execute(
+            """
+            SELECT COUNT(*)
+            FROM user_permissions
+            WHERE user_id = 1
+              AND permission = 'permissions.manage'
+            """
+        ).fetchone()[0] == 0
+
+        # Nach Aktivierung erfüllt derselbe Benutzer die Voraussetzungen.
+        connection.execute(
+            "UPDATE users SET enabled = 1 WHERE id = 1"
+        )
+        connection.commit()
+
+        assert run_custom_rbac_migration(connection) is True
+        assert migration.migration_already_applied(
+            connection,
+            migration.CUSTOM_RBAC_MIGRATION_VERSION,
+        )
+
+        assert connection.execute(
+            """
+            SELECT COUNT(*)
+            FROM user_permissions
+            WHERE user_id = 1
+              AND permission = 'permissions.manage'
+            """
+        ).fetchone()[0] == 1
+
+    finally:
+        connection.close()
+
+
+def test_custom_rbac_migration_keeps_valid_delegates_and_removes_invalid_grants():
+    connection = create_legacy_rbac_database()
+
+    try:
+        add_user(connection, 1, "delegate-a", "administrator")
+        add_user(connection, 2, "delegate-b", "administrator")
+        add_user(
+            connection,
+            3,
+            "disabled-delegate",
+            "administrator",
+            enabled=0,
+        )
+        add_user(connection, 4, "incomplete-delegate", "administrator")
+
+        add_permissions(
+            connection,
+            1,
+            {"users.manage", "clients.view", "permissions.manage"},
+        )
+        add_permissions(
+            connection,
+            2,
+            {"users.manage", "clients.view", "permissions.manage"},
+        )
+        add_permissions(
+            connection,
+            3,
+            {"users.manage", "clients.view", "permissions.manage"},
+        )
+        add_permissions(
+            connection,
+            4,
+            {"users.manage", "permissions.manage"},
+        )
+
+        assert run_custom_rbac_migration(connection) is True
+
+        delegates = [
+            row[0]
+            for row in connection.execute(
+                """
+                SELECT user_id
+                FROM user_permissions
+                WHERE permission = 'permissions.manage'
+                ORDER BY user_id
+                """
+            )
+        ]
+
+        assert delegates == [1, 2]
+
+    finally:
+        connection.close()
+
+
+def test_custom_rbac_migration_repairs_invalid_grants_and_grants_only_first_eligible_user_idempotently():
+    connection = create_legacy_rbac_database()
+
+    try:
+        add_user(connection, 1, "eligible-admin-first", "administrator")
+        add_user(connection, 2, "eligible-admin-second", "administrator")
+        add_user(
+            connection,
+            3,
+            "disabled-delegate",
+            "administrator",
+            enabled=0,
+        )
+        add_user(connection, 4, "incomplete-delegate", "administrator")
+
+        add_permissions(
+            connection,
+            1,
+            {"users.manage", "clients.view"},
+        )
+        add_permissions(
+            connection,
+            2,
+            {"users.manage", "clients.view"},
+        )
+        add_permissions(
+            connection,
+            3,
+            {"users.manage", "clients.view", "permissions.manage"},
+        )
+        add_permissions(
+            connection,
+            4,
+            {"users.manage", "permissions.manage"},
+        )
+
+        assert run_custom_rbac_migration(connection) is True
+
+        delegates = [
+            row[0]
+            for row in connection.execute(
+                """
+                SELECT user_id
+                FROM user_permissions
+                WHERE permission = 'permissions.manage'
+                ORDER BY user_id
+                """
+            )
+        ]
+
+        assert delegates == [1]
+
+        assert migration.migration_already_applied(
+            connection,
+            migration.CUSTOM_RBAC_MIGRATION_VERSION,
+        )
+
+        # A repeated invocation must not modify the established delegation.
+        assert run_custom_rbac_migration(connection) is True
+
+        delegates_after_retry = [
+            row[0]
+            for row in connection.execute(
+                """
+                SELECT user_id
+                FROM user_permissions
+                WHERE permission = 'permissions.manage'
+                ORDER BY user_id
+                """
+            )
+        ]
+
+        assert delegates_after_retry == [1]
 
     finally:
         connection.close()

@@ -371,6 +371,34 @@ def alert_http_env(tmp_path, monkeypatch):
     }
 
 
+@pytest.fixture
+def collector_http_env(tmp_path):
+    from server.soc.collector_app import create_app
+
+    db_path = tmp_path / "collector-http-test.db"
+    db_path.touch()
+
+    def connect_test_db():
+        connection = sqlite3.connect(str(db_path))
+        connection.row_factory = sqlite3.Row
+        connection.execute("PRAGMA foreign_keys = ON")
+        connection.execute("PRAGMA busy_timeout = 5000")
+        return connection
+
+    app = create_app({
+        "TESTING": True,
+        "LUMS_DB_PATH": str(db_path),
+        "LUMS_GET_CONNECTION": connect_test_db,
+    })
+
+    return {
+        "app": app,
+        "client": app.test_client(),
+        "db_path": db_path,
+        "connect": connect_test_db,
+    }
+
+
 def _alert_http_payload(**overrides):
     payload = {
         "name": "HTTP integration rule",
@@ -951,9 +979,9 @@ def test_synthetic_soc_demo_endpoint_is_not_registered(alert_http_env):
 
 # COLLECTOR_API_SECURITY_TESTS_V1
 def test_collector_api_is_disabled_by_default_without_creating_tables(
-    alert_http_env, monkeypatch,
+    collector_http_env, monkeypatch,
 ):
-    env = alert_http_env
+    env = collector_http_env
     monkeypatch.setitem(
         env["app"].config,
         "LUMS_COLLECTOR_IDENTITY_PROVIDER",
@@ -1015,9 +1043,9 @@ def _collector_event(event_id="evt-001", username="tester"):
 
 
 def test_collector_api_rejects_missing_identity_without_creating_tables(
-    alert_http_env, monkeypatch,
+    collector_http_env, monkeypatch,
 ):
-    env = alert_http_env
+    env = collector_http_env
     monkeypatch.setitem(env["app"].config, "LUMS_SOC_COLLECTOR_ENABLED", True)
     env["app"].config.pop("LUMS_COLLECTOR_IDENTITY_PROVIDER", None)
 
@@ -1042,11 +1070,11 @@ def test_collector_api_rejects_missing_identity_without_creating_tables(
 
 
 def test_collector_api_rejects_unregistered_certificate(
-    alert_http_env, monkeypatch,
+    collector_http_env, monkeypatch,
 ):
     from server.soc.storage_migration import initialize_storage
 
-    env = alert_http_env
+    env = collector_http_env
     initialize_storage(env["db_path"])
     monkeypatch.setitem(env["app"].config, "LUMS_SOC_COLLECTOR_ENABLED", True)
     monkeypatch.setitem(
@@ -1066,9 +1094,9 @@ def test_collector_api_rejects_unregistered_certificate(
 
 
 def test_collector_api_accepts_events_and_deduplicates_retries(
-    alert_http_env, monkeypatch,
+    collector_http_env, monkeypatch,
 ):
-    env = alert_http_env
+    env = collector_http_env
     _register_test_collector(env, monkeypatch)
     event = _collector_event()
 
@@ -1093,9 +1121,9 @@ def test_collector_api_accepts_events_and_deduplicates_retries(
 
 
 def test_collector_api_rejects_event_id_reuse_with_different_content(
-    alert_http_env, monkeypatch,
+    collector_http_env, monkeypatch,
 ):
-    env = alert_http_env
+    env = collector_http_env
     _register_test_collector(env, monkeypatch)
 
     first = env["client"].post(
@@ -1115,9 +1143,9 @@ def test_collector_api_rejects_event_id_reuse_with_different_content(
 
 
 def test_collector_api_rejects_revoked_agent(
-    alert_http_env, monkeypatch,
+    collector_http_env, monkeypatch,
 ):
-    env = alert_http_env
+    env = collector_http_env
     _register_test_collector(env, monkeypatch, revoked=True)
 
     response = env["client"].post(
@@ -1130,9 +1158,9 @@ def test_collector_api_rejects_revoked_agent(
     assert response.get_json()["error"] == "collector_revoked"
 
 def test_collector_api_rejects_missing_timestamp_without_persisting(
-    alert_http_env, monkeypatch,
+    collector_http_env, monkeypatch,
 ):
-    env = alert_http_env
+    env = collector_http_env
     _register_test_collector(env, monkeypatch)
     event = _collector_event()
     event.pop("timestamp")
@@ -1154,9 +1182,9 @@ def test_collector_api_rejects_missing_timestamp_without_persisting(
 
 
 def test_collector_api_rejects_timestamp_without_timezone(
-    alert_http_env, monkeypatch,
+    collector_http_env, monkeypatch,
 ):
-    env = alert_http_env
+    env = collector_http_env
     _register_test_collector(env, monkeypatch)
     event = _collector_event()
     event["timestamp"] = "2026-10-29T09:00:00"
@@ -1178,9 +1206,9 @@ def test_collector_api_rejects_timestamp_without_timezone(
 
 
 def test_collector_api_treats_changed_timestamp_as_content_conflict(
-    alert_http_env, monkeypatch,
+    collector_http_env, monkeypatch,
 ):
-    env = alert_http_env
+    env = collector_http_env
     _register_test_collector(env, monkeypatch)
     event = _collector_event("evt-timestamp-conflict")
 
@@ -1205,9 +1233,9 @@ def test_collector_api_treats_changed_timestamp_as_content_conflict(
 
 # COLLECTOR_BOUNDED_BODY_TESTS_V1
 def test_collector_api_rejects_invalid_event_without_persisting_it(
-    alert_http_env, monkeypatch,
+    collector_http_env, monkeypatch,
 ):
-    env = alert_http_env
+    env = collector_http_env
     _register_test_collector(env, monkeypatch)
 
     response = env["client"].post(
@@ -1227,9 +1255,9 @@ def test_collector_api_rejects_invalid_event_without_persisting_it(
 
 
 def test_collector_api_rejects_oversized_declared_body(
-    alert_http_env, monkeypatch,
+    collector_http_env, monkeypatch,
 ):
-    env = alert_http_env
+    env = collector_http_env
     _register_test_collector(env, monkeypatch)
 
     response = env["client"].post(
@@ -1244,11 +1272,11 @@ def test_collector_api_rejects_oversized_declared_body(
 
 
 def test_collector_import_failure_returns_controlled_json_error(
-    alert_http_env, monkeypatch,
+    collector_http_env, monkeypatch,
 ):
     import builtins
 
-    env = alert_http_env
+    env = collector_http_env
     app = env["app"]
 
     monkeypatch.setitem(app.config, "TESTING", False)
@@ -1283,11 +1311,11 @@ def test_collector_import_failure_returns_controlled_json_error(
     }
 
 def test_collector_unexpected_import_failure_returns_controlled_json_error(
-    alert_http_env, monkeypatch,
+    collector_http_env, monkeypatch,
 ):
     import builtins
 
-    env = alert_http_env
+    env = collector_http_env
     app = env["app"]
 
     monkeypatch.setitem(app.config, "TESTING", False)

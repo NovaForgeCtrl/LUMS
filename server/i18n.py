@@ -7981,6 +7981,57 @@ _SOC_DASHBOARD_TRANSLATIONS["de"].update({
     "Toggle alerts navigation": "Warnungsnavigation umschalten",
 })
 
+_POSTGRES_ALERTS_UI = {
+    "de": {"Escalate": "Eskalieren"},
+    "en-US": {"Escalate": "Escalate"},
+    "en-GB": {"Escalate": "Escalate"},
+    "fr": {"Escalate": "Escalader"},
+    "es": {"Escalate": "Escalar"},
+    "zh-CN": {"Escalate": "升级"},
+    "ja": {"Escalate": "エスカレート"},
+    "pl": {"Escalate": "Eskaluj"},
+    "sv": {"Escalate": "Eskalera"},
+    "nb": {"Escalate": "Eskaler"},
+    "fi": {"Escalate": "Eskaloi"},
+}
+
+
+_POSTGRES_ALERTS_UI["de"]["Escalations"] = "Eskalationen"
+_POSTGRES_ALERTS_UI["en-US"]["Escalations"] = "Escalations"
+_POSTGRES_ALERTS_UI["en-GB"]["Escalations"] = "Escalations"
+_POSTGRES_ALERTS_UI["fr"]["Escalations"] = "Escalades"
+_POSTGRES_ALERTS_UI["es"]["Escalations"] = "Escalaciones"
+_POSTGRES_ALERTS_UI["zh-CN"]["Escalations"] = "升级次数"
+_POSTGRES_ALERTS_UI["ja"]["Escalations"] = "エスカレーション回数"
+_POSTGRES_ALERTS_UI["pl"]["Escalations"] = "Eskalacje"
+_POSTGRES_ALERTS_UI["sv"]["Escalations"] = "Eskaleringar"
+_POSTGRES_ALERTS_UI["nb"]["Escalations"] = "Eskaleringer"
+_POSTGRES_ALERTS_UI["fi"]["Escalations"] = "Eskaloinnit"
+
+_POSTGRES_ALERTS_SUCCESS = {
+    "de": ("Regel erfolgreich erstellt", "Regel erfolgreich aktualisiert", "Regel erfolgreich gelöscht"),
+    "en-US": ("Rule created successfully", "Rule updated successfully", "Rule deleted successfully"),
+    "en-GB": ("Rule created successfully", "Rule updated successfully", "Rule deleted successfully"),
+    "fr": ("Règle créée avec succès", "Règle mise à jour avec succès", "Règle supprimée avec succès"),
+    "es": ("Regla creada correctamente", "Regla actualizada correctamente", "Regla eliminada correctamente"),
+    "zh-CN": ("规则已成功创建", "规则已成功更新", "规则已成功删除"),
+    "ja": ("ルールを作成しました", "ルールを更新しました", "ルールを削除しました"),
+    "pl": ("Reguła została utworzona pomyślnie", "Reguła została zaktualizowana pomyślnie", "Reguła została usunięta pomyślnie"),
+    "sv": ("Regeln har skapats", "Regeln har uppdaterats", "Regeln har tagits bort"),
+    "nb": ("Regelen ble opprettet", "Regelen ble oppdatert", "Regelen ble slettet"),
+    "fi": ("Sääntö luotiin onnistuneesti", "Sääntö päivitettiin onnistuneesti", "Sääntö poistettiin onnistuneesti"),
+}
+
+for _language, _messages in _POSTGRES_ALERTS_SUCCESS.items():
+    _POSTGRES_ALERTS_UI[_language].update({
+        "Rule created successfully": _messages[0],
+        "Rule updated successfully": _messages[1],
+        "Rule deleted successfully": _messages[2],
+    })
+
+del _POSTGRES_ALERTS_SUCCESS
+
+
 def translations_for(language):
     def merge_layers(*layers):
         merged = {}
@@ -8015,6 +8066,8 @@ def translations_for(language):
             _HEALTH_DASHBOARD_TRANSLATIONS.get("en-GB", {}),
             _SOC_DASHBOARD_TRANSLATIONS.get("en-US", {}),
             _SOC_DASHBOARD_TRANSLATIONS.get("en-GB", {}),
+            _POSTGRES_ALERTS_UI.get("en-US", {}),
+            _POSTGRES_ALERTS_UI.get("en-GB", {}),
         )
     return merge_layers(
         _SYSTEM_UPDATE_UI.get(language, {}),
@@ -8030,6 +8083,8 @@ def translations_for(language):
         _HEALTH_DASHBOARD_TRANSLATIONS.get(language, {}),
         _SOC_DASHBOARD_TRANSLATIONS.get("en-US", {}),
         _SOC_DASHBOARD_TRANSLATIONS.get(language, {}),
+        _POSTGRES_ALERTS_UI.get("en-US", {}),
+        _POSTGRES_ALERTS_UI.get(language, {}),
     )
 
 
