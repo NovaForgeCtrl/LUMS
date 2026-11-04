@@ -1,6 +1,7 @@
 """Real PostgreSQL integration tests for the alerts API."""
 
 import os
+import secrets
 from datetime import datetime, timezone
 from uuid import uuid4
 
@@ -12,7 +13,6 @@ from psycopg.rows import dict_row
 from server.migration_runner import run_migrations
 from server.migrations import MIGRATIONS
 from server.postgres_app import create_postgres_app
-from server.security import login_user
 
 
 BASE_URL = "https://localhost"
@@ -165,7 +165,13 @@ def postgres_alerts_api_environment():
 
 def _login_client(client, user_id, username):
     with client.session_transaction(base_url=BASE_URL) as flask_session:
-        login_user(user_id, username)
+        flask_session.clear()
+        flask_session.update({
+            "user_id": int(user_id),
+            "username": username,
+            "csrf_token": secrets.token_urlsafe(32),
+        })
+        flask_session.permanent = True
         csrf_token = flask_session["csrf_token"]
 
     return {"X-CSRF-Token": csrf_token}

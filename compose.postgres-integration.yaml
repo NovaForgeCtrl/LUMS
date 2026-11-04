@@ -53,4 +53,4 @@ networks:
 
 secrets:
   postgres_bootstrap_password:
-    file: /tmp/lums-pg-integration-20261102/postgres_bootstrap_password
+    file: "${LUMS_PG_BOOTSTRAP_PASSWORD_FILE:-/etc/lums-test/secrets/postgres_bootstrap_password}"
