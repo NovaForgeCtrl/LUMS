@@ -30,6 +30,7 @@ if __package__:
         role_required,
     )
     from .postgres_login_routes import postgres_auth_bp
+    from .postgres_clients import register_postgres_client_routes
     from .postgres_infrastructure import register_postgres_infrastructure_routes
     from .postgres_telemetry import register_postgres_telemetry_routes
     from .postgres_package_search import register_postgres_package_search_routes
@@ -59,6 +60,7 @@ else:
         role_required,
     )
     from postgres_login_routes import postgres_auth_bp
+    from postgres_clients import register_postgres_client_routes
     from postgres_infrastructure import register_postgres_infrastructure_routes
     from postgres_telemetry import register_postgres_telemetry_routes
     from postgres_package_search import register_postgres_package_search_routes
@@ -147,6 +149,7 @@ def create_postgres_app(config=None) -> Flask:
         }
 
     app.register_blueprint(postgres_auth_bp)
+    register_postgres_client_routes(app)
     register_postgres_infrastructure_routes(app)
     register_postgres_telemetry_routes(app)
     register_postgres_package_search_routes(app)
@@ -178,12 +181,15 @@ def create_postgres_app(config=None) -> Flask:
                 "authentication",
                 "authorization",
                 "language",
+                "clients",
+                "infrastructure",
+                "telemetry",
+                "package_search",
+                "alerts",
+                "alerts_dashboard",
             ],
             "pending_modules": [
-                "clients",
                 "updates",
-                "telemetry",
-                "alerts",
                 "soc",
                 "user_management",
                 "backups",
