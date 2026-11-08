@@ -630,21 +630,23 @@ sudo sh -c 'umask 077 && openssl rand -hex 32 > /etc/lums/secrets/lums_secret'
 Schützen Sie die resultierende Datei:
 
 ```bash
-sudo chmod 600 \
+sudo chown root:10001 \
+    /etc/lums/secrets/lums_secret
+sudo chmod 640 \
     /etc/lums/secrets/lums_secret
 ```
 
 Prüfen Sie die Berechtigungen, ohne das Secret anzuzeigen:
 
 ```bash
-sudo stat -c '%a %U:%G %n' \
+sudo stat -c '%a %u:%g %n' \
     /etc/lums/secrets/lums_secret
 ```
 
 Erwartet:
 
 ```text
-600
+640 0:10001 /etc/lums/secrets/lums_secret
 ```
 
 Das Secret darf niemals:

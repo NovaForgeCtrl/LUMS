@@ -1,5 +1,7 @@
 """Database-free tests for the PostgreSQL Flask application factory."""
 
+from contextlib import contextmanager
+from datetime import datetime, timedelta, timezone
 from types import SimpleNamespace
 
 from flask import Flask
@@ -9,6 +11,7 @@ import pytest
 from server import postgres_app
 from server import postgres_flask_security as pg_security
 from server import postgres_login_routes
+from server import postgres_ui_pages
 from server.postgres_login import LoginResult
 from server.postgres_app import create_postgres_app
 
@@ -432,6 +435,313 @@ def test_custom_login_endpoints_are_preserved():
         "postgres_auth.login"
     )
     assert app.config["LUMS_LOGIN_SUCCESS_ENDPOINT"] == "index"
+
+
+
+def test_postgres_ui_page_routes_are_registered():
+    app = create_test_app()
+
+    actual = {
+        (rule.rule, method)
+        for rule in app.url_map.iter_rules()
+        for method in rule.methods
+        if method not in {"HEAD", "OPTIONS"}
+    }
+
+    assert {
+        ("/client", "GET"),
+        ("/health", "GET"),
+        ("/monitoring", "GET"),
+    } <= actual
+
+
+def test_postgres_client_page_renders_sidebar_customizer(monkeypatch):
+    connection = FakeConnection()
+    calls = []
+
+    def connection_factory():
+        calls.append(True)
+        return connection
+
+    app = create_test_app(connection_factory)
+
+    monkeypatch.setattr(
+        pg_security,
+        "load_authorization_state",
+        lambda conn, user_id: make_authorization_state(),
+    )
+
+    client = app.test_client()
+    set_session(client, user_id=7, username="administrator")
+
+    response = client.get("/client?id=42", base_url=BASE_URL)
+
+    assert response.status_code == 200
+    assert response.mimetype == "text/html"
+    assert b'id="lums-sidebar-customizer"' in response.data
+    assert b'id="lums-sidebar-editor-list"' in response.data
+    assert b'data-nav-id="health"' in response.data
+    assert b'data-nav-id="monitoring"' in response.data
+
+    # Nur die Autorisierungsverbindung wird benötigt.
+    assert calls == [True]
+    assert connection.closed is True
+
+
+def test_postgres_monitoring_page_does_not_open_page_database_connection(
+    monkeypatch,
+):
+    connections = []
+
+    def connection_factory():
+        connection = FakeConnection()
+        connections.append(connection)
+        return connection
+
+    app = create_test_app(connection_factory)
+
+    monkeypatch.setattr(
+        pg_security,
+        "load_authorization_state",
+        lambda conn, user_id: make_authorization_state(),
+    )
+
+    client = app.test_client()
+    set_session(client, user_id=7, username="administrator")
+
+    response = client.get("/monitoring", base_url=BASE_URL)
+
+    assert response.status_code == 200
+    assert response.mimetype == "text/html"
+    assert b"Live system monitoring" in response.data
+    assert b'id="lums-sidebar-customizer"' in response.data
+
+    # Die Autorisierung benötigt eine Verbindung.
+    # Die Monitoring-Seite selbst öffnet keine weitere.
+    assert len(connections) == 1
+    assert connections[0].closed is True
+
+
+def test_postgres_ui_pages_require_authentication():
+    app = create_test_app()
+    client = app.test_client()
+
+    for path in ("/client", "/health", "/monitoring"):
+        response = client.get(path, base_url=BASE_URL)
+
+        assert response.status_code == 302
+        assert response.headers["Location"].endswith("/login")
+
+
+def test_postgres_ui_pages_reject_users_without_clients_view(
+    monkeypatch,
+):
+    connection = FakeConnection()
+    app = create_test_app(lambda: connection)
+
+    monkeypatch.setattr(
+        pg_security,
+        "load_authorization_state",
+        lambda conn, user_id: make_authorization_state(
+            permissions=frozenset({"software.view"})
+        ),
+    )
+
+    client = app.test_client()
+    set_session(client, user_id=7, username="viewer")
+
+    for path in ("/client", "/health", "/monitoring"):
+        response = client.get(path, base_url=BASE_URL)
+
+        assert response.status_code == 403
+        assert response.get_json() == {
+            "error": "authorization_required"
+        }
+
+    assert connection.closed is True
+
+
+def test_postgres_health_page_uses_read_only_transaction(
+    monkeypatch,
+):
+    authorization_connection = FakeConnection()
+
+    class FakeResult:
+        def __init__(self, rows):
+            self.rows = rows
+
+        def fetchall(self):
+            return self.rows
+
+    class FakeHealthConnection:
+        def __init__(self):
+            self.closed = False
+            self.statements = []
+
+        def execute(self, statement, params=None):
+            normalized = " ".join(statement.split())
+            self.statements.append(normalized)
+
+            if normalized.startswith("SELECT last_seen"):
+                now = datetime.now(timezone.utc)
+                return FakeResult([
+                    {"last_seen": now},
+                    {"last_seen": now - timedelta(seconds=300)},
+                    {"last_seen": now - timedelta(seconds=900)},
+                ])
+
+            return FakeResult([])
+
+        def close(self):
+            self.closed = True
+
+    health_connection = FakeHealthConnection()
+    factory_calls = []
+
+    def connection_factory():
+        factory_calls.append(True)
+        if len(factory_calls) == 1:
+            return authorization_connection
+        if len(factory_calls) == 2:
+            return health_connection
+        raise AssertionError("Unexpected additional DB connection")
+
+    app = create_test_app(connection_factory)
+
+    monkeypatch.setattr(
+        pg_security,
+        "load_authorization_state",
+        lambda conn, user_id: make_authorization_state(),
+    )
+
+    @contextmanager
+    def fake_transaction(connection):
+        assert connection is health_connection
+        assert connection.closed is False
+        yield connection
+
+    monkeypatch.setattr(
+        postgres_ui_pages,
+        "transaction",
+        fake_transaction,
+    )
+
+    client = app.test_client()
+    set_session(client, user_id=7, username="administrator")
+
+    response = client.get("/health", base_url=BASE_URL)
+
+    assert response.status_code == 200
+    assert response.mimetype == "text/html"
+    assert b"Health Dashboard" in response.data
+
+    assert factory_calls == [True, True]
+    assert authorization_connection.closed is True
+    assert health_connection.closed is True
+
+    assert len(health_connection.statements) == 2
+    assert health_connection.statements[0] == (
+        "SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY"
+    )
+    assert health_connection.statements[1].startswith(
+        "SELECT last_seen FROM clients"
+    )
+
+    # Alle drei Client-Zustände werden korrekt ausgegeben.
+    assert b'<div class="card-value">3</div>' in response.data
+    assert b'<tr><td>Online</td><td>1</td></tr>' in response.data
+    assert b'<tr><td>Unbekannt</td><td>1</td></tr>' in response.data
+    assert b'<tr><td>Offline</td><td>1</td></tr>' in response.data
+
+
+def test_postgres_health_page_handles_database_driver_error(
+    monkeypatch,
+):
+    class SimulatedDatabaseError(Exception):
+        pass
+
+    monkeypatch.setattr(
+        postgres_ui_pages,
+        "DatabaseDriverError",
+        SimulatedDatabaseError,
+    )
+
+    authorization_connection = FakeConnection()
+
+    class FakeHealthConnection:
+        def __init__(self):
+            self.closed = False
+            self.statements = []
+
+        def execute(self, statement, params=None):
+            normalized = " ".join(statement.split())
+            self.statements.append(normalized)
+
+            if normalized.startswith("SELECT last_seen"):
+                raise SimulatedDatabaseError(
+                    "simulated database failure"
+                )
+
+            return None
+
+        def close(self):
+            self.closed = True
+
+    health_connection = FakeHealthConnection()
+    factory_calls = []
+
+    def connection_factory():
+        factory_calls.append(True)
+
+        if len(factory_calls) == 1:
+            return authorization_connection
+
+        if len(factory_calls) == 2:
+            return health_connection
+
+        raise AssertionError("Unexpected additional DB connection")
+
+    app = create_test_app(connection_factory)
+
+    monkeypatch.setattr(
+        pg_security,
+        "load_authorization_state",
+        lambda conn, user_id: make_authorization_state(),
+    )
+
+    @contextmanager
+    def fake_transaction(connection):
+        assert connection is health_connection
+        yield connection
+
+    monkeypatch.setattr(
+        postgres_ui_pages,
+        "transaction",
+        fake_transaction,
+    )
+
+    client = app.test_client()
+    set_session(client, user_id=7, username="administrator")
+
+    response = client.get("/health", base_url=BASE_URL)
+
+    assert response.status_code == 200
+    assert response.mimetype == "text/html"
+
+    # Bei einem Datenbankfehler dürfen keine falschen Nullwerte erscheinen.
+    response_html = response.get_data(as_text=True)
+
+    assert '<tr><td>Online</td><td>—</td></tr>' in response_html
+    assert '<tr><td>Unbekannt</td><td>—</td></tr>' in response_html
+    assert '<tr><td>Offline</td><td>—</td></tr>' in response_html
+
+    assert factory_calls == [True, True]
+    assert authorization_connection.closed is True
+    assert health_connection.closed is True
+
+    assert health_connection.statements[0] == (
+        "SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY"
+    )
 
 
 def test_factory_does_not_mutate_caller_configuration():

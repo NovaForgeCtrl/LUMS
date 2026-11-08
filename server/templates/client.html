@@ -11,7 +11,11 @@
 </head>
 
 <body class="lums-sidebar-layout">
-{% include "_sidebar.html" %}
+{% if postgres_backend|default(false) %}
+    {% include "_postgres_sidebar.html" %}
+{% else %}
+    {% include "_sidebar.html" %}
+{% endif %}
 
 <header class="lums-pagebar">
     <button

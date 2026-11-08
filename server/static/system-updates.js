@@ -142,7 +142,10 @@ async function loadSystemUpdates() {
         renderSteps(activeJob);
         renderHistory(data.history);
         installButton.disabled = !(
-            agentOnline && currentRelease && !activeJob
+            agentOnline
+            && currentRelease
+            && !activeJob
+            && data.update_execution_enabled === true
         );
         if (activeJob) {
             setStatus(
@@ -157,6 +160,11 @@ async function loadSystemUpdates() {
             );
         } else if (data.release_error) {
             setStatus(data.release_error, "error");
+        } else if (data.update_execution_enabled !== true) {
+            setStatus(
+                t("Host update execution is disabled. No update can be started."),
+                "warning"
+            );
         } else {
             setStatus(t("Release information is current."), "success");
         }
@@ -208,7 +216,7 @@ async function requestSystemUpdate() {
         await loadSystemUpdates();
     } catch (error) {
         setStatus(error.message || t("The update request was rejected."), "error");
-        installButton.disabled = false;
+        installButton.disabled = true;
     }
 }
 
