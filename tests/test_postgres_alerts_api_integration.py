@@ -1,11 +1,11 @@
 """Real PostgreSQL integration tests for the alerts API."""
 
-import os
 import secrets
 from datetime import datetime, timezone
 from uuid import uuid4
 
 import psycopg
+from postgres_test_support import require_test_database_url, run_cleanup
 import pytest
 from psycopg import sql
 from psycopg.rows import dict_row
@@ -26,19 +26,22 @@ def _open_schema_connection(database_url, schema_name, application_name):
         connect_timeout=5,
         application_name=application_name,
     )
-    connection.execute(
-        sql.SQL("SET search_path TO {}").format(
-            sql.Identifier(schema_name)
+    try:
+        connection.execute(
+            sql.SQL("SET search_path TO {}").format(
+                sql.Identifier(schema_name)
+            )
         )
-    )
+    except BaseException:
+        run_cleanup(("close connection after search_path failure", connection.close))
+        raise
+
     return connection
 
 
 @pytest.fixture
 def postgres_alerts_api_environment():
-    database_url = os.environ.get("LUMS_TEST_DATABASE_URL")
-    if not database_url:
-        pytest.skip("LUMS_TEST_DATABASE_URL is not configured")
+    database_url = require_test_database_url()
 
     admin = psycopg.connect(
         database_url,
@@ -150,17 +153,21 @@ def postgres_alerts_api_environment():
         }
 
     finally:
-        if setup is not None:
-            setup.close()
-
-        if schema_created:
-            admin.execute(
-                sql.SQL("DROP SCHEMA IF EXISTS {} CASCADE").format(
-                    sql.Identifier(schema_name)
-                )
-            )
-
-        admin.close()
+        run_cleanup(
+            (
+                "close setup connection",
+                lambda: setup.close() if setup is not None else None,
+            ),
+            (
+                "drop test schema",
+                lambda: admin.execute(
+                    sql.SQL("DROP SCHEMA IF EXISTS {} CASCADE").format(
+                        sql.Identifier(schema_name)
+                    )
+                ) if schema_created else None,
+            ),
+            ("close admin connection", admin.close),
+        )
 
 
 def _login_client(client, user_id, username):
@@ -199,7 +206,7 @@ def _read_rows(environment, statement, params=()):
     try:
         return connection.execute(statement, params).fetchall()
     finally:
-        connection.close()
+        run_cleanup(("close PostgreSQL read connection", connection.close))
 
 
 def test_alerts_api_lifecycle_persists_history_and_audit(

@@ -4,7 +4,6 @@ Requires the explicit LUMS_TEST_DATABASE_URL environment variable.
 Tests create and remove only their own randomly named schema.
 """
 
-import os
 from pathlib import Path
 import sys
 from threading import Thread
@@ -12,6 +11,7 @@ from time import monotonic, sleep
 from uuid import uuid4
 
 import psycopg
+from postgres_test_support import require_test_database_url, run_cleanup
 import pytest
 from psycopg import sql
 from psycopg.rows import dict_row
@@ -35,10 +35,7 @@ LOCK_WORKER_APP = "lums-migration-lock-worker"
 
 @pytest.fixture
 def postgres_environment():
-    database_url = os.environ.get("LUMS_TEST_DATABASE_URL")
-
-    if not database_url:
-        pytest.skip("LUMS_TEST_DATABASE_URL is not configured")
+    database_url = require_test_database_url()
 
     admin = psycopg.connect(
         database_url,
@@ -49,6 +46,7 @@ def postgres_environment():
 
     connection = None
     schema_name = f"lums_migration_test_{uuid4().hex}"
+    schema_created = False
 
     try:
         identity = admin.execute(
@@ -69,6 +67,7 @@ def postgres_environment():
                 sql.Identifier(schema_name)
             )
         )
+        schema_created = True
 
         connection = psycopg.connect(
             database_url,
@@ -86,15 +85,21 @@ def postgres_environment():
         yield connection, database_url, schema_name
 
     finally:
-        if connection is not None:
-            connection.close()
-
-        admin.execute(
-            sql.SQL("DROP SCHEMA IF EXISTS {} CASCADE").format(
-                sql.Identifier(schema_name)
-            )
+        run_cleanup(
+            (
+                "close test connection",
+                lambda: connection.close() if connection is not None else None,
+            ),
+            (
+                "drop test schema",
+                lambda: admin.execute(
+                    sql.SQL("DROP SCHEMA IF EXISTS {} CASCADE").format(
+                        sql.Identifier(schema_name)
+                    )
+                ) if schema_created else None,
+            ),
+            ("close admin connection", admin.close),
         )
-        admin.close()
 
 
 def make_migration(version, statements):
@@ -227,6 +232,101 @@ def test_runner_rejects_changed_checksum_for_applied_migration(
         run_migrations(connection, (changed,))
 
 
+def _assert_migration_lock_is_available(database_url):
+    observer = psycopg.connect(
+        database_url,
+        autocommit=True,
+        row_factory=dict_row,
+        application_name="lums-migration-lock-observer",
+    )
+
+    try:
+        acquired = observer.execute(
+            "SELECT pg_try_advisory_lock(%s, %s) AS acquired",
+            (LOCK_CLASS, LOCK_OBJECT),
+        ).fetchone()
+
+        assert acquired["acquired"] is True, (
+            "Migration advisory lock remained held after runner completion."
+        )
+
+        released = observer.execute(
+            "SELECT pg_advisory_unlock(%s, %s) AS unlocked",
+            (LOCK_CLASS, LOCK_OBJECT),
+        ).fetchone()
+
+        assert released["unlocked"] is True
+    finally:
+        observer.close()
+
+
+def _prepare_migration_history_gap(connection):
+    migrations = (
+        make_migration("001-integration-gap-first", ("SELECT 1",)),
+        make_migration("002-integration-gap-middle", ("SELECT 2",)),
+        make_migration("003-integration-gap-last", ("SELECT 3",)),
+    )
+
+    run_migrations(connection, (migrations[0],))
+
+    connection.execute(
+        """
+        INSERT INTO schema_migrations (version, checksum, description)
+        VALUES (%s, %s, %s)
+        """,
+        (
+            migrations[2].version,
+            migrations[2].checksum,
+            migrations[2].description,
+        ),
+    )
+
+    return migrations
+
+
+def test_runner_rejects_migration_history_gap(postgres_environment):
+    connection, _, _ = postgres_environment
+    migrations = _prepare_migration_history_gap(connection)
+
+    with pytest.raises(MigrationHistoryError, match="contains a gap"):
+        run_migrations(connection, migrations)
+
+    assert connection.info.transaction_status.name == "IDLE"
+
+
+def test_runner_releases_advisory_lock_after_history_gap(
+    postgres_environment,
+):
+    connection, database_url, _ = postgres_environment
+    migrations = _prepare_migration_history_gap(connection)
+
+    with pytest.raises(MigrationHistoryError, match="contains a gap"):
+        run_migrations(connection, migrations)
+
+    _assert_migration_lock_is_available(database_url)
+
+
+def test_runner_releases_advisory_lock_after_failed_migration(
+    postgres_environment,
+):
+    connection, database_url, _ = postgres_environment
+
+    migration = make_migration(
+        "001-integration-lock-failure",
+        (
+            "CREATE TABLE migration_lock_failure_probe (value INTEGER)",
+            "INSERT INTO missing_migration_lock_failure_table(value) "
+            "VALUES (1)",
+        ),
+    )
+
+    with pytest.raises(psycopg.errors.UndefinedTable):
+        run_migrations(connection, (migration,))
+
+    assert connection.info.transaction_status.name == "IDLE"
+    _assert_migration_lock_is_available(database_url)
+
+
 def test_runner_holds_and_releases_advisory_lock(
     postgres_environment,
 ):
@@ -238,11 +338,16 @@ def test_runner_holds_and_releases_advisory_lock(
         row_factory=dict_row,
         application_name=LOCK_WORKER_APP,
     )
-    worker_connection.execute(
-        sql.SQL("SET search_path TO {}").format(
-            sql.Identifier(schema_name)
+    try:
+        worker_connection.execute(
+            sql.SQL("SET search_path TO {}").format(
+                sql.Identifier(schema_name)
+            )
         )
-    )
+    except BaseException:
+        run_cleanup(("close worker connection after search_path failure",
+             worker_connection.close))
+        raise
 
     errors = []
 
@@ -260,7 +365,10 @@ def test_runner_holds_and_releases_advisory_lock(
         except BaseException as exc:
             errors.append(exc)
         finally:
-            worker_connection.close()
+            try:
+                worker_connection.close()
+            except BaseException as exc:
+                errors.append(exc)
 
     thread = Thread(target=run_in_worker, daemon=True)
 
@@ -304,7 +412,23 @@ def test_runner_holds_and_releases_advisory_lock(
         assert while_locked["acquired"] is False
 
     finally:
-        thread.join(timeout=10)
+        # Fixture teardown must not drop the schema while this worker
+        # could still be using it. If thread.start() failed, the worker
+        # connection still belongs to this thread and must be closed here.
+        run_cleanup(
+            (
+                "join migration worker",
+                lambda: thread.join()
+                if thread.ident is not None
+                else None,
+            ),
+            (
+                "close worker connection if thread did not start",
+                lambda: worker_connection.close()
+                if thread.ident is None
+                else None,
+            ),
+        )
 
     assert not thread.is_alive(), "Migration worker did not finish."
     assert errors == []
@@ -320,4 +444,210 @@ def test_runner_holds_and_releases_advisory_lock(
         "SELECT pg_advisory_unlock(%s, %s) AS unlocked",
         (LOCK_CLASS, LOCK_OBJECT),
     ).fetchone()
+    assert unlocked["unlocked"] is True
+
+
+def test_runner_rejects_incompatible_migration_history_table(
+    postgres_environment,
+):
+    connection, _, _ = postgres_environment
+
+    connection.execute(
+        """
+        CREATE TABLE schema_migrations (
+            version TEXT PRIMARY KEY,
+            applied_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            checksum INTEGER NOT NULL,
+            description TEXT NOT NULL
+        )
+        """
+    )
+
+    migration = make_migration(
+        "001-integration-incompatible-history",
+        ("SELECT 1",),
+    )
+
+    with pytest.raises(
+        MigrationHistoryError,
+        match="incompatible definition",
+    ):
+        run_migrations(connection, (migration,))
+
+    assert connection.info.transaction_status.name == "IDLE"
+
+
+def test_runner_rejects_unregistered_migration_in_history(
+    postgres_environment,
+):
+    connection, _, _ = postgres_environment
+
+    registered = make_migration(
+        "001-integration-registered",
+        ("SELECT 1",),
+    )
+    run_migrations(connection, (registered,))
+
+    connection.execute(
+        """
+        INSERT INTO schema_migrations (version, checksum, description)
+        VALUES (%s, %s, %s)
+        """,
+        (
+            "999-unregistered-migration",
+            "0" * 64,
+            "Unregistered integration test migration",
+        ),
+    )
+
+    with pytest.raises(
+        MigrationHistoryError,
+        match="unregistered migration",
+    ):
+        run_migrations(connection, (registered,))
+
+    assert connection.info.transaction_status.name == "IDLE"
+
+
+def test_postgres_releases_migration_session_lock_after_connection_drop(
+    postgres_environment,
+):
+    observer, database_url, schema_name = postgres_environment
+    worker_app = "lums-migration-lock-drop-worker"
+
+    worker_connection = psycopg.connect(
+        database_url,
+        autocommit=True,
+        row_factory=dict_row,
+        application_name=worker_app,
+    )
+    worker_connection.execute(
+        sql.SQL("SET search_path TO {}").format(
+            sql.Identifier(schema_name)
+        )
+    )
+
+    errors = []
+
+    migration = make_migration(
+        "001-integration-lock-drop",
+        (
+            "SELECT pg_sleep(30)",
+            "CREATE TABLE migration_lock_drop_probe (value INTEGER)",
+        ),
+    )
+
+    def run_in_worker():
+        try:
+            run_migrations(worker_connection, (migration,))
+        except BaseException as exc:
+            errors.append(exc)
+        finally:
+            try:
+                worker_connection.close()
+            except BaseException as exc:
+                errors.append(exc)
+
+    thread = Thread(target=run_in_worker, daemon=True)
+    backend_pid = None
+    terminated = False
+
+    try:
+        thread.start()
+
+        deadline = monotonic() + 5
+
+        while monotonic() < deadline:
+            row = observer.execute(
+                """
+                SELECT activity.pid
+                FROM pg_locks AS locks
+                JOIN pg_stat_activity AS activity
+                  ON activity.pid = locks.pid
+                WHERE locks.locktype = 'advisory'
+                  AND locks.classid = %s::oid
+                  AND locks.objid = %s::oid
+                  AND locks.objsubid = 2
+                  AND locks.granted
+                  AND activity.application_name = %s
+                """,
+                (LOCK_CLASS, LOCK_OBJECT, worker_app),
+            ).fetchone()
+
+            if row is not None:
+                backend_pid = row["pid"]
+                break
+
+            sleep(0.01)
+
+        assert backend_pid is not None, (
+            "Migration worker did not acquire its session advisory lock."
+        )
+
+        result = observer.execute(
+            "SELECT pg_terminate_backend(%s) AS terminated",
+            (backend_pid,),
+        ).fetchone()
+        terminated = result["terminated"]
+
+        assert terminated is True, (
+            "PostgreSQL did not terminate the migration worker connection."
+        )
+
+        backend_gone = False
+        deadline = monotonic() + 5
+
+        while monotonic() < deadline:
+            row = observer.execute(
+                """
+                SELECT EXISTS (
+                    SELECT 1
+                    FROM pg_stat_activity
+                    WHERE pid = %s
+                ) AS alive
+                """,
+                (backend_pid,),
+            ).fetchone()
+
+            if not row["alive"]:
+                backend_gone = True
+                break
+
+            sleep(0.01)
+
+        assert backend_gone, (
+            "Terminated migration backend remained visible in pg_stat_activity."
+        )
+
+    finally:
+        if thread.ident is not None:
+            if thread.is_alive() and backend_pid is not None:
+                observer.execute(
+                    "SELECT pg_terminate_backend(%s)",
+                    (backend_pid,),
+                )
+            thread.join(timeout=10)
+
+        if thread.ident is None:
+            worker_connection.close()
+
+    assert not thread.is_alive(), (
+        "Migration worker did not finish after connection termination."
+    )
+    assert terminated is True
+
+    lock = observer.execute(
+        "SELECT pg_try_advisory_lock(%s, %s) AS acquired",
+        (LOCK_CLASS, LOCK_OBJECT),
+    ).fetchone()
+
+    assert lock["acquired"] is True, (
+        "PostgreSQL retained the migration session lock after connection loss."
+    )
+
+    unlocked = observer.execute(
+        "SELECT pg_advisory_unlock(%s, %s) AS unlocked",
+        (LOCK_CLASS, LOCK_OBJECT),
+    ).fetchone()
+
     assert unlocked["unlocked"] is True

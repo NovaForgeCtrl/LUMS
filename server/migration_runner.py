@@ -286,6 +286,18 @@ def _load_and_validate_history(
 
         applied.add(version)
 
+    missing_version_seen = False
+
+    for migration in migrations:
+        if migration.version in applied:
+            if missing_version_seen:
+                raise MigrationHistoryError(
+                    "database migration history contains a gap before "
+                    f"applied migration: {migration.version}"
+                )
+        else:
+            missing_version_seen = True
+
     return applied
 
 
@@ -305,6 +317,7 @@ def run_migrations(
     ordered = validate_migrations(migrations)
 
     lock_acquired = False
+    primary_error: BaseException | None = None
 
     try:
         connection.execute(
@@ -351,12 +364,33 @@ def run_migrations(
             already_applied=tuple(already_applied),
         )
 
+    except BaseException as exc:
+        primary_error = exc
+        raise
+
     finally:
         if lock_acquired and not connection.closed:
-            connection.execute(
-                "SELECT pg_advisory_unlock(%s, %s)",
-                (_MIGRATION_LOCK_CLASS, _MIGRATION_LOCK_OBJECT),
-            )
+            try:
+                result = connection.execute(
+                    "SELECT pg_advisory_unlock(%s, %s) AS unlocked",
+                    (_MIGRATION_LOCK_CLASS, _MIGRATION_LOCK_OBJECT),
+                ).fetchone()
+
+                if result["unlocked"] is not True:
+                    raise MigrationRunnerError(
+                        "PostgreSQL migration advisory lock was not released."
+                    )
+
+            except BaseException as unlock_error:
+                if primary_error is not None:
+                    primary_error.add_note(
+                        "Additionally, releasing the PostgreSQL migration "
+                        f"advisory lock failed: {unlock_error!r}"
+                    )
+                else:
+                    raise MigrationRunnerError(
+                        "Could not release PostgreSQL migration advisory lock."
+                    ) from unlock_error
 
 
 __all__ = [

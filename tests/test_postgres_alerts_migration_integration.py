@@ -1,9 +1,9 @@
 """PostgreSQL integration test for migration 008-alerts."""
 
-import os
 from uuid import uuid4
 
 import psycopg
+from postgres_test_support import require_test_database_url, run_cleanup
 import pytest
 from psycopg import sql
 from psycopg.rows import dict_row
@@ -14,9 +14,7 @@ from server.migrations.alerts import ALERTS_MIGRATION
 
 @pytest.fixture
 def postgres_environment():
-    database_url = os.environ.get("LUMS_TEST_DATABASE_URL")
-    if not database_url:
-        pytest.skip("LUMS_TEST_DATABASE_URL is not configured")
+    database_url = require_test_database_url()
 
     admin = psycopg.connect(
         database_url,
@@ -64,18 +62,21 @@ def postgres_environment():
         yield connection
 
     finally:
-        if connection is not None:
-            connection.close()
-
-        try:
-            if schema_created:
-                admin.execute(
+        run_cleanup(
+            (
+                "close test connection",
+                lambda: connection.close() if connection is not None else None,
+            ),
+            (
+                "drop test schema",
+                lambda: admin.execute(
                     sql.SQL("DROP SCHEMA IF EXISTS {} CASCADE").format(
                         sql.Identifier(schema_name)
                     )
-                )
-        finally:
-            admin.close()
+                ) if schema_created else None,
+            ),
+            ("close admin connection", admin.close),
+        )
 
 
 def test_alerts_migration_creates_schema_and_is_idempotent(

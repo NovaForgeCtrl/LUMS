@@ -552,3 +552,56 @@ def test_language_change_rejects_invalid_csrf_without_database_access():
         base_url=BASE_URL
     ) as session:
         assert session["language"] == "de"
+
+
+def test_session_configuration_uses_secure_cookie_defaults():
+    app = create_app()
+
+    assert app.config["SESSION_COOKIE_NAME"] == "lums_session"
+    assert app.config["SESSION_COOKIE_HTTPONLY"] is True
+    assert app.config["SESSION_COOKIE_SECURE"] is True
+    assert app.config["SESSION_COOKIE_SAMESITE"] == "Strict"
+    assert app.config["SESSION_COOKIE_PATH"] == "/"
+    assert app.config["PERMANENT_SESSION_LIFETIME"] == 1800
+    assert app.config["SESSION_REFRESH_EACH_REQUEST"] is True
+
+
+def test_login_connection_factory_failure_returns_503_without_session():
+    app = create_app()
+    factory_calls = []
+    sqlite_factory_calls = []
+
+    def fail_to_connect():
+        factory_calls.append(True)
+        raise RuntimeError("simulated PostgreSQL connection failure")
+
+    app.config["LUMS_POSTGRES_GET_CONNECTION"] = fail_to_connect
+    app.config["LUMS_GET_CONNECTION"] = (
+        lambda: sqlite_factory_calls.append(True)
+    )
+
+    client = app.test_client()
+    set_csrf(client)
+
+    response = client.post(
+        "/login",
+        base_url=BASE_URL,
+        data={
+            "username": "administrator",
+            "password": "correct-password",
+            "csrf_token": "test-csrf-token",
+        },
+    )
+
+    assert response.status_code == 503
+    assert "simulated PostgreSQL connection failure" not in (
+        response.get_data(as_text=True)
+    )
+    assert factory_calls == [True]
+    assert sqlite_factory_calls == []
+
+    with client.session_transaction(
+        base_url=BASE_URL
+    ) as session:
+        assert "user_id" not in session
+        assert session["csrf_token"] == "test-csrf-token"

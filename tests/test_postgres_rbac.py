@@ -1,12 +1,12 @@
 """Isolated PostgreSQL tests for fresh-install RBAC behavior."""
 
 from dataclasses import dataclass, field
-import os
 from pathlib import Path
 import sys
 from uuid import uuid4
 
 import psycopg
+from postgres_test_support import require_test_database_url, run_cleanup
 import pytest
 from psycopg import sql
 from psycopg.rows import dict_row
@@ -42,9 +42,7 @@ class PostgresEnvironment:
 
 @pytest.fixture
 def postgres_environment():
-    database_url = os.environ.get("LUMS_TEST_DATABASE_URL")
-    if not database_url:
-        pytest.skip("LUMS_TEST_DATABASE_URL is not configured")
+    database_url = require_test_database_url()
 
     admin = psycopg.connect(
         database_url,
@@ -54,6 +52,7 @@ def postgres_environment():
     )
 
     schema_name = f"lums_postgres_rbac_{uuid4().hex}"
+    schema_created = False
 
     try:
         identity = admin.execute(
@@ -74,6 +73,7 @@ def postgres_environment():
                 sql.Identifier(schema_name)
             )
         )
+        schema_created = True
 
         setup = psycopg.connect(
             database_url,
@@ -157,17 +157,22 @@ def postgres_environment():
                 """
             )
         finally:
-            setup.close()
+            run_cleanup(("close setup connection", setup.close))
 
         yield PostgresEnvironment(database_url, schema_name)
 
     finally:
-        admin.execute(
-            sql.SQL("DROP SCHEMA IF EXISTS {} CASCADE").format(
-                sql.Identifier(schema_name)
-            )
+        run_cleanup(
+            (
+                "drop test schema",
+                lambda: admin.execute(
+                    sql.SQL("DROP SCHEMA IF EXISTS {} CASCADE").format(
+                        sql.Identifier(schema_name)
+                    )
+                ) if schema_created else None,
+            ),
+            ("close admin connection", admin.close),
         )
-        admin.close()
 
 
 def open_connection(environment, application_name):
@@ -177,11 +182,16 @@ def open_connection(environment, application_name):
         row_factory=dict_row,
         application_name=application_name,
     )
-    connection.execute(
-        sql.SQL("SET search_path TO {}").format(
-            sql.Identifier(environment.schema_name)
+    try:
+        connection.execute(
+            sql.SQL("SET search_path TO {}").format(
+                sql.Identifier(environment.schema_name)
+            )
         )
-    )
+    except BaseException:
+        run_cleanup(("close connection after search_path failure", connection.close))
+        raise
+
     return connection
 
 
@@ -254,7 +264,7 @@ def test_seed_system_roles_matches_default_permissions(
         assert migration_roles == 0
 
     finally:
-        connection.close()
+        run_cleanup(("close PostgreSQL test connection", connection.close))
 
 
 def test_store_and_resolve_permissions_with_grants_and_denies(
@@ -322,7 +332,7 @@ def test_store_and_resolve_permissions_with_grants_and_denies(
         }
 
     finally:
-        connection.close()
+        run_cleanup(("close PostgreSQL test connection", connection.close))
 
 
 def test_initial_bootstrap_grants_delegation_only_to_first_admin(
@@ -383,7 +393,7 @@ def test_initial_bootstrap_grants_delegation_only_to_first_admin(
                 )
 
     finally:
-        connection.close()
+        run_cleanup(("close PostgreSQL test connection", connection.close))
 
 
 def test_initial_bootstrap_rejects_non_administrator(
@@ -416,7 +426,7 @@ def test_initial_bootstrap_rejects_non_administrator(
                 )
 
     finally:
-        connection.close()
+        run_cleanup(("close PostgreSQL test connection", connection.close))
 
 
 def test_store_user_permissions_rejects_missing_dependency(
@@ -446,7 +456,7 @@ def test_store_user_permissions_rejects_missing_dependency(
                 )
 
     finally:
-        connection.close()
+        run_cleanup(("close PostgreSQL test connection", connection.close))
 
 
 def test_resolve_permissions_fails_closed_for_missing_rbac_table(
@@ -481,7 +491,7 @@ def test_resolve_permissions_fails_closed_for_missing_rbac_table(
             resolve_user_permissions(connection, user_id)
 
     finally:
-        connection.close()
+        run_cleanup(("close PostgreSQL test connection", connection.close))
 
 
 def test_store_user_permissions_requires_caller_transaction():
@@ -538,4 +548,4 @@ def test_seed_system_roles_is_idempotent(postgres_environment):
         assert permission_count == expected_permission_count
 
     finally:
-        connection.close()
+        run_cleanup(("close PostgreSQL test connection", connection.close))
