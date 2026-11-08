@@ -49,6 +49,8 @@ if __package__:
     from .postgres_alerts_dashboard import register_postgres_alert_dashboard_routes
     from .postgres_update_jobs import register_postgres_update_job_routes
     from .postgres_user_routes import register_postgres_user_routes
+    from .postgres_ui_pages import register_postgres_ui_page_routes
+    from .postgres_system_updates import register_postgres_system_update_routes
     from .security import (
         ROLE_ADMINISTRATOR,
         ROLE_OPERATOR,
@@ -84,6 +86,8 @@ else:
     from postgres_alerts_dashboard import register_postgres_alert_dashboard_routes
     from postgres_update_jobs import register_postgres_update_job_routes
     from postgres_user_routes import register_postgres_user_routes
+    from postgres_ui_pages import register_postgres_ui_page_routes
+    from postgres_system_updates import register_postgres_system_update_routes
     from security import (
         ROLE_ADMINISTRATOR,
         ROLE_OPERATOR,
@@ -179,6 +183,8 @@ def create_postgres_app(config=None) -> Flask:
     register_postgres_alert_dashboard_routes(app)
     register_postgres_update_job_routes(app)
     register_postgres_user_routes(app)
+    register_postgres_ui_page_routes(app)
+    register_postgres_system_update_routes(app)
 
     @app.post("/logout")
     @login_required

@@ -8,7 +8,11 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body class="lums-sidebar-layout{% if monitoring_only %} monitoring-only{% endif %}">
+    {% if postgres_backend|default(false) %}
+    {% include "_postgres_sidebar.html" %}
+    {% else %}
     {% include "_sidebar.html" %}
+    {% endif %}
     <header class="lums-pagebar">
         <button type="button" class="lums-sidebar-toggle" id="lums-sidebar-toggle"
             aria-label="{{ tr('Toggle navigation') }}" aria-controls="lums-sidebar"
@@ -388,6 +392,7 @@ sudo journalctl -u lums-telemetry.service -n 30 --no-pager</code></pre>
                 </table>
             </div>
         </section>
+        {% if not postgres_backend|default(false) %}
         <section class="panel">
             <div class="panel-header">
                 <div>
@@ -408,6 +413,7 @@ sudo journalctl -u lums-telemetry.service -n 30 --no-pager</code></pre>
                 </div>
             </div>
         </section>
+        {% endif %}
         {% endif %}
         </div>
     </main>

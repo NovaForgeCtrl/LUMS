@@ -109,12 +109,12 @@ def test_validate_container_accepts_unhardened_source_but_builds_hardened_target
 def test_validate_container_preserves_read_only_updater_token(
     documented_container, tmp_path,
 ):
-    token = tmp_path / "server-token"
+    token = tmp_path / "token"
     token.write_text("test-only-token", encoding="utf-8")
     documented_container["Mounts"].append({
         "Destination": "/run/secrets/lums_host_updater_token",
         "Type": "bind",
-        "Source": "/etc/lums-host-updater/server-token",
+        "Source": "/etc/lums-host-updater/token",
         "RW": False,
     })
     # validate_container verifies the expected host path without reading token contents.
@@ -122,7 +122,7 @@ def test_validate_container_preserves_read_only_updater_token(
     original_is_file = update_lums.Path.is_file
 
     def fake_is_file(path):
-        if str(path) == "/etc/lums-host-updater/server-token":
+        if str(path) == "/etc/lums-host-updater/token":
             return True
         return original_is_file(path)
 
@@ -138,7 +138,7 @@ def test_validate_container_preserves_read_only_updater_token(
 
     assert any(
         arg == (
-            "type=bind,src=/etc/lums-host-updater/server-token,"
+            "type=bind,src=/etc/lums-host-updater/token,"
             "dst=/run/secrets/lums_host_updater_token,readonly"
         )
         for arg in args
