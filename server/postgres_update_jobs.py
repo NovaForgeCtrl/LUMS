@@ -1147,6 +1147,105 @@ def register_postgres_update_job_routes(app):
             if connection is not None:
                 connection.close()
 
+    @app.get("/api/clients/<int:client_id>/update-jobs/pending")
+    @client_auth_required
+    def postgres_get_pending_update_job(client_id):
+        client = authenticated_client()
+
+        if client["id"] != client_id:
+            return jsonify({
+                "error": "client_access_denied"
+            }), 403
+
+        connection = None
+
+        try:
+            connection = _get_connection()
+
+            client_row = connection.execute(
+                """
+                SELECT id, hostname
+                FROM clients
+                WHERE id = %s
+                """,
+                (client_id,),
+            ).fetchone()
+
+            if client_row is None:
+                return jsonify({
+                    "status": "error",
+                    "message": "Client not found",
+                }), 404
+
+            job = connection.execute(
+                """
+                SELECT
+                    id,
+                    client_id,
+                    created_at,
+                    reboot_required,
+                    action
+                FROM update_jobs
+                WHERE client_id = %s
+                  AND status = 'pending'
+                ORDER BY id ASC
+                LIMIT 1
+                """,
+                (client_id,),
+            ).fetchone()
+
+            if job is None:
+                return jsonify({
+                    "status": "no_job"
+                }), 204
+
+            package_rows = connection.execute(
+                """
+                SELECT
+                    package,
+                    installed_version,
+                    target_version,
+                    status
+                FROM update_job_packages
+                WHERE job_id = %s
+                ORDER BY id ASC
+                """,
+                (job["id"],),
+            ).fetchall()
+
+            return jsonify({
+                "status": "pending",
+                "job_id": job["id"],
+                "client_id": job["client_id"],
+                "created_at": _iso_timestamp(job["created_at"]),
+                "action": job["action"],
+                "reboot_required": bool(job["reboot_required"]),
+                "packages": [
+                    {
+                        "package": row["package"],
+                        "installed_version": row["installed_version"],
+                        "target_version": row["target_version"],
+                        "status": row["status"],
+                    }
+                    for row in package_rows
+                ],
+            }), 200
+
+        except DatabaseDriverError:
+            return _database_error("get pending update job")
+
+        except Exception:
+            current_app.logger.exception(
+                "Unexpected error while getting pending update job"
+            )
+            return jsonify({
+                "error": "internal_server_error"
+            }), 500
+
+        finally:
+            if connection is not None:
+                connection.close()
+
     @app.get("/api/clients/<int:client_id>/update-jobs/running")
     @client_auth_required
     def postgres_get_running_update_job(client_id):

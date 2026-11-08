@@ -9,7 +9,15 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
-from flask import Flask, jsonify, redirect, request, session, url_for
+from flask import (
+    Flask,
+    jsonify,
+    redirect,
+    render_template,
+    request,
+    session,
+    url_for,
+)
 
 if __package__:
     from .db import connect
@@ -25,6 +33,9 @@ if __package__:
         apply_security_headers,
         configure_session,
         csrf_required,
+        current_user_permissions,
+        current_user_role,
+        get_csrf_token,
         login_required,
         logout_user,
         role_required,
@@ -36,6 +47,8 @@ if __package__:
     from .postgres_package_search import register_postgres_package_search_routes
     from .postgres_alerts import register_postgres_alert_routes
     from .postgres_alerts_dashboard import register_postgres_alert_dashboard_routes
+    from .postgres_update_jobs import register_postgres_update_job_routes
+    from .postgres_user_routes import register_postgres_user_routes
     from .security import (
         ROLE_ADMINISTRATOR,
         ROLE_OPERATOR,
@@ -55,6 +68,9 @@ else:
         apply_security_headers,
         configure_session,
         csrf_required,
+        current_user_permissions,
+        current_user_role,
+        get_csrf_token,
         login_required,
         logout_user,
         role_required,
@@ -66,6 +82,8 @@ else:
     from postgres_package_search import register_postgres_package_search_routes
     from postgres_alerts import register_postgres_alert_routes
     from postgres_alerts_dashboard import register_postgres_alert_dashboard_routes
+    from postgres_update_jobs import register_postgres_update_job_routes
+    from postgres_user_routes import register_postgres_user_routes
     from security import (
         ROLE_ADMINISTRATOR,
         ROLE_OPERATOR,
@@ -86,6 +104,10 @@ def _load_secret_key() -> str:
         ).strip()
     except FileNotFoundError:
         secret = os.environ.get("LUMS_SECRET_KEY")
+    except (OSError, UnicodeError, ValueError):
+        raise RuntimeError(
+            "LUMS secret file could not be read."
+        ) from None
 
     if not secret:
         raise RuntimeError(
@@ -155,6 +177,8 @@ def create_postgres_app(config=None) -> Flask:
     register_postgres_package_search_routes(app)
     register_postgres_alert_routes(app)
     register_postgres_alert_dashboard_routes(app)
+    register_postgres_update_job_routes(app)
+    register_postgres_user_routes(app)
 
     @app.post("/logout")
     @login_required
@@ -172,6 +196,25 @@ def create_postgres_app(config=None) -> Flask:
         permission="clients.view",
     )
     def index():
+        """Render the PostgreSQL-backed LUMS dashboard."""
+        return render_template(
+            "index.html",
+            csrf_token=get_csrf_token(),
+            user_role=current_user_role(),
+            user_permissions=sorted(current_user_permissions()),
+            postgres_backend=True,
+        )
+
+    @app.get("/api/status", endpoint="postgres_status")
+    @login_required
+    @role_required(
+        ROLE_ADMINISTRATOR,
+        ROLE_OPERATOR,
+        ROLE_VIEWER,
+        permission="clients.view",
+    )
+    def postgres_status():
+        """Return PostgreSQL backend and migration status."""
         return jsonify({
             "application": "LUMS",
             "backend": "postgresql",
@@ -187,11 +230,11 @@ def create_postgres_app(config=None) -> Flask:
                 "package_search",
                 "alerts",
                 "alerts_dashboard",
+                "updates",
+                "user_management",
             ],
             "pending_modules": [
-                "updates",
                 "soc",
-                "user_management",
                 "backups",
             ],
         })

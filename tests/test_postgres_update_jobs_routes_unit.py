@@ -1,6 +1,7 @@
 """Database-free unit tests for PostgreSQL update-job routes."""
 
 from contextlib import contextmanager
+from datetime import datetime, timezone
 from types import SimpleNamespace
 
 import pytest
@@ -75,7 +76,6 @@ def _make_environment(
         "LUMS_POSTGRES_GET_CONNECTION": connection_factory,
     })
 
-    jobs_module.register_postgres_update_job_routes(app)
 
     state = SimpleNamespace(
         user={
@@ -306,6 +306,467 @@ def test_create_update_job_rolls_back_when_audit_fails(monkeypatch):
     assert all(item.closed for item in connections)
 
 
+def test_get_client_update_jobs_returns_jobs_and_package_counts(monkeypatch):
+    created_at = datetime(2026, 11, 7, 10, 0, tzinfo=timezone.utc)
+    finished_at = datetime(2026, 11, 7, 10, 15, tzinfo=timezone.utc)
+
+    def handler(connection, statement, params):
+        if statement.startswith("SELECT id FROM clients"):
+            assert params == (CLIENT_ID,)
+            return FakeCursor(one={"id": CLIENT_ID})
+
+        if statement.startswith("SELECT j.id, j.client_id, j.status"):
+            assert params == (CLIENT_ID,)
+            assert "LEFT JOIN update_job_packages" in statement
+            assert "COUNT(p.id) AS package_count" in statement
+            assert "GROUP BY j.id" in statement
+            assert "ORDER BY j.id DESC" in statement
+            return FakeCursor(many=[
+                {
+                    "id": 75,
+                    "client_id": CLIENT_ID,
+                    "status": "success",
+                    "created_at": created_at,
+                    "started_at": created_at,
+                    "finished_at": finished_at,
+                    "reboot_required": False,
+                    "package_count": 2,
+                },
+                {
+                    "id": 74,
+                    "client_id": CLIENT_ID,
+                    "status": "failed",
+                    "created_at": created_at,
+                    "started_at": None,
+                    "finished_at": None,
+                    "reboot_required": True,
+                    "package_count": 0,
+                },
+            ])
+
+        raise AssertionError(f"Unexpected SQL: {statement}")
+
+    client, connections = _make_environment(monkeypatch, handler)
+
+    response = client.get(
+        f"/api/clients/{CLIENT_ID}/update-jobs",
+        base_url=BASE_URL,
+    )
+
+    assert response.status_code == 200
+    assert response.get_json() == [
+        {
+            "id": 75,
+            "client_id": CLIENT_ID,
+            "status": "success",
+            "created_at": "2026-11-07T10:00:00+00:00",
+            "started_at": "2026-11-07T10:00:00+00:00",
+            "finished_at": "2026-11-07T10:15:00+00:00",
+            "reboot_required": False,
+            "package_count": 2,
+        },
+        {
+            "id": 74,
+            "client_id": CLIENT_ID,
+            "status": "failed",
+            "created_at": "2026-11-07T10:00:00+00:00",
+            "started_at": None,
+            "finished_at": None,
+            "reboot_required": True,
+            "package_count": 0,
+        },
+    ]
+    route_connection = _route_connection(
+        connections,
+        "SELECT id FROM clients",
+    )
+    assert route_connection.closed
+    assert all(connection.closed for connection in connections)
+
+
+def test_get_client_update_jobs_returns_not_found_for_missing_client(
+    monkeypatch,
+):
+    def handler(connection, statement, params):
+        assert statement.startswith("SELECT id FROM clients")
+        assert params == (CLIENT_ID,)
+        return FakeCursor(one=None)
+
+    client, connections = _make_environment(monkeypatch, handler)
+
+    response = client.get(
+        f"/api/clients/{CLIENT_ID}/update-jobs",
+        base_url=BASE_URL,
+    )
+
+    assert response.status_code == 404
+    assert response.get_json() == {
+        "status": "error",
+        "message": "Client not found",
+    }
+    route_connection = _route_connection(
+        connections,
+        "SELECT id FROM clients",
+    )
+    assert route_connection.closed
+    assert all(connection.closed for connection in connections)
+    assert len(route_connection.statements) == 1
+
+
+def test_get_client_update_jobs_returns_empty_list_when_no_jobs(monkeypatch):
+    def handler(connection, statement, params):
+        if statement.startswith("SELECT id FROM clients"):
+            assert params == (CLIENT_ID,)
+            return FakeCursor(one={"id": CLIENT_ID})
+
+        if statement.startswith("SELECT j.id, j.client_id, j.status"):
+            assert params == (CLIENT_ID,)
+            assert "ORDER BY j.id DESC" in statement
+            return FakeCursor(many=[])
+
+        raise AssertionError(f"Unexpected SQL: {statement}")
+
+    client, connections = _make_environment(monkeypatch, handler)
+
+    response = client.get(
+        f"/api/clients/{CLIENT_ID}/update-jobs",
+        base_url=BASE_URL,
+    )
+
+    assert response.status_code == 200
+    assert response.get_json() == []
+    route_connection = _route_connection(
+        connections,
+        "SELECT id FROM clients",
+    )
+    assert route_connection.closed
+    assert all(connection.closed for connection in connections)
+
+
+def test_get_pending_update_job_returns_oldest_pending_job(monkeypatch):
+    def handler(connection, statement, params):
+        if statement.startswith(
+            "SELECT id, hostname, enabled, client_token_hash"
+        ):
+            return FakeCursor(one=_authenticated_client_row())
+
+        if statement.startswith("SELECT id, hostname FROM clients"):
+            assert params == (CLIENT_ID,)
+            return FakeCursor(one={
+                "id": CLIENT_ID,
+                "hostname": "agent-01",
+            })
+
+        if statement.startswith(
+            "SELECT id, client_id, created_at, reboot_required, action "
+            "FROM update_jobs"
+        ):
+            assert params == (CLIENT_ID,)
+            assert "status = 'pending'" in statement
+            assert "ORDER BY id ASC" in statement
+            return FakeCursor(one={
+                "id": JOB_ID,
+                "client_id": CLIENT_ID,
+                "created_at": None,
+                "reboot_required": True,
+                "action": "UPDATE_PACKAGE",
+            })
+
+        if statement.startswith(
+            "SELECT package, installed_version, target_version, status "
+            "FROM update_job_packages"
+        ):
+            assert params == (JOB_ID,)
+            return FakeCursor(many=[
+                {
+                    "package": "curl",
+                    "installed_version": "7.88.1",
+                    "target_version": "7.88.2",
+                    "status": "pending",
+                },
+            ])
+
+        raise AssertionError(f"Unexpected SQL: {statement}")
+
+    client, connections = _make_environment(monkeypatch, handler)
+
+    response = client.get(
+        f"/api/clients/{CLIENT_ID}/update-jobs/pending",
+        headers=_agent_headers(),
+        base_url=BASE_URL,
+    )
+
+    assert response.status_code == 200
+    assert response.get_json() == {
+        "status": "pending",
+        "job_id": JOB_ID,
+        "client_id": CLIENT_ID,
+        "created_at": None,
+        "action": "UPDATE_PACKAGE",
+        "reboot_required": True,
+        "packages": [{
+            "package": "curl",
+            "installed_version": "7.88.1",
+            "target_version": "7.88.2",
+            "status": "pending",
+        }],
+    }
+    assert all(item.closed for item in connections)
+
+
+def test_get_pending_update_job_returns_no_content_when_empty(monkeypatch):
+    def handler(connection, statement, params):
+        if statement.startswith(
+            "SELECT id, hostname, enabled, client_token_hash"
+        ):
+            return FakeCursor(one=_authenticated_client_row())
+
+        if statement.startswith("SELECT id, hostname FROM clients"):
+            return FakeCursor(one={
+                "id": CLIENT_ID,
+                "hostname": "agent-01",
+            })
+
+        if statement.startswith(
+            "SELECT id, client_id, created_at, reboot_required, action "
+            "FROM update_jobs"
+        ):
+            return FakeCursor(one=None)
+
+        raise AssertionError(f"Unexpected SQL: {statement}")
+
+    client, connections = _make_environment(monkeypatch, handler)
+
+    response = client.get(
+        f"/api/clients/{CLIENT_ID}/update-jobs/pending",
+        headers=_agent_headers(),
+        base_url=BASE_URL,
+    )
+
+    assert response.status_code == 204
+    assert all(item.closed for item in connections)
+
+
+def test_get_pending_update_job_returns_not_found_for_missing_client(
+    monkeypatch,
+):
+    def handler(connection, statement, params):
+        if statement.startswith(
+            "SELECT id, hostname, enabled, client_token_hash"
+        ):
+            return FakeCursor(one=_authenticated_client_row())
+
+        if statement.startswith("SELECT id, hostname FROM clients"):
+            return FakeCursor(one=None)
+
+        raise AssertionError(f"Unexpected SQL: {statement}")
+
+    client, connections = _make_environment(monkeypatch, handler)
+
+    response = client.get(
+        f"/api/clients/{CLIENT_ID}/update-jobs/pending",
+        headers=_agent_headers(),
+        base_url=BASE_URL,
+    )
+
+    assert response.status_code == 404
+    assert response.get_json() == {
+        "status": "error",
+        "message": "Client not found",
+    }
+    assert all(item.closed for item in connections)
+
+
+def test_get_pending_update_job_rejects_different_client_id(monkeypatch):
+    def handler(connection, statement, params):
+        if statement.startswith(
+            "SELECT id, hostname, enabled, client_token_hash"
+        ):
+            return FakeCursor(one=_authenticated_client_row())
+
+        raise AssertionError(
+            f"Database must not be queried after client ID mismatch: "
+            f"{statement}"
+        )
+
+    client, connections = _make_environment(monkeypatch, handler)
+    other_client_id = CLIENT_ID + 1
+
+    response = client.get(
+        f"/api/clients/{other_client_id}/update-jobs/pending",
+        headers=_agent_headers(),
+        base_url=BASE_URL,
+    )
+
+    assert response.status_code == 403
+    assert response.get_json() == {
+        "error": "client_access_denied",
+    }
+    assert all(item.closed for item in connections)
+
+
+
+def test_get_running_update_job_returns_oldest_running_job(monkeypatch):
+    created_at = "2026-11-07T10:00:00+00:00"
+    started_at = "2026-11-07T10:05:00+00:00"
+
+    def handler(connection, statement, params):
+        if statement.startswith(
+            "SELECT id, hostname, enabled, client_token_hash"
+        ):
+            return FakeCursor(one=_authenticated_client_row())
+
+        if statement.startswith("SELECT id, hostname FROM clients"):
+            assert params == (CLIENT_ID,)
+            return FakeCursor(one={
+                "id": CLIENT_ID,
+                "hostname": "agent-01",
+            })
+
+        if statement.startswith(
+            "SELECT id, client_id, created_at, started_at"
+        ):
+            assert params == (CLIENT_ID,)
+            assert "status = 'running'" in statement
+            assert "ORDER BY id ASC" in statement
+            return FakeCursor(one={
+                "id": JOB_ID,
+                "client_id": CLIENT_ID,
+                "created_at": created_at,
+                "started_at": started_at,
+                "reboot_required": True,
+                "action": "UPDATE_PACKAGE",
+            })
+
+        if statement.startswith(
+            "SELECT package, target_version, status FROM update_job_packages"
+        ):
+            assert params == (JOB_ID,)
+            assert "ORDER BY id ASC" in statement
+            return FakeCursor(many=[{
+                "package": "curl",
+                "target_version": "7.88.2",
+                "status": "pending",
+            }])
+
+        raise AssertionError(f"Unexpected SQL: {statement}")
+
+    client, connections = _make_environment(monkeypatch, handler)
+
+    response = client.get(
+        f"/api/clients/{CLIENT_ID}/update-jobs/running",
+        headers=_agent_headers(),
+        base_url=BASE_URL,
+    )
+
+    assert response.status_code == 200
+    assert response.get_json() == {
+        "status": "running",
+        "job_id": JOB_ID,
+        "client_id": CLIENT_ID,
+        "created_at": created_at,
+        "started_at": started_at,
+        "reboot_required": True,
+        "action": "UPDATE_PACKAGE",
+        "packages": [{
+            "package": "curl",
+            "target_version": "7.88.2",
+            "status": "pending",
+        }],
+    }
+    assert all(item.closed for item in connections)
+
+
+def test_get_running_update_job_returns_no_content_when_empty(monkeypatch):
+    def handler(connection, statement, params):
+        if statement.startswith(
+            "SELECT id, hostname, enabled, client_token_hash"
+        ):
+            return FakeCursor(one=_authenticated_client_row())
+
+        if statement.startswith("SELECT id, hostname FROM clients"):
+            return FakeCursor(one={
+                "id": CLIENT_ID,
+                "hostname": "agent-01",
+            })
+
+        if statement.startswith(
+            "SELECT id, client_id, created_at, started_at"
+        ):
+            return FakeCursor(one=None)
+
+        raise AssertionError(f"Unexpected SQL: {statement}")
+
+    client, connections = _make_environment(monkeypatch, handler)
+
+    response = client.get(
+        f"/api/clients/{CLIENT_ID}/update-jobs/running",
+        headers=_agent_headers(),
+        base_url=BASE_URL,
+    )
+
+    assert response.status_code == 204
+    assert all(item.closed for item in connections)
+
+
+def test_get_running_update_job_returns_not_found_for_missing_client(
+    monkeypatch,
+):
+    def handler(connection, statement, params):
+        if statement.startswith(
+            "SELECT id, hostname, enabled, client_token_hash"
+        ):
+            return FakeCursor(one=_authenticated_client_row())
+
+        if statement.startswith("SELECT id, hostname FROM clients"):
+            return FakeCursor(one=None)
+
+        raise AssertionError(f"Unexpected SQL: {statement}")
+
+    client, connections = _make_environment(monkeypatch, handler)
+
+    response = client.get(
+        f"/api/clients/{CLIENT_ID}/update-jobs/running",
+        headers=_agent_headers(),
+        base_url=BASE_URL,
+    )
+
+    assert response.status_code == 404
+    assert response.get_json() == {
+        "status": "error",
+        "message": "Client not found",
+    }
+    assert all(item.closed for item in connections)
+
+
+def test_get_running_update_job_rejects_different_client_id(monkeypatch):
+    def handler(connection, statement, params):
+        if statement.startswith(
+            "SELECT id, hostname, enabled, client_token_hash"
+        ):
+            return FakeCursor(one=_authenticated_client_row())
+
+        raise AssertionError(
+            "Database must not be queried after client ID mismatch: "
+            f"{statement}"
+        )
+
+    client, connections = _make_environment(monkeypatch, handler)
+    other_client_id = CLIENT_ID + 1
+
+    response = client.get(
+        f"/api/clients/{other_client_id}/update-jobs/running",
+        headers=_agent_headers(),
+        base_url=BASE_URL,
+    )
+
+    assert response.status_code == 403
+    assert response.get_json() == {
+        "error": "client_access_denied",
+    }
+    assert all(item.closed for item in connections)
+
+
 def test_claim_update_job_marks_pending_job_running(monkeypatch):
     def handler(connection, statement, params):
         if statement.startswith(
@@ -460,10 +921,31 @@ def _result_test_handler(
     package_update_rowcount=1,
     job_update_rowcount=1,
     package_count=2,
+    fail_on_statement=None,
+    fail_on_statement_occurrence=1,
 ):
     history_inserts = []
+    attempted_statements = []
+    statement_occurrences = {}
 
     def handler(connection, statement, params):
+        attempted_statements.append(statement)
+
+        if (
+            fail_on_statement is not None
+            and statement.startswith(fail_on_statement)
+        ):
+            statement_occurrences[fail_on_statement] = (
+                statement_occurrences.get(fail_on_statement, 0) + 1
+            )
+            if (
+                statement_occurrences[fail_on_statement]
+                == fail_on_statement_occurrence
+            ):
+                raise PsycopgError(
+                    f"synthetic database failure: {fail_on_statement}"
+                )
+
         if statement.startswith(
             "SELECT id, hostname, enabled, client_token_hash"
         ):
@@ -502,6 +984,7 @@ def _result_test_handler(
 
         raise AssertionError(f"Unexpected SQL: {statement}")
 
+    handler.attempted_statements = attempted_statements
     return handler, history_inserts
 
 
@@ -1961,4 +2444,850 @@ def test_create_update_job_normalizes_package_names(
     )
 
     assert route_connection.events[-1] == "transaction.commit"
+    assert all(connection.closed for connection in connections)
+
+
+# ============================================================
+# CREATE UPDATE JOB: MIXED PACKAGE AVAILABILITY
+# ============================================================
+
+def test_create_update_job_rejects_mixed_package_availability(
+    monkeypatch,
+):
+    inserted_statements = []
+    queried_packages = []
+
+    def handler(connection, statement, params):
+        if statement.startswith("SELECT id, hostname FROM clients"):
+            return FakeCursor(one={
+                "id": CLIENT_ID,
+                "hostname": "agent-01",
+            })
+
+        if statement.startswith("SELECT package, installed_version"):
+            queried_packages.extend(params[1])
+
+            return FakeCursor(many=[
+                {
+                    "package": "curl",
+                    "installed_version": "1.0",
+                    "available_version": "2.0",
+                },
+                {
+                    "package": "wget",
+                    "installed_version": "1.0",
+                    "available_version": "2.0",
+                },
+            ])
+
+        if statement.startswith((
+            "INSERT INTO update_jobs",
+            "INSERT INTO update_job_packages",
+        )):
+            inserted_statements.append(statement)
+            raise AssertionError(
+                "No job data may be inserted for mixed availability"
+            )
+
+        raise AssertionError(f"Unexpected SQL: {statement}")
+
+    client, connections = _make_environment(
+        monkeypatch,
+        handler,
+    )
+
+    response = client.post(
+        f"/api/clients/{CLIENT_ID}/update-jobs",
+        json={
+            "action": "UPDATE_PACKAGE",
+            "packages": [
+                "curl",
+                "nicht-verfuegbar",
+                "wget",
+            ],
+        },
+        headers=_write_headers(),
+        base_url=BASE_URL,
+    )
+
+    assert response.status_code == 400
+
+    body = response.get_json()
+
+    assert body["status"] == "error"
+    assert body["invalid_packages"] == ["nicht-verfuegbar"]
+
+    assert queried_packages == [
+        "curl",
+        "nicht-verfuegbar",
+        "wget",
+    ]
+
+    assert inserted_statements == []
+
+    for connection in connections:
+        assert not any(
+            isinstance(event, tuple) and event[0] == "audit"
+            for event in connection.events
+        )
+        assert connection.closed
+
+    route_connection = _route_connection(
+        connections,
+        "SELECT id, hostname FROM clients",
+    )
+
+    assert route_connection.events[-1] == "transaction.commit"
+
+
+# ============================================================
+# CREATE UPDATE JOB: MULTIPLE UNAVAILABLE PACKAGES
+# ============================================================
+
+def test_create_update_job_reports_all_unavailable_packages(
+    monkeypatch,
+):
+    queried_packages = []
+
+    def handler(connection, statement, params):
+        if statement.startswith("SELECT id, hostname FROM clients"):
+            return FakeCursor(one={
+                "id": CLIENT_ID,
+                "hostname": "agent-01",
+            })
+
+        if statement.startswith("SELECT package, installed_version"):
+            queried_packages.extend(params[1])
+
+            return FakeCursor(many=[
+                {
+                    "package": "curl",
+                    "installed_version": "1.0",
+                    "available_version": "2.0",
+                },
+            ])
+
+        if statement.startswith((
+            "INSERT INTO update_jobs",
+            "INSERT INTO update_job_packages",
+        )):
+            raise AssertionError(
+                "Unavailable packages must prevent job creation"
+            )
+
+        raise AssertionError(f"Unexpected SQL: {statement}")
+
+    client, connections = _make_environment(
+        monkeypatch,
+        handler,
+    )
+
+    requested_packages = [
+        "curl",
+        "missing-one",
+        "missing-two",
+    ]
+
+    response = client.post(
+        f"/api/clients/{CLIENT_ID}/update-jobs",
+        json={
+            "action": "UPDATE_PACKAGE",
+            "packages": requested_packages,
+        },
+        headers=_write_headers(),
+        base_url=BASE_URL,
+    )
+
+    assert response.status_code == 400
+
+    body = response.get_json()
+
+    assert body["status"] == "error"
+    assert body["invalid_packages"] == [
+        "missing-one",
+        "missing-two",
+    ]
+
+    assert queried_packages == requested_packages
+
+    for connection in connections:
+        assert not any(
+            statement.startswith((
+                "INSERT INTO update_jobs",
+                "INSERT INTO update_job_packages",
+            ))
+            for statement, _ in connection.statements
+        )
+
+        assert not any(
+            isinstance(event, tuple) and event[0] == "audit"
+            for event in connection.events
+        )
+
+        assert connection.closed
+
+    route_connection = _route_connection(
+        connections,
+        "SELECT id, hostname FROM clients",
+    )
+
+    assert route_connection.events[-1] == "transaction.commit"
+
+
+# ============================================================
+# CREATE UPDATE JOB: DATABASE FAILURE DURING JOB INSERT
+# ============================================================
+
+def test_create_update_job_rolls_back_when_job_insert_fails(
+    monkeypatch,
+):
+    def handler(connection, statement, params):
+        if statement.startswith("SELECT id, hostname FROM clients"):
+            return FakeCursor(one={
+                "id": CLIENT_ID,
+                "hostname": "agent-01",
+            })
+
+        if statement.startswith("SELECT package, installed_version"):
+            return FakeCursor(many=[
+                {
+                    "package": "curl",
+                    "installed_version": "1.0",
+                    "available_version": "2.0",
+                },
+            ])
+
+        if statement.startswith("INSERT INTO update_jobs"):
+            raise PsycopgError("synthetic job insert failure")
+
+        raise AssertionError(f"Unexpected SQL: {statement}")
+
+    client, connections = _make_environment(
+        monkeypatch,
+        handler,
+    )
+
+    response = client.post(
+        f"/api/clients/{CLIENT_ID}/update-jobs",
+        json={
+            "action": "UPDATE_PACKAGE",
+            "packages": ["curl"],
+        },
+        headers=_write_headers(),
+        base_url=BASE_URL,
+    )
+
+    assert response.status_code == 500
+    assert response.get_json() == {
+        "error": "database_unavailable",
+    }
+
+    route_connection = _route_connection(
+        connections,
+        "SELECT id, hostname FROM clients",
+    )
+
+    assert route_connection.events == [
+        "transaction.begin",
+        "transaction.rollback",
+    ]
+
+    assert not any(
+        isinstance(event, tuple) and event[0] == "audit"
+        for connection in connections
+        for event in connection.events
+    )
+
+    assert not any(
+        statement.startswith("INSERT INTO update_job_packages")
+        for connection in connections
+        for statement, _ in connection.statements
+    )
+
+    assert all(connection.closed for connection in connections)
+
+
+# ============================================================
+# CREATE UPDATE JOB: DATABASE FAILURE DURING PACKAGE INSERT
+# ============================================================
+
+def test_create_update_job_rolls_back_when_package_insert_fails(
+    monkeypatch,
+):
+    def handler(connection, statement, params):
+        if statement.startswith("SELECT id, hostname FROM clients"):
+            return FakeCursor(one={
+                "id": CLIENT_ID,
+                "hostname": "agent-01",
+            })
+
+        if statement.startswith("SELECT package, installed_version"):
+            return FakeCursor(many=[
+                {
+                    "package": "curl",
+                    "installed_version": "1.0",
+                    "available_version": "2.0",
+                },
+            ])
+
+        if statement.startswith("INSERT INTO update_jobs"):
+            return FakeCursor(one={"id": JOB_ID})
+
+        if statement.startswith("INSERT INTO update_job_packages"):
+            raise PsycopgError("synthetic package insert failure")
+
+        raise AssertionError(f"Unexpected SQL: {statement}")
+
+    client, connections = _make_environment(
+        monkeypatch,
+        handler,
+    )
+
+    response = client.post(
+        f"/api/clients/{CLIENT_ID}/update-jobs",
+        json={
+            "action": "UPDATE_PACKAGE",
+            "packages": ["curl"],
+        },
+        headers=_write_headers(),
+        base_url=BASE_URL,
+    )
+
+    assert response.status_code == 500
+    assert response.get_json() == {
+        "error": "database_unavailable",
+    }
+
+    route_connection = _route_connection(
+        connections,
+        "INSERT INTO update_jobs",
+    )
+
+    statements = [
+        statement
+        for statement, _ in route_connection.statements
+    ]
+
+    assert any(
+        statement.startswith("INSERT INTO update_jobs")
+        for statement in statements
+    )
+    assert any(
+        statement.startswith("INSERT INTO update_job_packages")
+        for statement in statements
+    )
+
+    assert route_connection.events == [
+        "transaction.begin",
+        "transaction.rollback",
+    ]
+
+    assert not any(
+        isinstance(event, tuple) and event[0] == "audit"
+        for connection in connections
+        for event in connection.events
+    )
+
+    assert all(connection.closed for connection in connections)
+
+
+@pytest.mark.parametrize(
+    (
+        "failed_statement",
+        "fail_occurrence",
+        "expected_package_updates",
+        "expected_job_updates",
+    ),
+    [
+        ("UPDATE update_job_packages", 2, 2, 0),
+        ("UPDATE update_jobs", 1, 2, 1),
+        ("INSERT INTO update_history", 1, 2, 1),
+    ],
+)
+def test_result_rolls_back_when_database_write_fails(
+    monkeypatch,
+    failed_statement,
+    fail_occurrence,
+    expected_package_updates,
+    expected_job_updates,
+):
+    handler, history_inserts = _result_test_handler(
+        fail_on_statement=failed_statement,
+        fail_on_statement_occurrence=fail_occurrence,
+    )
+    client, connections = _make_environment(monkeypatch, handler)
+
+    response = client.post(
+        f"/api/update-jobs/{JOB_ID}/result",
+        json={
+            "status": "success",
+            "reboot_required": True,
+            "packages": [
+                {"package": "package-1", "status": "success"},
+                {"package": "package-2", "status": "success"},
+            ],
+        },
+        headers=_agent_headers(),
+        base_url=BASE_URL,
+    )
+
+    assert response.status_code == 500
+    assert sum(
+        statement.startswith("UPDATE update_job_packages")
+        for statement in handler.attempted_statements
+    ) == expected_package_updates
+
+    assert sum(
+        statement.startswith("UPDATE update_jobs")
+        for statement in handler.attempted_statements
+    ) == expected_job_updates
+
+    assert sum(
+        statement.startswith(failed_statement)
+        for statement in handler.attempted_statements
+    ) == fail_occurrence
+
+    assert response.get_json() == {
+        "error": "database_unavailable",
+    }
+
+    route_connection = _route_connection(
+        connections,
+        "SELECT id, client_id, status, created_at",
+    )
+
+    assert route_connection.events == [
+        "transaction.begin",
+        "transaction.rollback",
+    ]
+
+    assert not any(
+        isinstance(event, tuple) and event[0] == "audit"
+        for event in route_connection.events
+    )
+
+    assert not history_inserts
+    assert all(item.closed for item in connections)
+
+
+# Single-job details and update-history read-route tests.
+
+
+def test_get_update_job_details_returns_job_packages_and_counts(monkeypatch):
+    created_at = datetime(2026, 11, 7, 10, 0, tzinfo=timezone.utc)
+    finished_at = datetime(2026, 11, 7, 10, 15, tzinfo=timezone.utc)
+
+    def handler(connection, statement, params):
+        if statement.startswith("SELECT j.id, j.client_id, c.hostname"):
+            assert params == (JOB_ID,)
+            assert "JOIN clients c" in statement
+            return FakeCursor(one={
+                "id": JOB_ID,
+                "client_id": CLIENT_ID,
+                "hostname": "agent-01",
+                "ip": "192.0.2.41",
+                "status": "completed",
+                "created_at": created_at,
+                "started_at": created_at,
+                "finished_at": finished_at,
+                "reboot_required": True,
+            })
+
+        if statement.startswith("SELECT id, package, installed_version"):
+            assert params == (JOB_ID,)
+            assert "ORDER BY package" in statement
+            return FakeCursor(many=[
+                {
+                    "id": 2,
+                    "package": "alpha",
+                    "installed_version": "1.0",
+                    "target_version": "1.1",
+                    "status": "success",
+                    "message": None,
+                },
+                {
+                    "id": 1,
+                    "package": "beta",
+                    "installed_version": "2.0",
+                    "target_version": "2.1",
+                    "status": "failed",
+                    "message": "package manager error",
+                },
+                {
+                    "id": 3,
+                    "package": "gamma",
+                    "installed_version": "3.0",
+                    "target_version": "3.1",
+                    "status": "success",
+                    "message": None,
+                },
+            ])
+
+        raise AssertionError(f"Unexpected SQL: {statement}")
+
+    client, connections = _make_environment(monkeypatch, handler)
+
+    response = client.get(
+        f"/api/update-jobs/{JOB_ID}",
+        base_url=BASE_URL,
+    )
+
+    assert response.status_code == 200
+    data = response.get_json()
+    assert data == {
+        "id": JOB_ID,
+        "client_id": CLIENT_ID,
+        "hostname": "agent-01",
+        "ip": "192.0.2.41",
+        "status": "completed",
+        "created_at": "2026-11-07T10:00:00+00:00",
+        "started_at": "2026-11-07T10:00:00+00:00",
+        "finished_at": "2026-11-07T10:15:00+00:00",
+        "reboot_required": True,
+        "packages": [
+            {
+                "id": 2,
+                "package": "alpha",
+                "installed_version": "1.0",
+                "target_version": "1.1",
+                "status": "success",
+                "message": None,
+            },
+            {
+                "id": 1,
+                "package": "beta",
+                "installed_version": "2.0",
+                "target_version": "2.1",
+                "status": "failed",
+                "message": "package manager error",
+            },
+            {
+                "id": 3,
+                "package": "gamma",
+                "installed_version": "3.0",
+                "target_version": "3.1",
+                "status": "success",
+                "message": None,
+            },
+        ],
+        "package_count": 3,
+        "successful_count": 2,
+        "failed_count": 1,
+    }
+
+    route_connection = _route_connection(
+        connections,
+        "SELECT j.id, j.client_id, c.hostname",
+    )
+    assert route_connection.closed
+    assert all(connection.closed for connection in connections)
+
+
+def test_get_update_job_details_returns_not_found_for_unknown_job(
+    monkeypatch,
+):
+    def handler(connection, statement, params):
+        assert statement.startswith(
+            "SELECT j.id, j.client_id, c.hostname"
+        )
+        assert params == (JOB_ID,)
+        return FakeCursor(one=None)
+
+    client, connections = _make_environment(monkeypatch, handler)
+
+    response = client.get(
+        f"/api/update-jobs/{JOB_ID}",
+        base_url=BASE_URL,
+    )
+
+    assert response.status_code == 404
+    assert response.get_json() == {
+        "status": "error",
+        "message": "Update job not found",
+    }
+
+    route_connection = _route_connection(
+        connections,
+        "SELECT j.id, j.client_id, c.hostname",
+    )
+    assert len(route_connection.statements) == 1
+    assert route_connection.closed
+    assert all(connection.closed for connection in connections)
+
+
+def test_get_update_job_details_returns_zero_counts_without_packages(
+    monkeypatch,
+):
+    created_at = datetime(2026, 11, 7, 10, 0, tzinfo=timezone.utc)
+
+    def handler(connection, statement, params):
+        if statement.startswith("SELECT j.id, j.client_id, c.hostname"):
+            assert params == (JOB_ID,)
+            return FakeCursor(one={
+                "id": JOB_ID,
+                "client_id": CLIENT_ID,
+                "hostname": "agent-01",
+                "ip": "192.0.2.41",
+                "status": "pending",
+                "created_at": created_at,
+                "started_at": None,
+                "finished_at": None,
+                "reboot_required": False,
+            })
+
+        if statement.startswith("SELECT id, package, installed_version"):
+            assert params == (JOB_ID,)
+            return FakeCursor(many=[])
+
+        raise AssertionError(f"Unexpected SQL: {statement}")
+
+    client, connections = _make_environment(monkeypatch, handler)
+
+    response = client.get(
+        f"/api/update-jobs/{JOB_ID}",
+        base_url=BASE_URL,
+    )
+
+    assert response.status_code == 200
+    data = response.get_json()
+    assert data["id"] == JOB_ID
+    assert data["packages"] == []
+    assert data["package_count"] == 0
+    assert data["successful_count"] == 0
+    assert data["failed_count"] == 0
+    assert data["started_at"] is None
+    assert data["finished_at"] is None
+
+    route_connection = _route_connection(
+        connections,
+        "SELECT j.id, j.client_id, c.hostname",
+    )
+    assert route_connection.closed
+    assert all(connection.closed for connection in connections)
+
+
+def test_get_client_update_history_returns_rows_in_descending_order(
+    monkeypatch,
+):
+    started_at = datetime(2026, 11, 7, 9, 0, tzinfo=timezone.utc)
+    finished_at = datetime(2026, 11, 7, 9, 15, tzinfo=timezone.utc)
+
+    def handler(connection, statement, params):
+        assert statement.startswith(
+            "SELECT id, client_id, job_id, status"
+        )
+        assert params == (CLIENT_ID,)
+        assert "FROM update_history" in statement
+        assert "WHERE client_id = %s" in statement
+        assert "ORDER BY id DESC" in statement
+        return FakeCursor(many=[
+            {
+                "id": 102,
+                "client_id": CLIENT_ID,
+                "job_id": 74,
+                "status": "success",
+                "package_count": 2,
+                "successful_count": 2,
+                "failed_count": 0,
+                "reboot_required": False,
+                "started_at": started_at,
+                "finished_at": finished_at,
+            },
+            {
+                "id": 101,
+                "client_id": CLIENT_ID,
+                "job_id": 73,
+                "status": "failed",
+                "package_count": 1,
+                "successful_count": 0,
+                "failed_count": 1,
+                "reboot_required": True,
+                "started_at": None,
+                "finished_at": None,
+            },
+        ])
+
+    client, connections = _make_environment(monkeypatch, handler)
+
+    response = client.get(
+        f"/api/clients/{CLIENT_ID}/update-history",
+        base_url=BASE_URL,
+    )
+
+    assert response.status_code == 200
+    assert response.get_json() == [
+        {
+            "id": 102,
+            "client_id": CLIENT_ID,
+            "job_id": 74,
+            "status": "success",
+            "package_count": 2,
+            "successful_count": 2,
+            "failed_count": 0,
+            "reboot_required": False,
+            "started_at": "2026-11-07T09:00:00+00:00",
+            "finished_at": "2026-11-07T09:15:00+00:00",
+        },
+        {
+            "id": 101,
+            "client_id": CLIENT_ID,
+            "job_id": 73,
+            "status": "failed",
+            "package_count": 1,
+            "successful_count": 0,
+            "failed_count": 1,
+            "reboot_required": True,
+            "started_at": None,
+            "finished_at": None,
+        },
+    ]
+
+    route_connection = _route_connection(
+        connections,
+        "SELECT id, client_id, job_id, status",
+    )
+    assert route_connection.closed
+    assert all(connection.closed for connection in connections)
+
+
+def test_get_client_update_history_returns_empty_list(monkeypatch):
+    def handler(connection, statement, params):
+        assert statement.startswith(
+            "SELECT id, client_id, job_id, status"
+        )
+        assert params == (CLIENT_ID,)
+        return FakeCursor(many=[])
+
+    client, connections = _make_environment(monkeypatch, handler)
+
+    response = client.get(
+        f"/api/clients/{CLIENT_ID}/update-history",
+        base_url=BASE_URL,
+    )
+
+    assert response.status_code == 200
+    assert response.get_json() == []
+
+    route_connection = _route_connection(
+        connections,
+        "SELECT id, client_id, job_id, status",
+    )
+    assert route_connection.closed
+    assert all(connection.closed for connection in connections)
+
+
+def test_get_global_update_history_returns_rows_with_client_details(
+    monkeypatch,
+):
+    started_at = datetime(2026, 11, 7, 8, 0, tzinfo=timezone.utc)
+    finished_at = datetime(2026, 11, 7, 8, 10, tzinfo=timezone.utc)
+
+    def handler(connection, statement, params):
+        assert statement.startswith(
+            "SELECT h.id, h.client_id, c.hostname, c.ip"
+        )
+        assert params is None
+        assert "JOIN clients c" in statement
+        assert "ORDER BY h.id DESC" in statement
+        return FakeCursor(many=[
+            {
+                "id": 202,
+                "client_id": CLIENT_ID,
+                "hostname": "agent-01",
+                "ip": "192.0.2.41",
+                "job_id": 82,
+                "status": "success",
+                "package_count": 3,
+                "successful_count": 3,
+                "failed_count": 0,
+                "reboot_required": False,
+                "started_at": started_at,
+                "finished_at": finished_at,
+            },
+            {
+                "id": 201,
+                "client_id": 42,
+                "hostname": "agent-02",
+                "ip": "192.0.2.42",
+                "job_id": 81,
+                "status": "failed",
+                "package_count": 2,
+                "successful_count": 1,
+                "failed_count": 1,
+                "reboot_required": True,
+                "started_at": None,
+                "finished_at": None,
+            },
+        ])
+
+    client, connections = _make_environment(monkeypatch, handler)
+
+    response = client.get(
+        "/api/update-history",
+        base_url=BASE_URL,
+    )
+
+    assert response.status_code == 200
+    assert response.get_json() == [
+        {
+            "id": 202,
+            "client_id": CLIENT_ID,
+            "hostname": "agent-01",
+            "ip": "192.0.2.41",
+            "job_id": 82,
+            "status": "success",
+            "package_count": 3,
+            "successful_count": 3,
+            "failed_count": 0,
+            "reboot_required": False,
+            "started_at": "2026-11-07T08:00:00+00:00",
+            "finished_at": "2026-11-07T08:10:00+00:00",
+        },
+        {
+            "id": 201,
+            "client_id": 42,
+            "hostname": "agent-02",
+            "ip": "192.0.2.42",
+            "job_id": 81,
+            "status": "failed",
+            "package_count": 2,
+            "successful_count": 1,
+            "failed_count": 1,
+            "reboot_required": True,
+            "started_at": None,
+            "finished_at": None,
+        },
+    ]
+
+    route_connection = _route_connection(
+        connections,
+        "SELECT h.id, h.client_id, c.hostname, c.ip",
+    )
+    assert route_connection.closed
+    assert all(connection.closed for connection in connections)
+
+
+def test_get_global_update_history_returns_empty_list(monkeypatch):
+    def handler(connection, statement, params):
+        assert statement.startswith(
+            "SELECT h.id, h.client_id, c.hostname, c.ip"
+        )
+        assert params is None
+        return FakeCursor(many=[])
+
+    client, connections = _make_environment(monkeypatch, handler)
+
+    response = client.get(
+        "/api/update-history",
+        base_url=BASE_URL,
+    )
+
+    assert response.status_code == 200
+    assert response.get_json() == []
+
+    route_connection = _route_connection(
+        connections,
+        "SELECT h.id, h.client_id, c.hostname, c.ip",
+    )
+    assert route_connection.closed
     assert all(connection.closed for connection in connections)

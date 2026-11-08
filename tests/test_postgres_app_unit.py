@@ -4,7 +4,12 @@ from types import SimpleNamespace
 
 from flask import Flask
 
+import pytest
+
+from server import postgres_app
 from server import postgres_flask_security as pg_security
+from server import postgres_login_routes
+from server.postgres_login import LoginResult
 from server.postgres_app import create_postgres_app
 
 
@@ -154,13 +159,113 @@ def test_home_uses_postgres_authorization_and_never_sqlite_fallback(
     )
 
     assert response.status_code == 200
-    assert response.get_json()["backend"] == "postgresql"
-    assert response.get_json()["status"] == "migration_in_progress"
+    assert response.mimetype == "text/html"
+    assert b'id="client-count"' in response.data
+    assert b'data-nav-id="dashboard"' in response.data
+    assert b'href="/infrastructure"' in response.data
+    assert b"migration_in_progress" not in response.data
 
     assert postgres_calls == [True]
     assert sqlite_calls == []
     assert connection.closed is True
 
+
+
+
+def test_successful_login_follows_redirect_to_postgres_dashboard(
+    monkeypatch,
+):
+    connections = []
+
+    def connection_factory():
+        connection = FakeConnection()
+        connections.append(connection)
+        return connection
+
+    app = create_test_app(connection_factory)
+
+    def authenticate(
+        connection,
+        username,
+        password,
+        rate_limit_key,
+        *,
+        selected_language=None,
+    ):
+        assert connection is connections[0]
+        assert username == "administrator"
+        assert password == "correct-password"
+        assert selected_language == "de"
+
+        return LoginResult(
+            status="authenticated",
+            user_id=7,
+            username="administrator",
+            language="de",
+        )
+
+    monkeypatch.setattr(
+        postgres_login_routes,
+        "authenticate_user",
+        authenticate,
+    )
+
+    monkeypatch.setattr(
+        pg_security,
+        "load_authorization_state",
+        lambda connection, user_id: make_authorization_state(),
+    )
+
+    client = app.test_client()
+
+    login_page = client.get(
+        "/login",
+        base_url=BASE_URL,
+    )
+    assert login_page.status_code == 200
+
+    with client.session_transaction(
+        base_url=BASE_URL
+    ) as session:
+        anonymous_csrf = session["csrf_token"]
+
+    response = client.post(
+        "/login",
+        base_url=BASE_URL,
+        data={
+            "username": "administrator",
+            "password": "correct-password",
+            "language": "de",
+            "csrf_token": anonymous_csrf,
+        },
+        follow_redirects=True,
+    )
+
+    assert response.status_code == 200
+    assert len(response.history) == 1
+    assert response.history[0].status_code == 302
+    assert response.history[0].headers["Location"].endswith("/")
+
+    assert response.request.path == "/"
+    assert response.mimetype == "text/html"
+
+    assert b'id="client-count"' in response.data
+    assert b'data-nav-id="dashboard"' in response.data
+    assert b'href="/infrastructure"' in response.data
+    assert b'action="/logout"' in response.data
+    assert b"migration_in_progress" not in response.data
+
+    assert len(connections) == 2
+    assert all(connection.closed for connection in connections)
+
+    with client.session_transaction(
+        base_url=BASE_URL
+    ) as session:
+        assert session["user_id"] == 7
+        assert session["username"] == "administrator"
+        assert session["language"] == "de"
+        assert session["csrf_token"]
+        assert session["csrf_token"] != anonymous_csrf
 
 def test_home_rejects_user_without_clients_view(monkeypatch):
     connection = FakeConnection()
@@ -242,6 +347,79 @@ def test_factory_registers_postgres_alert_routes_without_sqlite_blueprint():
     )
 
 
+def test_factory_registers_postgres_update_job_routes_and_module_status(
+    monkeypatch,
+):
+    connection = FakeConnection()
+    app = create_test_app(lambda: connection)
+
+    monkeypatch.setattr(
+        pg_security,
+        "load_authorization_state",
+        lambda conn, user_id: make_authorization_state(),
+    )
+
+    expected_routes = {
+        ("/api/clients/<int:client_id>/update-jobs", "POST"),
+        ("/api/clients/<int:client_id>/update-jobs", "GET"),
+        (
+            "/api/clients/<int:client_id>/update-jobs/pending",
+            "GET",
+        ),
+        ("/api/update-jobs/<int:job_id>/checkpoint", "POST"),
+        ("/api/update-jobs/<int:job_id>/result", "POST"),
+        ("/api/update-jobs/<int:job_id>/abandon", "POST"),
+        ("/api/clients/<int:client_id>/update-jobs/running", "GET"),
+        (
+            "/api/clients/<int:client_id>/update-jobs/<int:job_id>/claim",
+            "POST",
+        ),
+        ("/api/update-jobs/<int:job_id>", "GET"),
+        ("/api/clients/<int:client_id>/update-history", "GET"),
+        ("/api/update-history", "GET"),
+    }
+
+    actual_routes = {
+        (rule.rule, method)
+        for rule in app.url_map.iter_rules()
+        for method in rule.methods
+        if method not in {"HEAD", "OPTIONS"}
+    }
+
+    assert expected_routes <= actual_routes
+
+    pending_rules = [
+        rule
+        for rule in app.url_map.iter_rules()
+        if rule.rule == (
+            "/api/clients/<int:client_id>/update-jobs/pending"
+        )
+    ]
+
+    assert len(pending_rules) == 1
+    assert pending_rules[0].endpoint == (
+        "postgres_get_pending_update_job"
+    )
+
+    client = app.test_client()
+    set_session(
+        client,
+        user_id=7,
+        username="administrator",
+    )
+
+    response = client.get("/api/status", base_url=BASE_URL)
+
+    assert response.status_code == 200
+
+    payload = response.get_json()
+    assert payload["backend"] == "postgresql"
+    assert "updates" in payload["available_modules"]
+    assert "updates" not in payload["pending_modules"]
+
+    assert connection.closed is True
+
+
 def test_custom_login_endpoints_are_preserved():
     app = create_postgres_app({
         "SECRET_KEY": "pytest-custom-secret",
@@ -266,3 +444,68 @@ def test_factory_does_not_mutate_caller_configuration():
     create_postgres_app(config)
 
     assert config == original
+
+
+def test_load_secret_key_reads_and_trims_secret_file(monkeypatch, tmp_path):
+    secret_file = tmp_path / "lums_secret"
+    secret_file.write_text("  test-secret-value \n", encoding="utf-8")
+    monkeypatch.setenv("LUMS_SECRET_KEY_FILE", str(secret_file))
+    monkeypatch.delenv("LUMS_SECRET_KEY", raising=False)
+
+    assert postgres_app._load_secret_key() == "test-secret-value"
+
+
+def test_load_secret_key_falls_back_only_when_file_is_missing(
+    monkeypatch, tmp_path
+):
+    missing_file = tmp_path / "missing-secret"
+    monkeypatch.setenv("LUMS_SECRET_KEY_FILE", str(missing_file))
+    monkeypatch.setenv("LUMS_SECRET_KEY", "fallback-secret")
+
+    assert postgres_app._load_secret_key() == "fallback-secret"
+
+
+def test_load_secret_key_rejects_missing_file_without_fallback(
+    monkeypatch, tmp_path
+):
+    missing_file = tmp_path / "missing-secret"
+    monkeypatch.setenv("LUMS_SECRET_KEY_FILE", str(missing_file))
+    monkeypatch.delenv("LUMS_SECRET_KEY", raising=False)
+
+    with pytest.raises(RuntimeError, match="LUMS secret is not configured"):
+        postgres_app._load_secret_key()
+
+
+def test_load_secret_key_rejects_empty_secret_file(monkeypatch, tmp_path):
+    secret_file = tmp_path / "empty-secret"
+    secret_file.write_text("  \n", encoding="utf-8")
+    monkeypatch.setenv("LUMS_SECRET_KEY_FILE", str(secret_file))
+    monkeypatch.setenv("LUMS_SECRET_KEY", "must-not-be-used")
+
+    with pytest.raises(RuntimeError, match="LUMS secret"):
+        postgres_app._load_secret_key()
+
+
+def test_load_secret_key_hides_unreadable_file_path(monkeypatch, tmp_path):
+    secret_directory = tmp_path / "secret-directory"
+    secret_directory.mkdir()
+    monkeypatch.setenv("LUMS_SECRET_KEY_FILE", str(secret_directory))
+
+    with pytest.raises(RuntimeError) as exc_info:
+        postgres_app._load_secret_key()
+
+    assert str(secret_directory) not in str(exc_info.value)
+
+
+def test_load_secret_key_hides_invalid_utf8_file_content(
+    monkeypatch, tmp_path
+):
+    secret_file = tmp_path / "invalid-secret"
+    secret_file.write_bytes(b"\xffprivate-secret-content")
+    monkeypatch.setenv("LUMS_SECRET_KEY_FILE", str(secret_file))
+
+    with pytest.raises(RuntimeError) as exc_info:
+        postgres_app._load_secret_key()
+
+    assert str(secret_file) not in str(exc_info.value)
+    assert "private-secret-content" not in str(exc_info.value)

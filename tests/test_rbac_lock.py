@@ -1,6 +1,5 @@
 """Unit and isolated PostgreSQL integration tests for the RBAC write lock."""
 
-import os
 from pathlib import Path
 import sys
 from threading import Thread
@@ -9,6 +8,7 @@ from types import SimpleNamespace
 from uuid import uuid4
 
 import psycopg
+from postgres_test_support import require_test_database_url, run_cleanup
 import pytest
 from psycopg import sql
 from psycopg.pq import TransactionStatus
@@ -93,10 +93,7 @@ def test_rbac_lock_propagates_lock_acquisition_failure():
 
 @pytest.fixture
 def postgres_environment():
-    database_url = os.environ.get("LUMS_TEST_DATABASE_URL")
-
-    if not database_url:
-        pytest.skip("LUMS_TEST_DATABASE_URL is not configured")
+    database_url = require_test_database_url()
 
     admin = psycopg.connect(
         database_url,
@@ -106,6 +103,7 @@ def postgres_environment():
     )
 
     schema_name = f"lums_rbac_lock_test_{uuid4().hex}"
+    schema_created = False
 
     try:
         identity = admin.execute(
@@ -126,16 +124,22 @@ def postgres_environment():
                 sql.Identifier(schema_name)
             )
         )
+        schema_created = True
 
         yield database_url, schema_name
 
     finally:
-        admin.execute(
-            sql.SQL("DROP SCHEMA IF EXISTS {} CASCADE").format(
-                sql.Identifier(schema_name)
-            )
+        run_cleanup(
+            (
+                "drop test schema",
+                lambda: admin.execute(
+                    sql.SQL("DROP SCHEMA IF EXISTS {} CASCADE").format(
+                        sql.Identifier(schema_name)
+                    )
+                ) if schema_created else None,
+            ),
+            ("close admin connection", admin.close),
         )
-        admin.close()
 
 
 def _set_search_path(connection, schema_name):
@@ -151,24 +155,59 @@ def test_rbac_lock_serializes_transactions_and_exposes_committed_state(
 ):
     database_url, schema_name = postgres_environment
 
-    first = psycopg.connect(
-        database_url,
-        autocommit=True,
-        row_factory=dict_row,
-        application_name="lums-rbac-lock-owner",
-    )
-    observer = psycopg.connect(
-        database_url,
-        autocommit=True,
-        row_factory=dict_row,
-        application_name="lums-rbac-lock-observer",
-    )
-
+    first = None
+    observer = None
     worker_errors = []
     worker_results = []
     worker = None
 
+    def wait_for_lock():
+        second = None
+        try:
+            second = psycopg.connect(
+                database_url,
+                autocommit=True,
+                row_factory=dict_row,
+                application_name=LOCK_WORKER_APP,
+            )
+            _set_search_path(second, schema_name)
+
+            with transaction(second):
+                acquire_rbac_write_lock(second)
+                row = second.execute(
+                    "SELECT COUNT(*) AS total FROM rbac_lock_probe"
+                ).fetchone()
+                worker_results.append(row["total"])
+
+        except BaseException as exc:
+            worker_errors.append(exc)
+        finally:
+            if second is not None:
+                try:
+                    second.close()
+                except BaseException as exc:
+                    worker_errors.append(exc)
+
+    def ensure_worker_stopped():
+        if worker is not None and worker.is_alive():
+            raise RuntimeError(
+                "RBAC lock worker is still running after cleanup."
+            )
+
     try:
+        first = psycopg.connect(
+            database_url,
+            autocommit=True,
+            row_factory=dict_row,
+            application_name="lums-rbac-lock-owner",
+        )
+        observer = psycopg.connect(
+            database_url,
+            autocommit=True,
+            row_factory=dict_row,
+            application_name="lums-rbac-lock-observer",
+        )
+
         _set_search_path(first, schema_name)
         _set_search_path(observer, schema_name)
 
@@ -179,30 +218,6 @@ def test_rbac_lock_serializes_transactions_and_exposes_committed_state(
             )
             """
         )
-
-        def wait_for_lock():
-            second = None
-            try:
-                second = psycopg.connect(
-                    database_url,
-                    autocommit=True,
-                    row_factory=dict_row,
-                    application_name=LOCK_WORKER_APP,
-                )
-                _set_search_path(second, schema_name)
-
-                with transaction(second):
-                    acquire_rbac_write_lock(second)
-                    row = second.execute(
-                        "SELECT COUNT(*) AS total FROM rbac_lock_probe"
-                    ).fetchone()
-                    worker_results.append(row["total"])
-
-            except BaseException as exc:
-                worker_errors.append(exc)
-            finally:
-                if second is not None:
-                    second.close()
 
         waiting_observed = False
 
@@ -260,7 +275,20 @@ def test_rbac_lock_serializes_transactions_and_exposes_committed_state(
         assert worker_results == [1]
 
     finally:
-        if worker is not None and worker.is_alive():
-            worker.join(timeout=10)
-        observer.close()
-        first.close()
+        run_cleanup(
+            (
+                "close first connection",
+                lambda: first.close() if first is not None else None,
+            ),
+            (
+                "join lock worker",
+                lambda: worker.join()
+                if worker is not None and worker.ident is not None
+                else None,
+            ),
+            (
+                "close observer connection",
+                lambda: observer.close() if observer is not None else None,
+            ),
+            ("verify lock worker stopped", ensure_worker_stopped),
+        )

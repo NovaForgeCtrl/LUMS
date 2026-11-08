@@ -252,3 +252,66 @@ def test_require_transaction_rejects_inactive_or_failed_transaction(status):
 
     with pytest.raises(DatabaseTransactionStateError):
         require_transaction(connection)
+
+
+def test_get_database_url_reads_and_trims_secret_file(tmp_path):
+    secret_file = tmp_path / "database_url"
+    secret_file.write_text(
+        "  postgresql://lums@localhost/lums  \n",
+        encoding="utf-8",
+    )
+
+    result = db.get_database_url({"DATABASE_URL_FILE": str(secret_file)})
+
+    assert result == "postgresql://lums@localhost/lums"
+
+
+def test_get_database_url_rejects_both_environment_sources(tmp_path):
+    secret_file = tmp_path / "database_url"
+    secret_file.write_text(
+        "postgresql://lums@localhost/lums",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(DatabaseConfigurationError):
+        db.get_database_url({
+            "DATABASE_URL": "postgresql://lums@localhost/lums",
+            "DATABASE_URL_FILE": str(secret_file),
+        })
+
+
+def test_get_database_url_rejects_missing_secret_file(tmp_path):
+    missing_file = tmp_path / "missing_database_url"
+
+    with pytest.raises(DatabaseConfigurationError):
+        db.get_database_url({"DATABASE_URL_FILE": str(missing_file)})
+
+
+def test_get_database_url_rejects_empty_secret_file(tmp_path):
+    secret_file = tmp_path / "database_url"
+    secret_file.write_text("  \n", encoding="utf-8")
+
+    with pytest.raises(DatabaseConfigurationError):
+        db.get_database_url({"DATABASE_URL_FILE": str(secret_file)})
+
+
+def test_get_database_url_rejects_invalid_secret_file_content(tmp_path):
+    secret_file = tmp_path / "database_url"
+    secret_file.write_text(
+        "sqlite:///var/lib/lums/lums.db",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(DatabaseConfigurationError):
+        db.get_database_url({"DATABASE_URL_FILE": str(secret_file)})
+
+
+def test_get_database_url_does_not_disclose_secret_file_content(tmp_path):
+    secret = "sqlite:///private/path/secret-value.db"
+    secret_file = tmp_path / "database_url"
+    secret_file.write_text(secret, encoding="utf-8")
+
+    with pytest.raises(DatabaseConfigurationError) as exc_info:
+        db.get_database_url({"DATABASE_URL_FILE": str(secret_file)})
+
+    assert secret not in str(exc_info.value)

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import os
 from collections.abc import Mapping
+from pathlib import Path
 from urllib.parse import urlsplit
 
 import psycopg
@@ -91,13 +92,38 @@ def _validate_database_url(value: str) -> str:
 def get_database_url(
     environ: Mapping[str, str] | None = None,
 ) -> str:
-    """Return the validated PostgreSQL URL from the environment."""
+    """Return a validated PostgreSQL URL from the environment or secret file."""
     source = os.environ if environ is None else environ
 
     if not isinstance(source, Mapping):
         raise TypeError("environ must be a mapping")
 
-    return _validate_database_url(source.get("DATABASE_URL"))
+    database_url = source.get("DATABASE_URL")
+    database_url_file = source.get("DATABASE_URL_FILE")
+
+    has_database_url = (
+        isinstance(database_url, str) and bool(database_url.strip())
+    )
+    has_database_url_file = (
+        isinstance(database_url_file, str) and bool(database_url_file.strip())
+    )
+
+    if has_database_url and has_database_url_file:
+        raise DatabaseConfigurationError(
+            "Configure only one of DATABASE_URL or DATABASE_URL_FILE."
+        )
+
+    if has_database_url_file:
+        try:
+            database_url = Path(database_url_file.strip()).read_text(
+                encoding="utf-8"
+            ).strip()
+        except (OSError, UnicodeError, ValueError) as exc:
+            raise DatabaseConfigurationError(
+                "DATABASE_URL_FILE could not be read."
+            ) from exc
+
+    return _validate_database_url(database_url)
 
 
 def connect(

@@ -3,7 +3,6 @@
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
-import os
 from pathlib import Path
 import sys
 from threading import Barrier
@@ -12,6 +11,7 @@ from types import SimpleNamespace
 from uuid import uuid4
 
 import psycopg
+from postgres_test_support import require_test_database_url, run_cleanup
 import pytest
 from psycopg import sql
 from psycopg.pq import TransactionStatus
@@ -45,9 +45,7 @@ class FakeConnection:
 
 @pytest.fixture
 def postgres_environment():
-    database_url = os.environ.get("LUMS_TEST_DATABASE_URL")
-    if not database_url:
-        pytest.skip("LUMS_TEST_DATABASE_URL is not configured")
+    database_url = require_test_database_url()
 
     admin = psycopg.connect(
         database_url,
@@ -56,6 +54,7 @@ def postgres_environment():
         application_name="lums-postgres-security-test-setup",
     )
     schema_name = f"lums_security_test_{uuid4().hex}"
+    schema_created = False
 
     try:
         identity = admin.execute(
@@ -76,6 +75,7 @@ def postgres_environment():
                 sql.Identifier(schema_name)
             )
         )
+        schema_created = True
 
         setup = psycopg.connect(
             database_url,
@@ -105,17 +105,22 @@ def postgres_environment():
                 """
             )
         finally:
-            setup.close()
+            run_cleanup(("close setup connection", setup.close))
 
         yield PostgresEnvironment(database_url, schema_name)
 
     finally:
-        admin.execute(
-            sql.SQL("DROP SCHEMA IF EXISTS {} CASCADE").format(
-                sql.Identifier(schema_name)
-            )
+        run_cleanup(
+            (
+                "drop test schema",
+                lambda: admin.execute(
+                    sql.SQL("DROP SCHEMA IF EXISTS {} CASCADE").format(
+                        sql.Identifier(schema_name)
+                    )
+                ) if schema_created else None,
+            ),
+            ("close admin connection", admin.close),
         )
-        admin.close()
 
 
 def open_connection(database_url, schema_name, application_name):
@@ -125,11 +130,16 @@ def open_connection(database_url, schema_name, application_name):
         row_factory=dict_row,
         application_name=application_name,
     )
-    connection.execute(
-        sql.SQL("SET search_path TO {}").format(
-            sql.Identifier(schema_name)
+    try:
+        connection.execute(
+            sql.SQL("SET search_path TO {}").format(
+                sql.Identifier(schema_name)
+            )
         )
-    )
+    except BaseException:
+        run_cleanup(("close connection after search_path failure", connection.close))
+        raise
+
     return connection
 
 
@@ -166,7 +176,7 @@ def test_record_login_failure_rejects_invalid_input(
                     connection, rate_limit_key, username
                 )
     finally:
-        connection.close()
+        run_cleanup(("close PostgreSQL test connection", connection.close))
 
 
 def test_record_login_failure_applies_escalating_lock_steps(
@@ -235,7 +245,7 @@ def test_record_login_failure_applies_escalating_lock_steps(
         assert stored["username"] == "admin"
 
     finally:
-        connection.close()
+        run_cleanup(("close PostgreSQL test connection", connection.close))
 
 
 def test_record_login_failure_rolls_back_with_outer_transaction(
@@ -269,7 +279,7 @@ def test_record_login_failure_rolls_back_with_outer_transaction(
         assert row["total"] == 0
 
     finally:
-        connection.close()
+        run_cleanup(("close PostgreSQL test connection", connection.close))
 
 
 def test_record_login_failure_increments_concurrently_without_lost_updates(
@@ -295,7 +305,7 @@ def test_record_login_failure_increments_concurrently_without_lost_updates(
                     "parallel-user",
                 )[0]
         finally:
-            connection.close()
+            run_cleanup(("close PostgreSQL test connection", connection.close))
 
     with ThreadPoolExecutor(max_workers=workers) as executor:
         returned_counts = list(
@@ -320,7 +330,7 @@ def test_record_login_failure_increments_concurrently_without_lost_updates(
         assert row["locked_until"] is not None
 
     finally:
-        connection.close()
+        run_cleanup(("close PostgreSQL test connection", connection.close))
 
 
 def test_rate_limit_timestamp_is_fresh_after_conflict_wait(
@@ -374,7 +384,7 @@ def test_rate_limit_timestamp_is_fresh_after_conflict_wait(
                         connection, key, "delayed-parallel"
                     )[0]
             finally:
-                connection.close()
+                run_cleanup(("close PostgreSQL test connection", connection.close))
 
         with ThreadPoolExecutor(max_workers=workers) as executor:
             with transaction(blocker):
@@ -450,5 +460,7 @@ def test_rate_limit_timestamp_is_fresh_after_conflict_wait(
         assert timedelta(seconds=298) < locked_until - now < timedelta(seconds=301)
 
     finally:
-        observer.close()
-        blocker.close()
+        run_cleanup(
+            ("close observer connection", observer.close),
+            ("close blocker connection", blocker.close),
+        )

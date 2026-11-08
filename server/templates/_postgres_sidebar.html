@@ -38,6 +38,16 @@
             <span class="lums-sidebar-label">{{ tr("Alerts") }}</span>
         </a>
         {% endif %}
+
+        {% if "users.manage" in user_permissions %}
+        <a href="{{ url_for('postgres_users_page') }}"
+           data-nav-id="users"
+           class="lums-sidebar-link{% if request.path == '/users' %} is-active{% endif %}"
+           {% if request.path == '/users' %}aria-current="page"{% endif %}>
+            <span class="lums-sidebar-icon" aria-hidden="true">♙</span>
+            <span class="lums-sidebar-label">{{ tr("User management") }}</span>
+        </a>
+        {% endif %}
     </nav>
 
     <div class="lums-sidebar-footer">
