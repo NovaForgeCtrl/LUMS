@@ -5503,6 +5503,7 @@ _UPDATE_SYSTEM_PAGE_TRANSLATIONS = {
         "Release is CI-tested; host checks are required before switching.": "La version est testée par l’intégration continue ; les contrôles de l’hôte sont requis avant le basculement.",
         "Host checks unavailable until the host service is connected.": "Les contrôles de l’hôte sont indisponibles tant que le service n’est pas connecté.",
         "Update in progress": "Mise à jour en cours",
+        "Host update execution is disabled. No update can be started.": "L’exécution des mises à jour de l’hôte est désactivée. Aucune mise à jour ne peut démarrer.",
         "The host update service is not connected. No update can be started.": "Le service de mise à jour de l’hôte n’est pas connecté. Aucune mise à jour ne peut démarrer.",
         "Release information is current.": "Les informations de version sont à jour.",
         "Queued": "En attente",
@@ -5555,6 +5556,7 @@ _UPDATE_SYSTEM_PAGE_TRANSLATIONS = {
         "Release is CI-tested; host checks are required before switching.": "La versión se ha probado mediante CI; se requieren comprobaciones del host antes de cambiar.",
         "Host checks unavailable until the host service is connected.": "Las comprobaciones del host no estarán disponibles hasta conectar el servicio.",
         "Update in progress": "Actualización en curso",
+        "Host update execution is disabled. No update can be started.": "La ejecución de las actualizaciones del host está deshabilitada. No se puede iniciar ninguna actualización.",
         "The host update service is not connected. No update can be started.": "El servicio de actualización del host no está conectado. No se puede iniciar ninguna actualización.",
         "Release information is current.": "La información de la versión está actualizada.",
         "Queued": "En cola",
@@ -5576,6 +5578,10 @@ _UPDATE_SYSTEM_PAGE_TRANSLATIONS = {
 _UPDATE_SYSTEM_PAGE_TRANSLATIONS["de"] = {
     "Release": "Version",
     "Details": "Einzelheiten",
+    "Host update execution is disabled. No update can be started.": (
+        "Die Ausführung von Host-Updates ist deaktiviert. "
+        "Es kann kein Update gestartet werden."
+    ),
 }
 
 _UPDATE_SYSTEM_PAGE_LOCALIZED_KEYS = (
@@ -5624,6 +5630,7 @@ _UPDATE_SYSTEM_PAGE_LOCALIZED_KEYS = (
     "Submitting update request...",
     "The update request was rejected.",
     "Update request accepted",
+    "Host update execution is disabled. No update can be started.",
 )
 
 _UPDATE_SYSTEM_PAGE_LOCALIZED_ROWS = {
@@ -5673,6 +5680,7 @@ _UPDATE_SYSTEM_PAGE_LOCALIZED_ROWS = {
         "正在提交更新请求…",
         "更新请求已被拒绝。",
         "更新请求已受理",
+        "主机更新执行已禁用，无法启动更新。",
     ),
     "ja": (
         "テスト済みの LUMS リリースを確認し、バックアップとロールバックを行って更新します。",
@@ -5720,6 +5728,7 @@ _UPDATE_SYSTEM_PAGE_LOCALIZED_ROWS = {
         "更新リクエストを送信しています…",
         "更新リクエストが拒否されました。",
         "更新リクエストを受け付けました",
+        "ホスト更新の実行は無効になっています。更新を開始できません。",
     ),
     "pl": (
         "Sprawdź przetestowane wydania LUMS i przeprowadź aktualizację z kopią zapasową oraz możliwością wycofania zmian.",
@@ -5767,6 +5776,7 @@ _UPDATE_SYSTEM_PAGE_LOCALIZED_ROWS = {
         "Wysyłanie żądania aktualizacji…",
         "Odrzucono żądanie aktualizacji.",
         "Przyjęto żądanie aktualizacji",
+        "Wykonywanie aktualizacji hosta jest wyłączone. Nie można rozpocząć aktualizacji.",
     ),
     "sv": (
         "Kontrollera testade LUMS-utgåvor och installera en uppdatering med säkerhetskopia och återställning.",
@@ -5814,6 +5824,7 @@ _UPDATE_SYSTEM_PAGE_LOCALIZED_ROWS = {
         "Skickar uppdateringsbegäran…",
         "Uppdateringsbegäran avvisades.",
         "Uppdateringsbegäran godkändes",
+        "Körning av värduppdateringar är inaktiverad. Ingen uppdatering kan startas.",
     ),
     "nb": (
         "Kontroller testede LUMS-utgivelser og gjennomfør en oppdatering med sikkerhetskopi og tilbakerulling.",
@@ -5861,6 +5872,7 @@ _UPDATE_SYSTEM_PAGE_LOCALIZED_ROWS = {
         "Sender oppdateringsforespørsel…",
         "Oppdateringsforespørselen ble avvist.",
         "Oppdateringsforespørselen ble godtatt",
+        "Kjøring av vertsoppdateringer er deaktivert. Ingen oppdatering kan startes.",
     ),
     "fi": (
         "Tarkista testatut LUMS-julkaisut ja suorita päivitys varmuuskopioinnin ja palautusyrityksen kanssa.",
@@ -5908,6 +5920,7 @@ _UPDATE_SYSTEM_PAGE_LOCALIZED_ROWS = {
         "Lähetetään päivityspyyntöä…",
         "Päivityspyyntö hylättiin.",
         "Päivityspyyntö hyväksyttiin",
+        "Isäntäkoneen päivitysten suorittaminen on poistettu käytöstä. Päivitystä ei voi aloittaa.",
     ),
 }
 
