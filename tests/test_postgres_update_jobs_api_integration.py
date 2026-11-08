@@ -823,4 +823,3 @@ def test_update_history_returns_empty_list(
 
     assert response.status_code == 200
     assert response.get_json() == []
-

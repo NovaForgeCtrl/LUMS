@@ -846,4 +846,3 @@ def test_delete_user_rejects_missing_actor_inside_transaction(monkeypatch):
         for statement, _ in route.statements
     )
     assert all(connection.closed for connection in connections)
-
