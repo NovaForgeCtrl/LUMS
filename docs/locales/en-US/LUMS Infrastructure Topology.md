@@ -1,5 +1,23 @@
 # LUMS Infrastructure Topology
 
+<!-- LUMS-POSTGRES-STATUS-2026-11-15 -->
+## Deployment topology: PostgreSQL successor status
+
+**Status date: 15 November 2026**
+
+The infrastructure page described above is an application-level inventory and dependency view. It must not be confused with the actual container deployment topology.
+
+The PostgreSQL successor currently runs in an isolated candidate Compose project. Its services include the database, provisioning, migrations, application and worker grant services, the web application and the SOC worker.
+
+The candidate does not currently include a deployed Envoy gateway or a separate collector application service. The planned collector-facing mTLS gateway and its dedicated network boundaries are architectural targets, not active deployment components.
+
+The existing productive SQLite deployment remains separate. The candidate's internal container network and service names must not be interpreted as production network topology.
+
+Update this documentation when the actual Compose configuration and deployed services change. Distinguish planned components from running components and do not infer network reachability from an architectural diagram.
+
+<!-- /LUMS-POSTGRES-STATUS-2026-11-15 -->
+
+
 ## Purpose
 
 The authenticated `/infrastructure` page brings registered LUMS clients and

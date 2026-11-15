@@ -4,6 +4,17 @@ This guide provides troubleshooting procedures for the LUMS server, Linux agents
 
 The troubleshooting process should always begin with **observation before modification**.
 
+## Database deployment scope
+
+LUMS currently has two separate database deployments:
+
+- The existing productive installation uses SQLite.
+- The PostgreSQL successor is an isolated candidate undergoing validation.
+
+SQLite-specific commands in this guide must not be used against the PostgreSQL candidate. Always identify the database engine, Compose project, container and persistent storage before troubleshooting or recovery.
+
+The PostgreSQL candidate is not yet a complete production replacement. Its SOC collector runtime, mTLS integration and integrated backup and restore management remain outstanding.
+
 The objective is to identify the first component where the expected behavior stops without unnecessarily changing configuration, database state, credentials, or security controls.
 
 ---

@@ -1,5 +1,169 @@
 # LUMS — Administration Guide
 
+<!-- LUMS-POSTGRES-STATUS-2026-11-15 -->
+## PostgreSQL successor: current operational status
+
+**Status date: 15 November 2026**
+
+### Deployment separation
+
+LUMS currently has two separate deployments:
+
+- The existing productive installation uses the SQLite-based application.
+- The PostgreSQL successor runs as an isolated release candidate.
+
+The PostgreSQL candidate is not the active production service. Its database,
+persistent volume, containers, network and application configuration must
+remain separate from the productive SQLite installation until a controlled
+cutover has been fully validated and explicitly approved.
+
+Do not stop, replace or reconfigure the productive `lums` container, its
+database, persistent storage, reverse proxy or external URL as part of
+candidate administration.
+
+### PostgreSQL candidate architecture
+
+The candidate is defined in:
+
+`/etc/lums-postgres-soc-test-20261115/compose.yaml`
+
+Its Compose project is `lums-postgres-soc-test-20261115`.
+
+The database service uses PostgreSQL 18.6 on Debian Trixie. Its image is
+pinned to a SHA-256 digest. The configured database is `lums_soc_test`;
+initial database setup uses the bootstrap role `lums_pg_bootstrap`.
+Host authentication is configured for SCRAM-SHA-256.
+
+The database stores its persistent data in the named volume
+`lums-postgres-soc-test-data-20261115`. Candidate services communicate over
+the external Docker network `lums-postgres-soc-test-net-20261115`.
+
+The Compose project contains these services:
+
+- `db`: PostgreSQL database service with a `pg_isready` healthcheck.
+- `provision`: one-time database and role provisioning.
+- `migrate`: one-time schema migration using
+  `python -m server.postgres_migrate`.
+- `worker-grants`: one-time setup of database permissions for the SOC worker.
+- `app-grants`: one-time application database permission setup.
+- `app`: PostgreSQL-backed LUMS web application.
+- `soc-worker`: continuous SOC worker process using
+  `server.soc.postgres_worker_cli`.
+
+Provisioning, migration and grant services are expected to exit successfully
+after completing their tasks; they are not permanent application services.
+
+### Observed runtime state
+
+The Compose status inspection on 15 November 2026 showed:
+
+- `db`: running and healthy.
+- `app`: running and healthy.
+- `soc-worker`: running.
+- `provision`: exited with status 0.
+- `migrate`: exited with status 0.
+- `worker-grants`: exited with status 0.
+- `app-grants`: exited with status 0.
+
+These results describe the observed candidate state at the time of inspection.
+They are not a guarantee that every application module or workflow has passed
+functional acceptance testing. The SOC worker's presence and running state
+must not be interpreted as proof that the complete SOC collector service,
+collector-facing mTLS gateway or SOC administration interface is finished.
+
+The application container is configured on the candidate network with the
+static address `172.30.0.4`. The Compose file does not publish an application
+port on the host. Its container port must not be confused with an externally
+available production endpoint.
+
+### Container and secret handling
+
+The application and SOC worker run as UID/GID `10001:10001`. The application
+uses a read-only root filesystem, a restricted temporary filesystem,
+`no-new-privileges` and dropped Linux capabilities.
+
+The migration service also uses a read-only root filesystem and runs as
+UID/GID `10001:10001`. The application grant setup runs as root inside its
+short-lived container, but has a read-only root filesystem, dropped
+capabilities and `no-new-privileges`.
+
+Compose mounts credentials as file-based secrets. The configured secret
+files cover:
+
+- PostgreSQL bootstrap password
+- Application database password
+- Migration database password
+- SOC worker database password
+- Application database connection URL
+- Migration database connection URL
+- SOC worker database connection URL
+- LUMS application secret
+
+Do not print secret contents in terminal output, documentation, tickets or
+logs. Do not copy candidate secrets into the productive deployment.
+
+### Application module status
+
+The PostgreSQL application currently reports the backend status
+`migration_in_progress`.
+
+The following modules are listed by the application as available:
+
+- Authentication
+- Authorization
+- Language
+- Clients
+- Infrastructure
+- Telemetry
+- Package search
+- Alerts
+- Alerts dashboard
+- Updates
+- User management
+
+The application explicitly lists these modules as pending:
+
+- SOC
+- Backups
+
+This module status is authoritative for the application's current
+self-reported integration state. A running worker process does not override
+the fact that the `soc` module is still listed as pending.
+
+### Outstanding production-readiness work
+
+The following capabilities must not be described as completed production
+features until their implementation and acceptance tests have been verified:
+
+- Complete SOC module integration, including collector registration,
+  authentication, event ingestion and administration.
+- Collector-facing Envoy gateway and end-to-end mTLS enforcement.
+- Production trusted-time provider and operational certificate lifecycle.
+- Complete SOC administration API and web interface.
+- Integrated PostgreSQL backup, restore and recovery management.
+- Full production cutover, monitoring and rollback validation.
+
+An isolated database backup or restore test does not by itself provide an
+integrated administrative backup and recovery feature.
+
+### Administrative safety rules
+
+- Identify the deployment, Compose project, container and database before
+  running an administrative command.
+- Use PostgreSQL-specific procedures for the candidate; SQLite commands in
+  this guide must not be applied to PostgreSQL.
+- Never remove or recreate the productive SQLite volume during candidate
+  development or testing.
+- Do not treat a successful container healthcheck as proof of complete
+  application functionality.
+- Keep candidate credentials, storage and network boundaries separate from
+  production.
+- A production cutover requires verified backups, tested restoration,
+  documented rollback, validated database permissions and explicit approval.
+
+<!-- /LUMS-POSTGRES-STATUS-2026-11-15 -->
+
+
 > **Linux Update Management without the noise.**
 
 This guide describes the day-to-day administration and operation of LUMS after the server and clients have been installed.

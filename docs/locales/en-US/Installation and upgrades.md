@@ -1,5 +1,26 @@
 # LUMS Installation Guide
 
+<!-- LUMS-POSTGRES-STATUS-2026-11-15 -->
+## PostgreSQL successor: installation status
+
+**Status date: 15 November 2026**
+
+The installation and upgrade procedures in this guide describe the existing SQLite-based LUMS deployment. They are not installation instructions for the PostgreSQL successor.
+
+The PostgreSQL-based successor is currently running as an isolated candidate for implementation and operational validation. Its Compose project separates the database, provisioning, migrations, database grants, application and SOC worker.
+
+The candidate is not yet the productive LUMS installation. In particular:
+
+- Do not point the production reverse proxy at the candidate.
+- Do not stop or replace the existing productive container as part of routine candidate testing.
+- Do not reuse SQLite volume or restore commands for PostgreSQL.
+- Do not assume that a successful candidate startup proves that every production capability is ready.
+
+A production transition requires a verified backup and rollback path, validated application and worker operation, database permissions, operational recovery checks and a controlled cutover.
+
+<!-- /LUMS-POSTGRES-STATUS-2026-11-15 -->
+
+
 ## Linux Update Management Server
 
 **Project:** LUMS

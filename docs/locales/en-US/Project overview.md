@@ -1,5 +1,26 @@
 # LUMS
 
+<!-- LUMS-POSTGRES-STATUS-2026-11-15 -->
+## Current database architecture and migration status
+
+**Status date: 15 November 2026**
+
+LUMS is transitioning from its existing SQLite-based deployment toward a PostgreSQL-based successor.
+
+These are separate deployment states:
+
+- **Existing production:** the SQLite-based LUMS installation remains the active productive service.
+- **PostgreSQL candidate:** an isolated successor environment used for implementation and validation.
+
+The candidate currently includes the PostgreSQL database, provisioning and migration services, separate application and worker grant services, the web application and the SOC worker.
+
+The PostgreSQL candidate is not yet a complete production replacement. The SOC collector and Envoy gateway are not deployed as part of the candidate Compose stack. Runtime mTLS enforcement, a production trusted-time provider, and integrated PostgreSQL backup and restore management remain outstanding.
+
+The presence of PostgreSQL code or a running candidate container must not be interpreted as proof that the corresponding capability is fully integrated or production-ready.
+
+<!-- /LUMS-POSTGRES-STATUS-2026-11-15 -->
+
+
 **Linux Update Management without the noise.**
 
 ## Getting Started

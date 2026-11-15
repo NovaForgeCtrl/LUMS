@@ -1,5 +1,39 @@
 # LUMS Security Documentation
 
+<!-- LUMS-POSTGRES-STATUS-2026-11-15 -->
+# PostgreSQL successor security status
+
+**Status date: 15 November 2026**
+
+The PostgreSQL successor is being validated separately from the existing productive SQLite deployment. Security features must be assessed against their actual runtime integration, not merely the presence of implementation modules or unit tests.
+
+The current SOC security work includes code for:
+
+- Collector identity-provider injection and fingerprint-format validation
+- Collector registration, revocation checks and bounded event ingestion
+- Certificate and CRL validation helpers
+- Backend TLS context construction with client-certificate verification settings
+- Trusted-time validation interfaces and fail-closed policy checks
+
+The following runtime capabilities have not yet been demonstrated as an integrated production deployment:
+
+- An operational Envoy collector-facing mTLS gateway
+- A production trusted-time provider connected to the running services
+- Backend mTLS context activation in the actual application startup and Gunicorn lifecycle
+- Complete gateway-to-backend certificate provisioning and rotation
+- A deployed collector application and its complete runtime identity-provider integration
+- SOC collector administration API and UI
+- Integrated PostgreSQL backup and restore operations
+
+The collector API remains disabled unless explicitly enabled. A test callback or isolated unit test does not prove certificate authentication across a real TLS connection.
+
+Do not describe the SOC mTLS boundary as operational until real gateway and backend TLS integration tests, failure-state tests and deployment checks have passed.
+
+The existing SQLite security controls and the PostgreSQL candidate's security controls must be documented and verified separately. Passing tests for one deployment does not automatically establish the security state of the other.
+
+<!-- /LUMS-POSTGRES-STATUS-2026-11-15 -->
+
+
 **LUMS — Linux Update Management Server**
 
 This document describes the current security architecture, implemented security controls, security audit results, operational limitations, and security-related design decisions of LUMS.

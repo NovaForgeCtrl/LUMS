@@ -1,5 +1,21 @@
 # Restore a LUMS database backup
 
+<!-- LUMS-POSTGRES-STATUS-2026-11-15 -->
+## Scope and database compatibility
+
+**Status date: 15 November 2026**
+
+This document describes the restore procedure for the existing SQLite-based LUMS deployment. The commands below use SQLite tools, a `.db` or `.db.gz` backup, and the legacy `lums-data` Docker volume.
+
+They must not be used to restore a PostgreSQL database.
+
+The PostgreSQL-based successor is currently an isolated candidate. Its backup and restore workflow has not yet been integrated as a complete LUMS administration capability. A verified isolated database backup or test restore does not, by itself, establish a production-ready backup and recovery service.
+
+Before restoring any database, identify the actual deployment, database engine, container, volume and backup format. Never assume that the legacy SQLite container or volume names apply to PostgreSQL.
+
+<!-- /LUMS-POSTGRES-STATUS-2026-11-15 -->
+
+
 This guide restores a `.db` or `.db.gz` backup in a Docker deployment. A
 restore replaces the active database. Work carefully and run these steps on
 the Debian host.
