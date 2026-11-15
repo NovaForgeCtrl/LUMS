@@ -1,305 +1,385 @@
-# LUMS Turvallisuusdokumentaatio
+# LUMS-tietoturvaohje
 
-**LUMS — Linux Update Management Server**
+**LUMS —Linux-päivitysten hallintapalvelin**
 
-Tämä asiakirja kuvaa LUMSin nykyisen turvallisuusarkkitehtuurin, toteutetut turvakontrollit, turvallisuustarkastuksen tulokset, toiminnalliset rajoitukset ja turvallisuuteen liittyvät suunnittelupäätökset.
+Tämä asiakirja kuvaa nykyisen tietoturva-arkkitehtuurin, implemented security controls, security audit results, operational limitations, and security-related design decisions of LUMS.
 
-Asiakirja heijastaa **tällä hetkellä toteutettua järjestelmän tilaa**. Suunnitellut tai tulevat parannukset on nimenomaisesti merkitty sellaisiksi.
+Asiakirja heijastaa **tällä hetkellä toteutettua järjestelmän tilaa**. Suunnitellut tai tulevat parannukset tunnistetaan nimenomaan sellaisiksi.
 
 ---
 
-# Turvallisuusperiaatteet
+# Tietoturvaan Liittyvät Periaatteet
 
-LUMS noudattaa syvyyspuolustusmenetelmää Linux-päivitysten hallinnassa.
+LUMS noudattaa puolustukseen perustuvaa lähestymistapaa Linux-päivitysten hallintaan.
 
-Turvallisuusmalli erottaa hallinnollisen todentamisen, asiakastodentamisen, valtuutuksen, hallitun päivityksen suorituksen ja valvontalokituksen.
+Tietoturvamallit erottavat hallinnollisen todentamisen, asiakkaan todentamisen, valtuutuksen, hallitun päivitysten suorittamisen ja auditointilokin.
 
-Ensisijaiset turvallisuustavoitteet ovat:
+Pääasialliset tietoturvatavoitteet ovat:
 
-* todennettu hallinnollinen pääsy
-* roolipohjainen valtuutus
-* todennettu asiakasviestintä
-* hallittu päivityksen suoritus
-* suojaus samanaikaista työn suoritusta vastaan
+* todennettavissa oleva hallinnollinen pääsy
+* rooleihin perustuva valtuutus
+* todennettava asiakasviestitys
+* hallitun päivitysten suorittaminen
+* samanaikaisen työn suorittamisen suoja
 * palautettavat päivitystyöt
 * suojatut salaisuudet
-* hallittu kontin suoritus
-* valvottavat turvallisuuskriittiset toiminnot
-* ennustettava virheenkäsittely
-* turvallisuusregressiotestaus
+* hallittu säiliön suorittaminen
+* auditoitavat tietoturvaherkät toiminnot
+* ennustettava vianhallinta
+* tietoturvaregressiotestaus
 
-LUMS on ensisijaisesti tarkoitettu hallittuun infrastruktuuri-, laboratorio- ja sisäverkkoympäristöön.
+LUMS is intended primarily for controlled infrastructure, laboratory, and internal network environments.
 
-Sitä ei tule altistaa suoraan julkiseen internetiin ilman lisäturvallisuuskatsausta ja asianmukaisia verkkokontrolleja.
+It should not be exposed directly to the public Internet without an additional security review and appropriate network controls.
 
 ---
 
-# Turvallisuusarkkitehtuuri
+# Tietoturva-arkkitehtuuri
 
-LUMS koostuu seuraavista turvallisuuden kannalta merkityksellisistä komponenteista:
+LUMS consists of the following security-relevant components:
 
-* Web-hallintakäyttöliittymä
+* Web administration interface
 * REST API
-* SQLite-tietokanta
-* LUMS-agentti hallinnoiduilla asiakkaille
-* APT- ja pacman-paketinhallinnan taustajärjestelmät
-* Päivitystyö- ja palautusmekanismit
-* Nginx HTTPS -käänteisvälityspalvelin
-* Kovennettu Docker-kontti
+* SQLite database
+* LUMS Agent on managed clients
+* APT and pacman package-management backends
+* Update-job and recovery mechanisms
+* Nginx HTTPS reverse proxy
+* Hardened Docker container
 
-Perushallintavirta on:
+The basic management flow is:
 
-Selain → HTTPS/Nginx → LUMS API → SQLite → LUMS Agent → Paketinhallinta → Tulos → SQLite → Web UI
+Browser → HTTPS/Nginx → LUMS API → SQLite → LUMS Agent → Package Manager → Result → SQLite → Web UI
 
-Todentaminen ja valtuutus on tarkoituksella erotettu toisistaan.
+Authentication and authorization are deliberately separated.
 
-Kelvollinen todennettu istunto ei automaattisesti myönnä pääsyä jokaiseen hallinnolliseen toimintoon.
+A valid authenticated session does not automatically grant access to every administrative operation.
 
-Valtuutus valvotaan palvelinpuolella. Verkkokäyttöliittymä piilottaa lisäksi toimintoja, jotka eivät ole käytettävissä nykyiselle roolille, mutta käyttöliittymän näkyvyyttä ei koskaan pidetä turvarajana.
-
----
-
-## Hallinnollinen todentaminen
-
-Hallinnolliset käyttäjät todentavat itsensä LUMSin verkkokäyttöliittymän kautta.
-
-Salasanoja ei koskaan tallenneta selkokielisinä. LUMS käyttää Argon2-pohjaista salasanatiivistystä salasanojen tallentamiseen.
-
-Hallinnolliset istunnot käyttävät:
-
-* todennettua palvelinpuolen istunnonhallintaa
-* istunnon vanhenemista
-* istunnon uudelleengenerointia
-* CSRF-suojausta tilaa muuttaville selainpyynnöille
-* kirjautumisen nopeusrajoitusta
-* istunnon mitätöintiä uloskirjautumisen aikana
-* palvelinpuolen roolivalidointia
-
-Todentaminen ja valtuutus pysyvät erillisinä turvakontrolleina.
-
-Onnistuneesti todennetulla käyttäjällä on silti oltava vaadittu oikeus
-suojattuihin toimintoihin.
+Authorization is enforced server-side. The web interface additionally hides functions that are not available to the current role, but UI visibility is never treated as a security boundary.
 
 ---
 
-# Roolipohjainen käyttöoikeushallinta
+## Hallinnollinen Todentaminen
 
-LUMS tukee tällä hetkellä kolmea web-käyttäjäroolia:
+Administrative users authenticate through the LUMS web interface.
 
-* `administrator`
-* `operator`
-* `viewer`
+Passwords are never stored in plaintext. LUMS uses Argon2-based password hashing for password storage.
 
-Roolimallit tallennetaan `users.role`-kenttään; yksittäiset oikeudet tallennetaan
-palvelinpuolelle `user_permissions`-tauluun.
+Administrative sessions use:
 
-Palvelin lataa kunkin todennetun tilin tehokkaat oikeudet.
-Asiakaspuolen oikeustiedot ohjaavat vain esitystä eivätkä koskaan
-korvaa palvelinpuolen valtuutusta.
+* authenticated server-side session handling
+* session expiration
+* session regeneration
+* CSRF protection for state-changing browser requests
+* login rate limiting
+* session invalidation during logout
+* server-side role validation
+
+Authentication and authorization remain separate security controls.
+
+A successfully authenticated user must still possess the required permission
+for protected operations.
+
+---
+
+# Roolipohjainen Pääsynvalvonta
+
+LUMS currently supports three web-user roles:
+
+* `ylläpitäjä`
+* `operaattori`
+* `katselija`
+
+Role templates are stored in `users.role`; individual permissions are stored
+server-side in `user_permissions`.
+
+The server loads the effective permissions for each authenticated account.
+Client-side permission information controls presentation only and never
+replaces server-side authorization.
 
 ## Administrator
 
-Ylläpitäjillä on täysi hallinnollinen ja operatiivinen pääsy.
+Administrators have full administrative and operational access.
 
-He voivat:
+They can:
 
-* tarkastella asiakkaita
-* luoda asiakkaita
-* poistaa asiakkaita käytöstä
-* vaihtaa asiakastunnisteita
-* tarkastella asennettuja paketteja ja saatavilla olevia päivityksiä
-* luoda päivitystöitä
-* suorittaa tuettuja päivitystoimintoja
-* tarkastella päivitystyöhistoriaa
-* käyttää paketinhallintaa
-* käyttää järjestelmän ylläpitotoimintoja
-* hallita käyttäjiä
-* hallita käyttäjärooleja
-* käyttää hallinnollisia toimintoja
+* view clients
+* create clients
+* disable clients
+* rotate client tokens
+* view installed packages and available updates
+* create update jobs
+* execute supported update operations
+* view update-job history
+* use package management
+* use system-maintenance functions
+* manage users
+* manage user roles
+* access administrative functions
 
 ## Operator
 
-Operaattorit voivat suorittaa operatiivisia päivityshallintatehtäviä.
+Operators can perform operational update-management tasks.
 
-He voivat:
+They can:
 
-* tarkastella asiakkaita
-* tarkastella asennettuja paketteja ja saatavilla olevia päivityksiä
-* luoda päivitystöitä
-* suorittaa tuettuja päivitystoimintoja
-* tarkastella päivitystyöhistoriaa
-* käyttää paketinhallintaa
-* käyttää järjestelmän ylläpitotoimintoja
+* view clients
+* view installed packages and available updates
+* create update jobs
+* execute supported update operations
+* view update-job history
+* use package management
+* use system-maintenance functions
 
-Operaattorit eivät voi:
+Operators cannot:
 
-* hallita käyttäjiä
-* muuttaa käyttäjärooleja
-* luoda asiakkaita
-* poistaa asiakkaita käytöstä
-* vaihtaa asiakastunnisteita
+* manage users
+* change user roles
+* create clients
+* disable clients
+* rotate client tokens
 
 ## Viewer
 
-Viewereillä on rajoitettu vain luku -pääsy.
+Viewers have restricted read-only access.
 
-He voivat:
+They can:
 
-* tarkastella asiakkaita
-* tarkastella asennettuja ohjelmistoja
+* view clients
+* view installed software
 
-Seuraavat hallinta-alueet on piilotettu Viewer-tileiltä:
+The following management areas are hidden from Viewer accounts:
 
-* Päivitykset
-* Päivitystyöt
-* Päivityshistoria
-* Paketinhallinta
-* Järjestelmän ylläpito
+* Updates
+* Update Jobs
+* Update History
+* Package Management
+* System Maintenance
 
-Viewer-tilit eivät voi suorittaa tilaa muuttavia päivityshallintatoimintoja.
+Viewer accounts cannot perform state-changing update-management operations.
 
-Palvelin valvoo näitä rajoituksia itsenäisesti todentamisen
-ja käyttäjäkohtaisten oikeustarkistusten kautta.
+The server independently enforces these restrictions through authentication
+and per-user permission checks.
 
 ---
 
-# Asiakastodennus
+# Asiakkaan Todentaminen
 
-Jokainen hallinnoitu LUMS-asiakas käyttää yksilöllistä Bearer-tunnistetta.
+Every managed LUMS client uses an individual Bearer token.
 
-Todentamismekanismi noudattaa mallia:
+The authentication mechanism follows the model:
 
 `Authorization: Bearer <CLIENT_TOKEN>`
 
-Palvelin ei tallenna asiakastunnisteita selkokielisinä arvoina.
+The server does not store client tokens as plaintext values.
 
-Sen sijaan LUMS tallentaa asiakastunnisteen SHA-256-heksadesimaalitiivisteen.
+Instead, LUMS stores a SHA-256 hexadecimal digest of the client token.
 
-Todentamisvirta on:
+The authentication flow is:
 
 Client Token → SHA-256 → Token Digest → SQLite
 
-Asiakastodennus varmistaa todennetun tunnisteen rekisteröityä asiakasta vasten ja tarkistaa lisäksi asiaankuuluvan asiakastilan.
+Client authentication verifies the authenticated token against the registered client and additionally checks the relevant client state.
 
-Turvallisuusmalli ei käytä lähde-IP-osoitetta ainoana todisteena asiakkaan identiteetistä.
+The security model does not use a source IP address as the sole proof of client identity.
 
-Tämä mahdollistaa LUMSin toiminnan:
+This allows LUMS to operate in:
 
-* yksityisissä laboratorioverkoissa
-* eristetyssä infrastruktuurissa
-* NAT-pohjaisissa verkoissa
-* offline-ympäristöissä
-* verkoissa, joissa asiakasosoitteet voivat muuttua
+* private laboratory networks
+* isolated infrastructure
+* NAT-based networks
+* offline environments
+* networks where client addresses may change
 
-Valtuutetut ylläpitäjät voivat vaihtaa asiakastunnisteita.
+Client tokens can be rotated by authorized ylläpitäjäs.
 
-Tunnisteen vaihto luo korvaavan tunnisteen, tallentaa vain sen tiivisteen, mitätöi edellisen tunnisteen, kirjaa hallinnollisen toimenpiteen valvontalokiin ja esittää korvaavan tunnisteen kerran.
+A token rotation generates a replacement token, stores only its digest, invalidates the previous token, records the administrative action in the audit log, and presents the replacement token once.
 
-Selkokielisiä asiakastunnistearvoja ei kirjoiteta valvontatietueisiin.
+Plaintext client-token values are not written to audit records.
 
 ---
 
-# Turvallisuustarkastus
+# Telemetrian Tietoturva
 
-Turvallisuustarkastus suoritetaan vaiheittain.
+Telemetry data (CPU, memory, network metrics) is subject to the same authentication and authorization model as other client-side components.
 
-Jokainen tarkastusalue käydään läpi todellista toteutusta vasten, mitä seuraa automatisoidut testit, eristetty varmistus tai tuotannon varmistus tarpeen mukaan.
+## Telemetry Submission
 
-Nykyiset tarkastusalueet:
+Telemetry samples are submitted via `POST /api/telemetry` and require:
 
-| Tarkastus | Alue                                   | Tila                      |
-| --------- | -------------------------------------- | ------------------------- |
-| #01       | SQLite Foreign Keys                    | PASS                      |
-| #02       | SQLite Runtime Configuration           | PASS                      |
-| #03       | Update Timeout Handling                | PASS                      |
-| #04       | Login Rate Limiting                    | PASS                      |
-| #05       | API Input Validation                   | PASS                      |
-| #06       | Session Revocation                     | PASS                      |
-| #07       | Client Token Rotation                  | PASS                      |
-| #08       | IP Address Handling / Offline Networks | PASS                      |
-| #09       | Job Recovery / Checkpointing           | PASS                      |
-| #10       | APT Robustness                         | PASS                      |
-| #11       | Arch Reboot Detection                  | PASS                      |
-| #12       | Unit Tests / API Result Validation     | PASS                      |
-| #13       | Simulation Tests                       | PASS                      |
-| #14       | Continuous Integration                 | PASS                      |
-| #15       | Application / Audit Logging            | PASS                      |
-| #16       | Versioning / Releases                  | REVIEWED — OPEN BY DESIGN |
-| #17       | Role-Based Access Control              | PASS                      |
-| #18       | Documentation Review                   | IN PROGRESS               |
+* Client authentication using the same client token as update reporting
+* HTTPS for remote connections (plain HTTP only for `127.0.0.1`, `localhost`, `::1`)
+* Optional CA certificate verification for custom certificate authorities
 
-Tarkastus #16 eroaa tarkoituksella yllä olevista teknisistä turvakontrolleista.
+The telemetry endpoint validates:
 
-LUMSilla ei ole tällä hetkellä virallista vakaata julkaisua, julkaisutunnistetta eikä GitHub-julkaisua. Tämä on tarkoituksellista, koska projekti on edelleen aktiivisessa kehityksessä.
+* Client token authentication against the stored SHA-256 digest
+* Payload structure and field types
+* Numeric ranges (CPU and memory 0-100%, bytes non-negative)
+* Sample freshness (rejects samples with excessively old or future timestamps)
 
-Tarkastus #18 pysyy avoimena, kunnes täydellinen dokumentaatiosarja on tarkastettu ja synkronisoitu nykyisen toteutuksen kanssa.
+Invalid payloads are rejected with appropriate HTTP status codes.
 
-# Turvallisuustarkastus #01
+The client token is not included in the JSON payload and is not logged in agent output.
+
+## Telemetry Access Control
+
+Telemetry history and fleet overview queries require the `clients.view` permission.
+
+The following endpoints require authentication:
+
+* `GET /api/telemetry/history/<client_id>?hours=1-168` - client history
+* `GET /api/telemetry/overview` - fleet summary
+
+Unauthenticated or unauthorized requests are rejected.
+
+## Telemetry Data Classification
+
+Telemetry contains system resource metrics only:
+
+* CPU utilization percentage
+* Memory utilization percentage and bytes
+* Network byte counters (cumulative, no payload data)
+
+Telemetry does **not** contain:
+
+* Package-management operations
+* Command output or logs
+* User activity
+* File contents
+* Network packet data
+* Private configuration values
+
+This data classification limits telemetry to resource-utilization metrics appropriate for operational monitoring.
+
+## Data Storage and Retention
+
+Telemetry samples are stored in the `telemetry_samples` table with the following schema:
+
+```sql
+CREATE TABLE telemetry_samples (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    client_id INTEGER NOT NULL,
+    timestamp TEXT NOT NULL,
+    cpu_percent REAL NOT NULL,
+    memory_percent REAL NOT NULL,
+    memory_total_bytes INTEGER NOT NULL,
+    memory_available_bytes INTEGER NOT NULL,
+    network_rx_bytes INTEGER,
+    network_tx_bytes INTEGER,
+    FOREIGN KEY (client_id) REFERENCES clients(id)
+)
+```
+
+Data older than 7 days is automatically removed during the processing of new telemetry submissions.
+
+Telemetry data is subject to the same backup and encryption considerations as the rest of the LUMS database.
+
+Backups are not encrypted by LUMS; use host-level encryption or separate backup encryption where required.
+
+---
+
+# Tietoturva-auditointi
+
+The security audit is performed incrementally.
+
+Each audit area is reviewed against the actual implementation, followed by automated tests, isolated verification, or production verification where applicable.
+
+Current audit areas:
+
+| Audit | Area                                   | Status                    |
+| ----- | -------------------------------------- | ------------------------- |
+| #01   | SQLite Foreign Keys                    | PASS                      |
+| #02   | SQLite Runtime Configuration           | PASS                      |
+| #03   | Update Timeout Handling                | PASS                      |
+| #04   | Login Rate Limiting                    | PASS                      |
+| #05   | API Input Validation                   | PASS                      |
+| #06   | Session Revocation                     | PASS                      |
+| #07   | Client Token Rotation                  | PASS                      |
+| #08   | IP Address Handling / Offline Networks | PASS                      |
+| #09   | Job Recovery / Checkpointing           | PASS                      |
+| #10   | APT Robustness                         | PASS                      |
+| #11   | Arch Reboot Detection                  | PASS                      |
+| #12   | Unit Tests / API Result Validation     | PASS                      |
+| #13   | Simulation Tests                       | PASS                      |
+| #14   | Continuous Integration                 | PASS                      |
+| #15   | Application / Audit Logging            | PASS                      |
+| #16   | Versioning / Releases                  | REVIEWED — OPEN BY DESIGN |
+| #17   | Roolipohjainen Pääsynvalvonta              | PASS                      |
+| #18   | Documentation Review                   | IN PROGRESS               |
+
+Audit #16 is intentionally different from the technical security controls above.
+
+LUMS currently has no official stable release, no release tag, and no GitHub Release. This is intentional because the project remains under active development.
+
+Audit #18 remains open until the complete documentation set has been reviewed and synchronized with the current implementation.
+
+# Tietoturva-auditointi #01
 
 ## SQLite Foreign Keys
 
-SQLite-viiteavainten valvonta on käytössä sovelluksen tietokantayhteyksille.
+SQLite foreign-key enforcement is enabled for application database connections.
 
-Sovellus ottaa eksplisiittisesti käyttöön:
+The application explicitly enables:
 
 `PRAGMA foreign_keys = ON`
 
-Tämä varmistaa, että viite-eheys valvotaan toisiinsa liittyvien tietokantatietueiden välisissä suhteissa.
+This ensures that referential integrity is enforced for relationships between related database records.
 
-Tarkastus varmisti:
+The audit verified:
 
-* viiteavainten valvonnan ajonaikana
-* viiteavainten eheyden
-* asiakkaan elinkaaren käyttäytymisen
-* asiakkaan käytöstä poistamisen käyttäytymisen
-* historiallisten työtietojen säilyttämisen
-* valvontatietojen säilyttämisen
+* runtime foreign-key enforcement
+* foreign-key integrity
+* client lifecycle behavior
+* client disable behavior
+* preservation of historical job information
+* preservation of audit information
 
-Asiakastilaa käsitellään konservatiivisesti.
+Client state is handled conservatively.
 
-Tarvittaessa asiakkaat poistetaan käytöstä sen sijaan, että ne poistettaisiin tavalla, joka tuhoaisi historialliset toimintatiedot.
+Where appropriate, clients are disabled rather than removed in a way that would destroy historical operational information.
 
-**Tila: PASS**
+**Status: PASS**
 
 ---
 
-# Turvallisuustarkastus #02
+# Tietoturva-auditointi #02
 
 ## SQLite Runtime Configuration
 
-Tuotannon SQLite-tietokannan ajonaikainen konfiguraatio tarkastettiin.
+The production SQLite database was reviewed for its runtime configuration.
 
-Varmennettu tuotantokonfiguraatio on:
+The verified production configuration is:
 
 * `journal_mode`: `wal`
 * `busy_timeout`: `5000`
 * `synchronous`: `2`
 
-Sovellus ottaa eksplisiittisesti käyttöön:
+The application explicitly enables:
 
 `PRAGMA foreign_keys = ON`
 
-Tuotantotietokanta käyttää tällä hetkellä WAL-tilaa.
+The production database currently uses WAL mode.
 
-Tietokantakonfiguraatio dokumentoitiin todellisen varmennetun tuotantotilan perusteella historiallisen kehityskonfiguraation sijaan.
+The database configuration was documented based on the actual verified production state rather than the historical development configuration.
 
-Konfiguroitu busy timeout vähentää välittömiä tietokantavirheitä, kun toinen transaktio pitää tietokantaa tilapäisesti.
+The configured busy timeout reduces immediate database failures when another transaction temporarily holds the database.
 
-Sovellustason viiteavainasetus varmistaa viite-eheyden jokaiselle tietokantayhteydelle.
+The application-level foreign-key setting ensures referential integrity for each database connection.
 
-Tarkastus sisälsi aktiivisen SQLite-konfiguraation tuotantovarmistuksen.
+The audit included production verification of the active SQLite configuration.
 
-**Tila: PASS**
+**Status: PASS**
 
 ---
 
-# Turvallisuustarkastus #03
+# Tietoturva-auditointi #03
 
 ## Update Timeout and Process Handling
 
-Päivityksen suoritus on suojattu paketinhallintaprosesseilta, jotka estävät loputtomasti.
+Update execution is protected against indefinitely blocking package-manager processes.
 
-Suoritusvirta on:
+The execution flow is:
 
 Start process
 ↓
@@ -319,80 +399,80 @@ Kill process if required
 ↓
 Complete job
 
-Toteutus käyttää hallittua aliprosessien käsittelyä, jotta hiljaiset prosessit eivät voi estää loputtomasti odottaessaan tulostetta.
+The implementation uses controlled subprocess handling so that silent processes cannot block indefinitely while waiting for output.
 
-Aikakatkaisun käsittely testattiin seuraavissa:
+Timeout handling was tested against:
 
-* hiljaiset prosessit
-* normaali prosessin valmistuminen
-* aikakatkaisutilanteet
-* prosessit, jotka vastustavat normaalia lopetusta
-* kill-varamenetelmä
-* integraatiotason aikakatkaisukäyttäytyminen
+* silent processes
+* normal process completion
+* timeout conditions
+* processes resistant to normal termination
+* kill fallback
+* integration-level timeout behavior
 
-Aikakatkaisumekanismi estää paketinhallintatoimintoa pysymästä loputtomasti aktiivisessa tilassa.
+The timeout mechanism prevents a package-management operation from remaining indefinitely in an active state.
 
-Virheet ja aikakatkaisutilanteet palautetaan hallittuina työtuloksina ja tallennetaan työn tilaan.
+Errors and timeout conditions are returned as controlled job results and are recorded in the job state.
 
-Nykyinen dokumentoitu LUMS Agent -versio on:
+The current documented LUMS Agent version is:
 
 `1.7.0`
 
-**Tila: PASS**
+**Status: PASS**
 
 ---
 
-# Turvallisuustarkastus #04
+# Tietoturva-auditointi #04
 
 ## Login Rate Limiting
 
-Hallinnolliset kirjautumisyritykset ovat nopeusrajoitettuja.
+Administrative login attempts are rate limited.
 
-Nykyinen eskalaatiokäytäntö on:
+The current escalation policy is:
 
-* 5 epäonnistunutta yritystä → 30 sekuntia
-* 6 epäonnistunutta yritystä → 60 sekuntia
-* 7 epäonnistunutta yritystä → 120 sekuntia
-* 8 tai enemmän epäonnistunutta yritystä → 300 sekuntia
+* 5 failed attempts → 30 seconds
+* 6 failed attempts → 60 seconds
+* 7 failed attempts → 120 seconds
+* 8 or more failed attempts → 300 seconds
 
-Nopeusrajoituksen tila tallennetaan SQLiteen.
+The rate-limit state is persisted in SQLite.
 
-Samanaikaiset kirjautumisepäonnistumiset käyttävät transaktionaalista tietokantalukitusta:
+Concurrent login failures use transactional database locking with:
 
 `BEGIN IMMEDIATE`
 
-Tämä estää samanaikaisia todennusvirheitä ohittamasta aiottua nopeusrajoituksen tilaa kilpailutilanteiden kautta.
+This prevents concurrent authentication failures from bypassing the intended rate-limit state through race conditions.
 
-Onnistunut todennus tyhjentää sovellettavan epäonnistumistilan.
+A successful authentication clears the applicable failure state.
 
-Tarkastus kattoi:
+The audit covered:
 
-* eristetyn nopeusrajoituksen käyttäytymisen
-* samanaikaiset todennusvirheet
-* transaktion peruutuksen
-* tietokantalukon käsittelyn
-* onnistuneen kirjautumisen nollauskäyttäytymisen
-* nopeusrajoituksen valvontatapahtumat
-* tuotannon kirjautumiskäyttäytymisen
+* isolated rate-limit behavior
+* concurrent authentication failures
+* transaction rollback
+* database-lock handling
+* successful-login reset behavior
+* rate-limit audit events
+* production login behavior
 
-Nopeusrajoitin tarjoaa siten palvelinpuolen kontrollin toistuvia todennusyrityksiä vastaan sen sijaan, että se luottaisi asiakaspuolen käyttäytymiseen.
+The rate limiter therefore provides a server-side control against repeated authentication attempts rather than relying on client-side behavior.
 
-**Tila: PASS**
+**Status: PASS**
 
 ---
 
-# Tarkastuksen tila osan 2 jälkeen
+# Audit Status After Part 2
 
-Neljä ensimmäistä turvallisuustarkastusaluetta on valmis:
+The first four security audit areas are complete:
 
-| Tarkastus | Alue                              | Tila |
-| --------- | --------------------------------- | ---- |
-| #01       | SQLite Foreign Keys               | PASS |
-| #02       | SQLite Runtime Configuration      | PASS |
-| #03       | Update Timeout / Process Handling | PASS |
-| #04       | Login Rate Limiting               | PASS |
+| Audit | Area                              | Status |
+| ----- | --------------------------------- | ------ |
+| #01   | SQLite Foreign Keys               | PASS   |
+| #02   | SQLite Runtime Configuration      | PASS   |
+| #03   | Update Timeout / Process Handling | PASS   |
+| #04   | Login Rate Limiting               | PASS   |
 
-Seuraavat tarkastusalueet on dokumentoitu myöhemmissä osioissa:
+The following audit areas are documented in the subsequent sections:
 
 * #05 API Input Validation
 * #06 Session Revocation
@@ -406,1106 +486,1109 @@ Seuraavat tarkastusalueet on dokumentoitu myöhemmissä osioissa:
 * #14 Continuous Integration
 * #15 Application / Audit Logging
 * #16 Versioning / Releases
-* #17 Role-Based Access Control
+* #17 Roolipohjainen Pääsynvalvonta
 
-Tarkastus #18 — Documentation Review — pysyy avoimena, kunnes täydellinen dokumentaatiosarja on tarkastettu ja synkronisoitu nykyisen toteutuksen kanssa.
+Audit #18 — Documentation Review — remains open until the complete documentation set has been reviewed and synchronized with the current implementation.
 
-# Turvallisuustarkastus #05
+# Tietoturva-auditointi #05
 
 ## API Input Validation
 
-LUMS validoi turvallisuuskriittisen API-syötteen palvelinpuolella.
+LUMS validates security-sensitive API input on the server side.
 
-Asiakkaan toimittamia arvoja ei luoteta vain siksi, että ne tulevat todennetusta verkkokäyttöliittymästä tai rekisteröidystä asiakkaasta.
+Client-supplied values are not trusted simply because they originate from the authenticated web interface or a registered client.
 
-Validointia sovelletaan asiaankuuluviin API-parametreihin, mukaan lukien:
+Validation is applied to relevant API parameters, including:
 
-* asiakastunnisteet
-* pakettinimet
-* päivitystyötoiminnot
-* pakettiluettelot
-* hakuparametrit
-* käyttäjähallintaparametrit
-* asiakastunnistetoiminnot
-* työtulostiedot
+* client identifiers
+* package names
+* update-job actions
+* package lists
+* search parameters
+* user-management parameters
+* client-token operations
+* job-result data
 
-Pakettinimet validoidaan ennen kuin ne välitetään paketinhallintatoimintoihin.
+Package names are validated before they are passed to package-management operations.
 
-Päivitystyö-API hyväksyy vain eksplisiittisesti tuetut toiminnot.
+The update-job API accepts only explicitly supported actions.
 
-Tällä hetkellä tuetut paketteihin liittyvät toiminnot ovat:
+The currently supported package-related actions are:
 
 * `INSTALL_PACKAGE`
 * `REMOVE_PACKAGE`
 * `UPDATE_PACKAGE`
 * `UPDATE_SYSTEM`
 
-Odottamattomat toiminnot hylätään.
+Unexpected actions are rejected.
 
-Pakettiluettelot validoidaan ennen työn luomista.
+Package lists are validated before job creation.
 
-`UPDATE_PACKAGE`-toiminnolle pyydetyn paketin on myös oltava läsnä asiakkaan saatavilla olevien päivitysten tiedoissa.
+For `UPDATE_PACKAGE`, the requested package must also be present in the client's available-update information.
 
-Tietokantakyselyt käyttävät parametroitua SQL:ää sen sijaan, että SQL-lauseita rakennettaisiin epäluotetusta syötteestä.
+Database queries use parameterized SQL rather than constructing SQL statements from untrusted input.
 
-Tämä estää käyttäjän hallitsemien arvojen tulkitsemisen SQL-syntaksiksi.
+This prevents user-controlled values from being interpreted as SQL syntax.
 
-Tarkastus sisälsi negatiivisen syötteen testausta ja SQL-injektiosuuntautuneita testitapauksia.
+The audit included negative input testing and SQL-injection-oriented test cases.
 
-Validointikontrollit varmennettiin myös automatisoidun testisarjan kautta.
+The validation controls were also verified through the automated test suite.
 
-**Tila: PASS**
+**Status: PASS**
 
 ---
 
-# Turvallisuustarkastus #06
+# Tietoturva-auditointi #06
 
 ## Session Revocation
 
-LUMS suojaa todennettuja hallinnollisia istuntoja jatkokäytöltä uloskirjautumisen jälkeen.
+LUMS protects authenticated administrative sessions against continued use after logout.
 
-Istunnon käsittely sisältää:
+Session handling includes:
 
-* todennetut palvelinpuolen istunnot
-* istunnon vanhenemisen
-* istunnon uudelleengeneroinnin
-* uloskirjautumisen mitätöinnin
-* palvelinpuolen todennustarkistukset
-* palvelinpuolen roolivalidoinnin
+* authenticated server-side sessions
+* session expiration
+* session regeneration
+* logout invalidation
+* server-side authentication checks
+* server-side role validation
 
-Uloskirjautuminen mitätöi aktiivisen todennetun istunnon.
+Logging out invalidates the active authenticated session.
 
-Suojatut API-päätepisteet edellyttävät todennettua istuntoa eivätkä luota asiakaspuolen tilaan sen määrittämiseksi, onko käyttäjä edelleen todennettu.
+Protected API endpoints require an authenticated session and do not rely on client-side state to determine whether the user remains authenticated.
 
-Istunnon tila arvioidaan siten palvelimen toimesta suojatuille toiminnoille.
+Session state is therefore evaluated by the server for protected operations.
 
-Tilaa muuttavat selainpyynnöt edellyttävät lisäksi CSRF-suojausta.
+State-changing browser requests additionally require CSRF protection.
 
-Tarkastus varmisti, että:
+The audit verified that:
 
-* todennettu pääsy toimii normaalisti
-* suojatut päätepisteet hylkäävät todentamattomat pyynnöt
-* uloskirjautuminen mitätöi aktiivisen istunnon
-* aiemmin todennettu istunto ei voi jatkaa suojatun toiminnallisuuden käyttöä mitätöinnin jälkeen
-* roolitiedot arvioidaan palvelinpuolella
+* authenticated access works normally
+* protected endpoints reject unauthenticated requests
+* logout invalidates the active session
+* a previously authenticated session cannot continue using protected functionality after revocation
+* role information is evaluated server-side
 
-**Tila: PASS**
+**Status: PASS**
 
 ---
 
-# Turvallisuustarkastus #07
+# Tietoturva-auditointi #07
 
 ## Client Token Rotation
 
-Jokainen hallinnoitu LUMS-asiakas käyttää yksilöllistä todennustunnistetta.
+Each managed LUMS client uses an individual authentication token.
 
-Asiakastunnisteita ei tallenneta selkokielisinä arvoina.
+Client tokens are not stored as plaintext values.
 
-Sen sijaan LUMS tallentaa asiakastunnisteen SHA-256-heksadesimaalitiivisteen.
+Instead, LUMS stores the SHA-256 hexadecimal digest of the client token.
 
-Todentamismalli on:
+The authentication model is:
 
 `Authorization: Bearer <CLIENT_TOKEN>`
 
-Palvelin hashaa toimitetun tunnisteen ja vertaa tuloksena olevaa tiivistettä rekisteröidyn asiakastunnisteen tiivisteeseen.
+The server hashes the supplied token and compares the resulting digest with the registered client token digest.
 
-Valtuutetut ylläpitäjät voivat vaihtaa asiakkaan tunnisteen.
+Authorized ylläpitäjäs can rotate a client's token.
 
-Tunnisteen vaihto suorittaa seuraavat toiminnot:
+Token rotation performs the following operations:
 
-1. Luo korvaava tunniste.
-2. Laske sen SHA-256-tiiviste.
-3. Korvaa tallennettu asiakastunnisteen tiiviste.
-4. Mitätöi edellinen tunniste.
-5. Kirjaa hallinnollinen toimenpide valvontalokiin.
-6. Esitä korvaava tunniste ylläpitäjälle.
+1. Generate a replacement token.
+2. Calculate its SHA-256 digest.
+3. Replace the stored client-token digest.
+4. Invalidate the previous token.
+5. Record the administrative action in the audit log.
+6. Present the replacement token to the ylläpitäjä.
 
-Edellinen tunniste ei voi todentaa vaihdon jälkeen.
+The previous token cannot authenticate after rotation.
 
-Selkokielisiä tunnistearvoja ei kirjoiteta valvontalokeihin.
+Plaintext token values are not written to audit logs.
 
-Tarkastus varmisti:
+The audit verified:
 
-* onnistuneen tunnistetodennuksen
-* tunnistetiivisteen tallennuksen
-* tunnisteen vaihdon
-* edellisen tunnisteen mitätöinnin
-* todennuksen korvaavalla tunnisteella
-* tunnisteen vaihdon valtuutusvaatimukset
-* valvontalokituksen
-* suojauksen luvatonta vaihtoa vastaan
+* successful token authentication
+* token digest storage
+* token rotation
+* invalidation of the previous token
+* authentication with the replacement token
+* authorization requirements for token rotation
+* audit logging
+* protection against unauthorized rotation
 
-Asiakastunnisteen vaihto on rajoitettu ylläpitäjille.
+Client token rotation is restricted to ylläpitäjäs.
 
-Operaattorit ja viewerit eivät voi vaihtaa asiakastunnisteita.
+Operators and katselijas cannot rotate client tokens.
 
-**Tila: PASS**
+**Status: PASS**
 
 ---
 
-# Turvallisuustarkastus #08
+# Tietoturva-auditointi #08
 
 ## IP Address Handling and Offline Networks
 
-LUMS ei käytä asiakkaan lähde-IP-osoitetta ainoana todisteena asiakkaan identiteetistä.
+LUMS does not use a client's source IP address as the sole proof of client identity.
 
-Asiakastodennus perustuu rekisteröityyn asiakastunnisteeseen.
+Client authentication is based on the registered client token.
 
-Tämä suunnittelu on tarkoituksellista, koska hallinnoidut asiakkaat voivat toimia ympäristöissä, joissa niiden verkko-osoite muuttuu.
+This design is intentional because managed clients may operate in environments where their network address changes.
 
-Tuetut käyttöönottoskenaariot sisältävät:
+Supported deployment scenarios include:
 
-* yksityiset laboratorioverkot
-* NAT-pohjaiset verkot
-* eristetyn infrastruktuurin
-* dynaamisesti osoitetut asiakkaat
-* offline-ympäristöt
-* hallitut sisäverkot
+* private laboratory networks
+* NAT-based networks
+* isolated infrastructure
+* dynamically addressed clients
+* offline environments
+* controlled internal networks
 
-Palvelin erottaa siten:
+The server therefore separates:
 
-**Verkkosijainti**
+**Network location**
 
-seuraavasta:
+from:
 
-**Asiakasidentiteetti**
+**Client identity**
 
-Kelvollinen asiakastunniste identifioi rekisteröidyn asiakkaan.
+A valid client token identifies the registered client.
 
-Asiakkaan verkko-osoite voidaan edelleen tallentaa toiminnallisiin ja valvontatarkoituksiin, mutta sitä ei kohdella todennusmääritteenä.
+The client's network address may still be recorded for operational and audit purposes, but it is not treated as an authentication credential.
 
-Toteutus välttää myös oletuksia siitä, että asiakkaan on oltava tavoitettavissa kiinteästä osoitteesta.
+The implementation also avoids assumptions that a client must be reachable from a fixed address.
 
-Tämä on erityisen tärkeää laboratorioympäristöille ja infrastruktuurille, joissa verkkotopologia voi muuttua muuttamatta hallinnoidun järjestelmän loogista identiteettiä.
+This is particularly important for laboratory environments and infrastructure where network topology may change without changing the logical identity of the managed system.
 
-Tarkastus varmisti asiakastodennuksen ilman kiinteään lähde-IP-osoitteeseen luottamista.
+The audit verified client authentication without relying on a fixed source IP address.
 
-**Tila: PASS**
+**Status: PASS**
 
 ---
 
-# Tarkastuksen tila osan 3 jälkeen
+# Audit Status After Part 3
 
-Seuraavat turvallisuustarkastusalueet on suoritettu:
+The following security audit areas are complete:
 
-| Tarkastus | Alue                                   | Tila |
-| --------- | -------------------------------------- | ---- |
-| #01       | SQLite Foreign Keys                    | PASS |
-| #02       | SQLite Runtime Configuration           | PASS |
-| #03       | Update Timeout / Process Handling      | PASS |
-| #04       | Login Rate Limiting                    | PASS |
-| #05       | API Input Validation                   | PASS |
-| #06       | Session Revocation                     | PASS |
-| #07       | Client Token Rotation                  | PASS |
-| #08       | IP Address Handling / Offline Networks | PASS |
+| Audit | Area                                   | Status |
+| ----- | -------------------------------------- | ------ |
+| #01   | SQLite Foreign Keys                    | PASS   |
+| #02   | SQLite Runtime Configuration           | PASS   |
+| #03   | Update Timeout / Process Handling      | PASS   |
+| #04   | Login Rate Limiting                    | PASS   |
+| #05   | API Input Validation                   | PASS   |
+| #06   | Session Revocation                     | PASS   |
+| #07   | Client Token Rotation                  | PASS   |
+| #08   | IP Address Handling / Offline Networks | PASS   |
 
-Seuraava osio kattaa:
+The next section covers:
 
 * #09 Job Recovery / Checkpointing
 * #10 APT Robustness
 * #11 Arch Reboot Detection
 * #12 Unit Tests / API Result Validation
 
-# Turvallisuustarkastus #09
+# Tietoturva-auditointi #09
 
 ## Job Recovery and Checkpointing
 
-LUMS-päivitystyöt on suunniteltu palautumaan turvallisesti keskeytyneestä suorituksesta.
+LUMS update jobs are designed to recover safely from interrupted execution.
 
-Päivitystyöt ylläpitävät pysyvää tilaa SQLite-tietokannassa.
+Update jobs maintain persistent state in the SQLite database.
 
-Yksittäiset pakettitoiminnot seurataan erikseen kokonaistyön tilasta.
+Individual package operations are tracked separately from the overall job state.
 
-Tämä antaa agentille mahdollisuuden määrittää, mitkä pakettitoiminnot on jo suoritettu onnistuneesti ennen keskeytyneen työn jatkamista.
+This allows the Agent to determine which package operations have already completed successfully before an interrupted job is resumed.
 
-Palautuksen aikana onnistuneesti suoritettuja pakettitoimintoja ei suoriteta uudelleen.
+During recovery, successfully completed package operations are not executed again.
 
-Palautuslogiikka noudattaa siten periaatetta:
+The recovery logic therefore follows the principle:
 
 `Persistent Job State → Determine Completed Work → Skip Completed Items → Continue Remaining Work`
 
-Tämä vähentää tarpeettomien toistettujen pakettitoimintojen riskiä seuraavien jälkeen:
+This reduces the risk of unnecessary repeated package operations after:
 
-* agentin keskeytys
-* prosessin lopetus
-* järjestelmän uudelleenkäynnistys
-* tilapäinen viestintävirhe
-* kontin uudelleenkäynnistys
-* muut suorituksen keskeytykset
+* agent interruption
+* process termination
+* system restart
+* temporary communication failure
+* container restart
+* other execution interruptions
 
-Tarkastus varmisti keskeytyneen työn palautuksen ja tarkistuspistekäyttäytymisen.
+The audit verified interrupted-job recovery and checkpoint behavior.
 
-Palautus testattiin töillä, jotka sisälsivät useita pakettitoimintoja ja aiemmin onnistuneita pakettikohteita.
+Recovery was tested with jobs containing multiple package operations and with previously successful package items.
 
-Tarkastus vahvisti, että suoritettu työ säilytetään ja jäljellä oleva työ voi jatkua toistamatta tarpeettomasti onnistuneita toimintoja.
+The audit confirmed that completed work is preserved and remaining work can continue without unnecessarily repeating successful operations.
 
-**Tila: PASS**
+**Status: PASS**
 
 ---
 
-# Turvallisuustarkastus #10
+# Tietoturva-auditointi #10
 
 ## APT Robustness
 
-Debian-pohjaiset pakettitoiminnot suoritetaan LUMS-paketinhallintakerroksen kautta.
+Debian-based package operations are executed through the LUMS package-management layer.
 
-APT:hen liittyvät päivitystoiminnot tarkastettiin paketinhallinnan tilan ja päivitystulosten luotettavan tunnistamisen varalta.
+APT-related update operations were reviewed for reliable detection of package-manager state and update results.
 
-Toteutus huomioi tapaukset, joissa paketinhallintakomennot voivat palauttaa onnistuneesti, mutta vaativat lisätulkintaa tulosteestaan tai tuloksena olevasta järjestelmän tilasta.
+The implementation accounts for cases where package-management commands may return successfully while requiring additional interpretation of their output or resulting system state.
 
-APT-päivitysten tunnistusta kovennettiin välttämään yhden yksinkertaistetun komentotulosteen ehdon varassa.
+APT update detection was hardened to avoid relying on a single simplistic command-output condition.
 
-Tarkastus sisälsi testausta seuraavissa:
+The audit included testing of:
 
-* normaalit APT-toiminnot
-* saatavilla olevat pakettipäivitykset
-* paketin asennus
-* paketin poisto
-* päivitystyön suoritus
-* APT-tuloksen käsittely
-* päivitysten tunnistuskäyttäytyminen
+* normal APT operations
+* available package updates
+* package installation
+* package removal
+* update-job execution
+* APT result handling
+* update detection behavior
 
-Vastaava koventaminen committoitiin seuraavasti:
+The corresponding hardening was committed as:
 
 `c76f331 security: harden apt update detection`
 
-Tavoitteena on varmistaa, että LUMS ei virheellisesti raportoi paketinhallinnan tilaa pelkästään puutteellisen tai epäselvän komentotulosteen perusteella.
+The objective is to ensure that LUMS does not incorrectly report package-management state based solely on incomplete or ambiguous command output.
 
-**Tila: PASS**
+**Status: PASS**
 
 ---
 
-# Turvallisuustarkastus #11
+# Tietoturva-auditointi #11
 
 ## Arch Linux Reboot Detection
 
-Arch Linux -pakettitoiminnot voivat johtaa järjestelmän tilaan, jossa uudelleenkäynnistys on tarpeen tai suositeltavaa.
+Arch Linux package operations can result in a system state where a reboot is required or recommended.
 
-Siksi LUMS arvioi tuloksena olevan järjestelmän tilan asiaankuuluvien paketinhallintatoimintojen jälkeen.
+LUMS therefore evaluates the resulting system state after relevant package-management operations.
 
-Agentti erottaa pakettitoiminnon normaalin valmistumisen tilanteista, joissa uudelleenkäynnistys vaaditaan.
+The Agent distinguishes normal package-operation completion from situations where a reboot is required.
 
-Uudelleenkäynnistystila raportoidaan takaisin LUMS-palvelimelle osana työn tulosta.
+The reboot state is reported back to the LUMS server as part of the job result.
 
-Tämä antaa hallintakäyttöliittymän erottaa:
+This allows the management interface to distinguish between:
 
-* onnistunut pakettitoiminto
-* onnistunut toiminto, jossa on uudelleenkäynnistysvaatimus
-* epäonnistunut toiminto
+* successful package operation
+* successful operation with reboot requirement
+* failed operation
 
-Tarkastus varmisti Arch Linux -uudelleenkäynnistyksen tunnistuksen käyttäen todellista paketinhallinnan suorituspolkua.
+The audit verified Arch Linux reboot detection using the actual package-management execution path.
 
-Toteutus testattiin uudelleenkäynnistysvaatimustilanteita ja normaalin valmistumisen ehtoja vasten.
+The implementation was tested against reboot-required conditions and normal completion conditions.
 
-**Tila: PASS**
+**Status: PASS**
 
 ---
 
-# Turvallisuustarkastus #12
+# Tietoturva-auditointi #12
 
 ## Unit Tests and API Result Validation
 
-Turvallisuuskriittinen käyttäytyminen on katettu automatisoiduilla testeillä.
+Security-sensitive behavior is covered by automated tests.
 
-Testisarja sisältää kattavuuden todentamiselle, valtuutukselle, API-validoinnille, päivitystöille, paketinhallinnalle, asiakastodennukselle ja tulosten käsittelylle.
+The test suite includes coverage for authentication, authorization, API validation, update jobs, package management, client authentication, and result handling.
 
-Agentti-palvelin-tulos polku tarkastettiin erityisesti sen varmistamiseksi, että työtulokset eivät voi mielivaltaisesti muuttaa liittymätöntä palvelinpuolen tilaa.
+The Agent-to-server result path was specifically reviewed to ensure that job results cannot arbitrarily alter unrelated server-side state.
 
-Tulosten käsittely validoi toimitetut tiedot ennen tilamuutosten soveltamista vastaavaan päivitystyöhön.
+Result processing validates the submitted information before applying state changes to the corresponding update job.
 
-Validointi kattaa asiaankuuluvat tuloskentät ja odotetut työsuhteet.
+The validation covers relevant result fields and expected job relationships.
 
-Tämä estää todennettua asiakasta vapaasti valitsemasta liittymättömiä töitä tai injektoimasta mielivaltaista tilaa päivitystyötietokantaan.
+This prevents an authenticated client from freely selecting unrelated jobs or injecting arbitrary state into the update-job database.
 
-Turvallisuustestisarja kattaa myös negatiiviset ja luvattomat tapaukset.
+The security test suite also covers negative and unauthorized cases.
 
-Suorita täydellinen automatisoitu testisarja arkiston juuresta komennolla
-`./.venv-test/bin/pytest -q`. Testien määrä muuttuu ajan myötä; käytä
-nykyisen ajon tulosta tässä asiakirjassa mainitun kiinteän määrän sijaan.
+Run the complete automated test suite from the repository root with
+`./.venv-test/bin/pytest -q`. The number of tests changes over time; use the
+result of the current run rather than a fixed count in this document.
 
-Asiaankuuluvat turvakontrollit varmennettiin lisäksi kohdennetuilla testiajoilla tarkastuksen aikana.
+The relevant security controls were additionally verified through focused test runs during the audit.
 
-**Tila: PASS**
+**Status: PASS**
 
 ---
 
-# Tarkastuksen tila osan 4 jälkeen
+# Audit Status After Part 4
 
-Seuraavat turvallisuustarkastusalueet on suoritettu:
+The following security audit areas are complete:
 
-| Tarkastus | Alue                                   | Tila |
-| --------- | -------------------------------------- | ---- |
-| #01       | SQLite Foreign Keys                    | PASS |
-| #02       | SQLite Runtime Configuration           | PASS |
-| #03       | Update Timeout / Process Handling      | PASS |
-| #04       | Login Rate Limiting                    | PASS |
-| #05       | API Input Validation                   | PASS |
-| #06       | Session Revocation                     | PASS |
-| #07       | Client Token Rotation                  | PASS |
-| #08       | IP Address Handling / Offline Networks | PASS |
-| #09       | Job Recovery / Checkpointing           | PASS |
-| #10       | APT Robustness                         | PASS |
-| #11       | Arch Reboot Detection                  | PASS |
-| #12       | Unit Tests / API Result Validation     | PASS |
+| Audit | Area                                   | Status |
+| ----- | -------------------------------------- | ------ |
+| #01   | SQLite Foreign Keys                    | PASS   |
+| #02   | SQLite Runtime Configuration           | PASS   |
+| #03   | Update Timeout / Process Handling      | PASS   |
+| #04   | Login Rate Limiting                    | PASS   |
+| #05   | API Input Validation                   | PASS   |
+| #06   | Session Revocation                     | PASS   |
+| #07   | Client Token Rotation                  | PASS   |
+| #08   | IP Address Handling / Offline Networks | PASS   |
+| #09   | Job Recovery / Checkpointing           | PASS   |
+| #10   | APT Robustness                         | PASS   |
+| #11   | Arch Reboot Detection                  | PASS   |
+| #12   | Unit Tests / API Result Validation     | PASS   |
 
-Seuraava osio kattaa:
+The next section covers:
 
 * #13 Simulation Tests
 * #14 Continuous Integration
 * #15 Application / Audit Logging
 * #16 Versioning / Releases
 
-# Turvallisuustarkastus #13
+# Tietoturva-auditointi #13
 
 ## Simulation Tests
 
-LUMS tarjoaa simulaatiomekanismin päivityshallinnan työnkulkujen testaamiseen suorittamatta vastaavaa paketinhallintatoimintoa hallinnoidussa järjestelmässä.
+LUMS provides a simulation mechanism for testing update-management workflows without performing the corresponding package-management operation on the managed system.
 
-Simulaatio on toteutettu agentin suorituskerroksessa.
+Simulation is implemented at the Agent execution layer.
 
-Kun simulaatio on käytössä, paketinhallintatoiminnot esitetään ja käsitellään ilman pyydetyn pakettimuutoksen soveltamista käyttöjärjestelmään.
+When simulation is enabled, package-management operations are represented and processed without applying the requested package change to the operating system.
 
-Tämä mahdollistaa päivitystyön käyttäytymisen testaamisen ilman hallinnoidun järjestelmän tarkoituksellista muuttamista.
+This allows update-job behavior to be tested without intentionally modifying the managed system.
 
-Simulaatiotestit kattavat asiaankuuluvat päivityshallinnan polut, mukaan lukien:
+The simulation tests cover relevant update-management paths, including:
 
-* paketin asennus
-* paketin poisto
-* pakettipäivitykset
-* järjestelmäpäivitykset
-* työn suoritus
-* tulosten raportointi
-* onnistunut valmistuminen
-* virheenkäsittely
+* package installation
+* package removal
+* package updates
+* system updates
+* job execution
+* result reporting
+* successful completion
+* failure handling
 
-Simulaatiomekanismia käytettiin turvallisuustarkastuksen aikana työn luonnin, agentin suorituksen, tulosten käsittelyn ja palvelinpuolen tilasiirtymien varmistamiseen riippumattomasti todellisista pakettimuutoksista.
+The simulation mechanism was used during the security audit to verify job creation, Agent execution, result handling, and server-side state transitions independently from real package modifications.
 
-Simulaatiotila on testausmekanismi eikä korvaa normaalin päivitystoiminnan valtuutuskontrolleja.
+Simulation mode is a testing mechanism and does not replace the authorization controls of normal update operations.
 
-**Tila: PASS**
+**Status: PASS**
 
 ---
 
-# Turvallisuustarkastus #14
+# Tietoturva-auditointi #14
 
 ## Continuous Integration
 
-LUMS käyttää automatisoitua testausta turvallisuus- ja toiminnallisten regressioiden havaitsemiseksi ennen kuin muutokset katsotaan valmiiksi.
+LUMS uses automated testing to detect security and functional regressions before changes are considered complete.
 
-CI-prosessi suorittaa automatisoidun testisarjan projektia vasten.
+The CI process executes the automated test suite against the project.
 
-Testiympäristö varmistaa sovelluksen ja turvallisuuskriittisen toiminnallisuuden riippumattomasti tuotantokontista.
+The test environment verifies the application and security-sensitive functionality independently from the production container.
 
-CI-prosessi sisältää validoinnin seuraaville:
+The CI process includes validation of:
 
-* todentaminen
-* valtuutus
+* authentication
+* authorization
 * RBAC
-* API:n käyttäytyminen
-* päivitystyön käsittely
-* paketinhallinnan käyttäytyminen
-* asiakastodennus
-* työtuloksen validointi
-* turvallisuuskriittinen virheenkäsittely
+* API behavior
+* update-job handling
+* package-management behavior
+* client authentication
+* job-result validation
+* security-sensitive error handling
 
-CI-tarkastus katsottiin turvallisuuden koventamismuutosten jälkeen.
+The CI audit was reviewed after the security hardening changes.
 
-Lopullinen varmennettu testisarja valmistui onnistuneesti.
+The final verified test suite completed successfully.
 
-Testien määrä muuttuu projektin kehittyessä. CI tarjoaa automatisoidun
-regressioesteen turvallisuuskriittisille sovellusmuutoksille.
+The test count changes as the project evolves. CI provides an automated
+regression barrier for security-relevant application changes.
 
-**Tila: PASS**
+**Status: PASS**
 
 ---
 
-# Turvallisuustarkastus #15
+# Tietoturva-auditointi #15
 
 ## Application and Audit Logging
 
-LUMS tallentaa turvallisuuskriittiset hallinnolliset ja operatiiviset tapahtumat sovellustason valvontalokituksen kautta.
+LUMS records security-sensitive administrative and operational events through application-level audit logging.
 
-Valvontalokitus on suunniteltu tarjoamaan toiminnallinen historia tallentamatta arkaluonteisia tunnistetietoja.
+Audit logging is designed to provide an operational history without storing sensitive credentials.
 
-Asiaankuuluvat turvallisuuskriittiset toiminnot sisältävät tapahtumia, kuten:
+Relevant security-sensitive actions include events such as:
 
-* todentamiseen liittyvät turvallisuustapahtumat
-* hallinnolliset toimet
-* asiakashallinta
-* asiakastunnistetoiminnot
-* päivitystyön luominen
-* päivitystyön suoritus
-* turvallisuuteen liittyvät virheet
+* authentication-related security events
+* administrative actions
+* client management
+* client-token operations
+* update-job creation
+* update-job execution
+* security-relevant failures
 
-Arkaluonteinen tunnistusmateriaali on suljettu pois valvontatietueista.
+Sensitive credential material is excluded from audit records.
 
-Erityisesti:
+In particular:
 
-* salasanoja ei kirjata
-* selkokielisiä asiakastunnisteita ei kirjata
-* salaisia arvoja ei tarkoituksella kirjoiteta valvontatietueisiin
+* passwords are not logged
+* plaintext client tokens are not logged
+* secret values are not intentionally written to audit records
 
-Valvontatietueet liitetään asiaankuuluvaan hallinnolliseen tai toiminnalliseen kontekstiin tarpeen mukaan.
+Audit records are associated with the relevant administrative or operational context where applicable.
 
-Valvontalokituksen toteutus tarkastettiin seuraavien osalta:
+The audit logging implementation was reviewed for:
 
-* turvallisuuskriittisten tapahtumien kattavuus
-* tunnistetietojen poissulkeminen
-* hallinnollinen jäljitettävyys
-* virheenkäsittely
-* asiaankuuluvien valvontatietojen säilyttäminen
+* security-sensitive event coverage
+* credential exclusion
+* administrative traceability
+* failure handling
+* persistence of relevant audit information
 
-Lokitusjärjestelmä on tarkoitettu tukemaan sekä operatiivista vianmääritystä että turvallisuustutkintaa.
+The logging system is intended to support both operational troubleshooting and security investigation.
 
-**Tila: PASS**
+**Status: PASS**
 
 ---
 
-# Turvallisuustarkastus #16
+# Tietoturva-auditointi #16
 
 ## Versioning and Releases
 
-Versiointi ja julkaisujen hallinta tarkastettiin osana turvallisuustarkastusta.
+Versioning and release management were reviewed as part of the security audit.
 
-LUMS on tällä hetkellä aktiivisessa kehityksessä eikä sillä ole vielä virallista vakaata julkaisua.
+LUMS is currently under active development and does not yet have an official stable release.
 
-Nykyisessä arkiston tilassa on siksi tarkoituksella:
+The current repository state therefore intentionally has:
 
-* ei virallista vakaata julkaisuversiota
-* ei julkaisutunnistetta
-* ei GitHub-julkaisua
+* no official stable release version
+* no release tag
+* no GitHub Release
 
-Nykyiset komponenttiversiot ovat:
+The current component versions include:
 
 * LUMS Agent: `1.7.0`
 * LUMS Watcher: `1.2.1`
 
-Tällä hetkellä ei ole yhtä muodollista versionumeroa, joka edustaisi koko LUMS-sovellusta.
+There is currently no single formal version number representing the complete LUMS application.
 
-Tämä on tarkoituksellinen projektin tilaa koskeva päätös eikä vahingossa tapahtunut laiminlyönti.
+This is an intentional project-state decision rather than an accidental omission.
 
-Suunniteltu julkaisuprosessi on:
+The planned release process is:
 
-1. Suorita toteutustyö loppuun.
-2. Suorita turvallisuuskatsaus loppuun.
-3. Tarkista ja synkronisoi dokumentaatio.
-4. Suorita täydellinen automatisoitu testisarja.
-5. Varmista CI.
-6. Määritä julkaisuversio.
-7. Luo vastaava Git-tunniste.
-8. Julkaise GitHub-julkaisu.
-9. Säilytä julkaisu dokumentoituna perustasona.
+1. Complete implementation work.
+2. Complete the security review.
+3. Review and synchronize the documentation.
+4. Complete the full automated test suite.
+5. Verify CI.
+6. Define the release version.
+7. Create the corresponding Git tag.
+8. Publish the GitHub Release.
+9. Preserve the release as the documented baseline.
 
-Virallista julkaisua ei luoda vain siksi, että turvallisuustarkastus saavuttaa tietyn tarkastusnumeron.
+No official release is created solely because the security audit reaches a particular audit number.
 
-Julkaisun luominen tapahtuu vasta, kun jäljellä oleva toteutus- ja dokumentaatiotyö on suoritettu.
+Release creation will take place only after the remaining implementation and documentation work has been completed.
 
-**Tila: REVIEWED — OPEN BY DESIGN**
+**Status: REVIEWED — OPEN BY DESIGN**
 
 ---
 
-# Tarkastuksen tila osan 5 jälkeen
+# Audit Status After Part 5
 
-Seuraavat turvallisuustarkastusalueet on suoritettu:
+The following security audit areas are complete:
 
-| Tarkastus | Alue                                   | Tila                      |
-| --------- | -------------------------------------- | ------------------------- |
-| #01       | SQLite Foreign Keys                    | PASS                      |
-| #02       | SQLite Runtime Configuration           | PASS                      |
-| #03       | Update Timeout / Process Handling      | PASS                      |
-| #04       | Login Rate Limiting                    | PASS                      |
-| #05       | API Input Validation                   | PASS                      |
-| #06       | Session Revocation                     | PASS                      |
-| #07       | Client Token Rotation                  | PASS                      |
-| #08       | IP Address Handling / Offline Networks | PASS                      |
-| #09       | Job Recovery / Checkpointing           | PASS                      |
-| #10       | APT Robustness                         | PASS                      |
-| #11       | Arch Reboot Detection                  | PASS                      |
-| #12       | Unit Tests / API Result Validation     | PASS                      |
-| #13       | Simulation Tests                       | PASS                      |
-| #14       | Continuous Integration                 | PASS                      |
-| #15       | Application / Audit Logging            | PASS                      |
-| #16       | Versioning / Releases                  | REVIEWED — OPEN BY DESIGN |
+| Audit | Area                                   | Status                    |
+| ----- | -------------------------------------- | ------------------------- |
+| #01   | SQLite Foreign Keys                    | PASS                      |
+| #02   | SQLite Runtime Configuration           | PASS                      |
+| #03   | Update Timeout / Process Handling      | PASS                      |
+| #04   | Login Rate Limiting                    | PASS                      |
+| #05   | API Input Validation                   | PASS                      |
+| #06   | Session Revocation                     | PASS                      |
+| #07   | Client Token Rotation                  | PASS                      |
+| #08   | IP Address Handling / Offline Networks | PASS                      |
+| #09   | Job Recovery / Checkpointing           | PASS                      |
+| #10   | APT Robustness                         | PASS                      |
+| #11   | Arch Reboot Detection                  | PASS                      |
+| #12   | Unit Tests / API Result Validation     | PASS                      |
+| #13   | Simulation Tests                       | PASS                      |
+| #14   | Continuous Integration                 | PASS                      |
+| #15   | Application / Audit Logging            | PASS                      |
+| #16   | Versioning / Releases                  | REVIEWED — OPEN BY DESIGN |
 
-Jäljellä oleva numeroitu tekninen tarkastusalue on:
+The remaining numbered technical audit area is:
 
-* #17 Role-Based Access Control
+* #17 Roolipohjainen Pääsynvalvonta
 
-Dokumentaation tarkastus seurataan erikseen:
+The documentation review is tracked separately as:
 
 * #18 Documentation Review — IN PROGRESS
 
-# Turvallisuustarkastus #17
+# Tietoturva-auditointi #17
 
-## Role-Based Access Control
+## Roolipohjainen Pääsynvalvonta
 
-LUMS yhdistää roolimallit yksilöllisesti määritettyihin oikeuksiin. Tuetut
-mallit ovat `administrator`, `operator` ja `viewer`; mallin valitseminen
-valitsee sen oletusoikeudet, joita ylläpitäjä voi mukauttaa
-jokaiselle tilille.
+LUMS combines role templates with individually assigned permissions. The
+supported templates are `ylläpitäjä`, `operaattori`, and `katselija`; choosing a
+template selects its default permissions, which an ylläpitäjä can customize
+for each account.
 
-Rooli pysyy tilin metatietona. Suojatut reitit valtuuttavat
-tilin palvelinpuolelle tallennettua oikeusjoukkoa vasten, ei roolitunnistetta vasten. Käyttöliittymä piilottaa
-käyttämättömissä olevat toiminnot käytettävyyden vuoksi, kun taas palvelin pysyy turvarajana.
+The role remains account metadata. Protected routes authorize against the
+account's server-stored permission set, not the role label. The interface hides
+unavailable functions for usability, while the server remains the security
+boundary.
 
 ---
 
 ## RBAC Permission Model
 
-| Oikeus            | Myönnetty pääsy |
-| ----------------- | --------------- |
-| `clients.view`    | Tarkastele asiakkaita ja järjestelmätietoja |
-| `software.view`   | Tarkastele asennettuja ohjelmistoja |
-| `updates.view`    | Tarkastele saatavilla olevia päivityksiä, töitä ja historiaa |
-| `packages.search` | Hae pakettivarastoista |
-| `jobs.manage`     | Luo pakettitoimintoja ja päivitystöitä |
-| `clients.manage`  | Rekisteröi/poista asiakkaita ja vaihda asiakastunnisteita |
-| `users.manage`    | Luo käyttäjiä ja hallitse rooleja ja oikeuksia |
+| Permission        | Access granted |
+| ----------------- | -------------- |
+| `clients.view`    | View clients and system information |
+| `software.view`   | View installed software |
+| `updates.view`    | View available updates, jobs, and history |
+| `packages.search` | Search package repositories |
+| `jobs.manage`     | Create package operations and update jobs |
+| `clients.manage`  | Register/remove clients and rotate client tokens |
+| `users.manage`    | Create users and manage roles and permissions |
 
-Oletusarvoiset roolimallit ovat:
+The default role templates are:
 
-| Malli           | Oletusoikeudet |
-| --------------- | -------------- |
-| `administrator` | Kaikki oikeudet |
-| `operator`      | Asiakas-/ohjelmisto-/päivitysnäkyvyys, pakettihaku ja työnhallinta |
-| `viewer`        | Asiakasnäkyvyys ja asennettujen ohjelmistojen näkyvyys |
+| Template        | Default permissions |
+| --------------- | ------------------- |
+| `ylläpitäjä` | All permissions |
+| `operaattori`      | Client/software/update visibility, package search, and job management |
+| `katselija`        | Client visibility and installed-software visibility |
 
-Asiakkaisiin liittyvät oikeudet edellyttävät `clients.view`-oikeutta. `jobs.manage` edellyttää myös
-`updates.view`-oikeutta. Käyttöliittymä lataa todennetun tilin oikeudet ja
-jättää pois kontrollit, joita käyttäjä ei voi käyttää; palvelinpuolen tarkistukset valvovat itsenäisesti
-samoja myönnytyksiä.
+Client-related permissions require `clients.view`. `jobs.manage` also requires
+`updates.view`. The UI loads permissions for the authenticated account and
+omits controls the user cannot use; server-side checks independently enforce
+the same grants.
 
 ---
 
 ## Authorization Enforcement
 
-Suojatut toiminnot käyttävät palvelinpuolen todentamista ja oikeustarkistuksia.
+Protected operations use server-side authentication and permission checks.
 
-Valtuutusmalli noudattaa periaatetta:
+The authorization model follows the principle:
 
 `Authenticate → Load User Permissions → Authorize Operation → Execute`
 
-Pelkkä todentaminen ei riitä etuoikeutettujen toimintojen käyttämiseen.
+Authentication alone is not sufficient to access privileged operations.
 
-Tilaa muuttavat toiminnot edellyttävät lisäksi CSRF-suojausta tarpeen mukaan.
+State-changing operations additionally require CSRF protection where applicable.
 
-Esimerkkejä suojatuista hallinnollisista toiminnoista ovat:
+Examples of protected administrative operations include:
 
-* päivitystyön luominen
-* paketin asennus
-* paketin poisto
-* pakettipäivitykset
-* järjestelmäpäivitykset
-* paketinhallintatoiminnot
-* asiakkaan luominen
-* asiakkaan käytöstä poistaminen
-* asiakastunnisteen vaihto
-* käyttäjän luominen
-* käyttäjähallintatoiminnot
+* update-job creation
+* package installation
+* package removal
+* package updates
+* system updates
+* package-management operations
+* client creation
+* client disabling
+* client-token rotation
+* user creation
+* user-management functions
 
-Suojatut päätepisteet määrittävät eksplisiittisesti vastaavaan toimintoon vaadittavan oikeuden.
+Protected endpoints explicitly define the permission required for the
+corresponding operation.
 
-Puuttuva oikeus hylätään palvelimen toimesta, vaikka käyttäjä manuaalisesti
-rakentaisi vastaavan HTTP-pyynnön.
+A missing permission is rejected by the server even if the user manually
+constructs the corresponding HTTP request.
 
-Tämä estää RBAC-mallin ohittamisen kutsumalla suoraan API-päätepistettä, joka on piilotettu verkkokäyttöliittymässä.
+This prevents bypassing the RBAC model by directly calling an API endpoint that is hidden in the web interface.
 
 ---
 
 ## Viewer Restrictions
 
-Viewer-malli on tarkoituksella rajoitettu sen oletusoikeusjoukon mukaisesti.
+The Viewer template is intentionally restricted by its default permission set.
 
-Tileille, joilla ei ole vastaavia myönnytyksiä, asiakaskäyttöliittymä ei paljasta:
+For accounts without the corresponding grants, the client interface does not expose:
 
-* Päivitykset
-* Päivitystyöt
-* Päivityshistoria
-* Paketinhallinta
-* Järjestelmän ylläpito
+* Updates
+* Update Jobs
+* Update History
+* Package Management
+* System Maintenance
 
-Palvelin estää lisäksi tilejä, joilla ei ole vastaavia myönnytyksiä,
-suorittamasta suojattuja toimintoja.
+The server additionally prevents accounts without the corresponding grants
+from performing protected operations.
 
-JavaScript-käyttöliittymä ei lataa päivityshallintatietoja ilman
-`updates.view`-oikeutta.
+The JavaScript interface does not load update-management data without
+`updates.view`.
 
-Tämä vähentää toiminnallisten tietojen tarpeetonta altistumista samalla kun palvelinpuolen valtuutus säilyy varsinaisena turvakontrollina.
+This reduces unnecessary exposure of operational information while maintaining server-side authorization as the actual security control.
 
-Asennettu ohjelmisto on edelleen Viewer-tilien käytettävissä vain luku -tietotoimintona.
+Installed software remains available to Viewer accounts as a read-only information function.
 
 ---
 
 ## Administrative User Management
 
-Käyttäjähallinta edellyttää `users.manage`-oikeutta.
+User management requires the `users.manage` permission.
 
-Käyttäjät, joilla on kyseinen oikeus, voivat luoda tilejä ilman oikeuksia ja sitten
-määrittää yksittäisiä myönnytyksiä tai soveltaa roolimallia oikeuseditorissa.
-Roolimalleilla on kuvaukset, jotka selittävät niiden oletusmyönnytykset.
+Users with that permission can create accounts without permissions and then
+assign individual grants or apply a role template in the permission editor.
+Role templates have descriptions explaining their default grants.
 
-Valtuutetut käyttäjähallinnoijat voivat tallentaa sisäisen muistiinpanon tiliä kohden. Muistiinpanot on
-rajoitettu 2 000 merkkiin, niitä ei sisällytetä valvontalokin tietoihin eikä
-ne ole näkyvissä tilin omistajalle.
+Authorized user managers can save an internal note per account. Notes are
+limited to 2,000 characters, are not included in audit-log details, and are
+not visible to the account owner.
 
-Käyttäjän luominen sisältää:
+User creation includes:
 
-* käyttäjänimen validointi
-* roolin validointi
-* salasanan validointi
-* Argon2-salasanatiivistys
-* päällekkäisten käyttäjien tunnistus
-* valvontalokitus
-* CSRF-suojaus
-* palvelinpuolen valtuutus
+* username validation
+* role validation
+* password validation
+* Argon2 password hashing
+* duplicate-user detection
+* audit logging
+* CSRF protection
+* server-side authorization
 
-Käyttäjähallinnan päätepisteet eivät ole käytettävissä ilman `users.manage`-oikeutta.
+User-management endpoints are not accessible without `users.manage`.
 
-Palvelin hylkää tuntemattomat oikeudet ja virheelliset riippuvuusyhdistelmät.
-Ainakin yhdellä aktiivisella tilillä on säilytettävä `users.manage`-oikeus; muutokset, jotka
-poistaisivat viimeisen käyttäjähallinnoijan, hylätään.
+The server rejects unknown permissions and invalid dependency combinations.
+At least one active account must retain `users.manage`; changes that would
+remove the last user manager are rejected.
 
-Salasanoja ei koskaan tallenneta selkokielisinä.
+Passwords are never stored in plaintext.
 
 ---
 
 ## RBAC Database Migration
 
-Roolimallitiedot säilyvät käyttäjätietokannan tietueessa. Yksittäiset
-myönnytykset tallennetaan `user_permissions`-tauluun viiteavaimella
-käyttäjätiliin. Migraatio `003-user-permissions` luo kyseisen taulun ja täyttää
-olemassa olevat tilit niiden nykyisestä roolimallista säilyttäen niiden pääsyn
-siirtymän aikana. Migraatio `004-user-admin-notes` lisää yksityisen
-`users.admin_note`-kentän; olemassa olevat tilit saavat tyhjän muistiinpanon. Migraatio
-`005-backup-permission` myöntää `backups.manage`-oikeuden olemassa oleville Administrator-
-tileille.
+Role-template information remains in the user database record. Individual
+grants are stored in the `user_permissions` table with a foreign key to the
+user account. Migration `003-user-permissions` creates that table and seeds
+existing accounts from their current role template, preserving their access
+during the transition. Migration `004-user-admin-notes` adds the private
+`users.admin_note` field; existing accounts receive an empty note. Migration
+`005-backup-permission` grants `backups.manage` to existing Administrator
+accounts.
 
-Tietokannan varmuuskopion luominen edellyttää `backups.manage`-oikeutta; Administrator-
-malli sisältää tämän oikeuden oletuksena. Palvelin kirjoittaa SQLite-online-
-varmuuskopiot vain palvelinkonfiguroituun `LUMS_BACKUP_DIR`-hakemistoon; se ei hyväksy
-tiedostojärjestelmäpolkuja selaimesta. Varmuuskopiotiedostot luodaan vain omistajan
-oikeuksin ja niiden eheys tarkistetaan ennen julkaisua.
+Database backup creation requires `backups.manage`; the Administrator
+template includes this permission by default. The server writes SQLite online
+backups only to the server-configured `LUMS_BACKUP_DIR`; it does not accept
+filesystem paths from the browser. Backup files are created with owner-only
+permissions and are integrity-checked before publication.
 
 ---
 
 ## RBAC Security Testing
 
-RBAC-käyttäytyminen on katettu automatisoiduilla testeillä.
+RBAC behavior is covered by automated tests.
 
-Testit sisältävät:
+The tests include:
 
-* Administrator-valtuutus
-* Operator-valtuutus
-* Viewer-rajoitukset
-* suojattu API-pääsy
-* luvattomat toiminnot
-* asiakashallinnan rajoitukset
-* päivitystyön rajoitukset
-* käyttäjähallinnan rajoitukset
-* asiakassivun näkyvyys
-* oikeuskohtainen käyttöliittymäkäyttäytyminen
+* Administrator authorization
+* Operator authorization
+* Viewer restrictions
+* protected API access
+* unauthorized operations
+* client-management restrictions
+* update-job restrictions
+* user-management restrictions
+* client-page visibility
+* permission-specific interface behavior
 
-RBAC-testit kattavat roolimallien oletukset, mukautetut oikeudet, oikeus-
-riippuvuudet ja palvelinpuolen valtuutuksen. Tuotantovarmistuksen tulisi
-sisältää tilejä, joilla on mukautetut oikeudet, sekä oletusarvoiset
-Administrator-, Operator- ja Viewer-mallit.
+RBAC tests cover role-template defaults, custom permissions, permission
+dependencies, and server-side authorization. Production verification should
+include accounts with customized permissions as well as the default
+Administrator, Operator, and Viewer templates.
 
 ---
 
 ## RBAC Security Result
 
-RBAC-toteutus tarjoaa kerroksittaisen valtuutuksen:
+The RBAC implementation provides layered authorization:
 
-1. Todentaminen vahvistaa käyttäjän identiteetin.
-2. Palvelin lataa käyttäjän oikeudet.
-3. Suojatut reitit valvovat vaadittua oikeutta.
-4. CSRF-suojaus koskee asiaankuuluvia selaimen tilamuutoksia.
-5. Verkkokäyttöliittymä piilottaa käyttämättömissä olevan toiminnallisuuden.
-6. Automatisoidut testit varmistavat valtuutusrajat.
+1. Authentication establishes the user identity.
+2. The server loads the user's permissions.
+3. Protected routes enforce the required permission.
+4. CSRF protection applies to relevant browser state changes.
+5. The web interface hides unavailable functionality.
+6. Automated tests verify authorization boundaries.
 
-Käyttöliittymä ei siten itsessään tarjoa valtuutusmekanismia.
+The interface therefore does not provide the authorization mechanism by itself.
 
-Palvelin pysyy ensisijaisena turvarajana.
+The server remains the authoritative security boundary.
 
-**Tila: PASS**
+**Status: PASS**
 
-# Turvallisuustarkastus #18
+# Tietoturva-auditointi #18
 
 ## Documentation Review
 
-Turvallisuusdokumentaatio tarkastetaan nykyistä toteutettua LUMS-järjestelmää vasten.
+The security documentation is reviewed against the currently implemented LUMS system.
 
-Tämän tarkastuksen tarkoitus on varmistaa, että turvallisuusdokumentaatio kuvaa todellista toteutusta eikä aiempaa kehitystilaa.
+The purpose of this review is to ensure that security documentation describes the actual implementation rather than an earlier development state.
 
-Tarkastus kattaa:
+The review covers:
 
-* todentaminen
-* valtuutus
+* authentication
+* authorization
 * RBAC
-* asiakastodennus
-* tunnisteen käsittely
-* istunnon käsittely
-* CSRF-suojaus
-* nopeusrajoitus
-* SQLite-konfiguraatio
-* päivityksen suoritus
-* työn palautus
-* paketinhallinta
-* kontin koventaminen
-* verkon altistuminen
-* salaisuuksien käsittely
-* riippuvuuksien ja koontien turvallisuus
-* tiedostojärjestelmän käyttöoikeudet
-* sovellus- ja valvontalokitus
-* versiointi ja julkaisujen käsittely
-* automatisoitu turvallisuustestaus
+* client authentication
+* token handling
+* session handling
+* CSRF protection
+* rate limiting
+* SQLite configuration
+* update execution
+* job recovery
+* package management
+* container hardening
+* network exposure
+* secrets handling
+* dependency and build security
+* filesystem permissions
+* application and audit logging
+* versioning and release handling
+* automated security testing
 
-Dokumentaation on erotettava:
+Documentation must distinguish between:
 
-* toteutetut kontrollit
-* varmennettu tuotantokäyttäytyminen
-* suunnitellut parannukset
-* tarkoituksella avoimet projektipäätökset
+* implemented controls
+* verified production behavior
+* planned improvements
+* intentionally open project decisions
 
-Historiallisia toteutustietoja ei saa esittää nykyisenä tuotantokonfiguraationa.
+Historical implementation details must not be presented as current production configuration.
 
-Erityisesti dokumentaatio heijastaa nykyistä SQLite-tuotantokonfiguraatiota nykyisen WAL-konfiguraation sijaan.
+In particular, the documentation reflects the current SQLite production configuration rather than the current WAL configuration.
 
-Nykyinen tuotannon ajonaikainen ympäristö on dokumentoitu seuraavasti:
+The current production runtime is documented as:
 
 * `journal_mode = wal`
 * `busy_timeout = 5000`
 * `synchronous = 2`
-* sovellustason `PRAGMA foreign_keys = ON`
+* application-level `PRAGMA foreign_keys = ON`
 
-Nykyinen Viewer-RBAC-käyttäytyminen on myös dokumentoitu toteutetun tuotantokäyttöliittymän mukaisesti.
+The current Viewer-RBAC behavior is also documented according to the implemented production interface.
 
-Viewer-käyttäjillä on pääsy:
+Viewer users have access to:
 
-* asiakastietoihin
-* asennettuun ohjelmistoon
+* client information
+* installed software
 
-Viewer-käyttäjillä ei ole pääsyä:
+Viewer users do not have access to:
 
-* Päivityksiin
-* Päivitystöihin
-* Päivityshistoriaan
-* Paketinhallintaan
-* Järjestelmän ylläpitoon
+* Updates
+* Update Jobs
+* Update History
+* Package Management
+* System Maintenance
 
-Dokumentaation tarkastus poistaa tai korvaa myös vanhentuneet viittaukset aiempiin testien määriin, migraatiotiloihin, käyttöönottokonfiguraatioihin ja vain kehityksessä käytettyyn käyttäytymiseen.
+The documentation review also removes or replaces outdated references to earlier test counts, migration states, deployment configurations, and development-only behavior.
 
-**Tila: IN PROGRESS**
+**Status: IN PROGRESS**
 
 ---
 
-# Lisäturvallisuuden koventaminen
+# Additional Security Hardening
 
-Numeroitu turvallisuustarkastus kattaa ensisijaiset sovelluksen turvakontrollit.
+The numbered security audit covers the primary application security controls.
 
-Lisäkoventaminen suoritettiin alkuperäisen tarkastussekvenssin jälkeen, ja se on osa nykyistä turvallisuusperustasoa.
+Additional hardening was performed after the original audit sequence and is part of the current security baseline.
 
-Nämä kontrollit on dokumentoitu tässä, koska ne edustavat nykyisen käyttöönoton tärkeitä turvaominaisuuksia.
+These controls are documented here because they represent important security properties of the current deployment.
 
 ---
 
 ## Container Hardening
 
-Tuotannon LUMS-kontti toimii kovennetulla Docker-konfiguraatiolla.
+The production LUMS container runs with a hardened Docker configuration.
 
-Tuotantokontti käyttää:
+The production container uses:
 
-* ei-root-sovelluskäyttäjä
-* vain luku -juuritiedostojärjestelmä
-* poistetut Linux-kyvykkyydet
+* non-root application user
+* read-only root filesystem
+* dropped Linux capabilities
 * `no-new-privileges`
-* rajoitetut väliaikaiset tiedostojärjestelmät
-* vain luku -salaisuuden liitos
-* erillinen pysyvä sovellusdatataltio
-* uudelleenkäynnistyskäytäntö
-* vain loopback -isäntäjulkaisu sovellusportille
+* restricted temporary filesystems
+* read-only secret mount
+* dedicated persistent application-data volume
+* restart policy
+* loopback-only host publication of the application port
 
-Sovelluksen juuritiedostojärjestelmä ei siis ole kirjoitettavissa normaalin toiminnan aikana.
+The application root filesystem is therefore not writable during normal operation.
 
-Kirjoitettavat sijainnit on eksplisiittisesti rajoitettu sovelluksen vaatimiin sijainteihin.
+Writable locations are explicitly limited to the locations required by the application.
 
-Tuotantokontti tarkastettiin itsenäisesti tehokkaan ajonaikaisen konfiguraation varmistamiseksi.
+The production container was independently inspected to verify the effective runtime configuration.
 
-Kovennettu ajonaikainen ympäristö testattiin myös varmistamalla, että:
+The hardened runtime was also tested by verifying that:
 
-* sovelluksen tiedostojärjestelmäkirjoitukset epäonnistuvat
-* `/tmp` pysyy saatavilla tarvittaessa
-* `/var/lib/lums` pysyy kirjoitettavana
-* salaisuustiedosto pysyy vain luku -tilassa
-* sovellus pysyy toiminnassa
+* application filesystem writes fail
+* `/tmp` remains available where required
+* `/var/lib/lums` remains writable
+* the secret file remains read-only
+* the application remains operational
 
 ---
 
 ## Network Exposure
 
-LUMS-sovellusporttia ei ole suoraan altistettu LAN-verkkoon.
+The LUMS application port is not directly exposed to the LAN.
 
-Docker-sovellusportti on sidottu loopback-rajapintaan:
+The Docker application port is bound to the loopback interface:
 
 `127.0.0.1:5050`
 
-Ulkoinen pääsy tarjotaan Nginxin kautta.
+External access is provided through Nginx.
 
-Tuotantoisäntä altistaa aiotut verkkopalvelut palomuurin ja käänteisvälityspalvelimen kautta.
+The production host exposes the intended network services through the firewall and reverse proxy.
 
-Käyttöönotto varmennettiin estämään suora etäpääsy sisäiseen Docker-sovellusporttiin.
+The deployment was verified to prevent direct remote access to the internal Docker application port.
 
-Palomuuri käyttää oletusarvoisesti kieltävää mallia saapuvalle ja reititetylle liikenteelle.
+The firewall uses a default-deny model for incoming and routed traffic.
 
-Aiotut ulkoisesti tavoitettavissa olevat palvelut ovat:
+The intended externally reachable services are:
 
 * SSH
 * HTTP
 * HTTPS
 
-Web-palvelin ohjaa HTTP-pyynnöt HTTPS:ään.
+HTTP requests are redirected to HTTPS by the web server.
 
-Oletusarvoinen Nginx-sivusto poistettiin, jotta liittymätön oletussisältö ei altistu.
+The default Nginx site was removed so that unrelated default content is not exposed.
 
 ---
 
 ## Transport Security
 
-Hallinnollinen verkkopääsy tarjotaan HTTPS:n kautta.
+Administrative web access is provided through HTTPS.
 
-HTTP ohjataan HTTPS:ään.
+HTTP is redirected to HTTPS.
 
-TLS-päätepisteen hoitaa Nginx eikä Flask/Gunicorn-sovellus suoraan.
+The TLS endpoint is handled by Nginx rather than the Flask/Gunicorn application directly.
 
-Tämä pitää kuljetusturvallisuuden ja sovelluspalvelun erillään.
+This keeps transport security and application serving separated.
 
-Sisäinen Gunicorn-sovellusportti ei siis ole tarkoitettu julkiseksi HTTP-päätepisteeksi.
+The internal Gunicorn application port is therefore not intended to be a public HTTP endpoint.
 
-Nykyinen käyttöönotto on tarkoitettu hallittuun sisäiseen infrastruktuuriin.
+The current deployment is intended for controlled internal infrastructure.
 
-Tuleva käyttöönotto, jossa on suora julkinen internet-altistus, vaatisi lisäturvallisuuskatsauksen.
+A future deployment with direct public-Internet exposure would require an additional security review.
 
 ---
 
 ## Secrets and Configuration
 
-Tuotantosalaisuuksia ei tallenneta sovelluksen lähdekoodipuuhun.
+Production secrets are not stored in the application source tree.
 
-LUMS-salaisuusavain toimitetaan suojatun salaisuustiedoston kautta.
+The LUMS secret key is supplied through a protected secret file.
 
-Tuotantokontti vastaanottaa salaisuuden kautta:
+The production container receives the secret through:
 
 `/run/secrets/lums_secret`
 
-Salaisuustiedosto liitetään vain luku -tilassa.
+The secret file is mounted read-only.
 
-Sovellus lukee salaisuuden konfiguroidun salaisuustiedostomekanismin kautta.
+The application reads the secret through the configured secret-file mechanism.
 
-Arkiston ja Docker-koontikontekstin käsittely tarkastettiin tahattoman sisällyttämisen estämiseksi seuraaville:
+Repository and Docker build-context handling was reviewed to prevent accidental inclusion of:
 
-* tietokantatiedostot
-* varmuuskopiotiedostot
-* salaisuustiedostot
-* yksityiset avaimet
-* varmenteet
-* ajonaikaiset lokit
-* paikalliset varmuuskopioartefaktit
+* database files
+* backup files
+* secret files
+* private keys
+* certificates
+* runtime logs
+* local backup artifacts
 
-Arkisto myös ohittaa yleiset väliaikaiset varmuuskopiomallit, joita käytetään kehityksen aikana.
+The repository also ignores common temporary backup patterns used during development.
 
 ---
 
 ## Dependency and Build Security
 
-Tuotannon Docker-kuva käyttää kiinnitettyä Python-peruskuvan tiivistettä.
+The production Docker image uses a pinned Python base-image digest.
 
-Tuotannon ajonaikaiset riippuvuudet on eksplisiittisesti versiokiinnitetty.
+The production runtime dependencies are explicitly version-pinned.
 
-Nykyinen tuotannon riippuvuusjoukko sisältää:
+The current production dependency set includes:
 
 * Flask `3.1.3`
 * argon2-cffi `25.1.0`
 * Gunicorn `23.0.0`
 
-Docker-koontikonteksti on rajoitettu `.dockerignore`-tiedoston kautta.
+The Docker build context is restricted through `.dockerignore`.
 
-Toistuvia tuotantokoontaja verrattiin tarkastuksen aikana.
+Repeated production builds were compared during the audit.
 
-Asiaankuuluvat riippuvuus- ja pakettimetatiedot pysyivät yhdenmukaisina toistuvien koontien välillä odotettuja generoitujen Python-bytekoodierojen lisäksi.
+The relevant dependency and package metadata remained consistent between repeated builds, apart from expected generated Python bytecode differences.
 
-Tämä tarjoaa toistettavan perustason tuotantokuvalle samalla kun koontikonteksti pidetään rajoitettuna.
+This provides a reproducible baseline for the production image while keeping the build context limited.
 
 ---
 
 ## Filesystem and Runtime Permissions
 
-Tuotantosovellus toimii omistautuneena `lums`-käyttäjänä root-käyttäjän sijaan.
+The production application runs as the dedicated `lums` user rather than root.
 
-Pysyvät sovellustiedot tallennetaan erilliseen LUMS-datataltioon.
+Persistent application data is stored in the dedicated LUMS data volume.
 
-Sovelluksen juuritiedostojärjestelmä on vain luku -tilassa.
+The application root filesystem is read-only.
 
-Ajonaikainen kirjoitusoikeus on rajoitettu eksplisiittisesti vaadittuihin sijainteihin.
+Runtime write access is restricted to explicitly required locations.
 
-Tuotannon ajonaikainen ympäristö varmennettiin hylkäämään luvattomat kirjoitukset sovelluksen tiedostojärjestelmään.
+The production runtime was verified to reject unauthorized writes to the application filesystem.
 
-Tämä vähentää tahattoman tai haitallisen tiedostomuokkauksen vaikutusta sovelluskontin sisällä.
+This reduces the impact of accidental or malicious file modification inside the application container.
 
 ---
 
-# Turvallisuustarkastuksen johtopäätös
+# Tietoturva-auditointi Conclusion
 
-Nykyinen LUMS-toteutus on käynyt läpi laajan turvallisuuskatsauksen, joka kattaa:
+The current LUMS implementation has undergone a broad security review covering:
 
-* todentaminen
-* valtuutus
+* authentication
+* authorization
 * RBAC
-* istunnon turvallisuus
-* CSRF-suojaus
-* kirjautumisen nopeusrajoitus
-* asiakastunnisteen turvallisuus
-* API-validointi
-* SQL-injektioresistenssi
-* SQLite-eheys
-* päivityksen suoritus
-* aikakatkaisun käsittely
-* työn palautus
-* paketinhallinnan robustisuus
-* tulosvalidointi
-* simulaatio
-* jatkuva integraatio
-* valvontalokitus
-* kontin koventaminen
-* verkon altistuminen
-* kuljetusturvallisuus
-* salaisuuksien käsittely
-* tiedostojärjestelmän käyttöoikeudet
-* riippuvuuksien ja koontien turvallisuus
+* session security
+* CSRF protection
+* login rate limiting
+* client-token security
+* API validation
+* SQL injection resistance
+* SQLite integrity
+* update execution
+* timeout handling
+* job recovery
+* package-management robustness
+* result validation
+* simulation
+* continuous integration
+* audit logging
+* container hardening
+* network exposure
+* transport security
+* secrets handling
+* filesystem permissions
+* dependency and build security
 
-Numeroidut tarkastustulokset ovat:
+The numbered audit results are:
 
-| Tarkastus | Alue                                   | Tila                      |
-| --------- | -------------------------------------- | ------------------------- |
-| #01       | SQLite Foreign Keys                    | PASS                      |
-| #02       | SQLite Runtime Configuration           | PASS                      |
-| #03       | Update Timeout / Process Handling      | PASS                      |
-| #04       | Login Rate Limiting                    | PASS                      |
-| #05       | API Input Validation                   | PASS                      |
-| #06       | Session Revocation                     | PASS                      |
-| #07       | Client Token Rotation                  | PASS                      |
-| #08       | IP Address Handling / Offline Networks | PASS                      |
-| #09       | Job Recovery / Checkpointing           | PASS                      |
-| #10       | APT Robustness                         | PASS                      |
-| #11       | Arch Reboot Detection                  | PASS                      |
-| #12       | Unit Tests / API Result Validation     | PASS                      |
-| #13       | Simulation Tests                       | PASS                      |
-| #14       | Continuous Integration                 | PASS                      |
-| #15       | Application / Audit Logging            | PASS                      |
-| #16       | Versioning / Releases                  | REVIEWED — OPEN BY DESIGN |
-| #17       | Role-Based Access Control              | PASS                      |
-| #18       | Documentation Review                   | IN PROGRESS               |
+| Audit | Area                                   | Status                    |
+| ----- | -------------------------------------- | ------------------------- |
+| #01   | SQLite Foreign Keys                    | PASS                      |
+| #02   | SQLite Runtime Configuration           | PASS                      |
+| #03   | Update Timeout / Process Handling      | PASS                      |
+| #04   | Login Rate Limiting                    | PASS                      |
+| #05   | API Input Validation                   | PASS                      |
+| #06   | Session Revocation                     | PASS                      |
+| #07   | Client Token Rotation                  | PASS                      |
+| #08   | IP Address Handling / Offline Networks | PASS                      |
+| #09   | Job Recovery / Checkpointing           | PASS                      |
+| #10   | APT Robustness                         | PASS                      |
+| #11   | Arch Reboot Detection                  | PASS                      |
+| #12   | Unit Tests / API Result Validation     | PASS                      |
+| #13   | Simulation Tests                       | PASS                      |
+| #14   | Continuous Integration                 | PASS                      |
+| #15   | Application / Audit Logging            | PASS                      |
+| #16   | Versioning / Releases                  | REVIEWED — OPEN BY DESIGN |
+| #17   | Roolipohjainen Pääsynvalvonta              | PASS                      |
+| #18   | Documentation Review                   | IN PROGRESS               |
 
-Tarkastuksissa #01–#15 ja #17 tarkastetut tekniset turvakontrollit ovat läpäisseet.
+The technical security controls reviewed in audits #01–#15 and #17 have passed.
 
-Tarkastus #16 pysyy tarkoituksella avoimena, koska LUMS ei ole vielä saavuttanut ensimmäistä virallista vakaata julkaisuaan.
+Audit #16 remains intentionally open because LUMS has not yet reached its first official stable release.
 
-Tarkastus #18 pysyy avoimena, kunnes koko projektidokumentaatio on tarkastettu ja synkronisoitu lopullisen toteutustilan kanssa.
+Audit #18 remains open until the complete project documentation has been reviewed and synchronized with the final implementation state.
 
-Mitään turvallisuustarkastuksen tulosta ei pidä tulkita takeeksi siitä, että LUMS on vapaa haavoittuvuuksista.
+No security audit result should be interpreted as a guarantee that LUMS is free from vulnerabilities.
 
-Turvallisuus on jatkuva prosessi.
+Security is an ongoing process.
 
-Muutokset sovellukseen, agenttiin, riippuvuuksiin, kontin konfiguraatioon, verkon altistumiseen, todentamismalliin tai käyttöönottoarkkitehtuuriin tulisi laukaista uusi turvallisuuskatsaus asianomaisille kontrolleille.
-
----
-
-# Turvallisuusperustaso
-
-Nykyinen turvallisuusperustaso perustuu varmennettuun toteutukseen ja tuotannon käyttöönoton tilaan.
-
-Perustaso sisältää:
-
-* palvelinpuolen todentaminen
-* palvelinpuolen RBAC
-* Argon2-salasanatiivistys
-* SHA-256-asiakastunnisteiden tiivisteet
-* CSRF-suojaus
-* kirjautumisen nopeusrajoitus
-* parametroitu SQL
-* validoitu API-syöte
-* hallittu paketinhallinnan suoritus
-* päivitystyön palautus
-* valvontalokitus
-* kovennettu Docker-ajonaikainen ympäristö
-* HTTPS Nginxin kautta
-* vain loopback -sovellusportin altistuminen
-* palomuurirajoitukset
-* suojatut tuotantosalaisuudet
-* kiinnitetyt tuotantoriippuvuudet
-* rajoitetut tiedostojärjestelmän käyttöoikeudet
-* automatisoitu turvallisuustestaus
-
-Tulevien muutosten tulisi säilyttää nämä ominaisuudet, ellei tarkoituksellinen arkkitehtoninen muutos korvaa niitä vastaavalla tai vahvemmalla kontrollilla.
+Changes to the application, Agent, dependencies, container configuration, network exposure, authentication model, or deployment architecture should trigger another security review of the affected controls.
 
 ---
 
-# Turvallisuuden ylläpito
+# Tietoturvaperustan
 
-Turvakontrollit tulee validoida uudelleen, kun merkittäviä muutoksia otetaan käyttöön.
+The current security baseline is based on the verified implementation and production deployment state.
 
-Esimerkkejä:
+The baseline includes:
 
-* todentamismuutokset
-* uudet käyttäjäroolit
-* uudet API-päätepisteet
-* paketinhallintamuutokset
-* agentin suoritusmuutokset
-* tietokantamigraatiot
-* riippuvuuspäivitykset
-* Dockerfile-muutokset
-* kontin ajonaikaiset muutokset
-* käänteisvälityspalvelinmuutokset
-* palomuurimuutokset
-* salaisuuksien hallinnan muutokset
-* julkaisun valmistelu
+* server-side authentication
+* server-side RBAC
+* Argon2 password hashing
+* SHA-256 client-token digests
+* CSRF protection
+* login rate limiting
+* parameterized SQL
+* validated API input
+* controlled package-manager execution
+* update-job recovery
+* audit logging
+* hardened Docker runtime
+* HTTPS through Nginx
+* loopback-only application-port exposure
+* firewall restrictions
+* protected production secrets
+* pinned production dependencies
+* restricted filesystem permissions
+* automated security testing
 
-Turvallisuustestaus tulee suorittaa ennen virallisen julkaisun julkaisemista.
-
-Turvallisuusdokumentaatio tulee päivittää aina, kun varmennettu turvallisuusperustaso muuttuu.
+Future changes should preserve these properties unless a deliberate architectural change replaces them with an equivalent or stronger control.
 
 ---
 
-# Julkaisuvalmius
+# Tietoturvan Ylläpito
 
-Ensimmäinen virallinen LUMS-julkaisu luodaan vasta, kun:
+Security controls should be revalidated when significant changes are introduced.
 
-1. toteutustyö on valmis
-2. turvallisuuskatsaus on valmis
-3. dokumentaation tarkastus on valmis
-4. täydellinen automatisoitu testisarja läpäisee
-5. CI läpäisee
-6. lopullinen versio on määritetty
-7. Git-tunniste on luotu
-8. GitHub-julkaisu on julkaistu
+Examples include:
 
-Siihen asti LUMS pysyy aktiivisesti kehitettynä projektina.
+* authentication changes
+* new user roles
+* new API endpoints
+* package-management changes
+* Agent execution changes
+* database migrations
+* dependency updates
+* Dockerfile changes
+* container-runtime changes
+* reverse-proxy changes
+* firewall changes
+* secret-management changes
+* release preparation
+
+Security testing should be performed before publishing an official release.
+
+The security documentation should be updated whenever the verified security baseline changes.
+
+---
+
+# Julkaisun Valmisteleminen
+
+The first official LUMS release will be created only after:
+
+1. implementation work is complete
+2. security review is complete
+3. documentation review is complete
+4. the full automated test suite passes
+5. CI passes
+6. the final version is defined
+7. the Git tag is created
+8. the GitHub Release is published
+
+Until then, LUMS remains an actively developed project.
 
 ---
 
 # Loppulausunto
 
-LUMS on suunniteltu hallituksi Linux-päivityshallinta-alustaksi, jossa turvallisuus on keskeinen arkkitehtoninen huolenaihe.
+LUMS is designed as a controlled Linux update-management platform with security as a core architectural concern.
 
-Turvallisuusmalli ei luota yhteen suojamekanismiin.
+The security model does not rely on a single protective mechanism.
 
-Sen sijaan todentaminen, valtuutus, validointi, hallittu suoritus, pysyvyys, palautus, lokitus, konttieristys, verkko-rajoitukset ja automatisoitu testaus toimivat yhdessä kerroksellisina kontrolleina.
+Instead, authentication, authorization, validation, controlled execution, persistence, recovery, logging, container isolation, network restrictions, and automated testing work together as layered controls.
 
-Projekti suosii tarkoituksella eksplisiittistä palvelinpuolen valvontaa käyttöliittymän kautta tapahtuvan turvallisuuden sijaan.
+The project deliberately favors explicit server-side enforcement over security-by-interface.
 
-Nykyinen turvallisuusperustaso on dokumentoitu varmennetun toteutustilan mukaisesti historiallisen kehityskäyttäytymisen sijaan.
+The current security baseline is documented according to the verified implementation state rather than historical development behavior.
 
 ---
 
-**LUMS — Linux-päivitysten hallinta ilman turhaa kohinaa.**
+**LUMS — Linux Update Management without the noise.**
 
 `segfault // override`
+
