@@ -25,6 +25,8 @@ def test_rbac_seed_migration_is_registered_after_schema():
         "006-telemetry",
         "007-package-search",
         "008-alerts",
+        "009-soc-storage",
+        "010-soc-rbac",
     ]
 
 

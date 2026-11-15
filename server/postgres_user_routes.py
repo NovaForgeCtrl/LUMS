@@ -28,12 +28,14 @@ if __package__:
         store_user_permissions,
     )
     from .rbac_lock import acquire_rbac_write_lock
+    from .postgres_permissions import (
+        POSTGRES_PERMISSIONS as PERMISSIONS,
+        POSTGRES_PERMISSION_DEPENDENCIES as PERMISSION_DEPENDENCIES,
+        POSTGRES_ROLE_DEFAULT_PERMISSIONS as ROLE_DEFAULT_PERMISSIONS,
+        POSTGRES_ROLE_DESCRIPTIONS as ROLE_DESCRIPTIONS,
+    )
     from .security import (
-        PERMISSIONS,
-        PERMISSION_DEPENDENCIES,
         ROLE_ADMINISTRATOR,
-        ROLE_DEFAULT_PERMISSIONS,
-        ROLE_DESCRIPTIONS,
         VALID_ROLES,
         hash_password,
     )
@@ -57,12 +59,14 @@ else:
         store_user_permissions,
     )
     from rbac_lock import acquire_rbac_write_lock
+    from postgres_permissions import (
+        POSTGRES_PERMISSIONS as PERMISSIONS,
+        POSTGRES_PERMISSION_DEPENDENCIES as PERMISSION_DEPENDENCIES,
+        POSTGRES_ROLE_DEFAULT_PERMISSIONS as ROLE_DEFAULT_PERMISSIONS,
+        POSTGRES_ROLE_DESCRIPTIONS as ROLE_DESCRIPTIONS,
+    )
     from security import (
-        PERMISSIONS,
-        PERMISSION_DEPENDENCIES,
         ROLE_ADMINISTRATOR,
-        ROLE_DEFAULT_PERMISSIONS,
-        ROLE_DESCRIPTIONS,
         VALID_ROLES,
         hash_password,
     )
@@ -364,21 +368,15 @@ def register_postgres_user_routes(app):
             with transaction(connection):
                 row = connection.execute(
                     """
-                    SELECT id, name
-                    FROM user_functions
+                    DELETE FROM user_functions
                     WHERE id = %s
-                    FOR UPDATE
+                    RETURNING id, name
                     """,
                     (function_id,),
                 ).fetchone()
 
                 if row is None:
                     _abort({"error": "user_function_not_found"}, 404)
-
-                connection.execute(
-                    "DELETE FROM user_functions WHERE id = %s",
-                    (function_id,),
-                )
                 audit_log(
                     connection,
                     actor_type="user",

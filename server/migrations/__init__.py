@@ -8,6 +8,8 @@ from .infrastructure_topology import INFRASTRUCTURE_TOPOLOGY_MIGRATION
 from .telemetry import TELEMETRY_MIGRATION
 from .package_search import PACKAGE_SEARCH_MIGRATION
 from .alerts import ALERTS_MIGRATION
+from .soc_storage import SOC_STORAGE_MIGRATION
+from .soc_rbac import SOC_RBAC_MIGRATION
 
 
 MIGRATIONS = (
@@ -19,6 +21,8 @@ MIGRATIONS = (
     TELEMETRY_MIGRATION,
     PACKAGE_SEARCH_MIGRATION,
     ALERTS_MIGRATION,
+    SOC_STORAGE_MIGRATION,
+    SOC_RBAC_MIGRATION,
 )
 
 __all__ = ["MIGRATIONS"]

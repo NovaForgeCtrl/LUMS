@@ -10,6 +10,10 @@ class FakeConnection:
         self.closed = False
         self.close_calls = 0
         self.close_error = close_error
+        self.execute_calls = []
+
+    def execute(self, statement, params=None):
+        self.execute_calls.append((statement, params))
 
     def close(self):
         self.close_calls += 1
@@ -29,6 +33,9 @@ def test_main_runs_migrations_and_closes_connection(monkeypatch, capsys):
         return connection
 
     def fake_run_migrations(received_connection, migrations):
+        assert received_connection.execute_calls == [
+            ("SET ROLE lums_pg_owner", None)
+        ]
         calls["connection"] = received_connection
         calls["migrations"] = migrations
 

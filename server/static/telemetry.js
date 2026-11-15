@@ -445,10 +445,17 @@
             `${labels.updated} ${new Date(latest.recorded_at).toLocaleString()}`;
     }
 
+    function clientHostname(entry) {
+        const hostname = typeof entry.hostname === "string"
+            ? entry.hostname.trim()
+            : "";
+        return hostname || labels.unknown;
+    }
+
     function clientMetrics(entry) {
         const latest = entry.latest;
         return {
-            hostname: entry.hostname.toLowerCase(),
+            hostname: clientHostname(entry).toLowerCase(),
             status: STATUS_ORDER[entry.status] ?? 1,
             cpu: latest ? numberOrNull(latest.cpu_percent) : null,
             memory: latest ? numberOrNull(latest.memory_percent) : null,
@@ -1016,7 +1023,7 @@
             const select = document.createElement("button");
             select.type = "button";
             select.className = "fleet-client";
-            select.textContent = entry.hostname;
+            select.textContent = clientHostname(entry);
             select.addEventListener("click", () => {
                 clientSelect.value = String(entry.client_id);
                 renderFleet();
@@ -1061,7 +1068,7 @@
         for (const entry of fleet) {
             const option = document.createElement("option");
             option.value = String(entry.client_id);
-            option.textContent = entry.hostname;
+            option.textContent = clientHostname(entry);
             clientSelect.appendChild(option);
         }
         if (fleet.some(entry => String(entry.client_id) === previous)) {
@@ -1117,10 +1124,16 @@
         try {
             await refreshFleet();
             if (!monitoringOnly) await refreshDetails();
-        } catch {
+        } catch (error) {
+            console.error("Telemetry refresh failed:", error);
             setStatus(labels.loadError, true);
-            systemStatus.textContent = labels.loadError;
-            systemDiagnostics.hidden = true;
+
+            if (systemStatus) {
+                systemStatus.textContent = labels.loadError;
+            }
+            if (systemDiagnostics) {
+                systemDiagnostics.hidden = true;
+            }
         }
     }
 

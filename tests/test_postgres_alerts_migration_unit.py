@@ -11,6 +11,8 @@ EXPECTED_VERSIONS = [
     "006-telemetry",
     "007-package-search",
     "008-alerts",
+    "009-soc-storage",
+    "010-soc-rbac",
 ]
 
 

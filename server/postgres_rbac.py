@@ -8,27 +8,31 @@ from psycopg import Connection
 
 if __package__:
     from .db_transactions import require_transaction
+    from .postgres_permissions import (
+        POSTGRES_PERMISSIONS as PERMISSIONS,
+        POSTGRES_PERMISSION_DEPENDENCIES as PERMISSION_DEPENDENCIES,
+        POSTGRES_ROLE_DEFAULT_PERMISSIONS as ROLE_DEFAULT_PERMISSIONS,
+        _calculate_postgres_effective_permissions,
+    )
     from .security import (
-        PERMISSIONS,
-        PERMISSION_DEPENDENCIES,
         ROLE_ADMINISTRATOR,
-        ROLE_DEFAULT_PERMISSIONS,
         ROLE_OPERATOR,
         ROLE_VIEWER,
         VALID_ROLES,
-        _calculate_effective_permissions,
     )
 else:
     from db_transactions import require_transaction
+    from postgres_permissions import (
+        POSTGRES_PERMISSIONS as PERMISSIONS,
+        POSTGRES_PERMISSION_DEPENDENCIES as PERMISSION_DEPENDENCIES,
+        POSTGRES_ROLE_DEFAULT_PERMISSIONS as ROLE_DEFAULT_PERMISSIONS,
+        _calculate_postgres_effective_permissions,
+    )
     from security import (
-        PERMISSIONS,
-        PERMISSION_DEPENDENCIES,
         ROLE_ADMINISTRATOR,
-        ROLE_DEFAULT_PERMISSIONS,
         ROLE_OPERATOR,
         ROLE_VIEWER,
         VALID_ROLES,
-        _calculate_effective_permissions,
     )
 
 
@@ -198,6 +202,192 @@ def seed_system_roles(
         role_ids[role_key] = role_id
 
     return role_ids
+
+
+
+def validate_system_roles(connection: Connection) -> dict[str, int]:
+    """Validate the protected system roles seeded by migration 004.
+
+    This operation is deliberately read-only. The migration runner is
+    responsible for creating the built-in roles and their permissions.
+    """
+    _require_rbac_schema(connection)
+
+    expected_keys = {
+        "system-" + role_key
+        for role_key, _display_name in SYSTEM_ROLES
+    }
+    rows = connection.execute(
+        """
+        SELECT id, role_key, name, is_system, is_migration
+        FROM roles
+        WHERE role_key = ANY(%s)
+        """,
+        (sorted(expected_keys),),
+    ).fetchall()
+
+    actual_by_key = {
+        row["role_key"]: row
+        for row in rows
+    }
+    if len(actual_by_key) != len(rows):
+        raise PostgresRBACError(
+            "Duplicate protected PostgreSQL system roles exist"
+        )
+
+    missing = expected_keys - set(actual_by_key)
+    if missing:
+        raise PostgresRBACError(
+            "PostgreSQL system roles are missing: "
+            + ", ".join(sorted(missing))
+        )
+
+    role_ids: dict[str, int] = {}
+
+    for role_key, display_name in SYSTEM_ROLES:
+        database_key = "system-" + role_key
+        role = actual_by_key[database_key]
+
+        if (
+            role["name"] != display_name
+            or role["is_system"] is not True
+            or role["is_migration"] is not False
+        ):
+            raise PostgresRBACError(
+                f"Existing role {database_key} is not the protected "
+                "LUMS system role"
+            )
+
+        actual_permissions = {
+            row["permission"]
+            for row in connection.execute(
+                """
+                SELECT permission
+                FROM role_permissions
+                WHERE role_id = %s
+                """,
+                (role["id"],),
+            ).fetchall()
+        }
+        expected_permissions = set(
+            ROLE_DEFAULT_PERMISSIONS[role_key]
+        )
+
+        if actual_permissions != expected_permissions:
+            raise PostgresRBACError(
+                f"Existing permissions for {database_key} do not "
+                "match the protected default permission set"
+            )
+
+        role_ids[role_key] = role["id"]
+
+    return role_ids
+
+
+def assign_initial_user_permissions(
+    connection: Connection,
+    user_id: int,
+    role: str,
+    permissions,
+    *,
+    actor_id: int | None = None,
+    timestamp: str | None = None,
+) -> str:
+    """Assign RBAC permissions to the newly inserted first administrator.
+
+    Unlike store_user_permissions(), this bootstrap-only operation never
+    deletes or updates existing rows. Conflicts fail the surrounding
+    transaction instead of silently replacing existing assignments.
+    """
+    require_transaction(connection)
+    _require_rbac_schema(connection)
+
+    if role not in VALID_ROLES:
+        raise ValueError(f"Invalid user role: {role!r}")
+
+    selected = _validate_permission_selection(permissions)
+
+    if timestamp is None:
+        timestamp = datetime.now(timezone.utc).isoformat()
+
+    role_rows = connection.execute(
+        """
+        SELECT id
+        FROM roles
+        WHERE role_key = %s
+          AND is_system IS TRUE
+          AND is_migration IS FALSE
+        """,
+        ("system-" + role,),
+    ).fetchall()
+
+    if len(role_rows) != 1:
+        raise PostgresRBACError(
+            "Expected exactly one protected system role: system-" + role
+        )
+
+    role_id = role_rows[0]["id"]
+
+    base_permissions = {
+        row["permission"]
+        for row in connection.execute(
+            """
+            SELECT permission
+            FROM role_permissions
+            WHERE role_id = %s
+            """,
+            (role_id,),
+        ).fetchall()
+    }
+
+    unknown_base = base_permissions - set(PERMISSIONS)
+    if unknown_base:
+        raise PostgresRBACError(
+            "System role contains unknown permissions: "
+            + ", ".join(sorted(unknown_base))
+        )
+
+    connection.execute(
+        """
+        INSERT INTO user_roles (
+            user_id,
+            role_id,
+            assigned_at,
+            assigned_by
+        )
+        VALUES (%s, %s, %s, %s)
+        """,
+        (user_id, role_id, timestamp, actor_id),
+    )
+
+    grants = selected - base_permissions
+    denies = base_permissions - selected
+
+    overrides = [
+        (user_id, permission, "grant", timestamp, actor_id)
+        for permission in sorted(grants)
+    ]
+    overrides.extend(
+        (user_id, permission, "deny", timestamp, actor_id)
+        for permission in sorted(denies)
+    )
+
+    for override in overrides:
+        connection.execute(
+            """
+            INSERT INTO user_permission_overrides (
+                user_id,
+                permission,
+                effect,
+                changed_at,
+                changed_by
+            )
+            VALUES (%s, %s, %s, %s, %s)
+            """,
+            override,
+        )
+
+    return "custom"
 
 
 def _validate_permission_selection(permissions) -> set[str]:
@@ -432,7 +622,7 @@ def resolve_user_permissions(
             + ", ".join(sorted(unknown))
         )
 
-    return _calculate_effective_permissions(
+    return _calculate_postgres_effective_permissions(
         role_permissions,
         grants,
         denies,
@@ -470,7 +660,6 @@ def grant_initial_permission_manager(
         SELECT id, enabled, role
         FROM users
         WHERE id = %s
-        FOR UPDATE
         """,
         (user_id,),
     ).fetchone()
@@ -503,7 +692,6 @@ def grant_initial_permission_manager(
         JOIN roles AS r
           ON r.id = ur.role_id
         WHERE ur.user_id = %s
-        FOR UPDATE OF ur, r
         """,
         (user_id,),
     ).fetchall()
@@ -553,11 +741,6 @@ def grant_initial_permission_manager(
             changed_by
         )
         VALUES (%s, 'permissions.manage', 'grant', %s, NULL)
-        ON CONFLICT (user_id, permission) DO UPDATE
-        SET
-            effect = 'grant',
-            changed_at = EXCLUDED.changed_at,
-            changed_by = NULL
         """,
         (user_id, timestamp),
     )
@@ -575,7 +758,9 @@ __all__ = [
     "PostgresRBACError",
     "RBAC_TABLES",
     "SYSTEM_ROLES",
+    "assign_initial_user_permissions",
     "grant_initial_permission_manager",
+    "validate_system_roles",
     "resolve_user_permissions",
     "seed_system_roles",
     "store_user_permissions",

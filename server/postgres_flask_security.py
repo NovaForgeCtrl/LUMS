@@ -15,8 +15,10 @@ from flask import (
 
 if __package__:
     from .postgres_authorization import load_authorization_state
+    from .postgres_permissions import (
+        POSTGRES_PERMISSIONS as PERMISSIONS,
+    )
     from .security import (
-        PERMISSIONS,
         VALID_ROLES,
         apply_security_headers,
         configure_session,
@@ -32,8 +34,10 @@ if __package__:
     )
 else:
     from postgres_authorization import load_authorization_state
+    from postgres_permissions import (
+        POSTGRES_PERMISSIONS as PERMISSIONS,
+    )
     from security import (
-        PERMISSIONS,
         VALID_ROLES,
         apply_security_headers,
         configure_session,

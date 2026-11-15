@@ -18,6 +18,8 @@ def test_infrastructure_migration_is_registered_after_rbac_seed():
         "006-telemetry",
         "007-package-search",
         "008-alerts",
+        "009-soc-storage",
+        "010-soc-rbac",
     ]
 
 

@@ -14,6 +14,8 @@ def test_telemetry_migration_is_registered_after_infrastructure():
         "006-telemetry",
         "007-package-search",
         "008-alerts",
+        "009-soc-storage",
+        "010-soc-rbac",
     ]
 
 

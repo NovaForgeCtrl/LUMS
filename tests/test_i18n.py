@@ -217,6 +217,21 @@ def test_dynamic_topology_and_telemetry_messages_are_localized():
         )
 
 
+def test_telemetry_fleet_handles_missing_client_hostname():
+    project_root = Path(__file__).resolve().parents[1]
+    telemetry = (
+        project_root / "server" / "static" / "telemetry.js"
+    ).read_text(encoding="utf-8")
+
+    assert "function clientHostname(entry)" in telemetry
+    assert 'typeof entry.hostname === "string"' in telemetry
+    assert "return hostname || labels.unknown;" in telemetry
+    assert "hostname: clientHostname(entry).toLowerCase()," in telemetry
+    assert "select.textContent = clientHostname(entry);" in telemetry
+    assert "option.textContent = clientHostname(entry);" in telemetry
+    assert "entry.hostname.toLowerCase()" not in telemetry
+
+
 def test_user_language_migration_preserves_users_and_is_idempotent():
     connection = sqlite3.connect(":memory:")
     connection.execute(

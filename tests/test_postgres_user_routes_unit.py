@@ -846,3 +846,84 @@ def test_delete_user_rejects_missing_actor_inside_transaction(monkeypatch):
         for statement, _ in route.statements
     )
     assert all(connection.closed for connection in connections)
+
+def test_delete_user_function_uses_delete_returning_and_audits(monkeypatch):
+    deleted = {"id": 42, "name": "Platform Engineering"}
+
+    def handler(connection, statement, params):
+        if statement.startswith("DELETE FROM user_functions"):
+            assert params == (42,)
+            assert "RETURNING id, name" in statement
+            return FakeCursor(one=deleted)
+
+        if statement.startswith("SELECT id, name FROM user_functions"):
+            raise AssertionError(
+                "Die alte SELECT-FOR-UPDATE-Abfrage darf nicht mehr laufen."
+            )
+
+        return FakeCursor()
+
+    client, connections = _make_environment(monkeypatch, handler)
+
+    response = client.delete(
+        "/api/user-functions/42",
+        headers=_write_headers(),
+        base_url=BASE_URL,
+    )
+
+    assert response.status_code == 200
+    assert response.get_json() == {
+        "status": "deleted",
+        "id": 42,
+    }
+
+    route = _route_connection(
+        connections,
+        "DELETE FROM user_functions",
+    )
+
+    assert route.events[0] == "transaction.begin"
+    assert route.events[-1] == "transaction.commit"
+    assert any(
+        isinstance(event, tuple)
+        and event[0] == "audit"
+        and event[1]["action"] == "user_function.delete"
+        and event[1]["target"] == "user_function:42"
+        and event[1]["details"] == '{"name": "Platform Engineering"}'
+        for event in route.events
+    )
+    assert all(connection.closed for connection in connections)
+
+
+def test_delete_user_function_returns_not_found_without_audit(monkeypatch):
+    def handler(connection, statement, params):
+        if statement.startswith("DELETE FROM user_functions"):
+            assert params == (999,)
+            assert "RETURNING id, name" in statement
+            return FakeCursor(one=None)
+
+        return FakeCursor()
+
+    client, connections = _make_environment(monkeypatch, handler)
+
+    response = client.delete(
+        "/api/user-functions/999",
+        headers=_write_headers(),
+        base_url=BASE_URL,
+    )
+
+    assert response.status_code == 404
+    assert response.get_json()["error"] == "user_function_not_found"
+
+    route = _route_connection(
+        connections,
+        "DELETE FROM user_functions",
+    )
+
+    assert route.events[0] == "transaction.begin"
+    assert route.events[-1] == "transaction.rollback"
+    assert not any(
+        isinstance(event, tuple) and event[0] == "audit"
+        for event in route.events
+    )
+    assert all(connection.closed for connection in connections)

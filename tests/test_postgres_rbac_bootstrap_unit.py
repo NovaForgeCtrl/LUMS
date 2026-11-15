@@ -121,7 +121,8 @@ def test_initial_grant_requires_protected_system_administrator_role(
         if sql.startswith("SELECT r.role_key")
     ]
     assert len(assignment_queries) == 1
-    assert "FOR UPDATE OF ur, r" in assignment_queries[0]
+    assert "FOR UPDATE" not in assignment_queries[0]
+    assert "ON CONFLICT" not in connection.override_inserts[0][0]
 
 
 @pytest.mark.parametrize(

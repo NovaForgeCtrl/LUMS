@@ -33,6 +33,10 @@ def main(argv: list[str] | None = None) -> int:
             application_name="lums-postgres-migrate"
         )
 
+        # The dedicated migrator login must explicitly assume the
+        # NOLOGIN owner role. The application login cannot do this.
+        connection.execute("SET ROLE lums_pg_owner")
+
         result = run_migrations(
             connection,
             MIGRATIONS,

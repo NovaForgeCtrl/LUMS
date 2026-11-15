@@ -18,14 +18,16 @@ if __package__:
     from .postgres_audit import audit_log
     from .postgres_rbac import (
         PostgresRBACError,
+        assign_initial_user_permissions,
         grant_initial_permission_manager,
-        seed_system_roles,
-        store_user_permissions,
+        validate_system_roles,
     )
     from .rbac_lock import acquire_rbac_write_lock
+    from .postgres_permissions import (
+        POSTGRES_ROLE_DEFAULT_PERMISSIONS as ROLE_DEFAULT_PERMISSIONS,
+    )
     from .security import (
         ROLE_ADMINISTRATOR,
-        ROLE_DEFAULT_PERMISSIONS,
         hash_password,
     )
 else:
@@ -35,14 +37,16 @@ else:
     from postgres_audit import audit_log
     from postgres_rbac import (
         PostgresRBACError,
+        assign_initial_user_permissions,
         grant_initial_permission_manager,
-        seed_system_roles,
-        store_user_permissions,
+        validate_system_roles,
     )
     from rbac_lock import acquire_rbac_write_lock
+    from postgres_permissions import (
+        POSTGRES_ROLE_DEFAULT_PERMISSIONS as ROLE_DEFAULT_PERMISSIONS,
+    )
     from security import (
         ROLE_ADMINISTRATOR,
-        ROLE_DEFAULT_PERMISSIONS,
         hash_password,
     )
 
@@ -183,12 +187,9 @@ def create_initial_admin(
                 "when the users table is empty."
             )
 
-        # Migration 004 seeds the roles. This call validates that their
-        # protected definitions and permission sets are complete.
-        seed_system_roles(
-            connection,
-            timestamp=timestamp,
-        )
+        # Migration 004 creates and validates the protected system roles.
+        # Bootstrap only verifies them; it does not mutate role definitions.
+        validate_system_roles(connection)
 
         row = connection.execute(
             """
@@ -226,7 +227,7 @@ def create_initial_admin(
                 "PostgreSQL returned an invalid administrator ID."
             )
 
-        store_user_permissions(
+        assign_initial_user_permissions(
             connection,
             user_id,
             ROLE_ADMINISTRATOR,
@@ -287,6 +288,8 @@ def main(argv: list[str] | None = None) -> int:
             application_name="lums-postgres-create-admin"
         )
 
+        # This connection must use the dedicated, least-privilege
+        # one-time bootstrap login. It must not assume the schema owner.
         user_id = create_initial_admin(
             connection,
             args.username,

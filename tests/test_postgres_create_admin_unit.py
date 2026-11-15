@@ -5,10 +5,8 @@ from contextlib import contextmanager
 import pytest
 
 from server import postgres_create_admin as bootstrap
-from server.security import (
-    ROLE_ADMINISTRATOR,
-    ROLE_DEFAULT_PERMISSIONS,
-)
+from server.security import ROLE_ADMINISTRATOR
+from server.postgres_permissions import POSTGRES_ROLE_DEFAULT_PERMISSIONS
 
 
 class FakeCursor:
@@ -34,6 +32,7 @@ class FakeConnection:
         history_table="schema_migrations",
     ):
         self.events = []
+        self.closed = False
         self.user_count = user_count
         self.history_table = history_table
         self.inserted_user = None
@@ -53,6 +52,9 @@ class FakeConnection:
     def execute(self, statement, params=None):
         normalized = " ".join(statement.split())
         self.events.append(("sql", normalized, params))
+
+        if normalized == "SET ROLE lums_pg_owner":
+            return FakeCursor()
 
         if "to_regclass('schema_migrations')" in normalized:
             return FakeCursor(
@@ -78,6 +80,9 @@ class FakeConnection:
         raise AssertionError(
             f"Unexpected SQL in bootstrap unit test: {normalized}"
         )
+
+    def close(self):
+        self.closed = True
 
 
 def patch_successful_dependencies(
@@ -116,8 +121,8 @@ def patch_successful_dependencies(
     )
     monkeypatch.setattr(
         bootstrap,
-        "seed_system_roles",
-        lambda conn, **kwargs: conn.events.append("rbac.seed"),
+        "validate_system_roles",
+        lambda conn: conn.events.append("rbac.validate"),
     )
 
     def fake_store(
@@ -133,14 +138,19 @@ def patch_successful_dependencies(
         assert user_id == 41
         assert role == ROLE_ADMINISTRATOR
         assert set(permissions) == set(
-            ROLE_DEFAULT_PERMISSIONS[ROLE_ADMINISTRATOR]
+            POSTGRES_ROLE_DEFAULT_PERMISSIONS[ROLE_ADMINISTRATOR]
         )
+        assert {
+            "soc.view",
+            "soc.incidents.manage",
+            "soc.collectors.manage",
+        }.issubset(set(permissions))
         assert actor_id is None
         assert timestamp
 
     monkeypatch.setattr(
         bootstrap,
-        "store_user_permissions",
+        "assign_initial_user_permissions",
         fake_store,
     )
 
@@ -193,7 +203,7 @@ def test_create_initial_admin_runs_all_steps_in_one_transaction(
         "rbac.lock",
     ]
 
-    seed_index = events.index("rbac.seed")
+    seed_index = events.index("rbac.validate")
     insert_index = next(
         index
         for index, event in enumerate(events)
@@ -246,7 +256,7 @@ def test_existing_users_prevent_initial_admin_bootstrap(monkeypatch):
         )
 
     assert connection.inserted_user is None
-    assert "rbac.seed" not in connection.events
+    assert "rbac.validate" not in connection.events
     assert "rbac.assign" not in connection.events
     assert "rbac.initial_grant" not in connection.events
     assert connection.events[-1] == "transaction.rollback"
@@ -266,7 +276,7 @@ def test_missing_migration_history_prevents_bootstrap(monkeypatch):
             "a-long-test-password",
         )
 
-    assert "rbac.seed" not in connection.events
+    assert "rbac.validate" not in connection.events
     assert connection.inserted_user is None
     assert connection.events[-1] == "transaction.rollback"
 
@@ -286,7 +296,7 @@ def test_missing_baseline_migration_prevents_bootstrap(monkeypatch):
             "a-long-test-password",
         )
 
-    assert "rbac.seed" not in connection.events
+    assert "rbac.validate" not in connection.events
     assert connection.inserted_user is None
     assert connection.events[-1] == "transaction.rollback"
 
@@ -310,7 +320,7 @@ def test_migration_checksum_mismatch_prevents_bootstrap(monkeypatch):
             "a-long-test-password",
         )
 
-    assert "rbac.seed" not in connection.events
+    assert "rbac.validate" not in connection.events
     assert connection.inserted_user is None
     assert connection.events[-1] == "transaction.rollback"
 
@@ -366,3 +376,55 @@ def test_invalid_input_is_rejected_before_transaction(
 
     assert connection.events == []
     assert connection.inserted_user is None
+
+
+
+def test_main_uses_bootstrap_login_without_assuming_owner_role(
+    monkeypatch,
+    capsys,
+):
+    connection = FakeConnection()
+    passwords = iter([
+        "a-long-test-password",
+        "a-long-test-password",
+    ])
+    connect_calls = {}
+    bootstrap_calls = {}
+
+    def fake_connect(**kwargs):
+        connect_calls.update(kwargs)
+        return connection
+
+    def fake_create_initial_admin(conn, username, password):
+        assert conn is connection
+        assert conn.events == []
+        bootstrap_calls["username"] = username
+        bootstrap_calls["password"] = password
+        return 41
+
+    monkeypatch.setattr(bootstrap, "connect", fake_connect)
+    monkeypatch.setattr(
+        bootstrap.getpass,
+        "getpass",
+        lambda prompt: next(passwords),
+    )
+    monkeypatch.setattr(
+        bootstrap,
+        "create_initial_admin",
+        fake_create_initial_admin,
+    )
+
+    result = bootstrap.main(["--username", "first-admin"])
+    captured = capsys.readouterr()
+
+    assert result == 0
+    assert connect_calls == {
+        "application_name": "lums-postgres-create-admin"
+    }
+    assert bootstrap_calls == {
+        "username": "first-admin",
+        "password": "a-long-test-password",
+    }
+    assert "Initial PostgreSQL administrator created successfully." in captured.out
+    assert captured.err == ""
+    assert connection.closed is True

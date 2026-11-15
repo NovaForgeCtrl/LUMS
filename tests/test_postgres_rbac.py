@@ -28,10 +28,10 @@ from postgres_rbac import (
 )
 from security import (
     ROLE_ADMINISTRATOR,
-    ROLE_DEFAULT_PERMISSIONS,
     ROLE_OPERATOR,
     ROLE_VIEWER,
 )
+from postgres_permissions import POSTGRES_ROLE_DEFAULT_PERMISSIONS
 
 
 @dataclass(frozen=True)
@@ -251,11 +251,11 @@ def test_seed_system_roles_matches_default_permissions(
             }
 
             assert permissions == set(
-                ROLE_DEFAULT_PERMISSIONS[role_key]
+                POSTGRES_ROLE_DEFAULT_PERMISSIONS[role_key]
             )
 
         assert "permissions.manage" not in (
-            ROLE_DEFAULT_PERMISSIONS[ROLE_ADMINISTRATOR]
+            POSTGRES_ROLE_DEFAULT_PERMISSIONS[ROLE_ADMINISTRATOR]
         )
 
         migration_roles = connection.execute(
@@ -289,7 +289,7 @@ def test_store_and_resolve_permissions_with_grants_and_denies(
                 connection,
                 admin_id,
                 ROLE_ADMINISTRATOR,
-                sorted(ROLE_DEFAULT_PERMISSIONS[ROLE_ADMINISTRATOR]),
+                sorted(POSTGRES_ROLE_DEFAULT_PERMISSIONS[ROLE_ADMINISTRATOR]),
             )
 
             selected = {
@@ -306,7 +306,7 @@ def test_store_and_resolve_permissions_with_grants_and_denies(
 
         assert resolve_user_permissions(
             connection, admin_id
-        ) == frozenset(ROLE_DEFAULT_PERMISSIONS[ROLE_ADMINISTRATOR])
+        ) == frozenset(POSTGRES_ROLE_DEFAULT_PERMISSIONS[ROLE_ADMINISTRATOR])
 
         assert resolve_user_permissions(
             connection, operator_id
@@ -329,6 +329,8 @@ def test_store_and_resolve_permissions_with_grants_and_denies(
             ("jobs.manage", "deny"),
             ("packages.search", "deny"),
             ("updates.view", "deny"),
+            ("soc.view", "deny"),
+            ("soc.incidents.manage", "deny"),
         }
 
     finally:
@@ -353,7 +355,7 @@ def test_initial_bootstrap_grants_delegation_only_to_first_admin(
                 connection,
                 first_admin_id,
                 ROLE_ADMINISTRATOR,
-                sorted(ROLE_DEFAULT_PERMISSIONS[ROLE_ADMINISTRATOR]),
+                sorted(POSTGRES_ROLE_DEFAULT_PERMISSIONS[ROLE_ADMINISTRATOR]),
             )
 
             granted = grant_initial_permission_manager(
@@ -375,7 +377,7 @@ def test_initial_bootstrap_grants_delegation_only_to_first_admin(
                 connection,
                 second_admin_id,
                 ROLE_ADMINISTRATOR,
-                sorted(ROLE_DEFAULT_PERMISSIONS[ROLE_ADMINISTRATOR]),
+                sorted(POSTGRES_ROLE_DEFAULT_PERMISSIONS[ROLE_ADMINISTRATOR]),
             )
 
         assert "permissions.manage" not in resolve_user_permissions(
@@ -414,7 +416,7 @@ def test_initial_bootstrap_rejects_non_administrator(
                 connection,
                 viewer_id,
                 ROLE_VIEWER,
-                sorted(ROLE_DEFAULT_PERMISSIONS[ROLE_VIEWER]),
+                sorted(POSTGRES_ROLE_DEFAULT_PERMISSIONS[ROLE_VIEWER]),
             )
 
             with pytest.raises(
@@ -477,7 +479,7 @@ def test_resolve_permissions_fails_closed_for_missing_rbac_table(
                 connection,
                 user_id,
                 ROLE_VIEWER,
-                sorted(ROLE_DEFAULT_PERMISSIONS[ROLE_VIEWER]),
+                sorted(POSTGRES_ROLE_DEFAULT_PERMISSIONS[ROLE_VIEWER]),
             )
 
         connection.execute(
@@ -536,7 +538,7 @@ def test_seed_system_roles_is_idempotent(postgres_environment):
         ).fetchone()["total"]
 
         expected_permission_count = sum(
-            len(ROLE_DEFAULT_PERMISSIONS[role])
+            len(POSTGRES_ROLE_DEFAULT_PERMISSIONS[role])
             for role in (
                 ROLE_ADMINISTRATOR,
                 ROLE_OPERATOR,
