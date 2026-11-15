@@ -2,7 +2,7 @@
 
 **LUMS — Serveur de Gestion des Mises à Jour Linux**
 
-Ce document décrit l'architecture de sécurité actuelle, implemented security controls, security audit results, operational limitations, and security-related design decisions of LUMS.
+Ce document décrit l'architecture de sécurité actuelle, les contrôles de sécurité implémentés, les résultats de l'audit de sécurité, les limitations opérationnelles et les décisions de conception liées à la sécurité de LUMS.
 
 Le document reflète **l'état actuel du système implémenté**. Les améliorations planifiées ou futures sont explicitement identifiées comme telles.
 
@@ -28,57 +28,57 @@ Les objectifs de sécurité primaires sont :
 * gestion prévisible des défaillances
 * tests de régression de sécurité
 
-LUMS is intended primarily for controlled infrastructure, laboratory, and internal network environments.
+LUMS est destiné principalement aux environnements d'infrastructure contrôlée, de laboratoire et de réseau interne.
 
-It should not be exposed directly to the public Internet without an additional security review and appropriate network controls.
+Il ne doit pas être exposé directement à l'Internet public sans un examen de sécurité supplémentaire et des contrôles réseau appropriés.
 
 ---
 
 # Architecture de Sécurité
 
-LUMS consists of the following security-relevant components:
+LUMS est composé des composants pertinents pour la sécurité suivants:
 
-* Web administration interface
-* REST API
-* SQLite database
-* LUMS Agent on managed clients
-* APT and pacman package-management backends
-* Update-job and recovery mechanisms
-* Nginx HTTPS reverse proxy
-* Hardened Docker container
+* Interface d'administration Web
+* API REST
+* Base de données SQLite
+* Agent LUMS sur les clients gérés
+* Backends de gestion des paquets APT et pacman
+* Mécanismes de récupération et de travaux de mise à jour
+* Proxy inverse HTTPS Nginx
+* Conteneur Docker renforcé
 
-The basic management flow is:
+Le flux de gestion de base est:
 
 Browser → HTTPS/Nginx → LUMS API → SQLite → LUMS Agent → Package Manager → Result → SQLite → Web UI
 
-Authentication and authorization are deliberately separated.
+L'authentification et l'autorisation sont délibérément séparées.
 
-A valid authenticated session does not automatically grant access to every administrative operation.
+Une session authentifiée valide n'accorde pas automatiquement l'accès à toutes les opérations administratives.
 
-Authorization is enforced server-side. The web interface additionally hides functions that are not available to the current role, but UI visibility is never treated as a security boundary.
+L'autorisation est appliquée côté serveur. L'interface Web masque également les fonctions qui ne sont pas disponibles pour le rôle actuel, mais la visibilité de l'interface utilisateur n'est jamais traitée comme une limite de sécurité.
 
 ---
 
 ## Authentification Administrative
 
-Administrative users authenticate through the LUMS web interface.
+Les utilisateurs administratifs s'authentifient via l'interface Web LUMS.
 
-Passwords are never stored in plaintext. LUMS uses Argon2-based password hashing for password storage.
+Les mots de passe ne sont jamais stockés en texte clair. LUMS utilise un hachage de mot de passe basé sur Argon2 pour le stockage des mots de passe.
 
-Administrative sessions use:
+Les sessions administratives utilisent:
 
-* authenticated server-side session handling
-* session expiration
-* session regeneration
-* CSRF protection for state-changing browser requests
-* login rate limiting
-* session invalidation during logout
-* server-side role validation
+* gestion de session authentifiée côté serveur
+* expiration de session
+* régénération de session
+* protection CSRF pour les requêtes de navigateur modifiant l'état
+* limitation du débit de connexion
+* invalidation de session lors de la déconnexion
+* validation de rôle côté serveur
 
-Authentication and authorization remain separate security controls.
+L'authentification et l'autorisation restent des contrôles de sécurité séparés.
 
-A successfully authenticated user must still possess the required permission
-for protected operations.
+Un utilisateur authentifié avec succès doit toujours posséder la permission requise
+pour les opérations protégées.
 
 ---
 
@@ -281,11 +281,11 @@ Backups are not encrypted by LUMS; use host-level encryption or separate backup 
 
 # Audit de Sécurité
 
-The security audit is performed incrementally.
+L'audit de sécurité est effectué de manière progressive.
 
-Each audit area is reviewed against the actual implementation, followed by automated tests, isolated verification, or production verification where applicable.
+Chaque domaine d'audit est examiné par rapport à l'implémentation réelle, suivi de tests automatisés, de vérification isolée ou de vérification en production le cas échéant.
 
-Current audit areas:
+Domaines d'audit actuels :
 
 | Audit | Area                                   | Status                    |
 | ----- | -------------------------------------- | ------------------------- |
@@ -308,15 +308,15 @@ Current audit areas:
 | #17   | Contrôle d'Accès Basé sur les Rôles              | PASS                      |
 | #18   | Documentation Review                   | IN PROGRESS               |
 
-Audit #16 is intentionally different from the technical security controls above.
+L'audit #16 est intentionnellement différent des contrôles de sécurité techniques ci-dessus.
 
-LUMS currently has no official stable release, no release tag, and no GitHub Release. This is intentional because the project remains under active development.
+LUMS n'a actuellement pas de version stable officielle, pas d'étiquette de version et pas de version GitHub. C'est intentionnel car le projet reste en développement actif.
 
-Audit #18 remains open until the complete documentation set has been reviewed and synchronized with the current implementation.
+L'audit #18 reste ouvert jusqu'à ce que l'ensemble complet de la documentation ait été examiné et synchronisé avec l'implémentation actuelle.
 
 # Audit de Sécurité #01
 
-## SQLite Foreign Keys
+## Clés étrangères SQLite
 
 SQLite foreign-key enforcement is enabled for application database connections.
 

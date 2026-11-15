@@ -2,7 +2,7 @@
 
 **LUMS — Linux-oppdateringshåndteingsserver**
 
-Dette dokumentet beskriver gjeldende sikkerhetsarkitektur, implemented security controls, security audit results, operational limitations, and security-related design decisions of LUMS.
+Dette dokumentet beskriver gjeldende sikkerhetsarkitektur, implementerte sikkerhetskontroller, sikkerhetskontrollresultater, operasjonelle begrensninger og sikkerhetsrelaterte designbeslutninger av LUMS.
 
 Dokumentet gjenspeiler **gjeldende implementert systemtilstand**. Planlagte eller fremtidige forbedringer identifiseres eksplisitt som sådan.
 
@@ -28,57 +28,57 @@ De primære sikkerhetsmålene er:
 * forutsigbar feilhåndtering
 * sikkerhet regresjonsprøving
 
-LUMS is intended primarily for controlled infrastructure, laboratory, and internal network environments.
+LUMS er ment primært for kontrollert infrastruktur, laboratorium- og interne nettverksmiljøer.
 
-It should not be exposed directly to the public Internet without an additional security review and appropriate network controls.
+Det bør ikke eksponeres direkte til det offentlige Internett uten en ekstra sikkerhetsgjennomgang og passende nettverkskontroller.
 
 ---
 
 # Sikkerhetsarkitektur
 
-LUMS consists of the following security-relevant components:
+LUMS består av følgende sikkerhetsrelaterte komponenter:
 
-* Web administration interface
+* Grensesnitt for webadministrasjon
 * REST API
 * SQLite database
-* LUMS Agent on managed clients
-* APT and pacman package-management backends
-* Update-job and recovery mechanisms
-* Nginx HTTPS reverse proxy
-* Hardened Docker container
+* LUMS Agent på administrerte klienter
+* Backends for pakkeadministrasjon via APT og pacman
+* Mekanismer for oppdateringsarbeid og gjenoppretting
+* Nginx HTTPS omvendt proxy
+* Styrket Docker-beholder
 
-The basic management flow is:
+Den grunnleggende administrasjonsflyten er:
 
 Browser → HTTPS/Nginx → LUMS API → SQLite → LUMS Agent → Package Manager → Result → SQLite → Web UI
 
-Authentication and authorization are deliberately separated.
+Autentisering og autorisering er bevisst separert.
 
-A valid authenticated session does not automatically grant access to every administrative operation.
+En gyldig autentisert økt gir ikke automatisk tilgang til alle administrative operasjoner.
 
-Authorization is enforced server-side. The web interface additionally hides functions that are not available to the current role, but UI visibility is never treated as a security boundary.
+Autorisering håndheves serverside. Webgrensesnittet skjuler også funksjoner som ikke er tilgjengelige for gjeldende rolle, men brukergrensesnittvisibilitet behandles aldri som en sikkerhetgrense.
 
 ---
 
 ## Administrativ Autentisering
 
-Administrative users authenticate through the LUMS web interface.
+Administrative brukere autentiserer seg gjennom LUMS webgrensesnitt.
 
-Passwords are never stored in plaintext. LUMS uses Argon2-based password hashing for password storage.
+Passord lagres aldri i ren tekst. LUMS bruker Argon2-basert passord-hashing for passordlagring.
 
-Administrative sessions use:
+Administrative økter bruker:
 
-* authenticated server-side session handling
-* session expiration
-* session regeneration
-* CSRF protection for state-changing browser requests
-* login rate limiting
-* session invalidation during logout
-* server-side role validation
+* autentisert serverside-sesjonsbehandling
+* sesjonsutløp
+* sesjonsgjenoppretting
+* CSRF-beskyttelse for statendringsbrowserforespørsler
+* påloggingshastighetsgrense
+* sesjonsannullering ved utlogging
+* serverside-rollevalidering
 
-Authentication and authorization remain separate security controls.
+Autentisering og autorisering forblir separate sikkerhetskontroller.
 
-A successfully authenticated user must still possess the required permission
-for protected operations.
+En vellykket autentisert bruker må fortsatt ha den nødvendige tillatelsen
+for beskyttede operasjoner.
 
 ---
 
@@ -281,11 +281,11 @@ Backups are not encrypted by LUMS; use host-level encryption or separate backup 
 
 # Sikkerhetsrevisjon
 
-The security audit is performed incrementally.
+Sikkerhetsvurderingen utføres trinnvis.
 
-Each audit area is reviewed against the actual implementation, followed by automated tests, isolated verification, or production verification where applicable.
+Hvert revisjonsfelt vurderes mot faktisk implementering, fulgt av automatiserte tester, isolert verifisering eller produksjonsverifisering der aktuelt.
 
-Current audit areas:
+Gjeldende revisjonsfelt:
 
 | Audit | Area                                   | Status                    |
 | ----- | -------------------------------------- | ------------------------- |
@@ -308,15 +308,15 @@ Current audit areas:
 | #17   | Rollebasert Tilgangskontroll              | PASS                      |
 | #18   | Documentation Review                   | IN PROGRESS               |
 
-Audit #16 is intentionally different from the technical security controls above.
+Revisjon #16 er bevisst annerledes enn de tekniske sikkerhetskontrollene ovenfor.
 
-LUMS currently has no official stable release, no release tag, and no GitHub Release. This is intentional because the project remains under active development.
+LUMS har for øyeblikket ingen offisiell stabil versjon, ingen versjonsetikett og ingen GitHub-versjon. Dette er bevisst fordi prosjektet fortsatt er under aktiv utvikling.
 
-Audit #18 remains open until the complete documentation set has been reviewed and synchronized with the current implementation.
+Revisjon #18 forblir åpen til hele dokumentasjonssettet er gjennomgått og synkronisert med gjeldende implementering.
 
 # Sikkerhetsrevisjon #01
 
-## SQLite Foreign Keys
+## SQLite fremmednøkler
 
 SQLite foreign-key enforcement is enabled for application database connections.
 

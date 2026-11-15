@@ -2,7 +2,7 @@
 
 **LUMS — Servidor de Gestión de Actualizaciones de Linux**
 
-Este documento describe la arquitectura de seguridad actual, controles de seguridad implementados, resultados de auditoría de seguridad, limitaciones operacionales, and decisiones de diseño relacionadas con la seguridad of LUMS.
+Este documento describe la arquitectura de seguridad actual, controles de seguridad implementados, resultados de auditoría de seguridad, limitaciones operacionales y decisiones de diseño relacionadas con la seguridad de LUMS.
 
 El documento refleja el **estado actual del sistema implementado**. Las mejoras planificadas o futuras se identifican explícitamente como tales.
 
@@ -75,10 +75,10 @@ Las sesiones administrativas utilizan:
 * invalidación de sesión durante el cierre de sesión
 * validación de rol del lado del servidor
 
-Authentication and authorization remain separate security controls.
+La autenticación y la autorización siguen siendo controles de seguridad separados.
 
-A successfully authenticated user must still possess the required permiso
-for protected operations.
+Un usuario autenticado correctamente debe poseer el permiso requerido
+para operaciones protegidas.
 
 ---
 
@@ -90,12 +90,12 @@ LUMS actualmente admite tres funciones de usuario web:
 * `operador`
 * `visor`
 
-Las plantillas de funciones se almacenan en `users.role`; individual permisos are stored
-server-side in `user_permisos`.
+Las plantillas de funciones se almacenan en `users.role`; los permisos individuales se almacenan
+en el lado del servidor en `user_permissions`.
 
 El servidor carga los permisos efectivos para cada cuenta autenticada.
-Client-side permiso information controls presentation only and never
-replaces server-side authorization.
+La información de permisos del lado del cliente controla solo la presentación y nunca
+reemplaza la autorización del lado del servidor.
 
 ## Administrator
 
@@ -146,7 +146,7 @@ Los espectadores tienen acceso restringido de solo lectura.
 Pueden:
 
 * ver clientes
-* view installed software
+* ver el software instalado
 
 Las siguientes áreas de gestión se ocultan de las cuentas de Viewer:
 
@@ -158,8 +158,8 @@ Las siguientes áreas de gestión se ocultan de las cuentas de Viewer:
 
 Las cuentas de Viewer no pueden realizar operaciones de gestión de actualizaciones que cambien el estado.
 
-The server independently enforces these restrictions through authentication
-and per-user permiso checks.
+El servidor aplica independientemente estas restricciones mediante la autenticación
+y comprobaciones de permiso por usuario.
 
 ---
 
@@ -211,16 +211,16 @@ Las muestras de telemetría se envían a través de `POST /api/telemetry` y requ
 * HTTPS para conexiones remotas (HTTP simple solo para `127.0.0.1`, `localhost`, `::1`)
 * Verificación de certificado CA opcional para autoridades de certificado personalizadas
 
-The telemetry endpoint validates:
+El punto final de telemetría valida:
 
-* Client token authentication against the stored SHA-256 digest
-* Payload structure and field types
-* Numeric ranges (CPU and memory 0-100%, bytes non-negative)
-* Sample freshness (rejects samples with excessively old or future timestamps)
+* Autenticación del token del cliente contra el resumen SHA-256 almacenado
+* Estructura de carga y tipos de campo
+* Rangos numéricos (CPU y memoria 0-100%, bytes no negativos)
+* Actualización de muestra (rechaza muestras con marcas de tiempo excesivamente antiguas o futuras)
 
-Invalid payloads are rejected with appropriate HTTP status codes.
+Las cargas inválidas se rechazan con códigos de estado HTTP apropiados.
 
-The client token is not included in the JSON payload and is not logged in agent output.
+El token del cliente no se incluye en la carga JSON y no se registra en la salida del agente.
 
 ## Control de Acceso de Telemetría
 
@@ -271,11 +271,11 @@ CREATE TABLE telemetry_samples (
 )
 ```
 
-Data older than 7 days is automatically removed during the processing of new telemetry submissions.
+Los datos anteriores a 7 días se eliminan automáticamente durante el procesamiento de nuevos envíos de telemetría.
 
-Telemetry data is subject to the same backup and encryption considerations as the rest of the LUMS database.
+Los datos de telemetría están sujetos a las mismas consideraciones de copia de seguridad y encriptación que el resto de la base de datos de LUMS.
 
-Backups are not encrypted by LUMS; use host-level encryption or separate backup encryption where required.
+Las copias de seguridad no están encriptadas por LUMS; use encriptación a nivel de host o encriptación de copia de seguridad separada según sea necesario.
 
 ---
 
@@ -308,38 +308,38 @@ Cada área de auditoría se revisa frente a la implementación real, seguida de 
 | #17   | Control de Acceso Basado en Roles              | APROBADO                      |
 | #18   | Documentation Review                   | EN PROGRESO               |
 
-Audit #16 is intentionally different from the technical security controls above.
+La Auditoría #16 es intencionalmente diferente de los controles de seguridad técnicos anteriores.
 
-LUMS currently has no official stable release, no release tag, and no GitHub Release. This is intentional because the project remains under active development.
+LUMS actualmente no tiene una versión estable oficial, sin etiqueta de versión y sin versión de GitHub. Esto es intencional porque el proyecto sigue en desarrollo activo.
 
-Audit #18 remains open until the complete documentation set has been reviewed and synchronized with the current implementation.
+La Auditoría #18 permanece abierta hasta que se haya revisado y sincronizado todo el conjunto de documentación con la implementación actual.
 
 # Auditoría de Seguridad #01
 
 ## SQLite Foreign Keys
 
-SQLite foreign-key enforcement is enabled for application database connections.
+La aplicación de clave externa de SQLite está habilitada para las conexiones de base de datos de aplicaciones.
 
-The application explicitly enables:
+La aplicación habilita explícitamente:
 
 `PRAGMA foreign_keys = ON`
 
-This ensures that referential integrity is enforced for relationships between related database records.
+Esto garantiza que se aplique la integridad referencial para las relaciones entre registros de base de datos relacionados.
 
-The audit verified:
+La auditoría verificó:
 
-* runtime foreign-key enforcement
-* foreign-key integrity
-* client lifecycle behavior
-* client disable behavior
-* preservation of historical job information
-* preservation of audit information
+* aplicación de clave externa en tiempo de ejecución
+* integridad de clave externa
+* comportamiento del ciclo de vida del cliente
+* comportamiento de deshabilitación del cliente
+* preservación de información histórica de trabajos
+* preservación de información de auditoría
 
-Client state is handled conservatively.
+El estado del cliente se maneja de forma conservadora.
 
-Where appropriate, clients are disabled rather than removed in a way that would destroy historical operational information.
+Cuando sea apropiado, los clientes se deshabilitan en lugar de eliminarse de una manera que destruiría información histórica de operaciones.
 
-**Status: APROBADO**
+**Estado: APROBADO**
 
 ---
 
@@ -347,29 +347,29 @@ Where appropriate, clients are disabled rather than removed in a way that would 
 
 ## SQLite Runtime Configuration
 
-The production Base de datos SQLite was reviewed for its runtime configuration.
+La base de datos SQLite de producción se revisó para su configuración en tiempo de ejecución.
 
-The verified production configuration is:
+La configuración de producción verificada es:
 
 * `journal_mode`: `wal`
 * `busy_timeout`: `5000`
 * `synchronous`: `2`
 
-The application explicitly enables:
+La aplicación habilita explícitamente:
 
 `PRAGMA foreign_keys = ON`
 
-The production database currently uses WAL mode.
+La base de datos de producción actualmente utiliza el modo WAL.
 
-The database configuration was documented based on the actual verified production state rather than the historical development configuration.
+La configuración de la base de datos se documentó basándose en el estado de producción verificado realmente en lugar de la configuración histórica de desarrollo.
 
-The configured busy timeout reduces immediate database failures when another transaction temporarily holds the database.
+El tiempo de espera ocupado configurado reduce los fallos inmediatos de la base de datos cuando otra transacción mantiene temporalmente la base de datos.
 
-The application-level foreign-key setting ensures referential integrity for each database connection.
+La configuración de clave externa a nivel de aplicación garantiza la integridad referencial para cada conexión de base de datos.
 
-The audit included production verification of the active SQLite configuration.
+La auditoría incluyó la verificación de producción de la configuración activa de SQLite.
 
-**Status: APROBADO**
+**Estado: APROBADO**
 
 ---
 
@@ -377,48 +377,50 @@ The audit included production verification of the active SQLite configuration.
 
 ## Update Timeout and Process Handling
 
-Update execution is protected against indefinitely blocking package-manager processes.
+## Actualización y Manejo de Procesos
 
-The execution flow is:
+La ejecución de actualización está protegida contra procesos de gestor de paquetes bloqueados indefinidamente.
 
-Start process
-↓
-Read process output
-↓
-Monitor timeout
-↓
-Timeout reached?
-↓
-Terminate process
-↓
-Grace period
-↓
-Process still running?
-↓
-Kill process if required
-↓
-Complete job
+El flujo de ejecución es:
 
-The implementation uses controlled subprocess handling so that silent processes cannot block indefinitely while waiting for output.
+Iniciar proceso
+↓
+Leer salida del proceso
+↓
+Monitorear tiempo de espera
+↓
+¿Se alcanzó el tiempo de espera?
+↓
+Terminar proceso
+↓
+Período de gracia
+↓
+¿Sigue ejecutándose el proceso?
+↓
+Matar proceso si es necesario
+↓
+Completar trabajo
 
-Timeout handling was tested against:
+La implementación utiliza manejo controlado de subprocesos para que los procesos silenciosos no puedan bloquearse indefinidamente mientras esperan una salida.
 
-* silent processes
-* normal process completion
-* timeout conditions
-* processes resistant to normal termination
-* kill fallback
-* integration-level timeout behavior
+La gestión del tiempo de espera se probó contra:
 
-The timeout mechanism prevents a package-management operation from remaining indefinitely in an active state.
+* procesos silenciosos
+* finalización normal del proceso
+* condiciones de tiempo de espera
+* procesos resistentes a la finalización normal
+* recurso de eliminación
+* comportamiento de tiempo de espera a nivel de integración
 
-Errors and timeout conditions are returned as controlled job results and are recorded in the job state.
+El mecanismo de tiempo de espera evita que una operación de gestión de paquetes permanezca indefinidamente en un estado activo.
 
-The current documented LUMS Agent version is:
+Los errores y condiciones de tiempo de espera se devuelven como resultados de trabajos controlados y se registran en el estado del trabajo.
+
+La versión actual documentada del Agente LUMS es:
 
 `1.7.0`
 
-**Status: APROBADO**
+**Estado: APROBADO**
 
 ---
 
@@ -426,144 +428,146 @@ The current documented LUMS Agent version is:
 
 ## Login Rate Limiting
 
-Administrative login attempts are rate limited.
+## Limitación de Velocidad de Inicio de Sesión
 
-The current escalation policy is:
+Los intentos de inicio de sesión administrativo están limitados en velocidad.
 
-* 5 failed attempts → 30 seconds
-* 6 failed attempts → 60 seconds
-* 7 failed attempts → 120 seconds
-* 8 or more failed attempts → 300 seconds
+La política de escalamiento actual es:
 
-The rate-limit state is persisted in SQLite.
+* 5 intentos fallidos → 30 segundos
+* 6 intentos fallidos → 60 segundos
+* 7 intentos fallidos → 120 segundos
+* 8 o más intentos fallidos → 300 segundos
 
-Concurrent login failures use transactional database locking with:
+El estado del límite de velocidad se persiste en SQLite.
+
+Los fallos de inicio de sesión concurrentes utilizan bloqueo de base de datos transaccional con:
 
 `BEGIN IMMEDIATE`
 
-This prevents concurrent authentication failures from bypassing the intended rate-limit state through race conditions.
+Esto evita que fallos de autenticación concurrentes eviten el estado de límite de velocidad previsto a través de condiciones de carrera.
 
-A successful authentication clears the applicable failure state.
+Una autenticación exitosa borra el estado de falla aplicable.
 
-The audit covered:
+La auditoría cubrió:
 
-* isolated rate-limit behavior
-* concurrent authentication failures
-* transaction rollback
-* database-lock handling
-* successful-login reset behavior
-* rate-limit audit events
-* production login behavior
+* comportamiento aislado de límite de velocidad
+* fallos de autenticación concurrentes
+* reversión de transacción
+* manejo de bloqueo de base de datos
+* comportamiento de restablecimiento de inicio de sesión exitoso
+* eventos de auditoría de límite de velocidad
+* comportamiento de inicio de sesión de producción
 
-The rate limiter therefore provides a server-side control against repeated authentication attempts rather than relying on client-side behavior.
+El limitador de velocidad, por lo tanto, proporciona un control del lado del servidor contra intentos de autenticación repetidos en lugar de confiar en el comportamiento del lado del cliente.
 
-**Status: APROBADO**
+**Estado: APROBADO**
 
 ---
 
 # Audit Status After Part 2
 
-The first four security audit areas are complete:
+Las primeras cuatro áreas de auditoría de seguridad están completas:
 
-| Audit | Area                              | Status |
+| Auditoría | Área                              | Estado |
 | ----- | --------------------------------- | ------ |
-| #01   | SQLite Foreign Keys               | APROBADO   |
-| #02   | SQLite Runtime Configuration      | APROBADO   |
-| #03   | Update Timeout / Process Handling | APROBADO   |
-| #04   | Login Rate Limiting               | APROBADO   |
+| #01   | Claves Externas de SQLite               | APROBADO   |
+| #02   | Configuración de Tiempo de Ejecución de SQLite      | APROBADO   |
+| #03   | Tiempo de Espera de Actualización / Manejo de Procesos | APROBADO   |
+| #04   | Limitación de Velocidad de Inicio de Sesión               | APROBADO   |
 
-The following audit areas are documented in the subsequent sections:
+Las siguientes áreas de auditoría se documentan en las secciones posteriores:
 
-* #05 API Input Validation
-* #06 Session Revocation
-* #07 Client Token Rotation
-* #08 IP Address Handling / Offline Networks
-* #09 Job Recovery / Checkpointing
-* #10 APT Robustness
-* #11 Arch Reboot Detection
-* #12 Unit Tests / API Result Validation
-* #13 Simulation Tests
-* #14 Continuous Integration
-* #15 Application / Audit Logging
-* #16 Versioning / Releases
+* #05 Validación de Entrada de API
+* #06 Revocación de Sesión
+* #07 Rotación de Token de Cliente
+* #08 Manejo de Dirección IP / Redes Sin Conexión
+* #09 Recuperación de Trabajo / Punto de Control
+* #10 Robustez de APT
+* #11 Detección de Reinicio de Arch
+* #12 Pruebas Unitarias / Validación de Resultado de API
+* #13 Pruebas de Simulación
+* #14 Integración Continua
+* #15 Registro de Aplicación / Auditoría
+* #16 Versionado / Versiones
 * #17 Control de Acceso Basado en Roles
 
-Audit #18 — Documentation Review — remains open until the complete documentation set has been reviewed and synchronized with the current implementation.
+La Auditoría #18 — Revisión de Documentación — permanece abierta hasta que se haya revisado y sincronizado todo el conjunto de documentación con la implementación actual.
 
 # Auditoría de Seguridad #05
 
-## API Input Validation
+## Validación de Entrada de API
 
-LUMS validates security-sensitive API input on the server side.
+LUMS valida la entrada de API sensible a la seguridad en el lado del servidor.
 
-Client-supplied values are not trusted simply because they originate from the authenticated web interface or a registered client.
+Los valores suministrados por el cliente no se confían simplemente porque se originen en la interfaz web autenticada o en un cliente registrado.
 
-Validation is applied to relevant API parameters, including:
+La validación se aplica a los parámetros de API relevantes, que incluyen:
 
-* client identifiers
-* package names
-* update-job actions
-* package lists
-* search parameters
-* user-management parameters
-* client-token operations
-* job-result data
+* identificadores de cliente
+* nombres de paquetes
+* acciones de trabajo de actualización
+* listas de paquetes
+* parámetros de búsqueda
+* parámetros de gestión de usuarios
+* operaciones de token de cliente
+* datos de resultado de trabajo
 
-Package names are validated before they are passed to package-management operations.
+Los nombres de paquetes se validan antes de pasarlos a operaciones de gestión de paquetes.
 
-The update-job API accepts only explicitly supported actions.
+La API de trabajo de actualización acepta solo acciones explícitamente compatibles.
 
-The currently supported package-related actions are:
+Las acciones relacionadas con paquetes actualmente compatibles son:
 
 * `INSTALL_PACKAGE`
 * `REMOVE_PACKAGE`
 * `UPDATE_PACKAGE`
 * `UPDATE_SYSTEM`
 
-Unexpected actions are rejected.
+Las acciones inesperadas se rechazan.
 
-Package lists are validated before job creation.
+Las listas de paquetes se validan antes de la creación del trabajo.
 
-For `UPDATE_PACKAGE`, the requested package must also be present in the client's available-update information.
+Para `UPDATE_PACKAGE`, el paquete solicitado también debe estar presente en la información de actualizaciones disponibles del cliente.
 
-Database queries use SQL parametrizado rather than constructing SQL statements from untrusted input.
+Las consultas de base de datos utilizan SQL parametrizado en lugar de construir sentencias SQL a partir de entrada no confiable.
 
-This prevents user-controlled values from being interpreted as SQL syntax.
+Esto evita que los valores controlados por el usuario se interpreten como sintaxis SQL.
 
-The audit included negative input testing and SQL-injection-oriented test cases.
+La auditoría incluyó pruebas de entrada negativa y casos de prueba orientados a inyección SQL.
 
-The validation controls were also verified through the automated test suite.
+Los controles de validación también se verificaron a través de la suite de pruebas automatizadas.
 
-**Status: APROBADO**
+**Estado: APROBADO**
 
 ---
 
 # Auditoría de Seguridad #06
 
-## Session Revocation
+## Revocación de Sesión
 
-LUMS protects authenticated administrative sessions against continued use after logout.
+LUMS protege las sesiones administrativas autenticadas contra su uso continuado después de cerrar la sesión.
 
-Session handling includes:
+La gestión de sesiones incluye:
 
-* authenticated server-side sessions
-* vencimiento de sesión
+* sesiones autenticadas del lado del servidor
+* expiración de sesión
 * regeneración de sesión
-* logout invalidation
-* autenticación del lado del servidor checks
+* invalidación de cierre de sesión
+* comprobaciones de autenticación del lado del servidor
 * validación de rol del lado del servidor
 
-Logging out invalidates the active authenticated session.
+Cerrar la sesión invalida la sesión autenticada activa.
 
-Protected API endpoints require an authenticated session and do not rely on client-side state to determine whether the user remains authenticated.
+Los puntos finales de API protegidos requieren una sesión autenticada y no se basan en el estado del lado del cliente para determinar si el usuario permanece autenticado.
 
-Session state is therefore evaluated by the server for protected operations.
+El estado de la sesión, por lo tanto, es evaluado por el servidor para operaciones protegidas.
 
-State-changing browser requests additionally require protección CSRF.
+Las solicitudes de navegador que cambian el estado además requieren protección CSRF.
 
-The audit verified that:
+La auditoría verificó que:
 
-* authenticated access works normally
+* el acceso autenticado funciona normalmente
 * protected endpoints reject unauthenticated requests
 * logout invalidates the active session
 * a previously authenticated session cannot continue using protected functionality after revocation
@@ -625,362 +629,362 @@ Operators and visors cannot rotar tokens de cliente.
 
 # Auditoría de Seguridad #08
 
-## IP Address Handling and Offline Networks
+## Manejo de Dirección IP y Redes Sin Conexión
 
-LUMS does not use a client's source IP address as the sole proof of client identity.
+LUMS no utiliza la dirección IP de origen de un cliente como la única prueba de identidad del cliente.
 
-Client authentication is based on the registered client token.
+La autenticación del cliente se basa en el token de cliente registrado.
 
-This design is intentional because managed clients may operate in environments where their network address changes.
+Este diseño es intencional porque los clientes gestionados pueden operar en entornos donde su dirección de red cambia.
 
-Supported deployment scenarios include:
+Los escenarios de implementación compatibles incluyen:
 
-* private laboratory networks
-* NAT-based networks
-* isolated infrastructure
-* dynamically addressed clients
-* offline environments
-* controlled internal networks
+* redes privadas de laboratorio
+* redes basadas en NAT
+* infraestructura aislada
+* clientes direccionados dinámicamente
+* entornos sin conexión
+* redes internas controladas
 
-The server therefore separates:
+El servidor, por lo tanto, separa:
 
-**Network location**
+**Ubicación de red**
 
-from:
+de:
 
-**Client identity**
+**Identidad del cliente**
 
-A valid client token identifies the registered client.
+Un token de cliente válido identifica al cliente registrado.
 
-The client's network address may still be recorded for operational and audit purposes, but it is not treated as an authentication credential.
+La dirección de red del cliente aún puede registrarse con fines operativos y de auditoría, pero no se trata como una credencial de autenticación.
 
-The implementation also avoids assumptions that a client must be reachable from a fixed address.
+La implementación también evita suposiciones de que un cliente debe ser alcanzable desde una dirección fija.
 
-This is particularly important for laboratory environments and infrastructure where network topology may change without changing the logical identity of the managed system.
+Esto es particularmente importante para entornos de laboratorio e infraestructura donde la topología de red puede cambiar sin cambiar la identidad lógica del sistema gestionado.
 
-The audit verified client authentication without relying on a fixed source IP address.
+La auditoría verificó la autenticación del cliente sin confiar en una dirección IP de origen fija.
 
-**Status: APROBADO**
+**Estado: APROBADO**
 
 ---
 
 # Audit Status After Part 3
 
-The following security audit areas are complete:
+Las siguientes áreas de auditoría de seguridad están completas:
 
-| Audit | Area                                   | Status |
+| Auditoría | Área                                   | Estado |
 | ----- | -------------------------------------- | ------ |
-| #01   | SQLite Foreign Keys                    | APROBADO   |
-| #02   | SQLite Runtime Configuration           | APROBADO   |
-| #03   | Update Timeout / Process Handling      | APROBADO   |
-| #04   | Login Rate Limiting                    | APROBADO   |
-| #05   | API Input Validation                   | APROBADO   |
-| #06   | Session Revocation                     | APROBADO   |
-| #07   | Client Token Rotation                  | APROBADO   |
-| #08   | IP Address Handling / Offline Networks | APROBADO   |
+| #01   | Claves Externas de SQLite                    | APROBADO   |
+| #02   | Configuración de Tiempo de Ejecución de SQLite           | APROBADO   |
+| #03   | Tiempo de Espera de Actualización / Manejo de Procesos      | APROBADO   |
+| #04   | Limitación de Velocidad de Inicio de Sesión                    | APROBADO   |
+| #05   | Validación de Entrada de API                   | APROBADO   |
+| #06   | Revocación de Sesión                     | APROBADO   |
+| #07   | Rotación de Token de Cliente                  | APROBADO   |
+| #08   | Manejo de Dirección IP / Redes Sin Conexión | APROBADO   |
 
-The next section covers:
+La siguiente sección cubre:
 
-* #09 Job Recovery / Checkpointing
-* #10 APT Robustness
-* #11 Arch Reboot Detection
-* #12 Unit Tests / API Result Validation
+* #09 Recuperación de Trabajo / Punto de Control
+* #10 Robustez de APT
+* #11 Detección de Reinicio de Arch
+* #12 Pruebas Unitarias / Validación de Resultado de API
 
 # Auditoría de Seguridad #09
 
-## Job Recovery and Checkpointing
+## Recuperación de Trabajo y Punto de Control
 
-LUMS update jobs are designed to recover safely from interrupted execution.
+Los trabajos de actualización de LUMS están diseñados para recuperarse de forma segura de la ejecución interrumpida.
 
-Update jobs maintain persistent state in the Base de datos SQLite.
+Los trabajos de actualización mantienen estado persistente en la base de datos SQLite.
 
-Individual package operations are tracked separately from the overall job state.
+Las operaciones de paquetes individuales se rastrean por separado del estado general del trabajo.
 
-This allows the Agent to determine which package operations have already completed successfully before an interrupted job is resumed.
+Esto permite que el Agente determine qué operaciones de paquete ya se han completado correctamente antes de que se reanude un trabajo interrumpido.
 
-During recovery, successfully completed package operations are not executed again.
+Durante la recuperación, las operaciones de paquete completadas correctamente no se ejecutan nuevamente.
 
-The recovery logic therefore follows the principle:
+Por lo tanto, la lógica de recuperación sigue el principio:
 
-`Persistent Job State → Determine Completed Work → Skip Completed Items → Continue Remaining Work`
+`Estado de Trabajo Persistente → Determinar Trabajo Completado → Omitir Elementos Completados → Continuar Trabajo Restante`
 
-This reduces the risk of unnecessary repeated package operations after:
+Esto reduce el riesgo de operaciones de paquete innecesariamente repetidas después de:
 
-* agent interruption
-* process termination
-* system restart
-* temporary communication failure
-* container restart
-* other execution interruptions
+* interrupción del agente
+* terminación del proceso
+* reinicio del sistema
+* falha temporal de comunicación
+* reinicio del contenedor
+* otras interrupciones de ejecución
 
-The audit verified interrupted-job recovery and checkpoint behavior.
+La auditoría verificó el comportamiento de recuperación de trabajo interrumpido y punto de control.
 
-Recovery was tested with jobs containing multiple package operations and with previously successful package items.
+La recuperación se probó con trabajos que contenían múltiples operaciones de paquete y con elementos de paquete previamente exitosos.
 
-The audit confirmed that completed work is preserved and remaining work can continue without unnecessarily repeating successful operations.
+La auditoría confirmó que el trabajo completado se conserva y el trabajo restante puede continuar sin repetir innecesariamente operaciones exitosas.
 
-**Status: APROBADO**
+**Estado: APROBADO**
 
 ---
 
 # Auditoría de Seguridad #10
 
-## APT Robustness
+## Robustez de APT
 
-Debian-based package operations are executed through the LUMS package-management layer.
+Las operaciones de paquetes basadas en Debian se ejecutan a través de la capa de gestión de paquetes de LUMS.
 
-APT-related update operations were reviewed for reliable detection of package-manager state and update results.
+Las operaciones de actualización relacionadas con APT se revisaron para una detección confiable del estado del gestor de paquetes y los resultados de la actualización.
 
-The implementation accounts for cases where package-management commands may return successfully while requiring additional interpretation of their output or resulting system state.
+La implementación tiene en cuenta casos donde los comandos de gestión de paquetes pueden devolvere exitosamente mientras requieren interpretación adicional de su salida o estado del sistema resultante.
 
-APT update detection was hardened to avoid relying on a single simplistic command-output condition.
+La detección de actualización de APT se endurecio para evitar confiar en una única condición de salida de comando simplista.
 
-The audit included testing of:
+La auditoría incluyó pruebas de:
 
-* normal APT operations
-* available package updates
-* package installation
-* package removal
-* update-job execution
-* APT result handling
-* update detection behavior
+* operaciones normales de APT
+* actualizaciones de paquetes disponibles
+* instalación de paquetes
+* eliminación de paquetes
+* ejecución de trabajo de actualización
+* manejo de resultado de APT
+* comportamiento de detección de actualización
 
-The corresponding hardening was committed as:
+El endurecimiento correspondiente se comprometió como:
 
 `c76f331 security: harden apt update detection`
 
-The objective is to ensure that LUMS does not incorrectly report package-management state based solely on incomplete or ambiguous command output.
+El objetivo es garantizar que LUMS no informar incorrectamente el estado de gestión de paquetes basándose únicamente en una salida de comando incompleta o ambigua.
 
-**Status: APROBADO**
+**Estado: APROBADO**
 
 ---
 
 # Auditoría de Seguridad #11
 
-## Arch Linux Reboot Detection
+## Detección de Reinicio de Arch Linux
 
-Arch Linux package operations can result in a system state where a reboot is required or recommended.
+Las operaciones de paquetes de Arch Linux pueden resultar en un estado del sistema en el que se requiere o se recomienda un reinicio.
 
-LUMS therefore evaluates the resulting system state after relevant package-management operations.
+Por lo tanto, LUMS evalúa el estado del sistema resultante después de las operaciones relevantes de gestión de paquetes.
 
-The Agent distinguishes normal package-operation completion from situations where a reboot is required.
+El Agente distingue la finalización normal de la operación de paquete de situaciones en las que se requiere un reinicio.
 
-The reboot state is reported back to the LUMS server as part of the job result.
+El estado de reinicio se reporta nuevamente al servidor LUMS como parte del resultado del trabajo.
 
-This allows the management interface to distinguish between:
+Esto permite que la interfaz de gestión distinga entre:
 
-* successful package operation
-* successful operation with reboot requirement
-* failed operation
+* operación de paquete exitosa
+* operación exitosa con requisito de reinicio
+* operación fallida
 
-The audit verified Arch Linux reboot detection using the actual package-management execution path.
+La auditoría verificó la detección de reinicio de Arch Linux utilizando la ruta de ejecución de gestión de paquetes real.
 
-The implementation was tested against reboot-required conditions and normal completion conditions.
+La implementación se probó contra condiciones de reinicio requeridas y condiciones de finalización normal.
 
-**Status: APROBADO**
+**Estado: APROBADO**
 
 ---
 
 # Auditoría de Seguridad #12
 
-## Unit Tests and API Result Validation
+## Pruebas Unitarias y Validación de Resultado de API
 
-Security-sensitive behavior is covered by automated tests.
+El comportamiento sensible a la seguridad se cubre mediante pruebas automatizadas.
 
-The test suite includes coverage for authentication, authorization, API validation, update jobs, package management, client authentication, and result handling.
+La suite de pruebas incluye cobertura para autenticación, autorización, validación de API, trabajos de actualización, gestión de paquetes, autenticación de cliente y manejo de resultados.
 
-The Agent-to-server result path was specifically reviewed to ensure that job results cannot arbitrarily alter unrelated server-side state.
+La ruta del resultado del Agente al servidor se revisó específicamente para garantizar que los resultados del trabajo no puedan alterar arbitrariamente el estado del lado del servidor no relacionado.
 
-Result processing validates the submitted information before applying state changes to the corresponding update job.
+El procesamiento de resultados valida la información enviada antes de aplicar cambios de estado al trabajo de actualización correspondiente.
 
-The validation covers relevant result fields and expected job relationships.
+La validación cubre los campos de resultado relevantes y las relaciones laborales esperadas.
 
-This prevents an authenticated client from freely selecting unrelated jobs or injecting arbitrary state into the update-job database.
+Esto evita que un cliente autenticado seleccione libremente trabajos no relacionados o inyecte estado arbitrario en la base de datos de trabajos de actualización.
 
-The security test suite also covers negative and unauthorized cases.
+La suite de pruebas de seguridad también cubre casos no autorizados y negativos.
 
-Run the complete automated test suite from the repository root with
-`./.venv-test/bin/pytest -q`. The number of tests changes over time; use the
-result of the current run rather than a fixed count in this document.
+Ejecute la suite de pruebas automatizadas completa desde la raíz del repositorio con
+`./.venv-test/bin/pytest -q`. El número de pruebas cambia con el tiempo; use el
+resultado de la ejecución actual en lugar de un recuento fijo en este documento.
 
-The relevant security controls were additionally verified through focused test runs during the audit.
+Los controles de seguridad relevantes también se verificaron mediante ejecuciones de pruebas enfocadas durante la auditoría.
 
-**Status: APROBADO**
+**Estado: APROBADO**
 
 ---
 
 # Audit Status After Part 4
 
-The following security audit areas are complete:
+Las siguientes áreas de auditoría de seguridad están completas:
 
-| Audit | Area                                   | Status |
+| Auditoría | Área                                   | Estado |
 | ----- | -------------------------------------- | ------ |
-| #01   | SQLite Foreign Keys                    | APROBADO   |
-| #02   | SQLite Runtime Configuration           | APROBADO   |
-| #03   | Update Timeout / Process Handling      | APROBADO   |
-| #04   | Login Rate Limiting                    | APROBADO   |
-| #05   | API Input Validation                   | APROBADO   |
-| #06   | Session Revocation                     | APROBADO   |
-| #07   | Client Token Rotation                  | APROBADO   |
-| #08   | IP Address Handling / Offline Networks | APROBADO   |
-| #09   | Job Recovery / Checkpointing           | APROBADO   |
-| #10   | APT Robustness                         | APROBADO   |
-| #11   | Arch Reboot Detection                  | APROBADO   |
-| #12   | Unit Tests / API Result Validation     | APROBADO   |
+| #01   | Claves Externas de SQLite                    | APROBADO   |
+| #02   | Configuración de Tiempo de Ejecución de SQLite           | APROBADO   |
+| #03   | Tiempo de Espera de Actualización / Manejo de Procesos      | APROBADO   |
+| #04   | Limitación de Velocidad de Inicio de Sesión                    | APROBADO   |
+| #05   | Validación de Entrada de API                   | APROBADO   |
+| #06   | Revocación de Sesión                     | APROBADO   |
+| #07   | Rotación de Token de Cliente                  | APROBADO   |
+| #08   | Manejo de Dirección IP / Redes Sin Conexión | APROBADO   |
+| #09   | Recuperación de Trabajo / Punto de Control           | APROBADO   |
+| #10   | Robustez de APT                         | APROBADO   |
+| #11   | Detección de Reinicio de Arch                  | APROBADO   |
+| #12   | Pruebas Unitarias / Validación de Resultado de API     | APROBADO   |
 
-The next section covers:
+La siguiente sección cubre:
 
-* #13 Simulation Tests
-* #14 Continuous Integration
-* #15 Application / Audit Logging
-* #16 Versioning / Releases
+* #13 Pruebas de Simulación
+* #14 Integración Continua
+* #15 Registro de Aplicación / Auditoría
+* #16 Versionado / Versiones
 
 # Auditoría de Seguridad #13
 
-## Simulation Tests
+## Pruebas de Simulación
 
-LUMS provides a simulation mechanism for testing update-management workflows without performing the corresponding package-management operation on the managed system.
+LUMS proporciona un mecanismo de simulación para probar flujos de trabajo de gestión de actualización sin realizar la operación correspondiente de gestión de paquetes en el sistema gestionado.
 
-Simulation is implemented at the Agent execution layer.
+La simulación se implementa en la capa de ejecución del Agente.
 
-When simulation is enabled, package-management operations are represented and processed without applying the requested package change to the operating system.
+Cuando la simulación está habilitada, las operaciones de gestión de paquetes se representan y procesan sin aplicar el cambio de paquete solicitado al sistema operativo.
 
-This allows update-job behavior to be tested without intentionally modifying the managed system.
+Esto permite que el comportamiento del trabajo de actualización se pruebe sin modificar intencionalmente el sistema gestionado.
 
-The simulation tests cover relevant update-management paths, including:
+Las pruebas de simulación cubren rutas de gestión de actualización relevantes, incluyendo:
 
-* package installation
-* package removal
-* package updates
-* system updates
-* job execution
-* result reporting
-* successful completion
-* failure handling
+* instalación de paquetes
+* eliminación de paquetes
+* actualizaciones de paquetes
+* actualizaciones del sistema
+* ejecución de trabajos
+* informe de resultados
+* finalización exitosa
+* manejo de fallos
 
-The simulation mechanism was used during the security audit to verify job creation, Agent execution, result handling, and server-side state transitions independently from real package modifications.
+El mecanismo de simulación se utilizó durante la auditoría de seguridad para verificar la creación de trabajos, la ejecución del Agente, el manejo de resultados y las transiciones de estado del lado del servidor independientemente de las modificaciones reales de paquetes.
 
-Simulation mode is a testing mechanism and does not replace the authorization controls of normal update operations.
+El modo de simulación es un mecanismo de prueba y no reemplaza los controles de autorización de operaciones de actualización normales.
 
-**Status: APROBADO**
+**Estado: APROBADO**
 
 ---
 
 # Auditoría de Seguridad #14
 
-## Continuous Integration
+## Integración Continua
 
-LUMS uses automated testing to detect security and functional regressions before changes are considered complete.
+LUMS utiliza pruebas automatizadas para detectar regresiones de seguridad y funcionales antes de que los cambios se consideren completos.
 
-The CI process executes the automated test suite against the project.
+El proceso de CI ejecuta la suite de pruebas automatizadas contra el proyecto.
 
-The test environment verifies the application and security-sensitive functionality independently from the production container.
+El entorno de prueba verifica la aplicación y la funcionalidad sensible a la seguridad independientemente del contenedor de producción.
 
-The CI process includes validation of:
+El proceso de CI incluye validación de:
 
-* authentication
-* authorization
+* autenticación
+* autorización
 * RBAC
-* API behavior
-* update-job handling
-* package-management behavior
-* client authentication
-* job-result validation
-* security-sensitive error handling
+* comportamiento de API
+* manejo de trabajo de actualización
+* comportamiento de gestión de paquetes
+* autenticación de cliente
+* validación de resultado de trabajo
+* manejo de errores sensibles a la seguridad
 
-The CI audit was reviewed after the security hardening changes.
+La auditoría de CI se revisó después de los cambios de endurecimiento de seguridad.
 
-The final verified test suite completed successfully.
+La suite de pruebas final verificada se completó correctamente.
 
-The test count changes as the project evolves. CI provides an automated
-regression barrier for security-relevant application changes.
+El recuento de pruebas cambia a medida que evoluciona el proyecto. CI proporciona una barrera de
+regresión automatizada para cambios de aplicación relevantes para la seguridad.
 
-**Status: APROBADO**
+**Estado: APROBADO**
 
 ---
 
 # Auditoría de Seguridad #15
 
-## Application and Audit Logging
+## Registro de Aplicación y Auditoría
 
-LUMS records security-sensitive administrative and operational events through application-level registro de auditoría.
+LUMS registra eventos administrativos y operacionales sensibles a la seguridad a través del registro de auditoría a nivel de aplicación.
 
-Audit logging is designed to provide an operational history without storing sensitive credentials.
+El registro de auditoría está diseñado para proporcionar un historial operativo sin almacenar credenciales sensibles.
 
-Relevant security-sensitive actions include events such as:
+Las acciones sensibles a la seguridad relevantes incluyen eventos tales como:
 
-* authentication-related security events
-* administrative actions
-* client management
-* client-token operations
-* update-job creation
-* update-job execution
-* security-relevant failures
+* eventos de seguridad relacionados con autenticación
+* acciones administrativas
+* gestión de clientes
+* operaciones de token de cliente
+* creación de trabajo de actualización
+* ejecución de trabajo de actualización
+* fallos relevantes para la seguridad
 
-Sensitive credential material is excluded from audit records.
+El material de credenciales sensibles se excluye de los registros de auditoría.
 
-In particular:
+En particular:
 
-* passwords are not logged
-* plaintext client tokens are not logged
-* secret values are not intentionally written to audit records
+* las contraseñas no se registran
+* los tokens de cliente de texto plano no se registran
+* los valores secretos no se escriben intencionalmente en los registros de auditoría
 
-Audit records are associated with the relevant administrative or operational context where applicable.
+Los registros de auditoría se asocian con el contexto administrativo u operacional relevante cuando sea aplicable.
 
-The registro de auditoría implementation was reviewed for:
+La implementación del registro de auditoría se revisó para:
 
-* security-sensitive event coverage
-* credential exclusion
-* administrative traceability
-* failure handling
-* persistence of relevant audit information
+* cobertura de eventos sensibles a la seguridad
+* exclusión de credenciales
+* trazabilidad administrativa
+* manejo de fallos
+* persistencia de información de auditoría relevante
 
-The logging system is intended to support both operational troubleshooting and security investigation.
+El sistema de registro está diseñado para apoyar tanto la solución de problemas operacionales como la investigación de seguridad.
 
-**Status: APROBADO**
+**Estado: APROBADO**
 
 ---
 
 # Auditoría de Seguridad #16
 
-## Versioning and Releases
+## Versionado y Versiones
 
-Versioning and release management were reviewed as part of the security audit.
+El versionado y la gestión de versiones se revisaron como parte de la auditoría de seguridad.
 
-LUMS is currently under active development and does not yet have an official stable release.
+LUMS está actualmente en desarrollo activo y aún no tiene una versión estable oficial.
 
-The current repository state therefore intentionally has:
+El estado actual del repositorio por lo tanto intencionalmente tiene:
 
-* no official stable release version
-* no release tag
-* no GitHub Release
+* sin versión de versión estable oficial
+* sin etiqueta de versión
+* sin Versión de GitHub
 
-The current component versions include:
+Las versiones actuales de componentes incluyen:
 
-* LUMS Agent: `1.7.0`
-* LUMS Watcher: `1.2.1`
+* Agente LUMS: `1.7.0`
+* Relojero LUMS: `1.2.1`
 
-There is currently no single formal version number representing the complete LUMS application.
+Actualmente no hay un único número de versión formal que represente la aplicación LUMS completa.
 
-This is an intentional project-state decision rather than an accidental omission.
+Esta es una decisión de estado de proyecto intencional en lugar de una omisión accidental.
 
-The planned release process is:
+El proceso de lanzamiento planeado es:
 
-1. Complete implementation work.
-2. Complete the security review.
-3. Review and synchronize the documentation.
-4. Complete the full automated test suite.
-5. Verify CI.
-6. Define the release version.
-7. Create the corresponding Git tag.
-8. Publish the GitHub Release.
-9. Preserve the release as the documented baseline.
+1. Completar el trabajo de implementación.
+2. Completar la revisión de seguridad.
+3. Revisar y sincronizar la documentación.
+4. Completar la suite de pruebas automatizadas completa.
+5. Verificar CI.
+6. Definir la versión de lanzamiento.
+7. Crear la etiqueta de Git correspondiente.
+8. Publicar la Versión de GitHub.
+9. Preservar la versión como la línea base documentada.
 
-No official release is created solely because the security audit reaches a particular audit number.
+No se crea ninguna versión oficial simplemente porque la auditoría de seguridad alcanza un número de auditoría particular.
 
-Release creation will take place only after the remaining implementation and documentation work has been completed.
+La creación de versiones se realizará únicamente después de que se haya completado el trabajo de implementación y documentación restante.
 
-**Status: REVISADO — ABIERTO POR DISEÑO**
+**Estado: REVISADO — ABIERTO POR DISEÑO**
 
 ---
 
@@ -1000,105 +1004,104 @@ The following security audit areas are complete:
 | #08   | IP Address Handling / Offline Networks | APROBADO                      |
 | #09   | Job Recovery / Checkpointing           | APROBADO                      |
 | #10   | APT Robustness                         | APROBADO                      |
-| #11   | Arch Reboot Detection                  | APROBADO                      |
-| #12   | Unit Tests / API Result Validation     | APROBADO                      |
-| #13   | Simulation Tests                       | APROBADO                      |
-| #14   | Continuous Integration                 | APROBADO                      |
-| #15   | Application / Audit Logging            | APROBADO                      |
-| #16   | Versioning / Releases                  | REVISADO — ABIERTO POR DISEÑO |
+| #11   | Detección de Reinicio de Arch                  | APROBADO                      |
+| #12   | Pruebas Unitarias / Validación de Resultado de API     | APROBADO                      |
+| #13   | Pruebas de Simulación                       | APROBADO                      |
+| #14   | Integración Continua                 | APROBADO                      |
+| #15   | Registro de Aplicación / Auditoría            | APROBADO                      |
+| #16   | Versionado / Versiones                  | REVISADO — ABIERTO POR DISEÑO |
 
-The remaining numbered technical audit area is:
+El área técnica de auditoría numerada restante es:
 
 * #17 Control de Acceso Basado en Roles
 
-The documentation review is tracked separately as:
+La revisión de documentación se rastrea por separado como:
 
-* #18 Documentation Review — EN PROGRESO
+* #18 Revisión de Documentación — EN PROGRESO
 
 # Auditoría de Seguridad #17
 
 ## Control de Acceso Basado en Roles
 
-LUMS combines role templates with individually assigned permisos. The
-supported templates are `administrador`, `operador`, and `visor`; choosing a
-template selects its default permisos, which an administrador can customize
-for each account.
+LUMS combina plantillas de rol con permisos asignados individualmente. Los
+templates admitidos son `administrador`, `operador` y `visor`; elegir un
+template selecciona sus permisos predeterminados, que un administrador puede personalizar
+para cada cuenta.
 
-The role remains account metadata. Protected routes authorize against the
-account's server-stored permiso set, not the role label. The interface hides
-unavailable functions for usability, while the server remains the security
-boundary.
+El rol sigue siendo metadatos de la cuenta. Las rutas protegidas se autorizan contra el
+conjunto de permiso almacenado en el servidor de la cuenta, no la etiqueta de rol. La interfaz oculta
+funciones no disponibles para facilitar el uso, mientras que el servidor sigue siendo el límite de seguridad.
 
 ---
 
-## RBAC Permission Model
+## Modelo de Permiso de RBAC
 
-| Permission        | Access granted |
+| Permiso        | Acceso otorgado |
 | ----------------- | -------------- |
-| `clients.view`    | View clients and system information |
-| `software.view`   | View installed software |
-| `updates.view`    | View available updates, jobs, and history |
-| `packages.search` | Search package repositories |
-| `jobs.manage`     | Create package operations and update jobs |
-| `clients.manage`  | Register/remove clients and rotar tokens de cliente |
-| `users.manage`    | Create users and manage roles and permisos |
+| `clients.view`    | Ver clientes e información del sistema |
+| `software.view`   | Ver software instalado |
+| `updates.view`    | Ver actualizaciones disponibles, trabajos e historial |
+| `packages.search` | Buscar repositorios de paquetes |
+| `jobs.manage`     | Crear operaciones de paquete y trabajos de actualización |
+| `clients.manage`  | Registrar/eliminar clientes y rotar tokens de cliente |
+| `users.manage`    | Crear usuarios y gestionar roles y permisos |
 
-The default role templates are:
+Las plantillas de rol predeterminadas son:
 
-| Template        | Default permisos |
+| Template        | Permisos predeterminados |
 | --------------- | ------------------- |
-| `administrador` | All permisos |
-| `operador`      | Client/software/update visibility, package search, and job management |
-| `visor`        | Client visibility and installed-software visibility |
+| `administrador` | Todos los permisos |
+| `operador`      | Visibilidad de cliente/software/actualización, búsqueda de paquetes y gestión de trabajos |
+| `visor`        | Visibilidad de cliente y visibilidad de software instalado |
 
-Client-related permisos require `clients.view`. `jobs.manage` also requires
-`updates.view`. The UI loads permisos for the authenticated account and
-omits controls the user cannot use; server-side checks independently enforce
-the same grants.
-
----
-
-## Authorization Enforcement
-
-Protected operations use autenticación del lado del servidor and permiso checks.
-
-The authorization model follows the principle:
-
-`Authenticate → Load User Permissions → Authorize Operation → Execute`
-
-Authentication alone is not sufficient to access privileged operations.
-
-State-changing operations additionally require protección CSRF where applicable.
-
-Examples of protected administrative operations include:
-
-* update-job creation
-* package installation
-* package removal
-* package updates
-* system updates
-* package-management operations
-* client creation
-* client disabling
-* client-token rotation
-* user creation
-* user-management functions
-
-Protected endpoints explicitly define the permiso required for the
-corresponding operation.
-
-A missing permiso is rejected by the server even if the user manually
-constructs the corresponding HTTP request.
-
-This prevents bypassing the RBAC model by directly calling an API endpoint that is hidden in the web interface.
+Los permisos relacionados con clientes requieren `clients.view`. `jobs.manage` también requiere
+`updates.view`. La interfaz carga permisos para la cuenta autenticada y
+omite controles que el usuario no puede usar; las comprobaciones del lado del servidor aplican de forma independiente
+las mismas concesiones.
 
 ---
 
-## Viewer Restrictions
+## Aplicación de Autorización
 
-The Viewer template is intentionally restricted by its default permiso set.
+Las operaciones protegidas utilizan autenticación del lado del servidor y comprobaciones de permiso.
 
-For accounts without the corresponding grants, the client interface does not expose:
+El modelo de autorización sigue el principio:
+
+`Autenticar → Cargar Permisos del Usuario → Autorizar Operación → Ejecutar`
+
+La autenticación por sí sola no es suficiente para acceder a operaciones privilegiadas.
+
+Las operaciones que cambian el estado además requieren protección CSRF donde sea aplicable.
+
+Los ejemplos de operaciones administrativas protegidas incluyen:
+
+* creación de trabajo de actualización
+* instalación de paquete
+* eliminación de paquete
+* actualizaciones de paquetes
+* actualizaciones del sistema
+* operaciones de gestión de paquetes
+* creación de cliente
+* deshabilitación de cliente
+* rotación de token de cliente
+* creación de usuario
+* funciones de gestión de usuarios
+
+Los puntos finales protegidos definen explícitamente el permiso requerido para el
+operación correspondiente.
+
+La falta de permiso es rechazada por el servidor incluso si el usuario construye manualmente
+la solicitud HTTP correspondiente.
+
+Esto evita eludir el modelo de RBAC llamando directamente a un punto final de API que está oculto en la interfaz web.
+
+---
+
+## Restricciones de Visor
+
+La plantilla de Visor está intencionalmente restringida por su conjunto de permisos predeterminado.
+
+Para cuentas sin las concesiones correspondientes, la interfaz del cliente no expone:
 
 * Actualizaciones
 * Trabajos de Actualización
@@ -1106,44 +1109,44 @@ For accounts without the corresponding grants, the client interface does not exp
 * Gestión de Paquetes
 * Mantenimiento del Sistema
 
-The server additionally prevents accounts without the corresponding grants
-from performing protected operations.
+El servidor además evita que cuentas sin las concesiones correspondientes
+realicen operaciones protegidas.
 
-The JavaScript interface does not load update-management data without
+La interfaz de JavaScript no carga datos de gestión de actualización sin
 `updates.view`.
 
-This reduces unnecessary exposure of operational information while maintaining server-side authorization as the actual security control.
+Esto reduce la exposición innecesaria de información operacional mientras se mantiene la autorización del lado del servidor como el control de seguridad real.
 
-Installed software remains available to Viewer accounts as a read-only information function.
+El software instalado permanece disponible para cuentas de Visor como una función de información de solo lectura.
 
 ---
 
-## Administrative User Management
+## Gestión de Usuario Administrativo
 
-User management requires the `users.manage` permiso.
+La gestión de usuarios requiere el permiso `users.manage`.
 
-Users with that permiso can create accounts without permisos and then
-assign individual grants or apply a role template in the permiso editor.
-Role templates have descriptions explaining their default grants.
+Los usuarios con ese permiso pueden crear cuentas sin permisos y luego
+asignar concesiones individuales o aplicar una plantilla de rol en el editor de permisos.
+Las plantillas de rol tienen descripciones que explican sus concesiones predeterminadas.
 
-Authorized user managers can save an internal note per account. Notes are
-limited to 2,000 characters, are not included in audit-log details, and are
-not visible to the account owner.
+Los gestores de usuarios autorizados pueden guardar una nota interna por cuenta. Las notas se
+limitan a 2.000 caracteres, no se incluyen en los detalles del registro de auditoría y
+no son visibles para el propietario de la cuenta.
 
-User creation includes:
+La creación de usuario incluye:
 
-* username validation
-* role validation
-* password validation
+* validación de nombre de usuario
+* validación de rol
+* validación de contraseña
 * hash de contraseña Argon2
-* duplicate-user detection
+* detección de usuario duplicado
 * registro de auditoría
 * protección CSRF
-* server-side authorization
+* autorización del lado del servidor
 
-User-management endpoints are not accessible without `users.manage`.
+Los puntos finales de gestión de usuario no son accesibles sin `users.manage`.
 
-The server rejects unknown permisos and invalid dependency combinations.
+El servidor rechaza permisos desconocidos y combinaciones de dependencia no válidas.
 At least one active account must retain `users.manage`; changes that would
 remove the last user manager are rejected.
 
@@ -1445,24 +1448,24 @@ The current LUMS implementation has undergone a broad security review covering:
 * session security
 * protección CSRF
 * limitación de velocidad de inicio de sesión
-* client-token security
-* API validation
-* SQL injection resistance
-* SQLite integrity
-* update execution
-* timeout handling
-* job recovery
-* package-management robustness
-* result validation
-* simulation
-* continuous integration
+* seguridad de token de cliente
+* validación de API
+* resistencia a la inyección SQL
+* integridad de SQLite
+* ejecución de actualización
+* manejo de tiempo de espera
+* recuperación de trabajo
+* robustez de gestión de paquetes
+* validación de resultado
+* simulación
+* integración continua
 * registro de auditoría
-* container hardening
-* network exposure
-* transport security
-* secrets handling
-* filesystem permisos
-* dependency and build security
+* endurecimiento de contenedor
+* exposición de red
+* seguridad del transporte
+* manejo de secretos
+* permisos del sistema de archivos
+* seguridad de dependencia y construcción
 
 The numbered audit results are:
 
@@ -1470,34 +1473,34 @@ The numbered audit results are:
 | ----- | -------------------------------------- | ------------------------- |
 | #01   | SQLite Foreign Keys                    | APROBADO                      |
 | #02   | SQLite Runtime Configuration           | APROBADO                      |
-| #03   | Update Timeout / Process Handling      | APROBADO                      |
-| #04   | Login Rate Limiting                    | APROBADO                      |
-| #05   | API Input Validation                   | APROBADO                      |
-| #06   | Session Revocation                     | APROBADO                      |
-| #07   | Client Token Rotation                  | APROBADO                      |
-| #08   | IP Address Handling / Offline Networks | APROBADO                      |
-| #09   | Job Recovery / Checkpointing           | APROBADO                      |
-| #10   | APT Robustness                         | APROBADO                      |
-| #11   | Arch Reboot Detection                  | APROBADO                      |
-| #12   | Unit Tests / API Result Validation     | APROBADO                      |
-| #13   | Simulation Tests                       | APROBADO                      |
-| #14   | Continuous Integration                 | APROBADO                      |
-| #15   | Application / Audit Logging            | APROBADO                      |
-| #16   | Versioning / Releases                  | REVISADO — ABIERTO POR DISEÑO |
+| #03   | Tiempo de Espera de Actualización / Manejo de Procesos      | APROBADO                      |
+| #04   | Limitación de Velocidad de Inicio de Sesión                    | APROBADO                      |
+| #05   | Validación de Entrada de API                   | APROBADO                      |
+| #06   | Revocación de Sesión                     | APROBADO                      |
+| #07   | Rotación de Token de Cliente                  | APROBADO                      |
+| #08   | Manejo de Dirección IP / Redes Sin Conexión | APROBADO                      |
+| #09   | Recuperación de Trabajo / Punto de Control           | APROBADO                      |
+| #10   | Robustez de APT                         | APROBADO                      |
+| #11   | Detección de Reinicio de Arch                  | APROBADO                      |
+| #12   | Pruebas Unitarias / Validación de Resultado de API     | APROBADO                      |
+| #13   | Pruebas de Simulación                       | APROBADO                      |
+| #14   | Integración Continua                 | APROBADO                      |
+| #15   | Registro de Aplicación / Auditoría            | APROBADO                      |
+| #16   | Versionado / Versiones                  | REVISADO — ABIERTO POR DISEÑO |
 | #17   | Control de Acceso Basado en Roles              | APROBADO                      |
-| #18   | Documentation Review                   | EN PROGRESO               |
+| #18   | Revisión de Documentación                   | EN PROGRESO               |
 
-The technical security controls reviewed in audits #01–#15 and #17 have passed.
+Los controles de seguridad técnicos revisados en auditorías #01–#15 y #17 han pasado.
 
-Audit #16 remains intentionally open because LUMS has not yet reached its first official stable release.
+La Auditoría #16 permanece intencionalmente abierta porque LUMS aún no ha llegado a su primer lanzamiento estable oficial.
 
-Audit #18 remains open until the complete project documentation has been reviewed and synchronized with the final implementation state.
+La Auditoría #18 permanece abierta hasta que se haya revisado toda la documentación del proyecto y se sincronice con el estado de implementación final.
 
-No security audit result should be interpreted as a guarantee that LUMS is free from vulnerabilities.
+Ningún resultado de auditoría de seguridad debe interpretarse como una garantía de que LUMS no tenga vulnerabilidades.
 
-Security is an ongoing process.
+La seguridad es un proceso continuo.
 
-Changes to the application, Agent, dependencies, container configuration, network exposure, authentication model, or deployment architecture should trigger another security review of the affected controls.
+Los cambios en la aplicación, Agente, dependencias, configuración del contenedor, exposición de red, modelo de autenticación o arquitectura de implementación deben desencadenar otra revisión de seguridad de los controles afectados.
 
 ---
 
@@ -1527,7 +1530,7 @@ La línea base incluye:
 * restricted filesystem permisos
 * pruebas de seguridad automatizadas
 
-Future changes should preserve these properties unless a deliberate architectural change replaces them with an equivalent or stronger control.
+Los cambios futuros deben preservar estas propiedades a menos que un cambio arquitectónico deliberado las reemplace con un control equivalente o más fuerte.
 
 ---
 

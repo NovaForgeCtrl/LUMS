@@ -2,7 +2,7 @@
 
 **LUMS — Serwer Zarządzania Aktualizacjami Linux**
 
-Ten dokument opisuje bieżącą architekturę bezpieczeństwa, implemented security controls, security audit results, operational limitations, and security-related design decisions of LUMS.
+Ten dokument opisuje bieżącą architekturę bezpieczeństwa, wdrożone kontrole bezpieczeństwa, wyniki audytu bezpieczeństwa, ograniczenia operacyjne i decyzje projektowe związane z bezpieczeństwem LUMS.
 
 Dokument odzwierciedla **aktualny stan wdrożonego systemu**. Planowane lub przyszłe ulepszenia są wyraźnie identyfikowane jako takie.
 
@@ -28,57 +28,57 @@ Główne cele bezpieczeństwa to:
 * przewidywalna obsługa błędów
 * testowanie regresji bezpieczeństwa
 
-LUMS is intended primarily for controlled infrastructure, laboratory, and internal network environments.
+LUMS jest przeznaczony głównie dla kontrolowanej infrastruktury, laboratorium i wewnętrznych środowisk sieciowych.
 
-It should not be exposed directly to the public Internet without an additional security review and appropriate network controls.
+Nie powinno być narażone bezpośrednio na publiczny Internet bez dodatkowego przeglądu bezpieczeństwa i odpowiednich kontroli sieciowych.
 
 ---
 
 # Architektura Bezpieczeństwa
 
-LUMS consists of the following security-relevant components:
+LUMS składa się z następujących komponentów istotnych dla bezpieczeństwa:
 
-* Web administration interface
+* Interfejs administracji sieciowej
 * REST API
-* SQLite database
-* LUMS Agent on managed clients
-* APT and pacman package-management backends
-* Update-job and recovery mechanisms
-* Nginx HTTPS reverse proxy
-* Hardened Docker container
+* Baza danych SQLite
+* Agent LUMS na zarządzanych klientach
+* Backend zarządzania pakietami APT i pacman
+* Mechanizmy odrzyskiwania i prac aktualizacyjnych
+* Odwrotny proxy Nginx HTTPS
+* Wzmocniony kontener Docker
 
-The basic management flow is:
+Podstawowy przepływ zarządzania to:
 
 Browser → HTTPS/Nginx → LUMS API → SQLite → LUMS Agent → Package Manager → Result → SQLite → Web UI
 
-Authentication and authorization are deliberately separated.
+Autentykacja i autoryzacja są celowo oddzielone.
 
-A valid authenticated session does not automatically grant access to every administrative operation.
+Prawidłowa sesja uwierzytelniająca nie daje automatycznie dostępu do wszystkich operacji administracyjnych.
 
-Authorization is enforced server-side. The web interface additionally hides functions that are not available to the current role, but UI visibility is never treated as a security boundary.
+Autoryzacja jest wymuszana po stronie serwera. Interfejs sieciowy dodatkowo ukrywa funkcje, które nie są dostępne dla bieżącej roli, ale widoczność interfejsu użytkownika nigdy nie jest traktowana jako granica bezpieczeństwa.
 
 ---
 
 ## Autentykacja Administracyjna
 
-Administrative users authenticate through the LUMS web interface.
+Użytkownicy administracyjni uwierzytelniają się za pośrednictwem interfejsu sieciowego LUMS.
 
-Passwords are never stored in plaintext. LUMS uses Argon2-based password hashing for password storage.
+Hasła nigdy nie są przechowywane w postaci zwykłego tekstu. LUMS używa haszowania hasła opartego na Argon2 do przechowywania hasła.
 
-Administrative sessions use:
+Sesje administracyjne używają:
 
-* authenticated server-side session handling
-* session expiration
-* session regeneration
-* CSRF protection for state-changing browser requests
-* login rate limiting
-* session invalidation during logout
-* server-side role validation
+* uwierzytelnionej obsługi sesji po stronie serwera
+* wygaśnięcia sesji
+* regeneracji sesji
+* ochrony CSRF dla żądań przeglądarki zmieniających stan
+* ograniczenia szybkości logowania
+* anulowania sesji podczas wylogowania
+* walidacji roli po stronie serwera
 
-Authentication and authorization remain separate security controls.
+Autentykacja i autoryzacja pozostają oddzielnymi kontrolami bezpieczeństwa.
 
-A successfully authenticated user must still possess the required permission
-for protected operations.
+Pomyślnie uwierzytelniony użytkownik musi nadal posiadać wymaganą uprawnienie
+dla chronionych operacji.
 
 ---
 
@@ -281,11 +281,11 @@ Backups are not encrypted by LUMS; use host-level encryption or separate backup 
 
 # Audyt Bezpieczeństwa
 
-The security audit is performed incrementally.
+Audyt bezpieczeństwa przeprowadzany jest stopniowo.
 
-Each audit area is reviewed against the actual implementation, followed by automated tests, isolated verification, or production verification where applicable.
+Każdy obszar audytu jest przeglądany względem rzeczywistej implementacji, po którym następują testy zautomatyzowane, weryfikacja izolowana lub weryfikacja produkcyjna, gdzie ma to zastosowanie.
 
-Current audit areas:
+Bieżące obszary audytu:
 
 | Audit | Area                                   | Status                    |
 | ----- | -------------------------------------- | ------------------------- |
@@ -308,15 +308,15 @@ Current audit areas:
 | #17   | Kontrola Dostępu Oparta na Rolach              | PASS                      |
 | #18   | Documentation Review                   | IN PROGRESS               |
 
-Audit #16 is intentionally different from the technical security controls above.
+Audyt #16 celowo różni się od powyższych technicznych kontroli bezpieczeństwa.
 
-LUMS currently has no official stable release, no release tag, and no GitHub Release. This is intentional because the project remains under active development.
+LUMS aktualnie nie posiada oficjalnego wydania stabilnego, tagu wersji ani wydania GitHub. Jest to zamierzone, ponieważ projekt pozostaje w aktywnym opracowaniu.
 
-Audit #18 remains open until the complete documentation set has been reviewed and synchronized with the current implementation.
+Audyt #18 pozostaje otwarty, dopóki cały zestaw dokumentacji nie zostanie przeanalizowany i zsynchronizowany z bieżącą implementacją.
 
 # Audyt Bezpieczeństwa #01
 
-## SQLite Foreign Keys
+## Klucze obce SQLite
 
 SQLite foreign-key enforcement is enabled for application database connections.
 

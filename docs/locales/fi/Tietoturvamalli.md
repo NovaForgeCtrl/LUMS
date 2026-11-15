@@ -2,7 +2,7 @@
 
 **LUMS —Linux-päivitysten hallintapalvelin**
 
-Tämä asiakirja kuvaa nykyisen tietoturva-arkkitehtuurin, implemented security controls, security audit results, operational limitations, and security-related design decisions of LUMS.
+Tämä asiakirja kuvaa nykyisen tietoturva-arkkitehtuurin, toteutetut tietoturvavalvonnat, tietoturvakuulustuksen tulokset, operatiiviset rajoitukset ja tietoturvaan liittyvät suunnittelupäätökset of LUMS.
 
 Asiakirja heijastaa **tällä hetkellä toteutettua järjestelmän tilaa**. Suunnitellut tai tulevat parannukset tunnistetaan nimenomaan sellaisiksi.
 
@@ -28,15 +28,15 @@ Pääasialliset tietoturvatavoitteet ovat:
 * ennustettava vianhallinta
 * tietoturvaregressiotestaus
 
-LUMS is intended primarily for controlled infrastructure, laboratory, and internal network environments.
+LUMS on tarkoitettu ensisijaisesti hallittuihin infrastruktuuriin, laboratorioihin ja sisäisiin verkkoympäristöihin.
 
-It should not be exposed directly to the public Internet without an additional security review and appropriate network controls.
+Sitä ei saa altistaa suoraan julkiselle Internetille lisäksi suorittamatta turvallisuuskatselmusta ja asianmukaisia verkon valvontaa.
 
 ---
 
 # Tietoturva-arkkitehtuuri
 
-LUMS consists of the following security-relevant components:
+LUMS koostuu seuraavista turvallisuuteen liittyvistä komponenteista:
 
 * Web administration interface
 * REST API
@@ -47,106 +47,104 @@ LUMS consists of the following security-relevant components:
 * Nginx HTTPS reverse proxy
 * Hardened Docker container
 
-The basic management flow is:
+Perusvaraushallinnon virtaus on:
 
 Browser → HTTPS/Nginx → LUMS API → SQLite → LUMS Agent → Package Manager → Result → SQLite → Web UI
 
-Authentication and authorization are deliberately separated.
+Todentaminen ja valtuuttaminen ovat tarkoituksellisesti erillään.
 
-A valid authenticated session does not automatically grant access to every administrative operation.
+Kelvollinen todennettu istunto ei automaattisesti myönnä pääsyä kaikkiin hallintotoimiin.
 
-Authorization is enforced server-side. The web interface additionally hides functions that are not available to the current role, but UI visibility is never treated as a security boundary.
+Valtuuttaminen pakotetaan palvelimen puolella. Verkkoliittymä lisäksi piilottaa funktiot, jotka eivät ole saatavilla nykyiselle roolille, mutta käyttöliittymän näkyvyyttä ei koskaan käsitellä turvallisuusrajana.
 
 ---
 
 ## Hallinnollinen Todentaminen
 
-Administrative users authenticate through the LUMS web interface.
+Hallinnolliset käyttäjät todentavat LUMS-verkon liittymän kautta.
 
-Passwords are never stored in plaintext. LUMS uses Argon2-based password hashing for password storage.
+Salasanoja ei koskaan talleneta tavalliseksi tekstiksi. LUMS käyttää Argon2-pohjaista salasanojenjärjestystä salasanojen tallentamista varten.
 
-Administrative sessions use:
+Hallinnolliset istunnot käyttävät:
 
-* authenticated server-side session handling
-* session expiration
-* session regeneration
-* CSRF protection for state-changing browser requests
-* login rate limiting
-* session invalidation during logout
-* server-side role validation
+* todennettua palvelimen puoleista istunnon käsittelyä
+* istunnon vanhenemista
+* istunnon uudelleensyntymistä
+* CSRF-suojaa tilanmuutosten selaimpyynnöille
+* kirjautumisen nopeusrajoitusta
+* istunnon mitätöintia uloskirjautumisen aikana
+* palvelimen puoleista roolin validointia
 
-Authentication and authorization remain separate security controls.
+Todentaminen ja valtuuttaminen ovat edelleen erillisiä turvallisuusvalvontoja.
 
-A successfully authenticated user must still possess the required permission
-for protected operations.
+Onnistuneesti todennettua käyttäjää on silti oltava vaatima lupa
+suojatuille toiminnoille.
 
 ---
 
-# Roolipohjainen Pääsynvalvonta
-
-LUMS currently supports three web-user roles:
+LUMS tukee tällä hetkellä kolmea verkkokäyttäjäroolia:
 
 * `ylläpitäjä`
 * `operaattori`
 * `katselija`
 
-Role templates are stored in `users.role`; individual permissions are stored
-server-side in `user_permissions`.
+Roolin mallineet tallennetaan osioon `users.role`; yksittäiset käyttöoikeudet tallennetaan
+palvelimen puolella osioon `user_permissions`.
 
-The server loads the effective permissions for each authenticated account.
-Client-side permission information controls presentation only and never
-replaces server-side authorization.
+Palvelin lataa tehokkaat käyttöoikeudet jokaiselle todennettavalle tilille.
+Asiakkaan puoleinen käyttöoikeustieto ohjaa vain esitystä eikä koskaan
+korvaa palvelimen puolen valtuuttamista.
 
-## Administrator
+## Ylläpitäjä
 
-Administrators have full administrative and operational access.
+Ylläpitäjillä on täysi hallinto- ja operatiivinen pääsy.
 
-They can:
+He voivat:
 
-* view clients
-* create clients
-* disable clients
-* rotate client tokens
-* view installed packages and available updates
-* create update jobs
-* execute supported update operations
-* view update-job history
-* use package management
-* use system-maintenance functions
-* manage users
-* manage user roles
-* access administrative functions
+* näyttää asiakkaita
+* luoda asiakkaita
+* poistaa asiakkaita käytöstä
+* kiertää asiakkaan tunnuksia
+* tarkastella asennettuja paketteja ja saatavilla olevia päivityksiä
+* luoda päivitystyöjä
+* suorittaa tuettuja päivitystoimintoja
+* tarkastella päivitystyöhistoriaa
+* käyttää paketin hallintaa
+* käyttää järjestelmän ylläpitotoimintoja
+* hallita käyttäjiä
+* hallita käyttäjärooleja
+* käyttää hallinnollisia toimintoja
 
-## Operator
+## Operaattori
 
-Operators can perform operational update-management tasks.
+Operaattorit voivat suorittaa operatiivisia päivitystenhallintatöitä.
 
-They can:
+He voivat:
 
-* view clients
-* view installed packages and available updates
-* create update jobs
-* execute supported update operations
-* view update-job history
-* use package management
-* use system-maintenance functions
+* näyttää asiakkaita
+* tarkastella asennettuja paketteja ja saatavilla olevia päivityksiä
+* luoda päivitystyöjä
+* suorittaa tuettuja päivitystoimintoja
+* tarkastella päivitystyöhistoriaa
+* käyttää paketin hallintaa
+* käyttää järjestelmän ylläpitotoimintoja
 
-Operators cannot:
+Operaattorit eivät voi:
 
-* manage users
-* change user roles
-* create clients
-* disable clients
-* rotate client tokens
+* hallita käyttäjiä
+* muuttaa käyttäjärooleja
+* luoda asiakkaita
+* poistaa asiakkaita käytöstä
+* kiertää asiakkaan tunnuksia
 
-## Viewer
+## Katsoja
 
-Viewers have restricted read-only access.
+Katsoilla on rajoitettu vain luku -pääsy.
 
-They can:
+He voivat:
 
-* view clients
-* view installed software
+* näyttää asiakkaita
+* tarkastella asennettua ohjelmistoa
 
 The following management areas are hidden from Viewer accounts:
 
