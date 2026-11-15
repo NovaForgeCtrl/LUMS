@@ -587,7 +587,175 @@ Jeśli istnieje podejrzenie, że hasło zostało ujawnione, zastąp je przez odp
 
 ---
 
-## 16. Sesje
+## 16. Telemetria floty i pulpit zdrowia
+
+Opcjonalny system telemetrii monitoruje wykorzystanie CPU, wykorzystanie pamięci i ruch sieciowy z zarządzanych klientów.
+
+Pulpit `/health` zapewnia wgląd w czasie rzeczywistym i historycznym w wykorzystanie zasobów klienta.
+
+### Przegląd telemetrii
+
+Telemetria jest oddzielnym komponentem od Agenta i Watcher. To:
+
+* Gromadzi metryki CPU, pamięci i sieci co około 5 sekund
+* Zachowuje dane przez 7 dni
+* Wymaga uwierzytelnienia klienta przy użyciu tokenu klienta LUMS
+* Używa HTTPS dla połączeń zdalnych
+* Jest całkowicie opcjonalny i nie wpływa na zarządzanie pakietami
+
+### Dostęp do pulpitu
+
+Pulpit `/health` wymaga uprawnień `clients.view`.
+
+Pulpit wyświetla:
+
+* **Stan klienta:** Online (≤120s), Nieznany (120-600s) lub Offline (>600s)
+* **Przegląd floty:** Można filtrować według statusu, starej telemetrii lub wysokiego obciążenia
+* **Wykresy CPU/Pamięci:** Widoki liniowe, obszarowe lub bieżące wskaźniki wartości
+* **Monitorowanie sieci:** Bajty odebrane/wysłane na sekundę
+* **Dane historyczne:** Widoki 1-godzinne, 24-godzinne lub 7-dniowe
+* **Stan kopii zapasowej:** Ostatnio rozpoznana plik kopii zapasowej
+
+### Instalacja telemetrii na klientach
+
+Aby włączyć telemetrię na zarządzanym kliencie, postępuj zgodnie z instrukcjami konfiguracji telemetrii w [`install.md`](../../../install.md).
+
+Obejmuje to:
+
+1. Instalacja agenta telemetrii (`agent/telemetry.py`)
+2. Instalacja usługi systemd i czasomierza (`agent/lums-telemetry.service`, `agent/lums-telemetry.timer`)
+3. Konfiguracja zmiennych środowiskowych:
+   - `LUMS_BASE`: Adres URL serwera (np. `https://lums.example.com`)
+   - `LUMS_TOKEN`: Token uwierzytelniania klienta
+   - `LUMS_CA_FILE` (opcjonalnie): Ścieżka do certyfikatu urzędu certyfikacji dla niestandardowych urzędów certyfikacji
+
+4. Włączenie czasomierza: `sudo systemctl enable --now lums-telemetry.timer`
+
+### Migracja bazy danych
+
+Po uaktualnieniu serwera uruchom migrację bazy danych w celu dodania kolumn telemetrii:
+
+```bash
+python3 server/security_migration.py
+```
+
+Musi to być uruchomione przed przesłaniem danych sieciowych przez agentów.
+
+### Progi stanu
+
+Stan klienta jest określany przez ostatni zgłoszony znacznik czasu telemetrii:
+
+| Stan | Warunek |
+| --- | --- |
+| Online | Ostatni raport ≤ 120 sekund temu |
+| Nieznany | Ostatni raport 120-600 sekund temu, lub znacznik czasu brakuje/nieprawidłowy/przyszły |
+| Offline | Ostatni raport > 600 sekund temu |
+
+Odzwierciedlają one świeżość raportowania, a nie rzeczywistą kondycję systemu. Opóźnienia sieciowe lub zatrzymane agenty mogą spowodować zmiany stanu.
+
+### Przechowywanie danych
+
+Serwer usuwa próbki telemetrii starsze niż 7 dni podczas przetwarzania nowych przesyłów.
+
+Zapytania historyczne są ograniczone do 1-168 godzin i mogą zostać zmniejszone do maksymalnie 1000 próbek.
+
+Pulpit odświeża wyświetlane dane co 5 sekund.
+
+### Rozwiązywanie problemów z telemetrią
+
+**Nie pojawiają się żadne próbki:**
+- Sprawdź adres URL serwera w `LUMS_BASE`
+- Sprawdź token klienta w `LUMS_TOKEN`
+- Sprawdź, czy czasomierz systemd jest włączony: `sudo systemctl status lums-telemetry.timer`
+- Przejrzyj dzienniki agenta: `sudo journalctl -u lums-telemetry.service -n 50`
+
+**Błędy certyfikatu TLS:**
+- W przypadku certyfikatów z podpisem własnym lub niestandardowych urzędów certyfikacji podaj ścieżkę urzędu certyfikacji: `export LUMS_CA_FILE=/path/to/ca.crt`
+- Sprawdź, czy certyfikat jest ważny i nazwa hosta się zgadza
+
+**Wysoka pamięć lub raportowana CPU:**
+- Obliczenie pamięci: `(MemTotal - MemAvailable) / MemTotal * 100`
+- CPU jest próbkowany przez 0,2 sekundy i może wykazywać szpile podczas dużego obciążenia
+- Użyj widoku 24-godzinnego lub 7-dniowego, aby zidentyfikować trwałe problemy
+
+Aby uzyskać szczegółowe informacje o telemetrii, zobacz [`telemetry.md`](../../../telemetry.md).
+
+---
+
+## 17. System motywów
+
+LUMS zawiera opcjonalny system motywów po stronie klienta oferujący sześć motywów wizualnych, zachowując identyczną funkcjonalność zaplecza.
+
+### Dostępne motywy
+
+1. **standard** - Domyślny interfejs LUMS
+2. **LUMSStadium** - Alternatywny motyw korporacyjny
+3. **golf** - Uspokajający motyw estetyczny
+4. **nerd** - Motyw skoncentrowany na programistach
+5. **geek** - Motyw techniczny
+6. **admin** - Motyw specyficzny dla administratora
+
+### Ważne: Motywy są tylko prezentacją
+
+Motywy **NIE** zmieniają:
+
+* Uprawnień lub ról użytkownika
+* Zachowania uwierzytelniania
+* Decyzji autoryzacji
+* Ochrony CSRF
+* Uwierzytelniania klienta
+* Wykonania aktualizacji
+* Zarządzania pakietami
+* Obsługi stanu pracy
+* Rejestrowania audytu
+* Zachowania bazy danych
+* Granic bezpieczeństwa
+
+Motywy zmieniają tylko wygląd wizualny: kolory, typografię, tła, animacje i akcent wizualny.
+
+### Wybór motywu
+
+Wybór motywu jest dostępny w interfejsie webowym LUMS. Użytkownicy mogą:
+
+1. Kliknij selektor motywu w interfejsie
+2. Wybierz preferowany motyw
+3. Wybór jest automatycznie zapisywany w lokalnym magazynie przeglądarki (klucz `lums-theme`)
+4. Preferencja jest utrzymywana w sesjach logowania
+
+### Przechowywanie motywu
+
+Motywy są przechowywane w lokalnym magazynie przeglądarki, a nie na serwerze. Oznacza to:
+
+* Każde urządzenie ma własną preferencję motywu
+* Czyszczenie danych przeglądarki zresetuje wybór motywu
+* Urządzenia współdzielone mogą mieć różne preferencje motywu na użytkownika
+* Motywy nie synchronizują się między urządzeniami
+
+### Dostosowanie wizualne
+
+Każdy motyw może dostosować:
+
+* Schematy kolorów i akcenty
+* Typografię i czcionki
+* Style przycisków i formularzy
+* Wygląd nawigacji
+* Tła strony
+* Animacje i przejścia
+* Efekty wizualne
+* Odstępy i wagę układu
+
+### Uwagi administracyjne
+
+* Wybór motywu to preferencja użytkownika, nie kontrola administracyjna
+* Administratorzy nie mogą narzucić konkretnego motywu dla wszystkich użytkowników
+* Motywy są opcjonalne; LUMS działa identycznie niezależnie od wyboru motywu
+* Żaden motyw nie przyznaje dodatkowych uprawnień ani nie zmienia kontroli bezpieczeństwa
+
+Aby uzyskać szczegółowe informacje na temat systemu motywów i zasad projektowania, zobacz [`LUMS_Optional_Theme_System.md`](../../../LUMS_Optional_Theme_System.md).
+
+---
+
+## 18. Sesje
 
 LUMS używa uwierzytelnionych sesji aplikacji do dostępu webowego.
 
@@ -607,7 +775,7 @@ Szczegółowe informacje o rozwiązywaniu problemów z sesjami i uwierzytelniani
 
 ---
 
-## 17. Ograniczanie szybkości logowania
+## 19. Ograniczanie szybkości logowania
 
 LUMS stosuje ograniczanie szybkości dla powtarzających się nieudanych prób logowania.
 

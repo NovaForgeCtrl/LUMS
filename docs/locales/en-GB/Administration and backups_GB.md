@@ -558,28 +558,175 @@ Administrators should ensure that:
 LUMS stores password hashes rather than plaintext passwords.
 
 If a password is suspected to be compromised, replace it through the appropriate account-management procedure rather than attempting to recover the original password.
-## 16. Sessions
+## 16. Fleet Telemetry and Health Dashboard
 
-LUMS uses authenticated application sessions for web access.
+The optional telemetry system monitors CPU utilisation, memory utilisation, and network traffic from managed clients.
 
-Session handling is part of the application's security boundary.
+The `/health` dashboard provides real-time and historical visibility into client resource usage.
 
-Administrators should treat an unexpected authenticated session as a security event if the associated account should no longer have access.
+### Telemetry Overview
 
-Relevant situations include:
+Telemetry is separate from the Agent and Watcher components. It:
 
-* disabled account still appearing active
+* Collects CPU, memory and network metrics approximately every 5 seconds
+* Retains data for 7 days
+* Requires client authentication using the LUMS client token
+* Uses HTTPS for remote connections
+* Is completely optional and does not affect package management
 
-* unexpected administrative access
+### Dashboard Access
 
-* suspected credential compromise
+The `/health` dashboard requires the `clients.view` permission.
 
-* unexpected browser session
+The dashboard displays:
 
-* security investigation
+* **Client Status:** Online (≤120s), Unknown (120-600s), or Offline (>600s)
+* **Fleet Overview:** Filterable by status, stale telemetry or high load
+* **CPU/Memory Charts:** Line, area or current-value gauge views
+* **Network Monitoring:** Receive/transmit bytes per second
+* **Historical Data:** 1-hour, 24-hour or 7-day views
+* **Backup Status:** Latest recognised backup file
 
-For detailed session and authentication troubleshooting, see troubleshooting.md.
-## 17. Login Rate Limiting
+### Installing Telemetry on Clients
+
+To enable telemetry on a managed client, follow the telemetry setup instructions in [`install.md`](../../../install.md).
+
+This involves:
+
+1. Installing the telemetry agent (`agent/telemetry.py`)
+2. Installing the systemd service and timer (`agent/lums-telemetry.service`, `agent/lums-telemetry.timer`)
+3. Configuring environment variables:
+   - `LUMS_BASE`: Server URL (e.g. `https://lums.example.com`)
+   - `LUMS_TOKEN`: The client's authentication token
+   - `LUMS_CA_FILE` (optional): Path to CA certificate for custom certificate authorities
+
+4. Enabling the timer: `sudo systemctl enable --now lums-telemetry.timer`
+
+### Database Migration
+
+After upgrading the server, run the database migration to add telemetry columns:
+
+```bash
+python3 server/security_migration.py
+```
+
+This must be run before agents will submit network data.
+
+### Status Thresholds
+
+Client status is determined by the last reported telemetry timestamp:
+
+| Status | Condition |
+| --- | --- |
+| Online | Last report ≤ 120 seconds ago |
+| Unknown | Last report 120-600 seconds ago, or timestamp missing/invalid/future |
+| Offline | Last report > 600 seconds ago |
+
+These reflect reporting recency, not actual system health. Network delays or stopped agents can cause status changes.
+
+### Data Retention
+
+The server removes telemetry samples older than 7 days when processing new submissions.
+
+History queries are limited to 1-168 hours and may be downsampled to a maximum of 1,000 samples.
+
+The dashboard refreshes displayed data every 5 seconds.
+
+### Troubleshooting Telemetry
+
+**No samples appear:**
+- Verify the server URL in `LUMS_BASE`
+- Verify the client token in `LUMS_TOKEN`
+- Check that the systemd timer is enabled: `sudo systemctl status lums-telemetry.timer`
+- Review agent logs: `sudo journalctl -u lums-telemetry.service -n 50`
+
+**TLS certificate errors:**
+- For self-signed or private CA certificates, provide the CA path: `export LUMS_CA_FILE=/path/to/ca.crt`
+- Verify the certificate is valid and the hostname matches
+
+**High memory or CPU reported:**
+- Memory calculation: `(MemTotal - MemAvailable) / MemTotal * 100`
+- CPU is sampled over 0.2 seconds and may show spikes during heavy workload
+- Use the 24-hour or 7-day view to identify sustained issues
+
+For detailed telemetry information, see [`telemetry.md`](../../../telemetry.md).
+
+---
+
+## 17. Theme System
+
+LUMS includes an optional client-side theme system providing six visual themes whilst keeping all backend functionality identical.
+
+### Available Themes
+
+1. **standard** - Default LUMS interface
+2. **LUMSStadium** - Alternative corporate theme
+3. **golf** - Calming aesthetic theme
+4. **nerd** - Developer-focused theme
+5. **geek** - Technical theme
+6. **admin** - Administrator-specific theme
+
+### Important: Themes Are Presentation-Only
+
+Themes do **not** change:
+
+* User permissions or roles
+* Authentication behaviour
+* Authorisation decisions
+* CSRF protection
+* Client authentication
+* Update execution
+* Package management
+* Job state handling
+* Audit logging
+* Database behaviour
+* Security boundaries
+
+Themes change only visual appearance: colours, typography, backgrounds, animations and visual emphasis.
+
+### Selecting a Theme
+
+Theme selection is available from the LUMS web interface. Users can:
+
+1. Click the theme selector in the interface
+2. Choose their preferred theme
+3. The selection is automatically saved in browser local storage (`lums-theme` key)
+4. The preference persists across login sessions
+
+### Theme Storage
+
+Themes are stored in browser local storage, not on the server. This means:
+
+* Each device has its own theme preference
+* Clearing browser data will reset the theme selection
+* Shared devices may have different theme preferences per user
+* Themes do not sync across devices
+
+### Visual Customisation
+
+Each theme may customise:
+
+* Colour schemes and accents
+* Typography and fonts
+* Button and form styles
+* Navigation appearance
+* Page backgrounds
+* Animations and transitions
+* Visual effects
+* Spacing and layout emphasis
+
+### Administration Notes
+
+* Theme selection is a user preference, not an administrative control
+* Administrators cannot enforce a specific theme for all users
+* Themes are optional; LUMS functions identically regardless of theme selection
+* No theme grants additional permissions or changes security controls
+
+For detailed theme system information and design principles, see [`LUMS_Optional_Theme_System.md`](../../../LUMS_Optional_Theme_System.md).
+
+---
+
+## 18. Sessions
 
 LUMS applies rate limiting to repeated failed login attempts.
 

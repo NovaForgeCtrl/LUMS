@@ -702,6 +702,7 @@ If the basic server, Docker, Nginx, TLS, and Agent layers are working, continue 
 Client Authentication
 Token Rotation
 Update Detection
+Telemetry
 Execution Watcher
 Idle Detection
 Pending Jobs
@@ -709,7 +710,169 @@ Pending Jobs
 
 The next section continues with client authentication and token-related problems.
 
-# 12. Client Authentication
+# 11.5 Telemetry Problems
+
+Telemetry is an optional component separate from the main Agent and Watcher. If telemetry is not working but updates are functioning normally, investigate the telemetry components independently.
+
+## 11.5.1 Telemetry Timer and Service Not Running
+
+Check the telemetry timer:
+
+```bash
+sudo systemctl status \
+    lums-telemetry.timer \
+    --no-pager
+```
+
+Check the telemetry service:
+
+```bash
+sudo systemctl status \
+    lums-telemetry.service \
+    --no-pager
+```
+
+Enable the timer if it is not active:
+
+```bash
+sudo systemctl enable --now \
+    lums-telemetry.timer
+```
+
+A successful timer activation shows the service is scheduled to run approximately every 5 seconds.
+
+## 11.5.2 Telemetry Service Fails Repeatedly
+
+Check the recent logs:
+
+```bash
+sudo journalctl \
+    -u lums-telemetry.service \
+    -n 100 \
+    --no-pager
+```
+
+Look for:
+
+```text
+Configuration errors (LUMS_BASE, LUMS_TOKEN)
+TLS certificate verification failures
+Authentication failures (401, 403)
+Network connection failures
+Python exceptions
+Invalid metrics or payload errors
+```
+
+Verify the environment variables are set correctly:
+
+```bash
+sudo systemctl cat \
+    lums-telemetry.service | grep Environment
+```
+
+Expected output should show:
+
+```text
+Environment="LUMS_BASE=https://lums.example.com"
+Environment="LUMS_TOKEN=..."
+```
+
+## 11.5.3 No Telemetry Samples in Dashboard
+
+If the service is running but samples do not appear in the `/health` dashboard, verify:
+
+1. Client authentication is working with the configured token
+2. The `/api/telemetry` endpoint is accessible and accepting submissions
+3. The client has the `clients.view` permission to access the dashboard
+4. Samples exist in the database (they may have been older than 7 days)
+
+Check the server logs for telemetry submission errors:
+
+```bash
+sudo docker logs \
+    --tail 200 \
+    lums | grep -i telemetry
+```
+
+## 11.5.4 TLS Certificate Errors
+
+Remote servers require HTTPS. If the server uses a private certificate authority:
+
+1. Provide the CA certificate to the agent:
+
+```bash
+sudo install -m 0644 /path/to/ca.crt \
+    /opt/lums-telemetry-ca.crt
+```
+
+2. Update the telemetry service to reference it:
+
+Edit the service unit or environment file to set:
+
+```bash
+LUMS_CA_FILE=/opt/lums-telemetry-ca.crt
+```
+
+3. Restart the timer:
+
+```bash
+sudo systemctl restart lums-telemetry.timer
+```
+
+4. Check for success:
+
+```bash
+sudo journalctl \
+    -u lums-telemetry.service \
+    -n 50 \
+    --no-pager
+```
+
+## 11.5.5 Telemetry Data Not Persisting
+
+If samples are submitted but do not appear in history queries, check:
+
+1. The database migration ran successfully:
+
+```bash
+sudo docker exec lums python3 server/security_migration.py
+```
+
+2. The `telemetry_samples` table exists with network columns:
+
+```bash
+sudo docker exec lums python3 -c "
+import sqlite3
+conn = sqlite3.connect('/var/lib/lums/lums.db')
+cursor = conn.cursor()
+cursor.execute('PRAGMA table_info(telemetry_samples)')
+for row in cursor.fetchall():
+    print(row)
+"
+```
+
+3. The query time range is valid (1-168 hours)
+
+## 11.5.6 Dashboard Filters or Status Not Working
+
+Verify the `/api/telemetry/overview` endpoint is functioning:
+
+```bash
+curl -H "Authorization: Bearer YOUR_CLIENT_TOKEN" \
+    https://lums.example.com/api/telemetry/overview
+```
+
+Check server logs for API errors:
+
+```bash
+sudo docker logs \
+    --tail 100 \
+    lums
+```
+
+For detailed telemetry troubleshooting information, see [`telemetry.md`](telemetry.md).
+
+---
 
 LUMS uses client-specific authentication for Agent communication.
 

@@ -134,6 +134,7 @@ Administrators can:
 * rotate client tokens
 * inspect client status
 * monitor client reporting
+* view client telemetry (CPU, memory, network when telemetry is enabled)
 
 ---
 
@@ -146,6 +147,40 @@ The server stores the inventory and exposes it through the management interface.
 The installed-software view is intentionally separate from package-management search.
 
 This allows administrators and read-only users to inspect installed software without automatically exposing package-management operations.
+
+---
+
+### Fleet Telemetry and Health Dashboard
+
+The optional telemetry system monitors CPU utilization, memory utilization, and network traffic across the fleet.
+
+The `/health` dashboard provides:
+
+* Real-time client status (online, unknown, offline)
+* CPU and memory utilization charts (line, area, or current-value gauges)
+* Network traffic monitoring (receive/transmit bytes per second)
+* 1-hour, 24-hour, and 7-day historical views
+* Client filtering (by status, stale telemetry, high load)
+* Searchable client list with sortable columns
+* Automatic data refresh every 5 seconds
+* Latest backup status
+
+Telemetry data is retained for 7 days. Telemetry submission occurs approximately every 5 seconds when the agent's systemd timer is enabled and the client can reach the server.
+
+---
+
+### Theme System
+
+LUMS includes an optional theme system providing six visual themes:
+
+* **standard** - default LUMS interface
+* **LUMSStadium** - alternative corporate theme
+* **golf** - calming aesthetic
+* **nerd** - developer-focused theme
+* **geek** - technical theme
+* **admin** - administrator-specific theme
+
+Themes are visual presentation only and do not modify authentication, authorization, update execution, or security controls. Theme preference is stored in browser local storage and persists across sessions.
 
 ---
 

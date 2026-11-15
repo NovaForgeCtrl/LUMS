@@ -540,13 +540,175 @@ Wenn ein Passwort vermutlich kompromittiert ist, ersetzen Sie es über das entsp
 
 ---
 
-## 16. Sitzungen
+## 16. Fleet-Telemetrie und Gesundheits-Dashboard
 
-LUMS verwendet authentifizierte Anwendungssitzungen für den Webzugriff.
+Das optionale Telemetrie-System überwacht CPU-Auslastung, Speicherauslastung und Netzwerk-Traffic von verwalteten Clients.
 
-Die Sitzungsverwaltung ist Teil der Sicherheitsgrenze der Anwendung.
+Das Dashboard `/health` bietet Echtzeit- und historische Sichtbarkeit der Client-Ressourcennutzung.
 
-Administratoren sollten eine unerwartete authentifizierte Sitzung als Sicherheitsereignis behandeln, wenn das zugehörige Konto keinen Zugriff mehr haben sollte.
+### Telemetrie-Übersicht
+
+Telemetrie ist ein optionales, von Agent und Watcher separates System. Es:
+
+* Erfasst alle ~5 Sekunden CPU-, Speicher- und Netzwerkmetriken
+* Bewahrt Daten 7 Tage lang auf
+* Erfordert Client-Authentifizierung mit dem LUMS-Client-Token
+* Nutzt HTTPS für Remote-Verbindungen
+* Ist vollständig optional und beeinträchtigt die Paketverwaltung nicht
+
+### Dashboard-Zugang
+
+Das Dashboard `/health` erfordert die Berechtigung `clients.view`.
+
+Das Dashboard zeigt:
+
+* **Client-Status:** Online (≤120s), Unbekannt (120-600s) oder Offline (>600s)
+* **Fleet-Übersicht:** Nach Status, abgelaufener Telemetrie oder hoher Last filterbar
+* **CPU-/Speicherdiagramme:** Linie, Fläche oder aktuelle Messuhren-Ansicht
+* **Netzwerk-Überwachung:** Empfangene/gesendete Bytes pro Sekunde
+* **Historische Daten:** 1-Stunden-, 24-Stunden- oder 7-Tage-Ansichten
+* **Backup-Status:** Neueste erkannte Sicherungsdatei
+
+### Telemetrie auf Clients installieren
+
+Zur Aktivierung der Telemetrie auf einem verwalteten Client folgen Sie den Telemetrie-Einrichtungsanweisungen in [`install.md`](../../../install.md).
+
+Dies umfasst:
+
+1. Installation des Telemetrie-Agents (`agent/telemetry.py`)
+2. Installation von systemd-Service und Timer (`agent/lums-telemetry.service`, `agent/lums-telemetry.timer`)
+3. Konfiguration von Umgebungsvariablen:
+   - `LUMS_BASE`: Server-URL (z. B. `https://lums.example.com`)
+   - `LUMS_TOKEN`: Das Client-Authentifizierungs-Token
+   - `LUMS_CA_FILE` (optional): Pfad zum CA-Zertifikat für benutzerdefinierte Zertifizierungsstellen
+
+4. Aktivierung des Timers: `sudo systemctl enable --now lums-telemetry.timer`
+
+### Datenbank-Migration
+
+Nach einem Server-Upgrade die Datenbank-Migration ausführen, um Telemetrie-Spalten hinzuzufügen:
+
+```bash
+python3 server/security_migration.py
+```
+
+Dies muss vor der Übermittlung von Netzwerkdaten durch Agents ausgeführt werden.
+
+### Status-Schwellwerte
+
+Der Client-Status wird durch den letzten gemeldeten Telemetrie-Zeitstempel bestimmt:
+
+| Status | Bedingung |
+| --- | --- |
+| Online | Letzte Meldung ≤ 120 Sekunden |
+| Unbekannt | Letzte Meldung 120-600 Sekunden, oder Zeitstempel fehlt/ungültig/zukünftig |
+| Offline | Letzte Meldung > 600 Sekunden |
+
+Diese spiegeln die Meldungshäufigkeit wider, nicht die tatsächliche Systemgesundheit. Netzwerkausreißer oder gestoppte Agents können Statusänderungen verursachen.
+
+### Daten-Retention
+
+Der Server entfernt Telemetrie-Samples älter als 7 Tage beim Verarbeiten neuer Übermittlungen.
+
+Abfragen des Verlaufs sind auf 1-168 Stunden begrenzt und können auf maximal 1.000 Samples heruntergerechnet werden.
+
+Das Dashboard aktualisiert angezeigte Daten alle 5 Sekunden.
+
+### Telemetrie-Fehlerbehebung
+
+**Keine Samples erscheinen:**
+- Verifizieren Sie die Server-URL in `LUMS_BASE`
+- Verifizieren Sie das Client-Token in `LUMS_TOKEN`
+- Prüfen Sie, ob der systemd-Timer aktiviert ist: `sudo systemctl status lums-telemetry.timer`
+- Überprüfen Sie Agent-Logs: `sudo journalctl -u lums-telemetry.service -n 50`
+
+**TLS-Zertifikatsfehler:**
+- Für selbstsignierte oder benutzerdefinierte CA-Zertifikate den CA-Pfad angeben: `export LUMS_CA_FILE=/path/to/ca.crt`
+- Verifizieren Sie, dass das Zertifikat gültig und der Hostname korrekt ist
+
+**Hohe Speicher- oder CPU-Werte gemeldet:**
+- Speicherberechnung: `(MemTotal - MemAvailable) / MemTotal * 100`
+- CPU wird über 0,2 Sekunden abgerechnet und kann Spitzen unter hoher Auslastung zeigen
+- Verwenden Sie die 24-Stunden- oder 7-Tage-Ansicht, um anhaltende Probleme zu identifizieren
+
+Weitere Informationen zur Telemetrie finden Sie in [`telemetry.md`](../../../telemetry.md).
+
+---
+
+## 17. Thema-System
+
+LUMS bietet ein optionales Client-seitiges Thema-System, das sechs visuelle Themen bietet, während die Backend-Funktionalität identisch bleibt.
+
+### Verfügbare Themen
+
+1. **standard** - Standard-LUMS-Oberfläche
+2. **LUMSStadium** - Alternatives Unternehmensthema
+3. **golf** - Beruhigendes Designthema
+4. **nerd** - Entwickler-fokussiertes Thema
+5. **geek** - Technisches Thema
+6. **admin** - Administratorspezifisches Thema
+
+### Wichtig: Themen sind nur Präsentation
+
+Themen ändern **NICHT**:
+
+* Benutzerberechtigungen oder Rollen
+* Authentifizierungsverhalten
+* Autorisierungsentscheidungen
+* CSRF-Schutz
+* Client-Authentifizierung
+* Update-Ausführung
+* Paketverwaltung
+* Job-Statusbehandlung
+* Audit-Protokollierung
+* Datenbankverhalten
+* Sicherheitsgrenzen
+
+Themen ändern nur die visuelle Darstellung: Farben, Typographie, Hintergründe, Animationen und visuelle Gewichtung.
+
+### Ein Thema auswählen
+
+Die Themaauswahl ist über die LUMS-Weboberfläche verfügbar. Benutzer können:
+
+1. Den Thema-Wähler in der Oberfläche anklicken
+2. Ihr bevorzugtes Thema wählen
+3. Die Auswahl wird automatisch im Browser-Speicher gespeichert (`lums-theme`-Schlüssel)
+4. Die Einstellung bleibt über Login-Sitzungen hinweg erhalten
+
+### Thema-Speicherung
+
+Themen werden im Browser-Speicher gespeichert, nicht auf dem Server. Dies bedeutet:
+
+* Jedes Gerät hat eigene Themavoreinstellungen
+* Das Löschen von Browser-Daten setzt die Themaauswahl zurück
+* Gemeinsam genutzte Geräte können unterschiedliche Themavoreinstellungen pro Benutzer haben
+* Themen werden nicht zwischen Geräten synchronisiert
+
+### Visuelle Anpassung
+
+Jedes Thema kann anpassen:
+
+* Farbschemas und Akzente
+* Typographie und Schriftarten
+* Button- und Formularstile
+* Navigations-Darstellung
+* Seitenhintergründe
+* Animationen und Übergänge
+* Visuelle Effekte
+* Abstände und Layout-Gewichtung
+
+### Administrationsnotizen
+
+* Themaauswahl ist eine Benutzereinstellung, keine administrative Kontrolle
+* Administratoren können nicht ein bestimmtes Thema für alle Benutzer erzwingen
+* Themen sind optional; LUMS funktioniert unabhängig von der Themaauswahl identisch
+* Kein Thema gewährt zusätzliche Berechtigungen oder ändert Sicherheitskontrollen
+
+Weitere Informationen zum Thema-System und Designprinzipien finden Sie in [`LUMS_Optional_Theme_System.md`](../../../LUMS_Optional_Theme_System.md).
+
+---
+
+## 18. Sitzungen
 
 Relevante Situationen sind:
 

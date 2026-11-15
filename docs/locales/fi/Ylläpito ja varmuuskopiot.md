@@ -608,7 +608,178 @@ Ylläpitäjien on varmistettava, että:
 LUMS tallentaa salasanatiivisteitä selkokielisten salasanojen sijaan.
 
 Jos salasanan epäillään vaarantuneen, vaihda se asianmukaisen tilinhallintamenettelyn kautta sen sijaan, että yrittäisit palauttaa alkuperäisen salasanan.
-## 16. Istunnot
+
+---
+
+## 16. Laivaston telemetria ja terveydentilanhallintapaneeli
+
+Valinnainen telemetriajärjestelmä valvoo hallittujen asiakkaiden CPU-käyttöä, muistin käyttöä ja verkon liikennettä.
+
+Paneeli `/health` tarjoaa reaaliaikaista ja historiallista näkymää asiakkaiden resurssien käyttöön.
+
+### Telemetrian yleiskatsaus
+
+Telemetria on erillinen komponentti agentista ja tarkkaajasta. Se:
+
+* Kerää CPU-, muisti- ja verkkometriikkaa noin 5 sekunnin välein
+* Säilyttää tietoja 7 päivän ajan
+* Vaatii asiakaskehityksen käyttäen LUMS-asiakkaan tokenia
+* Käyttää HTTPS-yhteyksiä etäyhteyksille
+* On täysin valinnainen eikä vaikuta paketin hallintaan
+
+### Paneeliin pääsy
+
+Paneeli `/health` vaatii `clients.view`-oikeuden.
+
+Paneeli näyttää:
+
+* **Asiakkaan tila:** Verkossa (≤120s), Tuntematon (120-600s) tai Offline (>600s)
+* **Laivasto-yleiskatsaus:** Suodatettavissa tilan, vanhan telemetrian tai korkean kuormituksen perusteella
+* **CPU/muistikaaviot:** Viiva-, alue- tai nykyisen arvon mittarinesitykset
+* **Verkon valvonta:** Vastaanotetut/lähetetyt tavut sekunnissa
+* **Historialliset tiedot:** 1 tunti, 24 tuntia tai 7 päivää näkymiä
+* **Varmuuskopioinnin tila:** Viimeksi tunnistettu varmuuskopiointitiedosto
+
+### Telemetrian asentaminen asiakkaalle
+
+Voit ottaa telemetrian käyttöön hallitulla asiakkaalla noudattamalla telemetrian kokoonpanoohjeet [`install.md`](../../../install.md):ssa.
+
+Tämä sisältää:
+
+1. Telemetria-agentin asentaminen (`agent/telemetry.py`)
+2. Systemd-palvelun ja ajastimen asentaminen (`agent/lums-telemetry.service`, `agent/lums-telemetry.timer`)
+3. Ympäristömuuttujien konfigurointi:
+   - `LUMS_BASE`: Palvelimen URL (esim. `https://lums.example.com`)
+   - `LUMS_TOKEN`: Asiakkaan todennus-token
+   - `LUMS_CA_FILE` (valinnainen): Polku CA-sertifikaattiin mukautettuja sertifikaattiviranomaisia varten
+
+4. Ajastimen käyttöönotto: `sudo systemctl enable --now lums-telemetry.timer`
+
+### Tietokannan siirtyminen
+
+Palvelimen päivittämisen jälkeen suorita tietokannan siirto telemetriasteiden lisäämiseksi:
+
+```bash
+python3 server/security_migration.py
+```
+
+Tämä on suoritettava ennen kuin agentit lähettävät verkkotietoja.
+
+### Tilakynnykset
+
+Asiakkaan tila määritetään viimeksi ilmoitetun telemetrian aikaleimalla:
+
+| Tila | Ehto |
+| --- | --- |
+| Verkossa | Viimeisin raportti ≤ 120 sekuntia sitten |
+| Tuntematon | Viimeisin raportti 120-600 sekuntia sitten, tai aikaleima puuttuu/virheellinen/tulevaisuudessa |
+| Offline | Viimeisin raportti > 600 sekuntia sitten |
+
+Nämä kuvastavat raportoinnin tuoreutta, eivät todellista järjestelmän terveyttä. Verkon viiveet tai pysäytetyt agentit voivat aiheuttaa tilan muutoksia.
+
+### Tietojen säilyttäminen
+
+Palvelin poistaa yli 7 päivää vanhoja telemetrian näytteitä käsitellessään uusia lähetyksiä.
+
+Historian kyselyt rajoittuvat 1-168 tuntiin ja voidaan pienentää enintään 1 000 näytteeseen.
+
+Paneeli päivittää näytetyt tiedot 5 sekunnin välein.
+
+### Telemetrian vianmääritys
+
+**Näytteitä ei näy:**
+- Tarkista palvelimen URL `LUMS_BASE`:ssa
+- Tarkista asiakkaan token `LUMS_TOKEN`:issa
+- Tarkista, että systemd-ajastin on käytössä: `sudo systemctl status lums-telemetry.timer`
+- Tarkista agentin lokit: `sudo journalctl -u lums-telemetry.service -n 50`
+
+**TLS-varmenteiden virheet:**
+- Itsekirjoitetuille tai mukautetuille CA-varmenteille toimita CA-polku: `export LUMS_CA_FILE=/path/to/ca.crt`
+- Tarkista, että varmenne on voimassa ja isäntänimi vastaa
+
+**Korkea muisti tai CPU ilmoitettu:**
+- Muistin laskenta: `(MemTotal - MemAvailable) / MemTotal * 100`
+- CPU näytteistetään 0,2 sekunnin ajan ja voi näyttää huippuja raskaan kuormituksen aikana
+- Käytä 24 tunnin tai 7 päivän näkymää jatkuvien ongelmien tunnistamiseen
+
+Yksityiskohtaisesti telemetriasta on tietoa [`telemetry.md`](../../../telemetry.md):ssa.
+
+---
+
+## 17. Teemajärjestelmä
+
+LUMS sisältää valinnaisen asiakkaan puolen teemajärjestelmän, joka tarjoaa kuusi visuaalista teemaa säilyttäen identtisen taustajärjestelmän toiminnallisuuden.
+
+### Saatavilla olevat teemat
+
+1. **standard** - Oletus-LUMS-liittymä
+2. **LUMSStadium** - Vaihtoehtoinen yrityksen teema
+3. **golf** - Rauhoittava esteettinen teema
+4. **nerd** - Kehittäjäkeskittynyt teema
+5. **geek** - Tekninen teema
+6. **admin** - Järjestelmänvalvojan spesifi teema
+
+### Tärkeä: Teemat ovat vain esitys
+
+Teemat **EI MUUTA**:
+
+* Käyttäjän oikeuksia tai rooleja
+* Todennustoimintoa
+* Valtuutuspäätöksiä
+* CSRF-suojausta
+* Asiakkaan todennusta
+* Päivitysten toteutusta
+* Paketin hallintaa
+* Työn tilanhallinnan käsittelyä
+* Audit-lokien kirjoitusta
+* Tietokannan toimintaa
+* Suojausrajoja
+
+Teemat muuttavat vain visuaalista ulkoasua: värejä, typografiaa, taustoja, animaatioita ja visuaalista painotusta.
+
+### Teeman valitseminen
+
+Teeman valinta on saatavilla LUMS-verkkokäyttöliittymästä. Käyttäjät voivat:
+
+1. Napsauttaa teeman valitsinta käyttöliittymässä
+2. Valita haluamansa teeman
+3. Valinta tallennetaan automaattisesti selaimen paikalliseen tallennustilaan (avain `lums-theme`)
+4. Asetus säilyy kirjautumiskertojen yli
+
+### Teeman tallentaminen
+
+Teemat tallennetaan selaimen paikalliseen tallennustilaan, ei palvelimelle. Tämä tarkoittaa:
+
+* Jokaisella laitteella on oma teematurva
+* Selaimen tietojen tyhjentäminen nollaa teeman valinnan
+* Jaetuilla laitteilla voi olla erilaisia teematurvoja käyttäjää kohti
+* Teemat eivät synkronoidu laitteiden yli
+
+### Visuaalisen mukauttamisen
+
+Jokainen teema voi mukauttaa:
+
+* Väripaletteja ja korostuksia
+* Typografiaa ja fonteja
+* Painikkeiden ja lomakkeiden tyylejä
+* Navigoinnin ulkoasua
+* Sivujen taustoja
+* Animaatioita ja siirtymisiä
+* Visuaalisia tehosteita
+* Välilyöntejä ja asettelun painotusta
+
+### Hallinnon muistiinpanot
+
+* Teeman valinta on käyttäjän turva, ei hallinnollinen valvonta
+* Järjestelmänvalvojat eivät voi pakottaa tiettyä teemaa kaikille käyttäjille
+* Teemat ovat valinnaisia; LUMS toimii identtisesti riippumatta teeman valinnasta
+* Mikään teema ei myönnä lisäoikeuksia eikä muuta turvallisuusvalvontaa
+
+Yksityiskohtaisesti teemajärjestelmästä ja suunnitteluperiaatteista on tietoa [`LUMS_Optional_Theme_System.md`](../../../LUMS_Optional_Theme_System.md):ssa.
+
+---
+
+## 18. Istunnot
 
 LUMS käyttää todennettuja sovellusistuntoja verkkopääsyyn.
 
@@ -629,7 +800,10 @@ Asiaankuuluvia tilanteita ovat:
 * turvallisuustutkinta
 
 Yksityiskohtaiset istunto- ja todentamisvianmääritysohjeet ovat tiedostossa troubleshooting.md.
-## 17. Kirjautumisen nopeusrajoitus
+
+---
+
+## 19. Kirjautumisen nopeusrajoitus
 
 LUMS soveltaa nopeusrajoitusta toistuviin epäonnistuneisiin kirjautumisyrityksiin.
 

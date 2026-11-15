@@ -3145,7 +3145,262 @@ The client must not be assumed to be idle merely because no idle information was
 
 ---
 
-# 86. Create a Controlled Test Update Job
+# 86. Optional Telemetry System Installation
+
+Telemetry is an optional component that collects CPU, memory, and network metrics from managed clients.
+
+It is completely separate from the Agent and Watcher and is not required for update management.
+
+Telemetry uses the same client authentication (LUMS_TOKEN) as the Agent but submits to a different endpoint.
+
+If telemetry is not needed, proceed directly to section 87.
+
+---
+
+# 87. Install the Telemetry Agent
+
+The telemetry agent is included in the LUMS repository.
+
+From the repository:
+
+```bash
+cd /opt/lums-public
+```
+
+Install the telemetry agent:
+
+```bash
+sudo cp \
+    agent/telemetry.py \
+    /opt/lums-agent/telemetry.py
+```
+
+Verify:
+
+```bash
+ls -lh \
+    /opt/lums-agent/telemetry.py
+```
+
+Verify the Agent version:
+
+```bash
+grep -n \
+    'AGENT_VERSION' \
+    /opt/lums-agent/telemetry.py
+```
+
+The current telemetry agent version is:
+
+```text
+1.1.0
+```
+
+The telemetry agent requires only the Python 3 standard library.
+
+---
+
+# 88. Install Telemetry systemd Units
+
+Install the telemetry service:
+
+```bash
+sudo cp \
+    agent/lums-telemetry.service \
+    /etc/systemd/system/lums-telemetry.service
+```
+
+Install the telemetry timer:
+
+```bash
+sudo cp \
+    agent/lums-telemetry.timer \
+    /etc/systemd/system/lums-telemetry.timer
+```
+
+Reload systemd:
+
+```bash
+sudo systemctl daemon-reload
+```
+
+Verify the units:
+
+```bash
+systemctl cat \
+    lums-telemetry.service
+```
+
+```bash
+systemctl cat \
+    lums-telemetry.timer
+```
+
+---
+
+# 89. Telemetry Configuration
+
+The telemetry agent uses environment variables from the same `/etc/default/lums-agent` file.
+
+The required variables are:
+
+* `LUMS_BASE`: Server URL (already configured for the main Agent)
+* `LUMS_TOKEN`: Client token (already configured for the main Agent)
+
+Optional variable:
+
+* `LUMS_CA_FILE`: Path to CA certificate (only needed if using a private CA)
+
+The telemetry agent reuses the same client authentication as the main Agent.
+
+No additional credentials are required.
+
+Verify the configuration exists:
+
+```bash
+sudo test -r \
+    /etc/default/lums-agent \
+    && echo "configuration: OK"
+```
+
+For a private certificate authority, install and configure the CA certificate:
+
+```bash
+export LUMS_CA_FILE=/etc/lums/ca.crt
+sudo sh -c "echo 'LUMS_CA_FILE=$LUMS_CA_FILE' >> /etc/default/lums-agent"
+```
+
+Then copy the CA certificate:
+
+```bash
+sudo cp \
+    /path/to/ca.crt \
+    /etc/lums/ca.crt
+```
+
+Protect the file:
+
+```bash
+sudo chmod 644 \
+    /etc/lums/ca.crt
+```
+
+---
+
+# 90. Test the Telemetry Agent Manually
+
+Before enabling the timer, execute the telemetry agent once:
+
+```bash
+sudo systemctl start \
+    lums-telemetry.service
+```
+
+Check the result:
+
+```bash
+sudo systemctl status \
+    lums-telemetry.service \
+    --no-pager
+```
+
+Inspect the journal:
+
+```bash
+sudo journalctl \
+    -u lums-telemetry.service \
+    -n 50 \
+    --no-pager
+```
+
+Look for successful submission messages or any error details.
+
+A successful submission shows a `204 No Content` response.
+
+---
+
+# 91. Enable the Telemetry Timer
+
+Only after the manual telemetry run succeeds, enable the timer:
+
+```bash
+sudo systemctl enable --now \
+    lums-telemetry.timer
+```
+
+Verify:
+
+```bash
+sudo systemctl status \
+    lums-telemetry.timer \
+    --no-pager
+```
+
+Inspect the schedule:
+
+```bash
+systemctl list-timers \
+    lums-telemetry.timer \
+    --no-pager
+```
+
+The timer is configured to execute approximately every 5 seconds.
+
+---
+
+# 92. Verify Telemetry Submission
+
+After the timer is running, check for successful submissions:
+
+```bash
+sudo journalctl \
+    -u lums-telemetry.service \
+    -n 100 \
+    --no-pager
+```
+
+Then verify that samples appear in the LUMS `/health` dashboard:
+
+1. Log in to LUMS
+2. Navigate to `/health` or the Fleet Health Dashboard
+3. Find this client in the client list
+4. Verify that CPU, memory, and (if available) network data appears
+
+If samples do not appear, inspect:
+
+* Server logs: `sudo docker logs --tail 100 lums`
+* Telemetry service logs: `sudo journalctl -u lums-telemetry.service -n 200 --no-pager`
+* Network connectivity to server
+* Client authentication token
+* TLS certificate trust
+
+For detailed telemetry troubleshooting, see `troubleshooting.md` section 11.5.
+
+---
+
+# 93. Optional Telemetry Checkpoint
+
+If telemetry is installed, verify:
+
+```text
+[ ] Telemetry agent installed
+[ ] Telemetry service unit installed
+[ ] Telemetry timer unit installed
+[ ] Configuration variables exist
+[ ] Manual telemetry test succeeds
+[ ] Telemetry timer enabled
+[ ] Telemetry submissions appear in logs
+[ ] Samples visible in /health dashboard
+[ ] CPU data displayed correctly
+[ ] Memory data displayed correctly
+[ ] Network data displayed (if enabled)
+```
+
+If telemetry is not needed, proceed directly to section 94.
+
+---
+
+# 94. Create a Controlled Test Update Job
 
 Do not begin installation testing with a large system update.
 

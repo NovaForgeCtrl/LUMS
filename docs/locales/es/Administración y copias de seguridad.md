@@ -540,7 +540,175 @@ Si se sospecha que una contraseña ha sido comprometida, reemplácela a través 
 
 ---
 
-## 16. Sesiones
+## 16. Telemetría de flota y panel de salud
+
+El sistema de telemetría opcional supervisa la utilización de CPU, utilización de memoria y tráfico de red de clientes gestionados.
+
+El panel `/health` proporciona visibilidad en tiempo real e histórica del uso de recursos del cliente.
+
+### Descripción general de telemetría
+
+La telemetría es un componente separado del Agent y Watcher. Hace:
+
+* Recopila métricas de CPU, memoria y red aproximadamente cada 5 segundos
+* Retiene datos durante 7 días
+* Requiere autenticación de cliente utilizando el token de cliente LUMS
+* Utiliza HTTPS para conexiones remotas
+* Es completamente opcional y no afecta la gestión de paquetes
+
+### Acceso al panel
+
+El panel `/health` requiere el permiso `clients.view`.
+
+El panel muestra:
+
+* **Estado del cliente:** En línea (≤120s), Desconocido (120-600s) u Offline (>600s)
+* **Descripción general de la flota:** Filtrable por estado, telemetría vencida o carga alta
+* **Gráficos de CPU/Memoria:** Vistas de línea, área o medidores de valor actual
+* **Monitoreo de red:** Bytes recibidos/enviados por segundo
+* **Datos históricos:** Vistas de 1 hora, 24 horas o 7 días
+* **Estado de copia de seguridad:** Archivo de copia de seguridad más reciente reconocido
+
+### Instalación de telemetría en clientes
+
+Para habilitar la telemetría en un cliente gestionado, siga las instrucciones de configuración de telemetría en [`install.md`](../../../install.md).
+
+Esto implica:
+
+1. Instalación del agente de telemetría (`agent/telemetry.py`)
+2. Instalación del servicio systemd y timer (`agent/lums-telemetry.service`, `agent/lums-telemetry.timer`)
+3. Configuración de variables de entorno:
+   - `LUMS_BASE`: URL del servidor (p. ej. `https://lums.example.com`)
+   - `LUMS_TOKEN`: Token de autenticación del cliente
+   - `LUMS_CA_FILE` (opcional): Ruta al certificado CA para autoridades de certificación personalizadas
+
+4. Habilitación del timer: `sudo systemctl enable --now lums-telemetry.timer`
+
+### Migración de base de datos
+
+Después de actualizar el servidor, ejecute la migración de base de datos para agregar columnas de telemetría:
+
+```bash
+python3 server/security_migration.py
+```
+
+Esto debe ejecutarse antes de que los agentes envíen datos de red.
+
+### Umbrales de estado
+
+El estado del cliente se determina por la marca de tiempo de telemetría informada por última vez:
+
+| Estado | Condición |
+| --- | --- |
+| En línea | Último informe ≤ 120 segundos |
+| Desconocido | Último informe 120-600 segundos, o marca de tiempo faltante/inválida/futura |
+| Offline | Último informe > 600 segundos |
+
+Estos reflejan la frecuencia de informes, no la salud real del sistema. Los retrasos de red o los agentes detenidos pueden causar cambios de estado.
+
+### Retención de datos
+
+El servidor elimina muestras de telemetría anteriores a 7 días al procesar nuevos envíos.
+
+Las consultas de historial se limitan a 1-168 horas y pueden reducirse a un máximo de 1.000 muestras.
+
+El panel actualiza los datos mostrados cada 5 segundos.
+
+### Solución de problemas de telemetría
+
+**No aparecen muestras:**
+- Verifique la URL del servidor en `LUMS_BASE`
+- Verifique el token del cliente en `LUMS_TOKEN`
+- Compruebe que el timer systemd esté habilitado: `sudo systemctl status lums-telemetry.timer`
+- Revise los registros del agente: `sudo journalctl -u lums-telemetry.service -n 50`
+
+**Errores de certificado TLS:**
+- Para certificados autofirmados o CA personalizados, proporcione la ruta de CA: `export LUMS_CA_FILE=/path/to/ca.crt`
+- Verifique que el certificado es válido y el nombre de host coincide
+
+**Memoria o CPU alta informada:**
+- Cálculo de memoria: `(MemTotal - MemAvailable) / MemTotal * 100`
+- CPU se muestrea durante 0,2 segundos y puede mostrar picos bajo carga pesada
+- Utilice la vista de 24 horas o 7 días para identificar problemas sostenidos
+
+Para obtener información detallada sobre telemetría, consulte [`telemetry.md`](../../../telemetry.md).
+
+---
+
+## 17. Sistema de temas
+
+LUMS incluye un sistema de temas opcional del lado del cliente que proporciona seis temas visuales mientras mantiene idéntica toda la funcionalidad de back-end.
+
+### Temas disponibles
+
+1. **standard** - Interfaz LUMS predeterminada
+2. **LUMSStadium** - Tema corporativo alternativo
+3. **golf** - Tema de diseño tranquilizador
+4. **nerd** - Tema centrado en desarrolladores
+5. **geek** - Tema técnico
+6. **admin** - Tema específico de administrador
+
+### Importante: Los temas son solo presentación
+
+Los temas **NO** cambian:
+
+* Permisos o roles de usuario
+* Comportamiento de autenticación
+* Decisiones de autorización
+* Protección CSRF
+* Autenticación de cliente
+* Ejecución de actualizaciones
+* Gestión de paquetes
+* Manejo del estado de trabajo
+* Registro de auditoría
+* Comportamiento de la base de datos
+* Límites de seguridad
+
+Los temas cambian solo la apariencia visual: colores, tipografía, fondos, animaciones y énfasis visual.
+
+### Selección de tema
+
+La selección de tema está disponible desde la interfaz web de LUMS. Los usuarios pueden:
+
+1. Hacer clic en el selector de tema en la interfaz
+2. Elegir su tema preferido
+3. La selección se guarda automáticamente en el almacenamiento local del navegador (clave `lums-theme`)
+4. La preferencia persiste entre sesiones de inicio de sesión
+
+### Almacenamiento de tema
+
+Los temas se almacenan en el almacenamiento local del navegador, no en el servidor. Esto significa:
+
+* Cada dispositivo tiene su propia preferencia de tema
+* Borrar datos del navegador restablecerá la selección de tema
+* Los dispositivos compartidos pueden tener diferentes preferencias de tema por usuario
+* Los temas no se sincronizan entre dispositivos
+
+### Personalización visual
+
+Cada tema puede personalizar:
+
+* Esquemas de color y acentos
+* Tipografía y fuentes
+* Estilos de botones y formularios
+* Apariencia de navegación
+* Fondos de página
+* Animaciones y transiciones
+* Efectos visuales
+* Espaciado y énfasis de diseño
+
+### Notas de administración
+
+* La selección de tema es una preferencia de usuario, no un control administrativo
+* Los administradores no pueden imponer un tema específico para todos los usuarios
+* Los temas son opcionales; LUMS funciona de forma idéntica independientemente de la selección de tema
+* Ningún tema otorga permisos adicionales ni cambia controles de seguridad
+
+Para obtener información detallada del sistema de temas y principios de diseño, consulte [`LUMS_Optional_Theme_System.md`](../../../LUMS_Optional_Theme_System.md).
+
+---
+
+## 18. Sesiones
 
 LUMS utiliza sesiones de aplicación autenticadas para el acceso web.
 
@@ -560,7 +728,7 @@ Para la solución de problemas detallada de sesiones y autenticación, consulte 
 
 ---
 
-## 17. Limitación de la tasa de inicio de sesión
+## 19. Limitación de la tasa de inicio de sesión
 
 LUMS aplica limitación de la tasa a los intentos de inicio de sesión fallidos repetidos.
 

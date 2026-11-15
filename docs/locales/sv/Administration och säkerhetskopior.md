@@ -606,7 +606,178 @@ Administratörer bör säkerställa att:
 LUMS lagrar lösenordshashar istället för klartextlösenord.
 
 Om ett lösenord misstänks vara komprometterat, ersätt det genom lämplig kontohanteringsprocedur istället för att försöka återställa det ursprungliga lösenordet.
-## 16. Sessioner
+
+---
+
+## 16. Flottelemetri och hälsokontrollpanel
+
+Det valfria telemetrisystemet övervakar CPU-användning, minnesanvändning och nätverkstrafik från hanterade klienter.
+
+Instrumentpanelen `/health` ger realtids- och historisk insyn i klientresursanvändning.
+
+### Telemetriin översikt
+
+Telemetri är en separat komponent från Agent och Watcher. Den:
+
+* Samlar in CPU-, minnes- och nätverksdata ungefär var 5:e sekund
+* Behåller data i 7 dagar
+* Kräver klientautentisering med hjälp av LUMS-klienttoken
+* Använder HTTPS för fjärranslutningar
+* Är helt valfri och påverkar inte pakethantering
+
+### Åtkomst till instrumentpanelen
+
+Instrumentpanelen `/health` kräver `clients.view`-behörighet.
+
+Instrumentpanelen visar:
+
+* **Klientstatus:** Online (≤120s), Okänd (120-600s) eller Offline (>600s)
+* **Flottöversikt:** Kan filtreras efter status, gammal telemetri eller höga laster
+* **CPU-/minnesdiagram:** Linje-, yt- eller aktuella värdesmätningsvisningar
+* **Nätverksövervakning:** Mottagna/skickade byte per sekund
+* **Historiska data:** 1-timmes, 24-timmars eller 7-dagars vyer
+* **Säkerhetskopieringsstatus:** Senast igenkänd säkerhetskopieringsfil
+
+### Installation av telemetri på klienter
+
+För att aktivera telemetri på en hanterad klient, följ telemetrikonfigurationsinstruktionerna i [`install.md`](../../../install.md).
+
+Det här omfattar:
+
+1. Installation av telemetriagent (`agent/telemetry.py`)
+2. Installation av systemd-tjänst och timer (`agent/lums-telemetry.service`, `agent/lums-telemetry.timer`)
+3. Konfigurering av miljövariabler:
+   - `LUMS_BASE`: Server-URL (t.ex. `https://lums.example.com`)
+   - `LUMS_TOKEN`: Klientens autentiseringstoken
+   - `LUMS_CA_FILE` (valfritt): Sökväg till CA-certifikat för anpassade certifikatmyndigheter
+
+4. Aktivera timer: `sudo systemctl enable --now lums-telemetry.timer`
+
+### Databasmigrering
+
+Efter serveruppgradering kör du databasmigreringen för att lägga till telemetriekolumner:
+
+```bash
+python3 server/security_migration.py
+```
+
+Det här måste köras innan agenter skickar nätverksdata.
+
+### Statusgränser
+
+Klientstatus bestäms av senast rapporterad telemetritidsstämpel:
+
+| Status | Villkor |
+| --- | --- |
+| Online | Senaste rapport ≤ 120 sekunder sedan |
+| Okänd | Senaste rapport 120-600 sekunder sedan, eller tidsstämpel saknas/ogiltig/framtida |
+| Offline | Senaste rapport > 600 sekunder sedan |
+
+Dessa återspeglar rapportfriskhet, inte faktisk systemhälsa. Nätverksfördröjningar eller stoppade agenter kan orsaka statusförändringar.
+
+### Datalagrering
+
+Servern tar bort telemetrisampler äldre än 7 dagar när nya bidrag bearbetas.
+
+Historikfrågor är begränsade till 1-168 timmar och kan reduceras till högst 1 000 sampler.
+
+Instrumentpanelen uppdaterar visade data var 5:e sekund.
+
+### Felsökning av telemetri
+
+**Inga sampler visas:**
+- Kontrollera server-URL i `LUMS_BASE`
+- Kontrollera klienttoken i `LUMS_TOKEN`
+- Kontrollera att systemd-timern är aktiverad: `sudo systemctl status lums-telemetry.timer`
+- Granska agentloggar: `sudo journalctl -u lums-telemetry.service -n 50`
+
+**TLS-certifikatfel:**
+- För självsignerade eller anpassade CA-certifikat, ange CA-sökvägen: `export LUMS_CA_FILE=/path/to/ca.crt`
+- Kontrollera att certifikatet är giltigt och värdnamnet matchar
+
+**Högt minne eller CPU rapporterat:**
+- Minnesberäkning: `(MemTotal - MemAvailable) / MemTotal * 100`
+- CPU samplas över 0,2 sekunder och kan visa toppar under tung belastning
+- Använd 24-timmars eller 7-dagars vyn för att identifiera ihållande problem
+
+För detaljerad telemetriinformation, se [`telemetry.md`](../../../telemetry.md).
+
+---
+
+## 17. Temasystem
+
+LUMS inkluderar ett valfritt temasystem på klientsidan som ger sex visuella teman samtidigt som backend-funktionen förblir identisk.
+
+### Tillgängliga teman
+
+1. **standard** - Standard LUMS-gränssnitt
+2. **LUMSStadium** - Alternativt företagstema
+3. **golf** - Lugn estetisk tema
+4. **nerd** - Utvecklarfokuserat tema
+5. **geek** - Tekniskt tema
+6. **admin** - Administratörsspecifikt tema
+
+### Viktigt: Teman är bara presentation
+
+Teman **ändrar INTE**:
+
+* Användarbehörigheter eller roller
+* Autentiseringsbeteende
+* Auktoriseringsbeslut
+* CSRF-skydd
+* Klientautentisering
+* Uppdateringskörning
+* Pakethantering
+* Jobbstatushantering
+* Granskningsloggning
+* Databasbeteende
+* Säkerhetsgränser
+
+Teman ändrar bara visuell utseende: färger, typografi, bakgrunder, animationer och visuell betoning.
+
+### Temavalet
+
+Temavalet är tillgängligt från LUMS-webbgränssnittet. Användare kan:
+
+1. Klicka på temaväljar i gränssnittet
+2. Välj önskat tema
+3. Valet sparas automatiskt i webbläsarens lokala lagring (nyckel `lums-theme`)
+4. Inställningen kvarstår mellan inloggningssessioner
+
+### Temalagring
+
+Teman lagras i webbläsarens lokala lagring, inte på servern. Det betyder:
+
+* Varje enhet har egna temainställningar
+* Rensning av webbläsardata återställer temavalet
+* Delade enheter kan ha olika temainställningar per användare
+* Teman synkroniseras inte mellan enheter
+
+### Visuell anpassning
+
+Varje tema kan anpassa:
+
+* Färgscheman och accenter
+* Typografi och teckensnitt
+* Knapp- och formulärstilar
+* Navigationens utseende
+* Sidbakgrunder
+* Animationer och övergångar
+* Visuella effekter
+* Mellanrum och layoutvikt
+
+### Administrativa anteckningar
+
+* Temavalet är en användarinställning, inte en administrativ kontroll
+* Administratörer kan inte tvinga ett specifikt tema för alla användare
+* Teman är valfria; LUMS fungerar identiskt oavsett temavalet
+* Inget tema ger ytterligare behörigheter eller ändrar säkerhetskontroller
+
+För detaljerad information om temasystem och designprinciper, se [`LUMS_Optional_Theme_System.md`](../../../LUMS_Optional_Theme_System.md).
+
+---
+
+## 18. Sessioner
 
 LUMS använder autentiserade applikationssessioner för webbåtkomst.
 
@@ -627,7 +798,10 @@ Relevanta situationer inkluderar:
 * säkerhetsutredning
 
 För detaljerad felsökning av sessioner och autentisering, se troubleshooting.md.
-## 17. Inloggningshastighetsbegränsning
+
+---
+
+## 19. Inloggningshastighetsbegränsning
 
 LUMS tillämpar hastighetsbegränsning för upprepade misslyckade inloggningsförsök.
 
