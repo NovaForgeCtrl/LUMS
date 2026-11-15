@@ -1,29 +1,21 @@
 # LUMS Fehlerbehebung
 
-Dieses Handbuch bietet Fehlerbehebungsverfahren für den LUMS-Server, Linux-Agenten, Execution Watcher, Update-Jobs, Authentifizierung, Paketverwaltung, Datenbank und Docker-Bereitstellung.
+This guide provides troubleshooting procedures for the LUMS server, Linux agents, execution watcher, update jobs, authentication, package management, database, and Docker deployment.
 
-Der Fehlerbehebungsprozess sollte immer mit **Beobachtung vor Änderung** beginnen.
+The troubleshooting process should always begin with **observation before modification**.
 
-## Datenbank-Bereitstellungsbereich
-
-LUMS verfügt derzeit über zwei separate Datenbankbereitstellungen:
-
-- Die bestehende produktive Installation nutzt SQLite.
-- Der PostgreSQL-Nachfolger ist ein isolierter Kandidat, der sich in Validierung befindet.
-
-SQLite-spezifische Befehle in diesem Handbuch darf nicht gegen den PostgreSQL-Kandidaten verwendet werden. Identifizieren Sie immer die Datenbank-Engine, das Compose-Projekt, den Container und den persistenten Speicher, bevor Sie Fehlerbehebung oder Wiederherstellung durchführen.
-
-Der PostgreSQL-Kandidat ist noch kein vollständiger Produktionsersatz. Seine SOC-Collector-Runtime, mTLS-Integration und integrierte Backup- und Wiederherstellungsverwaltung sind noch ausstehend.
-
-Das Ziel ist es, die erste Komponente zu identifizieren, bei der das erwartete Verhalten aufhört, ohne unnötig Konfiguration, Datenbankzustand, Anmeldeinformationen oder Sicherheitskontrollen zu verändern.
+The objective is to identify the first component where the expected behavior stops without unnecessarily changing configuration, database state, credentials, or security controls.
 
 ---
 
-## Erste Schritte: Sicher Fehler beheben
+## Erste Schritte: Sichere Fehlerbehebung
 
-Wenn Sie neu in Linux sind: Ein Fehler bedeutet nicht automatisch, dass Daten verloren gegangen sind. Ändern Sie nicht mehrere Dinge gleichzeitig. Beginnen Sie mit den unten stehenden Prüfungen und notieren Sie **wann** das Problem auftritt und **welche Aktion** unmittelbar davor stattgefunden hat.
+If you are new to Linux, an error does not automatically mean that data has
+been lost. Do not change several things at once. Start with the checks below
+and note **when** the problem occurs and **what action** happened immediately
+before it.
 
-### Erste Prüfungen auf dem LUMS-Server
+### Erste Überprüfungen auf dem LUMS-Server
 
 ```bash
 sudo docker ps -a --filter name=lums
@@ -32,9 +24,12 @@ sudo systemctl status nginx --no-pager
 sudo nginx -t
 ```
 
-`docker ps -a` zeigt auch gestoppte Container. `docker logs` liest aktuelle Anwendungsmeldungen. `systemctl status` zeigt, ob Nginx läuft; `nginx -t` prüft seine Konfiguration, ohne sie zu ändern. Wenn `nginx -t` fehlschlägt, laden Sie Nginx **nicht** neu, bis die Ursache behoben wurde.
+`docker ps -a` also shows stopped containers. `docker logs` reads recent
+application messages. `systemctl status` shows whether Nginx is running;
+`nginx -t` checks its configuration without changing it. If `nginx -t` fails,
+do **not** reload Nginx until the cause has been corrected.
 
-### Erste Prüfungen auf einem verwalteten Client
+### Erste Überprüfungen auf einem verwalteten Client
 
 ```bash
 sudo systemctl status lums-agent.service --no-pager
@@ -43,23 +38,33 @@ sudo systemctl status lums-agent-watcher.service --no-pager
 sudo journalctl -u lums-agent-watcher.service -n 100 --no-pager
 ```
 
-Agent und Watcher sind separate Dienste: ein erfolgreicher Agent-Bericht beweist nicht, dass der Watcher Update-Jobs ausführen kann. Bei einem `oneshot`-Dienst kann `inactive` nach einem erfolgreichen Lauf normal sein; prüfen Sie auch das Ergebnis und die Log-Meldungen.
+The Agent and Watcher are separate services: a successful Agent report does
+not prove that the Watcher can run update jobs. For a `oneshot` service,
+`inactive` can be normal after a successful run; check the result and log
+messages as well.
 
-### Bevor Sie Befehlsausgaben teilen
+### Vor dem Teilen der Befehlsausgabe
 
-Prüfen Sie Logs und Konfiguration auf Passwörter, Client-Tokens, Session- oder API-Schlüssel, private Schlüssel und persönliche Informationen. Teilen Sie niemals Secret-Dateiinhalte oder vollständige Umgebungsvariablenwerte. Wenn Sie Hilfe benötigen, teilen Sie nur die relevanten Fehlermeldungen nach Entfernung sensibler Informationen.
+Check logs and configuration for passwords, client tokens, session or API
+keys, private keys, and personal information. Never share secret-file contents
+or complete environment-variable values. If you need help, share only the
+relevant error messages after removing sensitive information.
 
-**Beginnen Sie nicht mit** dem Löschen der Datenbank oder des Docker-Volumes, dem Ausführen des Containers als privilegiert, dem Deaktivieren von Sicherheitsoptionen, dem Entfernen von Paketmanager-Lockdateien oder dem Rotieren von Tokens. Diese Aktionen können Daten beschädigen, Beweise löschen oder das Problem verschlimmern. Wenn eine Prüfung fehlschlägt, speichern Sie ihre Ausgabe und fahren Sie mit dem relevanten Abschnitt unten fort.
+**Do not start by** deleting the database or Docker volume, running the
+container as privileged, disabling security options, removing package-manager
+lock files, or rotating tokens. These actions can damage data, erase evidence,
+or make the problem worse. If a check fails, save its output and continue to
+the relevant section below.
 
 ---
 
 # 1. Fehlerbehebungsphilosophie
 
-LUMS besteht aus mehreren unabhängigen Komponenten.
+LUMS consists of several independent components.
 
-Ein erfolgreicher Client-Bericht bedeutet nicht automatisch, dass die Update-Ausführung funktioniert.
+A successful client report does not automatically mean that update execution is working.
 
-Der wichtigste operative Pfad ist:
+The main operational path is:
 
 ```text
 Linux Client
@@ -81,7 +86,7 @@ Linux Client
          SQLite
 ```
 
-Die Update-Ausführung fügt die Paketverwaltungsschicht hinzu:
+Update execution adds the package-management layer:
 
 ```text
 Browser
@@ -114,9 +119,9 @@ LUMS API
 SQLite
 ```
 
-Identifizieren Sie bei der Fehlerbehebung die **erste fehlschlagende Komponente**.
+When troubleshooting, identify the **first failing component**.
 
-Zum Beispiel:
+For example:
 
 ```text
 Agent report fails
@@ -132,25 +137,25 @@ Check client token
 Check LUMS API
 ```
 
-Führen Sie nicht sofort Folgendes aus:
+Do not immediately:
 
-* die Datenbank ändern
-* das Docker-Volume löschen
-* den Agent neu installieren
-* Anmeldeinformationen rotieren
-* Paketmanager-Lockdateien entfernen
-* Sicherheitskontrollen deaktivieren
-* den Container privilegiert machen
+* modify the database
+* delete the Docker volume
+* reinstall the Agent
+* rotate credentials
+* remove package-manager lock files
+* disable security controls
+* make the container privileged
 
-Diese Aktionen können nützliche Diagnoseinformationen zerstören oder zusätzliche Probleme schaffen.
+These actions can destroy useful diagnostic information or create additional problems.
 
 ---
 
-# 2. Diagnosebasis
+# 2. Diagnostische Grundlage
 
-Bevor Sie ein bestimmtes Problem untersuchen, stellen Sie den aktuellen Zustand der Hauptkomponenten fest.
+Before investigating a specific problem, establish the current state of the main components.
 
-Die LUMS-Produktionsbereitstellung verwendet:
+The production LUMS deployment uses:
 
 ```text
 Application port: 127.0.0.1:5050
@@ -161,7 +166,7 @@ Agent: 1.7.0
 Watcher: 1.2.1
 ```
 
-Der Produktionscontainer ist gehärtet mit:
+The production container is hardened with:
 
 ```text
 Read-only root filesystem
@@ -172,9 +177,9 @@ Protected secret mount
 Dedicated persistent data volume
 ```
 
-Der Anwendungsport ist absichtlich nur an den lokalen Host gebunden.
+The application port is intentionally bound only to the local host.
 
-Der erwartete Netzwerkpfad ist:
+The expected network path is:
 
 ```text
 Client / Browser
@@ -197,34 +202,34 @@ Client / Browser
 
 ---
 
-# 3. Erste Diagnoseprüfungen
+# 3. Erste diagnostische Überprüfungen
 
-## 3.1 Den LUMS-Container prüfen
+## 3.1 Überprüfen Sie den LUMS-Container
 
-Auf dem LUMS-Server:
+On the LUMS server:
 
 ```bash
 sudo docker ps
 ```
 
-Der Container `lums` sollte laufen.
+The `lums` container should be running.
 
-Für eine vollständige Containerübersicht:
+For a complete container overview:
 
 ```bash
 sudo docker ps -a \
     --filter name=lums
 ```
 
-Entfernen Sie gestoppte Container nicht, bevor Sie sie untersucht haben.
+Do not remove stopped containers before investigating them.
 
-Ältere Fallback-Container können bei der Untersuchung eines Bereitstellungsproblems nützliche Informationen enthalten.
+Older fallback containers may contain useful information when investigating a deployment problem.
 
 ---
 
-## 3.2 Die aktuellen Anwendungslogs prüfen
+## 3.2 Überprüfen Sie die aktuellen Anwendungsprotokolle
 
-Inspizieren Sie die neuesten LUMS-Logs:
+Inspect the most recent LUMS logs:
 
 ```bash
 sudo docker logs \
@@ -232,7 +237,7 @@ sudo docker logs \
     lums
 ```
 
-Für Live-Ausgabe:
+For live output:
 
 ```bash
 sudo docker logs \
@@ -240,41 +245,41 @@ sudo docker logs \
     lums
 ```
 
-Wenn Sie eine bestimmte Anfrage oder einen Job untersuchen, starten Sie die Log-Inspektion nach Möglichkeit, bevor Sie das Problem reproduzieren.
+When investigating a specific request or job, start the log inspection before reproducing the problem where possible.
 
-Dies erleichtert die Korrelation der Client-Aktion mit dem entsprechenden serverseitigen Ereignis.
+This makes it easier to correlate the client action with the corresponding server-side event.
 
 ---
 
-## 3.3 Nginx prüfen
+## 3.3 Überprüfen Sie Nginx
 
-Prüfen Sie den Reverse-Proxy:
+Check the reverse proxy:
 
 ```bash
 sudo systemctl status nginx \
     --no-pager
 ```
 
-Validieren Sie die Konfiguration:
+Validate the configuration:
 
 ```bash
 sudo nginx -t
 ```
 
-Ein erfolgreicher Konfigurationstest sollte melden:
+A successful configuration test should report:
 
 ```text
 syntax is ok
 test is successful
 ```
 
-Wenn Nginx nicht läuft, schlägt der HTTPS-Zugriff auf LUMS normalerweise fehl, selbst wenn der Docker-Container selbst gesund ist.
+If Nginx is not running, HTTPS access to LUMS will normally fail even when the Docker container itself is healthy.
 
 ---
 
-## 3.4 Den Agent prüfen
+## 3.4 Überprüfen Sie den Agent
 
-Auf einem verwalteten Linux-Client:
+On a managed Linux client:
 
 ```bash
 sudo systemctl status \
@@ -282,7 +287,7 @@ sudo systemctl status \
     --no-pager
 ```
 
-Inspizieren Sie die aktuelle Agent-Ausgabe:
+Inspect recent Agent output:
 
 ```bash
 sudo journalctl \
@@ -291,11 +296,11 @@ sudo journalctl \
     --no-pager
 ```
 
-Für einen Dienst mit `Type=oneshot` kann ein inaktiver Zustand nach einer erfolgreichen Ausführung normal sein.
+For a `Type=oneshot` service, an inactive state after a successful execution can be normal.
 
-Die wichtige Information ist das Ausführungsergebnis.
+The important information is the execution result.
 
-Eine erfolgreiche Ausführung sollte enden mit:
+A successful execution should end with:
 
 ```text
 status=0/SUCCESS
@@ -303,11 +308,11 @@ status=0/SUCCESS
 
 ---
 
-## 3.5 Den Execution Watcher prüfen
+## 3.5 Überprüfen Sie den Ausführungs-Watcher
 
-Der Watcher ist eine vom Berichterstattungs-Agent getrennte Komponente.
+The watcher is a separate component from the reporting Agent.
 
-Prüfen Sie ihn unabhängig:
+Check it independently:
 
 ```bash
 sudo systemctl status \
@@ -315,7 +320,7 @@ sudo systemctl status \
     --no-pager
 ```
 
-Inspizieren Sie die aktuelle Ausgabe:
+Inspect recent output:
 
 ```bash
 sudo journalctl \
@@ -324,43 +329,43 @@ sudo journalctl \
     --no-pager
 ```
 
-Ein erfolgreicher Agent-Bericht beweist daher **nicht**, dass der Execution Watcher korrekt funktioniert.
+A successful Agent report therefore does **not** prove that the execution watcher is functioning correctly.
 
 ---
 
-## 3.6 LUMS-Timer prüfen
+## 3.6 Überprüfen Sie LUMS-Timer
 
-Prüfen Sie alle relevanten Timer:
+Check all relevant timers:
 
 ```bash
 sudo systemctl list-timers \
     --all | grep lums
 ```
 
-Die erwarteten Timer umfassen die Planungsmechanismen für Agent und Watcher.
+The expected timers include the Agent and watcher scheduling mechanisms.
 
-Wenn ein Timer fehlt oder inaktiv ist, inspizieren Sie die entsprechende Unit, bevor Sie etwas ändern.
+If a timer is missing or inactive, inspect the corresponding unit before changing anything.
 
 ---
 
 # 4. LUMS-Container läuft nicht
 
-Wenn der Container `lums` nicht läuft, erstellen Sie ihn nicht sofort neu.
+If the `lums` container is not running, do not immediately recreate it.
 
-Inspizieren Sie zuerst seinen Zustand:
+First inspect its state:
 
 ```bash
 sudo docker ps -a \
     --filter name=lums
 ```
 
-Inspizieren Sie dann den Container:
+Then inspect the container:
 
 ```bash
 sudo docker inspect lums
 ```
 
-Prüfen Sie die aktuellen Logs:
+Check the recent logs:
 
 ```bash
 sudo docker logs \
@@ -368,7 +373,7 @@ sudo docker logs \
     lums
 ```
 
-Prüfen Sie den Exit-Zustand:
+Check the exit state:
 
 ```bash
 sudo docker inspect \
@@ -376,7 +381,7 @@ sudo docker inspect \
     lums
 ```
 
-Das Ergebnis kann helfen, zu unterscheiden zwischen:
+The result may help distinguish between:
 
 ```text
 Normal shutdown
@@ -386,33 +391,33 @@ Container runtime failure
 Health/startup problem
 ```
 
-Wenn der Container unerwartet beendet wurde, bewahren Sie die Logs und den Containerzustand auf, bevor Sie ihn ersetzen.
+If the container exited unexpectedly, preserve the logs and container state before replacing it.
 
 ---
 
 # 5. Container startet, aber LUMS ist nicht erreichbar
 
-Die LUMS-Anwendung ist nicht dafür vorgesehen, direkt über den Docker-Anwendungsport vom Netzwerk aus zugegriffen zu werden.
+The LUMS application is not intended to be accessed directly through the Docker application port from the network.
 
-Die Produktionsanwendung ist gebunden an:
+The production application is bound to:
 
 ```text
 127.0.0.1:5050
 ```
 
-Prüfen Sie die Port-Bindung:
+Verify the port binding:
 
 ```bash
 sudo docker port lums
 ```
 
-Prüfen Sie auch die Host-Listener:
+Also check the host listeners:
 
 ```bash
 sudo ss -lntp | grep -E ':443|:5050'
 ```
 
-Die erwartete Architektur ist:
+The expected architecture is:
 
 ```text
 HTTPS :443
@@ -430,34 +435,34 @@ Docker
 LUMS :5000
 ```
 
-Wenn der Container läuft, aber HTTPS fehlschlägt, untersuchen Sie die Schichten einzeln:
+If the container is running but HTTPS fails, investigate the layers individually:
 
-1. Docker-Container
-2. Lokaler Anwendungsport
-3. Nginx-Konfiguration
+1. Docker container
+2. Local application port
+3. Nginx configuration
 4. TLS
-5. Firewall/Netzwerkpfad
+5. Firewall/network path
 
-Setzen Sie Port `5050` nicht als Fehlerbehebungs-Abkürzung öffentlich aus.
+Do not expose port `5050` publicly as a troubleshooting shortcut.
 
 ---
 
 # 6. Nginx gibt einen Fehler zurück
 
-Prüfen Sie den Dienst:
+Check the service:
 
 ```bash
 sudo systemctl status nginx \
     --no-pager
 ```
 
-Validieren Sie die Konfiguration:
+Validate the configuration:
 
 ```bash
 sudo nginx -t
 ```
 
-Inspizieren Sie aktuelle Nginx-Meldungen:
+Inspect recent Nginx messages:
 
 ```bash
 sudo journalctl \
@@ -466,15 +471,15 @@ sudo journalctl \
     --no-pager
 ```
 
-Prüfen Sie dann, dass der LUMS-Container tatsächlich läuft:
+Then verify that the LUMS container is actually running:
 
 ```bash
 sudo docker ps
 ```
 
-Ein Reverse-Proxy-Fehler bedeutet nicht automatisch, dass die LUMS-Anwendung selbst defekt ist.
+A reverse-proxy error does not automatically mean that the LUMS application itself is broken.
 
-Mögliche Fehlerorte sind:
+Possible failure locations include:
 
 ```text
 Browser
@@ -490,19 +495,19 @@ Docker
 LUMS
 ```
 
-Testen Sie die Schichten einzeln, anstatt mehrere Komponenten gleichzeitig zu ändern.
+Test the layers separately rather than changing several components at once.
 
 ---
 
-# 7. HTTPS-/TLS-Probleme
+# 7. HTTPS / TLS-Probleme
 
-Testen Sie zuerst den HTTPS-Endpunkt:
+First test the HTTPS endpoint:
 
 ```bash
 curl -I https://LUMS-SERVER/
 ```
 
-Wenn die Zertifikatsvalidierung fehlschlägt, stellen Sie fest, ob das Problem liegt in:
+If certificate verification fails, determine whether the problem is:
 
 ```text
 Certificate
@@ -513,35 +518,35 @@ Nginx configuration
 Client CA configuration
 ```
 
-Validieren Sie Nginx:
+Validate Nginx:
 
 ```bash
 sudo nginx -t
 ```
 
-Wenn das Zertifikat oder die TLS-Konfiguration absichtlich geändert wurde, laden Sie Nginx neu:
+If the certificate or TLS configuration was intentionally changed, reload Nginx:
 
 ```bash
 sudo systemctl reload nginx
 ```
 
-Testen Sie dann erneut:
+Then test again:
 
 ```bash
 curl -I https://LUMS-SERVER/
 ```
 
-Clients, die eine private Zertifizierungsstelle verwenden, müssen dem entsprechenden CA-Zertifikat vertrauen.
+Clients using a private certificate authority must trust the appropriate CA certificate.
 
-Deaktivieren Sie die TLS-Zertifikatsvalidierung nicht als dauerhaften Workaround.
+Do not disable TLS certificate verification as a permanent workaround.
 
-Ein erfolgreicher Konnektivitätstest, der die Zertifikatsvalidierung umgeht, beweist nicht, dass die Produktions-TLS-Konfiguration korrekt ist.
+A successful connectivity test that bypasses certificate validation does not prove that the production TLS configuration is correct.
 
 ---
 
 # 8. Agent-Dienst schlägt fehl
 
-Prüfen Sie den Dienst:
+Check the service:
 
 ```bash
 sudo systemctl status \
@@ -549,7 +554,7 @@ sudo systemctl status \
     --no-pager
 ```
 
-Lesen Sie das aktuelle Journal:
+Read the recent journal:
 
 ```bash
 sudo journalctl \
@@ -558,14 +563,14 @@ sudo journalctl \
     --no-pager
 ```
 
-Starten Sie den Dienst erst erneut, nachdem Sie das vorherige Ergebnis inspiziert haben:
+Start the service again only after inspecting the previous result:
 
 ```bash
 sudo systemctl start \
     lums-agent.service
 ```
 
-Prüfen Sie dann:
+Then check:
 
 ```bash
 sudo systemctl status \
@@ -573,7 +578,7 @@ sudo systemctl status \
     --no-pager
 ```
 
-und:
+and:
 
 ```bash
 sudo journalctl \
@@ -582,7 +587,7 @@ sudo journalctl \
     --no-pager
 ```
 
-Achten Sie auf:
+Look for:
 
 ```text
 Configuration errors
@@ -594,39 +599,39 @@ Python exceptions
 Package-manager errors
 ```
 
-Installieren Sie den Agent nicht neu, nur weil eine einzelne Ausführung fehlgeschlagen ist.
+Do not reinstall the Agent simply because a single execution failed.
 
 ---
 
-# 9. Agent meldet fehlendes `LUMS_TOKEN`
+# 9. Agent meldet `LUMS_TOKEN` fehlend
 
-Der Agent erhält seine Produktionskonfiguration normalerweise über die Umgebung seines systemd-Dienstes.
+The Agent normally receives its production configuration through its systemd service environment.
 
-Wenn der Agent manuell aus einer Shell gestartet wird, wird die systemd-`EnvironmentFile` nicht automatisch in diese Shell geladen.
+If the Agent is started manually from a shell, the systemd `EnvironmentFile` is not automatically loaded into that shell.
 
-Daher:
+Therefore:
 
 ```bash
 sudo /opt/lums-agent/agent.py --version
 ```
 
-kann sich anders verhalten als:
+may behave differently from:
 
 ```bash
 sudo systemctl start \
     lums-agent.service
 ```
 
-wenn der Token ausschließlich über die systemd-Konfiguration bereitgestellt wird.
+when the token is supplied exclusively through systemd configuration.
 
-Testen Sie bei der Untersuchung von Authentifizierungsproblemen zuerst den tatsächlichen Dienst:
+When investigating authentication problems, test the actual service first:
 
 ```bash
 sudo systemctl start \
     lums-agent.service
 ```
 
-Inspizieren Sie dann:
+Then inspect:
 
 ```bash
 sudo journalctl \
@@ -635,27 +640,27 @@ sudo journalctl \
     --no-pager
 ```
 
-Kopieren Sie Produktionstokens nicht unnötig in Shell-Befehle.
+Do not copy production tokens into shell commands unnecessarily.
 
-Geben Sie niemals einen Produktionstoken in ein Diagnose-Log aus.
+Never print a production token into a diagnostic log.
 
 ---
 
 # 10. Agent kann den Server nicht erreichen
 
-Beginnen Sie mit der Netzwerkkonnektivität:
+Start with network connectivity:
 
 ```bash
 ping LUMS-SERVER
 ```
 
-Testen Sie dann HTTPS:
+Then test HTTPS:
 
 ```bash
 curl -I https://LUMS-SERVER/
 ```
 
-Wenn HTTPS funktioniert, aber der Agent trotzdem fehlschlägt, untersuchen Sie:
+If HTTPS works but the Agent still fails, investigate:
 
 ```text
 Client configuration
@@ -666,7 +671,7 @@ Client identity
 Agent version
 ```
 
-Inspizieren Sie den Agent:
+Inspect the Agent:
 
 ```bash
 sudo journalctl \
@@ -675,7 +680,7 @@ sudo journalctl \
     --no-pager
 ```
 
-Inspizieren Sie gleichzeitig den Server:
+At the same time, inspect the server:
 
 ```bash
 sudo docker logs \
@@ -683,40 +688,203 @@ sudo docker logs \
     lums
 ```
 
-Dies hilft festzustellen, ob die Anfrage LUMS überhaupt erreicht.
+This helps determine whether the request reaches LUMS at all.
 
-Wenn der Client einen Verbindungsfehler sieht und der Server keine entsprechende Anfrage zeigt, untersuchen Sie den Netzwerk- oder TLS-Pfad, bevor Sie die Anwendungskonfiguration ändern.
+If the client sees a connection failure and the server shows no corresponding request, investigate the network or TLS path before changing application configuration.
 
 ---
 
-# 11. Fehlerbehebung fortsetzen
+# 11. Continue Troubleshooting
 
-Wenn die grundlegenden Server-, Docker-, Nginx-, TLS- und Agent-Schichten funktionieren, fahren Sie fort mit:
+If the basic server, Docker, Nginx, TLS, and Agent layers are working, continue with:
 
 ```text
 Client Authentication
 Token Rotation
 Update Detection
+Telemetry
 Execution Watcher
 Idle Detection
 Pending Jobs
 ```
 
-Der nächste Abschnitt fährt mit Client-Authentifizierung und tokenbezogenen Problemen fort.
+The next section continues with client authentication and token-related problems.
 
-# 12. Client-Authentifizierung
+# 11.5 Telemetry Problems
 
-LUMS verwendet client-spezifische Authentifizierung für die Agent-Kommunikation.
+Telemetry is an optional component separate from the main Agent and Watcher. If telemetry is not working but updates are functioning normally, investigate the telemetry components independently.
 
-Wenn ein Client registriert wird, erhält der Client Anmeldeinformationen, die für die authentifizierte Kommunikation mit dem LUMS-Server verwendet werden.
+## 11.5.1 Telemetry Timer and Service Not Running
 
-Authentifizierungsfehler sollten untersucht werden, ohne den Client-Token offenzulegen.
+Check the telemetry timer:
+
+```bash
+sudo systemctl status \
+    lums-telemetry.timer \
+    --no-pager
+```
+
+Check the telemetry service:
+
+```bash
+sudo systemctl status \
+    lums-telemetry.service \
+    --no-pager
+```
+
+Enable the timer if it is not active:
+
+```bash
+sudo systemctl enable --now \
+    lums-telemetry.timer
+```
+
+A successful timer activation shows the service is scheduled to run approximately every 5 seconds.
+
+## 11.5.2 Telemetry Service Fails Repeatedly
+
+Check the recent logs:
+
+```bash
+sudo journalctl \
+    -u lums-telemetry.service \
+    -n 100 \
+    --no-pager
+```
+
+Look for:
+
+```text
+Configuration errors (LUMS_BASE, LUMS_TOKEN)
+TLS certificate verification failures
+Authentication failures (401, 403)
+Network connection failures
+Python exceptions
+Invalid metrics or payload errors
+```
+
+Verify the environment variables are set correctly:
+
+```bash
+sudo systemctl cat \
+    lums-telemetry.service | grep Environment
+```
+
+Expected output should show:
+
+```text
+Environment="LUMS_BASE=https://lums.example.com"
+Environment="LUMS_TOKEN=..."
+```
+
+## 11.5.3 No Telemetry Samples in Dashboard
+
+If the service is running but samples do not appear in the `/health` dashboard, verify:
+
+1. Client authentication is working with the configured token
+2. The `/api/telemetry` endpoint is accessible and accepting submissions
+3. The client has the `clients.view` permission to access the dashboard
+4. Samples exist in the database (they may have been older than 7 days)
+
+Check the server logs for telemetry submission errors:
+
+```bash
+sudo docker logs \
+    --tail 200 \
+    lums | grep -i telemetry
+```
+
+## 11.5.4 TLS Certificate Errors
+
+Remote servers require HTTPS. If the server uses a private certificate authority:
+
+1. Provide the CA certificate to the agent:
+
+```bash
+sudo install -m 0644 /path/to/ca.crt \
+    /opt/lums-telemetry-ca.crt
+```
+
+2. Update the telemetry service to reference it:
+
+Edit the service unit or environment file to set:
+
+```bash
+LUMS_CA_FILE=/opt/lums-telemetry-ca.crt
+```
+
+3. Restart the timer:
+
+```bash
+sudo systemctl restart lums-telemetry.timer
+```
+
+4. Check for success:
+
+```bash
+sudo journalctl \
+    -u lums-telemetry.service \
+    -n 50 \
+    --no-pager
+```
+
+## 11.5.5 Telemetry Data Not Persisting
+
+If samples are submitted but do not appear in history queries, check:
+
+1. The database migration ran successfully:
+
+```bash
+sudo docker exec lums python3 server/security_migration.py
+```
+
+2. The `telemetry_samples` table exists with network columns:
+
+```bash
+sudo docker exec lums python3 -c "
+import sqlite3
+conn = sqlite3.connect('/var/lib/lums/lums.db')
+cursor = conn.cursor()
+cursor.execute('PRAGMA table_info(telemetry_samples)')
+for row in cursor.fetchall():
+    print(row)
+"
+```
+
+3. The query time range is valid (1-168 hours)
+
+## 11.5.6 Dashboard Filters or Status Not Working
+
+Verify the `/api/telemetry/overview` endpoint is functioning:
+
+```bash
+curl -H "Authorization: Bearer YOUR_CLIENT_TOKEN" \
+    https://lums.example.com/api/telemetry/overview
+```
+
+Check server logs for API errors:
+
+```bash
+sudo docker logs \
+    --tail 100 \
+    lums
+```
+
+For detailed telemetry troubleshooting information, see [`telemetry.md`](telemetry.md).
 
 ---
 
-## 12.1 Client wird von LUMS nicht akzeptiert
+LUMS uses client-specific authentication for Agent communication.
 
-Wenn ein Agent einen Authentifizierungsfehler meldet, inspizieren Sie zuerst das Agent-Log:
+When a client is registered, the client receives credentials that are used for authenticated communication with the LUMS server.
+
+Authentication failures should be investigated without exposing the client token.
+
+---
+
+## 12.1 Client Is Not Accepted by LUMS
+
+If an Agent reports an authentication failure, first inspect the Agent log:
 
 ```bash
 sudo journalctl \
@@ -725,7 +893,7 @@ sudo journalctl \
     --no-pager
 ```
 
-Inspizieren Sie dann die Logs des LUMS-Containers:
+Then inspect the LUMS container logs:
 
 ```bash
 sudo docker logs \
@@ -733,7 +901,7 @@ sudo docker logs \
     lums
 ```
 
-Achten Sie auf:
+Look for:
 
 ```text
 401 Unauthorized
@@ -743,13 +911,13 @@ Unknown client
 Authentication failure
 ```
 
-Eine `401`-Antwort deutet in der Regel auf ein Authentifizierungsproblem hin.
+A `401` response generally indicates an authentication problem.
 
-Eine `403`-Antwort kann anzeigen, dass die Authentifizierung erfolgreich war, aber die angeforderte Operation nicht erlaubt ist.
+A `403` response may indicate that authentication succeeded but the requested operation is not permitted.
 
-Rotieren Sie den Token nicht sofort.
+Do not immediately rotate the token.
 
-Stellen Sie zuerst fest, ob das Problem liegt in:
+First determine whether the problem is:
 
 ```text
 Wrong token
@@ -763,27 +931,27 @@ Server-side authentication failure
 
 ---
 
-## 12.2 Client existiert, aber Authentifizierung schlägt fehl
+## 12.2 Client Exists but Authentication Fails
 
-Prüfen Sie, ob der Client in der LUMS-Administrationsoberfläche weiterhin existiert.
+Verify that the client still exists in the LUMS administration interface.
 
-Ändern Sie den Client-Datensatz nicht allein deshalb, weil eine Agent-Anfrage fehlgeschlagen ist.
+Do not modify the client record solely because an Agent request failed.
 
-Wenn der Client existiert, vergleichen Sie die konfigurierte Client-Identität mit der vom Agent verwendeten Identität.
+If the client exists, compare the configured client identity with the identity used by the Agent.
 
-Der Produktionstoken selbst darf niemals in Diagnoseausgaben ausgegeben werden.
+The production token itself must never be printed into diagnostic output.
 
-Verwenden Sie Konfigurationsmetadaten und den Dienststatus zur Fehlerbehebung, anstatt Anmeldeinformationen offenzulegen.
+Use configuration metadata and service status for troubleshooting instead of exposing credentials.
 
 ---
 
-# 13. Client-Token-Rotation
+# 13. Client Token Rotation
 
-Die Client-Token-Rotation macht den vorherigen Token ungültig und ersetzt ihn durch ein neues Credential.
+Client token rotation invalidates the previous token and replaces it with a new credential.
 
-Wenn ein Token absichtlich rotiert wurde, muss der betroffene Agent den neuen Token erhalten, bevor er sich erneut authentifizieren kann.
+If a token was intentionally rotated, the affected Agent must receive the new token before it can authenticate again.
 
-Die erwartete Sequenz ist:
+The expected sequence is:
 
 ```text
 Administrator
@@ -804,13 +972,13 @@ Agent configuration updated
 Agent reports again
 ```
 
-Wenn der Agent weiterhin den alten Token verwendet, schlägt die Authentifizierung fehl.
+If the Agent continues using the old token, authentication will fail.
 
 ---
 
-## 13.1 Nach der Token-Rotation
+## 13.1 After Token Rotation
 
-Prüfen Sie den Agent-Dienst:
+Check the Agent service:
 
 ```bash
 sudo systemctl status \
@@ -818,14 +986,14 @@ sudo systemctl status \
     --no-pager
 ```
 
-Führen Sie dann den Agent über systemd aus:
+Then run the Agent through systemd:
 
 ```bash
 sudo systemctl start \
     lums-agent.service
 ```
 
-Inspizieren Sie das Ergebnis:
+Inspect the result:
 
 ```bash
 sudo journalctl \
@@ -834,7 +1002,7 @@ sudo journalctl \
     --no-pager
 ```
 
-Wenn die Authentifizierung weiterhin fehlschlägt, inspizieren Sie die Serverlogs:
+If authentication still fails, inspect the server logs:
 
 ```bash
 sudo docker logs \
@@ -842,19 +1010,19 @@ sudo docker logs \
     lums
 ```
 
-Rotieren Sie den Token nicht wiederholt.
+Do not rotate the token repeatedly.
 
-Wiederholte Rotation kann es erschweren festzustellen, welches Credential derzeit auf dem Client bereitgestellt ist.
+Repeated rotation can make it harder to determine which credential is currently deployed on the client.
 
 ---
 
-# 14. Client ist deaktiviert
+# 14. Client Is Disabled
 
-Ein deaktivierter Client darf nicht als aktiver verwalteter Client behandelt werden.
+A disabled client must not be treated as an active managed client.
 
-Wenn ein Agent, der zu einem deaktivierten Client gehört, Kommunikation versucht, inspizieren Sie das serverseitige Authentifizierungsergebnis.
+If an Agent belonging to a disabled client attempts communication, inspect the server-side authentication result.
 
-Prüfen Sie:
+Check:
 
 ```text
 Client identity
@@ -863,28 +1031,28 @@ Authentication result
 Agent configuration
 ```
 
-Aktivieren Sie den Client nicht erneut, nur damit ein Fehler verschwindet.
+Do not re-enable the client merely to make an error disappear.
 
-Stellen Sie zuerst fest, warum der Client deaktiviert wurde.
+Determine why the client was disabled first.
 
 ---
 
-# 15. Update-Erkennung
+# 15. Update Detection
 
-Die Update-Erkennung besteht aus mehreren unabhängigen Schritten.
+Update detection consists of several independent steps.
 
-Der Agent muss:
+The Agent must:
 
-1. die Paketmanager-Abfrage ausführen
-2. das Ergebnis parsen
-3. das Ergebnis an LUMS senden
-4. LUMS muss das Ergebnis validieren
-5. LUMS muss das Ergebnis persistieren
-6. die UI muss den aktuellen Zustand anzeigen
+1. execute the package-manager query
+2. parse the result
+3. send the result to LUMS
+4. LUMS must validate the result
+5. LUMS must persist the result
+6. the UI must display the current state
 
-Ein Fehler in einem beliebigen Schritt kann dazu führen, dass Update-Informationen falsch erscheinen.
+A failure in any step can make update information appear incorrect.
 
-Der grundlegende Ablauf ist:
+The basic flow is:
 
 ```text
 APT / pacman
@@ -907,11 +1075,11 @@ Web UI
 
 ---
 
-## 15.1 Es werden keine Updates angezeigt
+## 15.1 No Updates Are Displayed
 
-Stellen Sie zuerst fest, ob der Client tatsächlich erfolgreich berichtet hat.
+First determine whether the client actually reported successfully.
 
-Prüfen Sie:
+Check:
 
 ```bash
 sudo journalctl \
@@ -920,7 +1088,7 @@ sudo journalctl \
     --no-pager
 ```
 
-Inspizieren Sie dann den Server:
+Then inspect the server:
 
 ```bash
 sudo docker logs \
@@ -928,51 +1096,51 @@ sudo docker logs \
     lums
 ```
 
-Wenn der Agent erfolgreich abgeschlossen wurde, aber keine Updates angezeigt werden, untersuchen Sie den API- und Datenbankzustand, bevor Sie den Paketmanager ändern.
+If the Agent completed successfully but no updates are displayed, investigate the API and database state before changing the package manager.
 
 ---
 
-## 15.2 Update-Erkennung unter Debian / Ubuntu
+## 15.2 Debian / Ubuntu Update Detection
 
-Der Debian-Paketmanager verwendet APT.
+The Debian package manager uses APT.
 
-Wenn Sie APT-bezogene Probleme untersuchen, prüfen Sie zuerst, ob APT selbst funktioniert:
+When investigating APT-related problems, first verify that APT itself is functioning:
 
 ```bash
 sudo apt update
 ```
 
-Führen Sie während der Fehlerbehebung nicht automatisch Paket-Upgrades aus.
+Do not automatically run package upgrades during troubleshooting.
 
-Der Zweck dieses Tests ist festzustellen, ob Repository-Metadaten erfolgreich aktualisiert werden können.
+The purpose of this test is to determine whether repository metadata can be refreshed successfully.
 
-Wenn APT Repository-, DNS-, TLS-, Signatur- oder Lock-Fehler meldet, beheben Sie das zugrunde liegende APT-Problem, bevor Sie LUMS untersuchen.
+If APT reports repository, DNS, TLS, signature, or lock errors, resolve the underlying APT problem before investigating LUMS.
 
 ---
 
-## 15.3 Update-Erkennung unter Arch Linux
+## 15.3 Arch Linux Update Detection
 
-Arch Linux verwendet `pacman`.
+Arch Linux uses `pacman`.
 
-Prüfen Sie Repository-Metadaten:
+Check repository metadata:
 
 ```bash
 sudo pacman -Sy
 ```
 
-Verwenden Sie dies nur, wenn das Aktualisieren der Repository-Metadaten tatsächlich für die Diagnose erforderlich ist.
+Use this only when repository metadata refresh is actually required for the diagnostic.
 
-Kombinieren Sie kein unnötiges Systemupgrade mit einem Diagnosetest.
+Do not combine an unnecessary system upgrade with a diagnostic test.
 
-Inspizieren Sie bei paketbezogenen Fehlern die exakte `pacman`-Ausgabe, bevor Sie die Konfiguration ändern.
+For package-related errors, inspect the exact `pacman` output before changing configuration.
 
 ---
 
-# 16. Verfügbare Updates unterscheiden sich zwischen LUMS und dem Client
+# 16. Available Updates Differ Between LUMS and the Client
 
-Update-Informationen können sich zwischen zwei Beobachtungen ändern.
+Update information can change between two observations.
 
-Zum Beispiel:
+For example:
 
 ```text
 Client reports updates
@@ -984,11 +1152,11 @@ Package is upgraded manually
 LUMS displays older information
 ```
 
-Berücksichtigen Sie daher immer den Zeitstempel des letzten erfolgreichen Client-Berichts.
+Therefore, always consider the timestamp of the last successful client report.
 
-Eine Differenz deutet nicht automatisch auf ein Datenbankproblem hin.
+A difference does not automatically indicate a database problem.
 
-Prüfen Sie:
+Check:
 
 ```text
 Last Agent execution
@@ -1000,11 +1168,11 @@ Displayed update state
 
 ---
 
-# 17. Paketverwaltung
+# 17. Package Management
 
-Die LUMS-Paketverwaltung ist vom installierte-Pakete-Filter getrennt, der auf der Client-Seite angezeigt wird.
+LUMS package management is separate from the installed-package filter shown on the client page.
 
-Der Paketverwaltungs-Workflow ist:
+The package-management workflow is:
 
 ```text
 User
@@ -1031,9 +1199,9 @@ LUMS API
 Web UI
 ```
 
-Das Installieren, Entfernen oder Aktualisieren eines Pakets verwendet den normalen LUMS-Job-Mechanismus.
+Installing, removing, or updating a package uses the normal LUMS job mechanism.
 
-Der erwartete Ausführungspfad ist:
+The expected execution path is:
 
 ```text
 Package Action
@@ -1053,9 +1221,9 @@ APT / pacman
 
 ---
 
-## 17.1 Paketsuche liefert keine Ergebnisse
+## 17.1 Package Search Returns No Results
 
-Prüfen Sie zuerst, ob der Agent operativ ist:
+First verify that the Agent is operational:
 
 ```bash
 sudo systemctl status \
@@ -1063,7 +1231,7 @@ sudo systemctl status \
     --no-pager
 ```
 
-Inspizieren Sie dann das Agent-Journal:
+Then inspect the Agent journal:
 
 ```bash
 sudo journalctl \
@@ -1072,23 +1240,23 @@ sudo journalctl \
     --no-pager
 ```
 
-Prüfen Sie für Debian-basierte Clients die APT-Metadaten.
+For Debian-based clients, verify APT metadata.
 
-Prüfen Sie für Arch-basierte Clients die pacman-Repository-Metadaten.
+For Arch-based clients, verify pacman repository metadata.
 
-Gehen Sie nicht davon aus, dass ein leeres Suchergebnis bedeutet, dass die LUMS-Datenbank leer ist.
+Do not assume that an empty search result means the LUMS database is empty.
 
-Die Suche wird über den Paketmanager des Clients durchgeführt.
+The search is performed through the client package manager.
 
 ---
 
-## 17.2 Paketsuche funktioniert, aber Installation schlägt fehl
+## 17.2 Package Search Works but Installation Fails
 
-Eine erfolgreiche Suche beweist nur, dass der Paketmanager das Paket finden konnte.
+A successful search only proves that the package manager could locate the package.
 
-Sie beweist nicht, dass die Installation erfolgreich sein wird.
+It does not prove that installation will succeed.
 
-Mögliche Ursachen sind:
+Possible causes include:
 
 ```text
 Dependency conflicts
@@ -1101,32 +1269,32 @@ Network problems
 Package-manager errors
 ```
 
-Inspizieren Sie den entsprechenden Update-Job.
+Inspect the corresponding update job.
 
-Das Agent-Journal sollte das Paketmanager-Ergebnis enthalten.
+The Agent journal should contain the package-manager result.
 
 ---
 
-# 18. Paketinstallations-Jobs
+# 18. Package Installation Jobs
 
-Die Paketinstallation verwendet die normale Update-Job-Infrastruktur.
+Package installation uses the normal update-job infrastructure.
 
-Die relevante Aktion ist:
+The relevant action is:
 
 ```text
 INSTALL_PACKAGE
 ```
 
-Bei der Fehlerbehebung einer Installation:
+When troubleshooting an installation:
 
-1. Prüfen Sie den Job-Zustand in LUMS.
-2. Prüfen Sie die Agent-Ausführung.
-3. Prüfen Sie die Paketmanager-Ausgabe.
-4. Prüfen Sie das endgültige an LUMS gemeldete Ergebnis.
+1. Check the job state in LUMS.
+2. Check the Agent execution.
+3. Check the package-manager output.
+4. Check the final result reported to LUMS.
 
-Ändern Sie den Job-Status in SQLite nicht manuell.
+Do not manually modify the job status in SQLite.
 
-Der erwartete Lebenszyklus ist:
+The expected lifecycle is:
 
 ```text
 PENDING
@@ -1136,7 +1304,7 @@ RUNNING
 SUCCESS
 ```
 
-oder:
+or:
 
 ```text
 PENDING
@@ -1146,21 +1314,21 @@ RUNNING
 FAILED
 ```
 
-Eine fehlgeschlagene Paketinstallation sollte durch die normalen Job- und Audit-Mechanismen nachvollziehbar bleiben.
+A failed package installation should remain traceable through the normal job and audit mechanisms.
 
 ---
 
-# 19. Paketentfernungs-Jobs
+# 19. Package Removal Jobs
 
-Die Paketentfernung folgt demselben Job-Lebenszyklus.
+Package removal follows the same job lifecycle.
 
-Die Aktion ist:
+The action is:
 
 ```text
 REMOVE_PACKAGE
 ```
 
-Wenn eine Entfernung fehlschlägt, inspizieren Sie:
+When a removal fails, inspect:
 
 ```text
 Update job
@@ -1169,50 +1337,50 @@ Package-manager output
 Final job result
 ```
 
-Entfernen Sie keine Datenbankeinträge manuell, um eine fehlgeschlagene Paketoperation zu verbergen.
+Do not manually remove database records to hide a failed package operation.
 
-Ein fehlgeschlagener Job ist nützliche Diagnoseinformation.
+A failed job is useful diagnostic information.
 
 ---
 
-# 20. Paketupdate-Jobs
+# 20. Package Update Jobs
 
-Ein paketspezifisches Update verwendet:
+A package-specific update uses:
 
 ```text
 UPDATE_PACKAGE
 ```
 
-Das Paket muss LUMS als mit einem verfügbaren Update bekannt sein, bevor der Job erstellt wird.
+The package must be known to LUMS as having an available update before the job is created.
 
-Wenn die UI das erwartete Paketupdate nicht anbietet:
+If the UI does not offer the expected package update:
 
-1. Update-Informationen aktualisieren
-2. Paketmanager-Zustand prüfen
-3. Ergebnis der verfügbaren Updates prüfen
-4. Serverlogs inspizieren, wenn der Zustand inkonsistent ist
+1. refresh update information
+2. verify the package manager state
+3. verify the available-update result
+4. inspect the server logs if the state is inconsistent
 
-Fügen Sie keine Update-Datensätze manuell in SQLite ein.
+Do not manually insert update records into SQLite.
 
 ---
 
-# 21. Systemupdate-Jobs
+# 21. System Update Jobs
 
-Ein vollständiges Systemupdate verwendet:
+A complete system update uses:
 
 ```text
 UPDATE_SYSTEM
 ```
 
-Dies ist anders als:
+This is different from:
 
 ```text
 UPDATE_PACKAGE
 ```
 
-Das Systemupdate kann mehrere Pakete betreffen und kann je nach Betriebssystem und resultierendem Paketzustand einen Reboot erfordern.
+The system update may affect multiple packages and may require a reboot depending on the operating system and resulting package state.
 
-Stellen Sie bei der Fehlerbehebung eines Systemupdates fest, ob der Fehler aufgetreten ist während:
+When troubleshooting a system update, determine whether the failure occurred during:
 
 ```text
 Update preparation
@@ -1224,11 +1392,11 @@ Post-reboot reporting
 
 ---
 
-# 22. Paketmanager-Sperren
+# 22. Package Manager Locks
 
-Paketmanager können eine Operation verweigern, wenn bereits ein anderer Paketverwaltungsprozess läuft.
+Package managers may refuse an operation when another package-management process is already running.
 
-Typische Beispiele sind:
+Typical examples include:
 
 ```text
 APT is already running
@@ -1236,15 +1404,15 @@ dpkg is locked
 pacman is locked
 ```
 
-Identifizieren Sie zuerst den Prozess, der die Sperre hält.
+First identify the process holding the lock.
 
-Löschen Sie Lockdateien nicht blind.
+Do not blindly delete lock files.
 
-Eine Lockdatei kann anzeigen, dass ein anderer Paketverwaltungsprozess legitimerweise aktiv ist.
+A lock file may indicate that another package-management process is legitimately active.
 
-Das Entfernen während einer laufenden Paketoperation kann den Paketverwaltungszustand beschädigen.
+Removing it while a package operation is running can damage the package-management state.
 
-Die korrekte Fehlerbehebungssequenz ist:
+The correct troubleshooting sequence is:
 
 ```text
 Lock error
@@ -1260,11 +1428,11 @@ Retry operation
 
 ---
 
-# 23. Paketmanager-Fehler vs. LUMS-Fehler
+# 23. Package Manager Failure vs. LUMS Failure
 
-Unterscheiden Sie immer zwischen einem Paketmanager-Fehler und einem LUMS-Fehler.
+Always distinguish between a package-manager failure and an LUMS failure.
 
-Zum Beispiel:
+For example:
 
 ```text
 APT fails
@@ -1274,9 +1442,9 @@ Agent reports APT failure
 LUMS stores FAILED result
 ```
 
-In diesem Fall kann LUMS korrekt funktionieren, obwohl der Job fehlgeschlagen ist.
+In this case LUMS may be functioning correctly even though the job failed.
 
-Umgekehrt:
+Conversely:
 
 ```text
 APT succeeds
@@ -1286,15 +1454,15 @@ Agent cannot report result
 LUMS never receives SUCCESS
 ```
 
-Hier kann die Paketoperation erfolgreich gewesen sein, während der LUMS-Berichterstattungspfad fehlgeschlagen ist.
+Here the package operation may have succeeded while the LUMS reporting path failed.
 
-Das Paketmanager-Ergebnis und das LUMS-Job-Ergebnis müssen daher getrennt untersucht werden.
+The package-manager result and the LUMS job result must therefore be investigated separately.
 
 ---
 
-# 24. Nützliche Diagnosetrennung
+# 24. Useful Diagnostic Separation
 
-Wenn ein Paketjob fehlschlägt, klassifizieren Sie den Fehler zuerst:
+When a package job fails, classify the failure first:
 
 ```text
 A. Package-manager failure
@@ -1305,19 +1473,19 @@ E. Database persistence failure
 F. UI display problem
 ```
 
-Diese Klassifikation verhindert, dass unzusammenhängende Komponenten geändert werden.
+This classification prevents unrelated components from being modified.
 
-Ein Paketmanager-Fehler sollte nicht automatisch zu einem Docker-Rebuild führen.
+A package-manager error should not automatically result in a Docker rebuild.
 
-Ein UI-Anzeigeproblem sollte nicht automatisch zum Löschen der Datenbank führen.
+A UI display problem should not automatically result in deleting the database.
 
-Ein Authentifizierungsfehler sollte nicht automatisch zur Neuinstallation des Agent führen.
+An authentication failure should not automatically result in reinstalling the Agent.
 
 ---
 
-# 25. Nächster Fehlerbehebungsbereich
+# 25. Next Troubleshooting Area
 
-Wenn Client-Authentifizierung, Update-Erkennung und Paketverwaltung funktionieren, ist der nächste Diagnosebereich der Ausführungslebenszyklus selbst:
+If client authentication, update detection, and package management are functioning, the next diagnostic area is the execution lifecycle itself:
 
 ```text
 Update Job
@@ -1335,13 +1503,13 @@ Checkpoint / Recovery
 Final Job State
 ```
 
-Der nächste Abschnitt behandelt **Execution Watcher, Idle Detection, Job State, Recovery und Reboot-Behandlung**.
+The next section covers **Execution Watcher, Idle Detection, Job State, Recovery, and reboot handling**.
 
-# 26. Ausführung von Update-Jobs
+# 26. Update Job Execution
 
-LUMS-Update-Jobs werden asynchron über den Agent und den Execution Watcher ausgeführt.
+LUMS update jobs are executed asynchronously through the Agent and Execution Watcher.
 
-Der normale Ausführungspfad ist:
+The normal execution path is:
 
 ```text
 User
@@ -1374,17 +1542,17 @@ LUMS API
 SQLite
 ```
 
-Ein Job, der in der UI sichtbar ist, wird nicht notwendigerweise bereits ausgeführt.
+A job that is visible in the UI is not necessarily already being executed.
 
-Stellen Sie immer zuerst den aktuellen Job-Zustand fest.
+Always determine the current job state first.
 
 ---
 
-## 26.1 Job bleibt in `PENDING` hängen
+## 26.1 Job Is Stuck in `PENDING`
 
-Wenn ein Job in `PENDING` bleibt, prüfen Sie den Execution Watcher, bevor Sie den Agent untersuchen.
+If a job remains in `PENDING`, check the Execution Watcher before investigating the Agent.
 
-Prüfen Sie den Watcher:
+Check the watcher:
 
 ```bash id="wq5h3v"
 sudo systemctl status \
@@ -1392,7 +1560,7 @@ sudo systemctl status \
     --no-pager
 ```
 
-Inspizieren Sie die aktuelle Watcher-Ausgabe:
+Inspect recent watcher output:
 
 ```bash id="8y0v7e"
 sudo journalctl \
@@ -1401,7 +1569,7 @@ sudo journalctl \
     --no-pager
 ```
 
-Prüfen Sie dann den Agent:
+Then check the Agent:
 
 ```bash id="j8x4qm"
 sudo systemctl status \
@@ -1409,9 +1577,9 @@ sudo systemctl status \
     --no-pager
 ```
 
-Ein ausstehender Job zeigt normalerweise an, dass die Ausführungsphase noch nicht begonnen hat.
+A pending job normally indicates that the execution stage has not yet started.
 
-Mögliche Ursachen sind:
+Possible causes include:
 
 ```text
 Watcher is not running
@@ -1422,17 +1590,17 @@ Client has not reported recently
 Job is not eligible for execution yet
 ```
 
-Ändern Sie den Job-Zustand nicht manuell in SQLite.
+Do not manually change the job state in SQLite.
 
 ---
 
-# 27. Job bleibt in `RUNNING` hängen
+# 27. Job Is Stuck in `RUNNING`
 
-Ein `RUNNING`-Job zeigt an, dass die Ausführung begonnen hat.
+A `RUNNING` job indicates that execution has started.
 
-Stellen Sie zuerst fest, ob der Agent den Job tatsächlich ausführt.
+First determine whether the Agent is actually executing the job.
 
-Prüfen Sie:
+Check:
 
 ```bash id="s2z5ek"
 sudo journalctl \
@@ -1441,7 +1609,7 @@ sudo journalctl \
     --no-pager
 ```
 
-Inspizieren Sie dann den Watcher:
+Then inspect the watcher:
 
 ```bash id="x4f6cb"
 sudo journalctl \
@@ -1450,7 +1618,7 @@ sudo journalctl \
     --no-pager
 ```
 
-Ein laufender Job kann einige Zeit dauern, abhängig von:
+A running job may take some time depending on:
 
 ```text
 Package count
@@ -1461,19 +1629,19 @@ System load
 Reboot requirements
 ```
 
-Beenden Sie keine aktive Paketoperation nur deshalb, weil die UI noch nicht aktualisiert wurde.
+Do not terminate an active package operation solely because the UI has not updated yet.
 
-Stellen Sie zuerst fest, ob der zugrunde liegende Prozess noch aktiv ist.
+First determine whether the underlying process is still active.
 
 ---
 
-# 28. Job ist `FAILED`
+# 28. Job Is `FAILED`
 
-Ein fehlgeschlagener Job zeigt nicht notwendigerweise einen LUMS-Serverfehler an.
+A failed job does not necessarily indicate a LUMS server failure.
 
-Stellen Sie fest, welche Schicht den Fehler erzeugt hat.
+Determine which layer produced the failure.
 
-Inspizieren Sie:
+Inspect:
 
 ```text id="5t9b83"
 Job state
@@ -1483,7 +1651,7 @@ Server logs
 Agent logs
 ```
 
-Die Hauptkategorien sind:
+The main categories are:
 
 ```text
 Package-manager failure
@@ -1494,19 +1662,19 @@ Authentication failure
 Recovery failure
 ```
 
-Der ursprüngliche Fehler sollte, wo immer möglich, bewahrt werden.
+The original error should be preserved whenever possible.
 
-Ersetzen Sie einen fehlgeschlagenen Job nicht durch einen manuell erstellten Erfolgsdatensatz.
+Do not replace a failed job with a manually created successful record.
 
 ---
 
-# 29. Job ist `SUCCESS`, aber das Paket wurde nicht geändert
+# 29. Job Is `SUCCESS` but the Package Was Not Changed
 
-Ein erfolgreicher LUMS-Job bedeutet, dass die angeforderte Operation gemäß dem Agent-Ergebnis abgeschlossen wurde.
+A successful LUMS job means that the requested operation completed according to the Agent result.
 
-Wenn der erwartete Paketzustand nicht zum Job-Ergebnis passt, prüfen Sie den Client direkt.
+If the expected package state does not match the job result, verify the client directly.
 
-Für Debian-basierte Systeme:
+For Debian-based systems:
 
 ```bash id="gqdbm7"
 dpkg-query -W \
@@ -1514,18 +1682,18 @@ dpkg-query -W \
     PACKAGE_NAME
 ```
 
-Für Arch Linux:
+For Arch Linux:
 
 ```bash id="2x9f7v"
 pacman -Q \
     PACKAGE_NAME
 ```
 
-Ersetzen Sie `PACKAGE_NAME` durch das zu untersuchende Paket.
+Replace `PACKAGE_NAME` with the package being investigated.
 
-Vergleichen Sie dann den lokalen Paketzustand mit dem LUMS-Ergebnis.
+Then compare the local package state with the LUMS result.
 
-Mögliche Erklärungen sind:
+Possible explanations include:
 
 ```text
 Package was changed after the job
@@ -1534,17 +1702,17 @@ Package-manager output was interpreted differently than expected
 The job result was generated before another local change
 ```
 
-Ändern Sie die LUMS-Datenbank nicht, bis die Diskrepanz identifiziert wurde.
+Do not modify the LUMS database until the discrepancy has been identified.
 
 ---
 
 # 30. Execution Watcher
 
-Der Execution Watcher ist verantwortlich für das Erkennen von Jobs, die zur Ausführung berechtigt sind.
+The Execution Watcher is responsible for discovering jobs that are eligible for execution.
 
-Der Watcher muss als unabhängige Komponente behandelt werden.
+The watcher must be treated as an independent component.
 
-Prüfen Sie seinen Dienst:
+Check its service:
 
 ```bash id="w5m0c8"
 sudo systemctl status \
@@ -1552,14 +1720,14 @@ sudo systemctl status \
     --no-pager
 ```
 
-Prüfen Sie seinen Timer:
+Check its timer:
 
 ```bash id="3v1x7r"
 sudo systemctl list-timers \
     --all | grep lums
 ```
 
-Inspizieren Sie sein Journal:
+Inspect its journal:
 
 ```bash id="d5m0xk"
 sudo journalctl \
@@ -1568,17 +1736,17 @@ sudo journalctl \
     --no-pager
 ```
 
-Wenn der Agent funktioniert, aber Jobs nie starten, sollte der Watcher eine der ersten zu untersuchenden Komponenten sein.
+If the Agent works but jobs never start, the watcher should be one of the first components investigated.
 
 ---
 
-# 31. Watcher läuft, führt aber keine Jobs aus
+# 31. Watcher Runs but Does Not Execute Jobs
 
-Eine Watcher-Ausführung bedeutet nicht automatisch, dass ein Job gestartet wird.
+A watcher execution does not automatically mean that a job will be started.
 
-Der Job muss die Ausführungsbedingungen erfüllen.
+The job must satisfy the execution conditions.
 
-Prüfen Sie:
+Check:
 
 ```text id="m7p2zq"
 Client exists
@@ -1591,23 +1759,23 @@ Job is not already completed
 Execution conditions are satisfied
 ```
 
-Wenn der Client nicht berechtigt ist, kann der Watcher den Job korrekt ausstehend lassen.
+If the client is not eligible, the watcher may correctly leave the job pending.
 
-Dies ist nicht notwendigerweise ein Fehler.
+This is not necessarily an error.
 
 ---
 
-# 32. Idle-Erkennung
+# 32. Idle Detection
 
-LUMS kann Client-Idle-Informationen verwenden, wenn entschieden wird, ob ein Job ausgeführt werden soll.
+LUMS can use client idle information when deciding whether a job should be executed.
 
-Der Zweck ist es, Wartungsoperationen zu vermeiden, während der Client aktiv genutzt wird.
+The purpose is to avoid starting maintenance operations while the client is actively being used.
 
-Die Idle-Entscheidung sollte daher als Planungsbedingung behandelt werden, nicht als Ausführungsfehler.
+The idle decision should therefore be treated as a scheduling condition, not as an execution failure.
 
-Ein Client kann erfolgreich berichten und trotzdem als nicht-idle betrachtet werden.
+A client may report successfully while still being considered non-idle.
 
-Die Fehlerbehebungssequenz ist:
+The troubleshooting sequence is:
 
 ```text
 Agent reports
@@ -1623,9 +1791,9 @@ Watcher executes
 
 ---
 
-## 32.1 Client berichtet, wird aber nicht als idle betrachtet
+## 32.1 Client Reports but Is Not Considered Idle
 
-Prüfen Sie das Agent-Journal:
+Check the Agent journal:
 
 ```bash id="5r2q1k"
 sudo journalctl \
@@ -1634,9 +1802,9 @@ sudo journalctl \
     --no-pager
 ```
 
-Achten Sie auf die gemeldeten Idle-Informationen.
+Look for the reported idle information.
 
-Inspizieren Sie dann den Watcher:
+Then inspect the watcher:
 
 ```bash id="2a6v8m"
 sudo journalctl \
@@ -1645,7 +1813,7 @@ sudo journalctl \
     --no-pager
 ```
 
-Die wichtige Unterscheidung ist:
+The important distinction is:
 
 ```text
 Agent communication successful
@@ -1657,19 +1825,19 @@ versus:
 Client eligible for maintenance execution
 ```
 
-Dies sind getrennte Zustände.
+These are separate states.
 
 ---
 
-# 33. Idle-Erkennung ist nicht verfügbar
+# 33. Idle Detection Is Unavailable
 
-Einige Systeme stellen möglicherweise nicht alle Idle-Zustandsinformationen bereit.
+Some systems may not provide all idle-state information.
 
-Ein nicht verfügbarer Idle-Mechanismus sollte nicht automatisch als defekter Agent interpretiert werden.
+An unavailable idle mechanism should not automatically be interpreted as a broken Agent.
 
-Stellen Sie zuerst die gemeldete Fähigkeit fest.
+Determine the reported capability first.
 
-Die relevanten Konzepte sind:
+The relevant concepts are:
 
 ```text
 Idle supported
@@ -1678,15 +1846,15 @@ Idle state
 Idle duration
 ```
 
-Wenn die Plattform die erwarteten Idle-Informationen nicht bereitstellen kann, untersuchen Sie die plattformspezifische Implementierung des Agent, anstatt die Serverdatenbank zu ändern.
+If the platform cannot provide the expected idle information, investigate the Agent's platform-specific implementation rather than modifying the server database.
 
 ---
 
-# 34. Wiederherstellung von Update-Jobs
+# 34. Update Job Recovery
 
-LUMS verwendet Checkpointing und Wiederherstellung, um zu verhindern, dass unterbrochene Update-Jobs als abgeschlossen behandelt werden.
+LUMS uses checkpointing and recovery to prevent interrupted update jobs from being treated as completed.
 
-Ein Job kann unterbrochen werden durch:
+A job may be interrupted because of:
 
 ```text
 Agent restart
@@ -1698,9 +1866,9 @@ Watcher restart
 System failure
 ```
 
-Die Wiederherstellung muss zwischen bereits abgeschlossener Arbeit und noch auszuführender Arbeit unterscheiden.
+Recovery must distinguish between work that was already completed and work that still needs execution.
 
-Das Prinzip ist:
+The principle is:
 
 ```text
 Completed work remains completed.
@@ -1709,11 +1877,11 @@ Incomplete work remains recoverable.
 
 ---
 
-# 35. Unterbrochener Job
+# 35. Interrupted Job
 
-Wenn ein Job unterbrochen wurde, inspizieren Sie zuerst seinen Zustand.
+If a job was interrupted, first inspect its state.
 
-Inspizieren Sie dann den Agent:
+Then inspect the Agent:
 
 ```bash id="3u8d4k"
 sudo journalctl \
@@ -1722,7 +1890,7 @@ sudo journalctl \
     --no-pager
 ```
 
-Inspizieren Sie den Watcher:
+Inspect the watcher:
 
 ```bash id="w4x1b9"
 sudo journalctl \
@@ -1731,19 +1899,19 @@ sudo journalctl \
     --no-pager
 ```
 
-Markieren Sie den Job nicht manuell als erfolgreich.
+Do not manually mark the job as successful.
 
-Der Wiederherstellungsmechanismus sollte feststellen, welche Paket-Elemente bereits abgeschlossen wurden.
+The recovery mechanism should determine which package items were already completed.
 
 ---
 
-# 36. Wiederherstellung wiederholt eine Paketoperation
+# 36. Recovery Repeats a Package Operation
 
-Wenn die Wiederherstellung ausgelöst wird, sollten bereits erfolgreiche Paket-Elemente nicht unnötig erneut ausgeführt werden.
+When recovery is triggered, already successful package items should not be executed again unnecessarily.
 
-Das Wiederherstellungsmodell basiert auf Element-Level-Zustand.
+The recovery model is based on item-level state.
 
-Konzeptionell:
+Conceptually:
 
 ```text
 Job
@@ -1753,17 +1921,17 @@ Job
  └── Package D → PENDING
 ```
 
-Die Wiederherstellung sollte die erfolgreichen Elemente bewahren und mit der verbleibenden Arbeit fortfahren.
+Recovery should preserve the successful items and continue with the remaining work.
 
-Wenn dieses Verhalten falsch erscheint, inspizieren Sie den Job- und Paket-Element-Verlauf, bevor Sie die Datenbank ändern.
+If this behavior appears incorrect, inspect the job and package-item history before changing the database.
 
 ---
 
-# 37. Client bootet während eines Updates neu
+# 37. Client Reboots During an Update
 
-Ein Reboot kann den Agent-Prozess unterbrechen.
+A reboot can interrupt the Agent process.
 
-Der erwartete Wiederherstellungspfad ist:
+The expected recovery path is:
 
 ```text
 Update starts
@@ -1779,9 +1947,9 @@ State is reported
 LUMS evaluates recovery
 ```
 
-Ein Reboot bedeutet daher nicht automatisch, dass der Job dauerhaft fehlgeschlagen ist.
+A reboot therefore does not automatically mean that the job failed permanently.
 
-Inspizieren Sie den Agent-Dienst, nachdem der Client zurückkehrt:
+Inspect the Agent service after the client returns:
 
 ```bash id="jjh3u8"
 sudo systemctl status \
@@ -1789,7 +1957,7 @@ sudo systemctl status \
     --no-pager
 ```
 
-Inspizieren Sie dann aktuelle Ausführungen:
+Then inspect recent executions:
 
 ```bash id="h7y5gk"
 sudo journalctl \
@@ -1800,17 +1968,17 @@ sudo journalctl \
 
 ---
 
-# 38. Reboot-Erkennung
+# 38. Reboot Detection
 
-Die Reboot-Erkennung wird verwendet, um festzustellen, ob ein System-Reboot als Teil einer Update-Operation aufgetreten ist.
+Reboot detection is used to determine whether a system reboot occurred as part of an update operation.
 
-Dies ist besonders relevant, wenn ein Update Pakete ändert, die einen Neustart oder Reboot erfordern.
+This is particularly relevant when an update changes packages that require a restart or reboot.
 
-Für Arch Linux darf die Reboot-Erkennung nicht mit dem Exit-Status des Paketmanagers verwechselt werden.
+For Arch Linux, reboot detection must not be confused with the package-manager exit status.
 
-Eine Paketoperation kann erfolgreich sein, während das System noch einen Reboot erfordert.
+A package operation may succeed while the system still requires a reboot.
 
-Vergleichen Sie bei der Fehlerbehebung der Reboot-Behandlung:
+When troubleshooting reboot handling, compare:
 
 ```text
 Package operation result
@@ -1822,11 +1990,11 @@ Final LUMS job state
 
 ---
 
-# 39. Job-Ergebnis wurde nicht berichtet
+# 39. Job Result Was Not Reported
 
-Wenn die Paketoperation abgeschlossen zu sein scheint, aber LUMS das Endergebnis nicht anzeigt, untersuchen Sie den Berichterstattungspfad.
+If the package operation appears to have completed but LUMS does not show the final result, investigate the reporting path.
 
-Prüfen Sie den Agent:
+Check the Agent:
 
 ```bash id="t0r8kf"
 sudo journalctl \
@@ -1835,7 +2003,7 @@ sudo journalctl \
     --no-pager
 ```
 
-Prüfen Sie dann den Server:
+Then check the server:
 
 ```bash id="h5n1xv"
 sudo docker logs \
@@ -1843,17 +2011,17 @@ sudo docker logs \
     lums
 ```
 
-Wenn der Agent einen Fehler meldet, während die Paketoperation selbst erfolgreich war, klassifizieren Sie das Problem als Berichterstattungsfehler und nicht als Paketverwaltungsfehler.
+If the Agent reports an error while the package operation itself succeeded, classify the problem as a reporting failure rather than a package-management failure.
 
 ---
 
-# 40. Server-Neustart während der Job-Ausführung
+# 40. Server Restart During Job Execution
 
-Ein Server-Neustart darf nicht automatisch als Beweis dafür behandelt werden, dass eine Update-Operation fehlgeschlagen ist.
+A server restart must not automatically be treated as proof that an update operation failed.
 
-Der Job-Zustand muss ausgewertet werden, nachdem der Server wieder verfügbar ist.
+The job state must be evaluated after the server becomes available again.
 
-Prüfen Sie:
+Check:
 
 ```text id="j4t7yw"
 Container state
@@ -1864,17 +2032,17 @@ Agent report
 Watcher state
 ```
 
-Der Wiederherstellungsmechanismus ist dafür verantwortlich festzustellen, ob unterbrochene Arbeit sicher fortgesetzt werden kann.
+The recovery mechanism is responsible for determining whether interrupted work can safely continue.
 
-Schreiben Sie Job-Zustände nach einem Server-Neustart nicht manuell um.
+Do not manually rewrite job states after a server restart.
 
 ---
 
-# 41. Datenbank ist verfügbar, aber Job-Zustand sieht falsch aus
+# 41. Database Is Available but Job State Looks Wrong
 
-Wenn SQLite zugänglich ist, aber der Job-Zustand inkonsistent erscheint, inspizieren Sie die Anwendungs- und Audit-Logs, bevor Sie die Datenbank ändern.
+If SQLite is accessible but the job state appears inconsistent, inspect the application and audit logs before modifying the database.
 
-Nützliche Informationen umfassen:
+Useful information includes:
 
 ```text
 Job ID
@@ -1888,60 +2056,60 @@ Recovery events
 Audit events
 ```
 
-Die Datenbank ist ein Anwendungsdatenspeicher, keine manuelle Reparatur-Schnittstelle.
+The database is an application data store, not a manual repair interface.
 
-Direkte Änderungen können Validierung, Autorisierung, Auditierung und Wiederherstellungslogik umgehen.
+Direct modifications can bypass validation, authorization, auditing, and recovery logic.
 
 ---
 
-# 42. Manuelle Job-Zustandsänderungen
+# 42. Manual Job-State Changes
 
-Manuelle SQL-Änderungen am Update-Job-Zustand sollten nicht als normale Fehlerbehebung verwendet werden.
+Manual SQL changes to update-job state should not be used as normal troubleshooting.
 
-Vermeiden Sie Operationen wie:
+Avoid operations such as:
 
 ```sql id="8hbyqv"
 UPDATE update_jobs ...
 ```
 
-oder:
+or:
 
 ```sql id="n1h7yr"
 DELETE FROM update_jobs ...
 ```
 
-es sei denn, ein kontrolliertes Datenbank-Wiederherstellungsverfahren verlangt sie ausdrücklich.
+unless a controlled database-recovery procedure explicitly requires them.
 
-Wenn eine Reparatur auf Datenbankebene wirklich erforderlich ist, bewahren Sie ein Backup auf und dokumentieren Sie die genaue Änderung, bevor Sie sie anwenden.
+If a database-level repair is genuinely necessary, preserve a backup and document the exact change before applying it.
 
-Normale operative Probleme sollten über die Anwendungs- und Agent-Mechanismen gelöst werden.
-
----
-
-# 43. Watcher- und Agent-Diagnosematrix
-
-Verwenden Sie die folgende Matrix, um die wahrscheinlichste Schicht zu identifizieren:
-
-| Symptom                                                | Zuerst zu prüfende Komponente |
-| ------------------------------------------------------ | ----------------------------- |
-| Client kann sich nicht authentifizieren                | Agent + LUMS API              |
-| Client berichtet erfolgreich, aber Job bleibt ausstehend | Execution Watcher           |
-| Job wechselt zu Running, endet aber nicht              | Agent + Paketmanager          |
-| Paketoperation schlägt fehl                            | Paketmanager                  |
-| Paketoperation erfolgreich, aber Ergebnis fehlt        | Agent-Berichterstattung       |
-| Client während Update neu gebootet                     | Agent + Wiederherstellung     |
-| Job nach Neustart inkonsistent                         | Wiederherstellung + DB-Zustand |
-| Job wird nie entdeckt                                  | Watcher + Timer               |
-| Client ist nicht berechtigt                            | Idle / Client-Zustand         |
-| UI zeigt veralteten Zustand                            | API + letzter Client-Bericht  |
-
-Diese Matrix ist ein Ausgangspunkt, kein Ersatz für die Inspektion der tatsächlichen Logs und des Job-Zustands.
+Normal operational problems should be resolved through the application and Agent mechanisms.
 
 ---
 
-# 44. Nächster Fehlerbehebungsbereich
+# 43. Watcher and Agent Diagnostic Matrix
 
-Nach der Verifikation der Job-Ausführung sind die nächsten Bereiche:
+Use the following matrix to identify the most likely layer:
+
+| Symptom                                           | First component to inspect |
+| ------------------------------------------------- | -------------------------- |
+| Client cannot authenticate                        | Agent + LUMS API           |
+| Client reports successfully but job stays pending | Execution Watcher          |
+| Job becomes running but does not finish           | Agent + package manager    |
+| Package operation fails                           | Package manager            |
+| Package operation succeeds but result is missing  | Agent reporting            |
+| Client rebooted during update                     | Agent + recovery           |
+| Job remains inconsistent after restart            | Recovery + database state  |
+| Job is never discovered                           | Watcher + timer            |
+| Client is not eligible                            | Idle / client state        |
+| UI shows outdated state                           | API + latest client report |
+
+This matrix is a starting point, not a substitute for inspecting the actual logs and job state.
+
+---
+
+# 44. Next Troubleshooting Area
+
+After verifying job execution, the next areas are:
 
 ```text
 SQLite and database state
@@ -1952,21 +2120,21 @@ Container security
 Tests and CI
 ```
 
-Diese Bereiche sollten getrennt von der Paketausführung untersucht werden.
+These areas should be investigated separately from package execution.
 
-# 45. SQLite- und Datenbank-Fehlerbehebung
+# 45. SQLite and Database Troubleshooting
 
-LUMS verwendet SQLite als Anwendungsdatenbank.
+LUMS uses SQLite as its application database.
 
-Die Produktionsdatenbank wird im persistenten Docker-Volume gespeichert:
+The production database is stored inside the persistent Docker volume:
 
 ```text id="9c6w3e"
 /var/lib/lums/lums.db
 ```
 
-Die Datenbank wird von der Anwendung verwaltet und darf normalerweise nicht manuell geändert werden.
+The database is application-managed and must not normally be modified manually.
 
-Stellen Sie bei der Untersuchung datenbankbezogener Probleme zuerst fest, ob das Problem liegt in:
+When investigating database-related problems, first determine whether the problem is:
 
 ```text id="4k4z1m"
 Database availability
@@ -1979,15 +2147,15 @@ Application logic
 
 ---
 
-# 46. Datenbank ist nicht verfügbar
+# 46. Database Is Not Available
 
-Wenn LUMS einen Datenbankfehler meldet, prüfen Sie zuerst, ob der Container läuft:
+If LUMS reports a database error, first check whether the container is running:
 
 ```bash id="0l5q6h"
 sudo docker ps
 ```
 
-Inspizieren Sie dann die Anwendungslogs:
+Then inspect the application logs:
 
 ```bash id="6j5p8m"
 sudo docker logs \
@@ -1995,11 +2163,11 @@ sudo docker logs \
     lums
 ```
 
-Löschen Sie nicht sofort das Docker-Volume.
+Do not immediately delete the Docker volume.
 
-Das persistente Volume enthält die Produktionsanwendungsdaten.
+The persistent volume contains the production application data.
 
-Das Löschen kann dauerhaft entfernen:
+Deleting it can permanently remove:
 
 ```text id="4bq9rj"
 Users
@@ -2012,11 +2180,11 @@ Application state
 
 ---
 
-# 47. SQLite-Datenbanksperrung
+# 47. SQLite Database Locking
 
-SQLite-Sperrprobleme sollten über die Anwendungslogs untersucht werden.
+SQLite locking problems should be investigated through the application logs.
 
-Inspizieren Sie:
+Inspect:
 
 ```bash id="l8f6vk"
 sudo docker logs \
@@ -2024,7 +2192,7 @@ sudo docker logs \
     lums
 ```
 
-Die Produktionsanwendung verwendet:
+The production application uses:
 
 ```text id="2d3m8x"
 journal_mode = wal
@@ -2032,11 +2200,11 @@ busy_timeout = 5000
 synchronous = 2
 ```
 
-Die Anwendung aktiviert außerdem die SQLite-Fremdschlüssel-Durchsetzung für ihre Datenbankverbindungen.
+The application also enables SQLite foreign-key enforcement on its database connections.
 
-Eine Datenbanksperre bedeutet nicht automatisch, dass die Datenbank beschädigt ist.
+A database lock does not automatically mean that the database is corrupted.
 
-Mögliche Ursachen sind:
+Possible causes include:
 
 ```text id="9w4qcz"
 Concurrent writes
@@ -2046,35 +2214,35 @@ Unexpected process termination
 Filesystem problem
 ```
 
-Löschen Sie SQLite-Journal-Dateien nicht manuell.
+Do not delete SQLite journal files manually.
 
 ---
 
-# 48. SQLite-Fremdschlüssel
+# 48. SQLite Foreign Keys
 
-LUMS aktiviert ausdrücklich die SQLite-Fremdschlüssel-Durchsetzung auf Anwendungsebene.
+LUMS explicitly enables SQLite foreign-key enforcement at the application level.
 
-Dies bedeutet, dass Beziehungen zwischen Datenbankdatensätzen von SQLite validiert werden, wenn die Anwendungsverbindung hergestellt wird.
+This means that relationships between database records are validated by SQLite when the application connection is established.
 
-Wenn ein fremdschlüsselbezogener Fehler auftritt, inspizieren Sie zuerst die Anwendungslogs.
+If a foreign-key-related error occurs, inspect the application logs first.
 
-Deaktivieren Sie die Fremdschlüssel-Durchsetzung nicht, um eine Operation erfolgreich zu machen.
+Do not disable foreign-key enforcement to make an operation succeed.
 
-Ein Fremdschlüsselfehler kann auf ein Anwendungslogik- oder Datenintegritätsproblem hinweisen.
+A foreign-key failure can indicate an application logic or data-integrity problem.
 
 ---
 
-# 49. SQLite-Datenbankintegrität
+# 49. SQLite Database Integrity
 
-Wenn Datenbankbeschädigung vermutet wird, stellen Sie zuerst unnötige Änderungen ein.
+If database corruption is suspected, stop making unnecessary changes first.
 
-Bewahren Sie den aktuellen Zustand auf und inspizieren Sie die Anwendungslogs.
+Preserve the current state and inspect the application logs.
 
-Eine kontrollierte Integritätsprüfung kann gegen eine Kopie der Datenbank durchgeführt werden.
+A controlled integrity check may be performed against a copy of the database.
 
-Führen Sie keine destruktiven Reparaturvorgänge direkt gegen die Produktionsdatenbank durch, es sei denn, ein dokumentiertes Wiederherstellungsverfahren verlangt dies.
+Do not perform destructive repair operations directly against the production database unless a documented recovery procedure requires it.
 
-Das allgemeine Prinzip ist:
+The general principle is:
 
 ```text id="t4d1km"
 Preserve
@@ -2088,7 +2256,7 @@ Recover
 Validate
 ```
 
-Beginnen Sie niemals mit:
+Never start with:
 
 ```text id="z1f6rw"
 Delete database
@@ -2098,11 +2266,11 @@ Recreate Docker volume
 
 ---
 
-# 50. Datenbankmigrationen
+# 50. Database Migrations
 
-LUMS verwendet Anwendungsmigrationen, um Datenbankschemaänderungen einzuführen.
+LUMS uses application migrations to introduce database schema changes.
 
-Wenn ein Migrationsproblem auftritt, inspizieren Sie die Containerlogs:
+When a migration problem occurs, inspect the container logs:
 
 ```bash id="x4h9vf"
 sudo docker logs \
@@ -2110,7 +2278,7 @@ sudo docker logs \
     lums
 ```
 
-Achten Sie auf:
+Look for:
 
 ```text id="m2x7kc"
 Migration failure
@@ -2121,34 +2289,34 @@ Constraint error
 Migration already applied
 ```
 
-Bearbeiten Sie Migrationsdatensätze nicht manuell, es sei denn, das Migrationssystem verlangt ausdrücklich ein kontrolliertes Wiederherstellungsverfahren.
+Do not manually edit migration records unless the migration system specifically requires a controlled recovery procedure.
 
-Eine Migration, die bereits angewendet wurde, sollte normalerweise nicht manuell erneut ausgeführt werden.
+A migration that has already been applied should not normally be executed manually again.
 
 ---
 
-# 51. Datenbank-Volume
+# 51. Database Volume
 
-Die LUMS-Datenbank wird im persistenten Docker-Volume gespeichert:
+The LUMS database is stored in the persistent Docker volume:
 
 ```text id="p6m3jw"
 lums-data
 ```
 
-Inspizieren Sie das Volume:
+Inspect the volume:
 
 ```bash id="v4c7yq"
 sudo docker volume inspect \
     lums-data
 ```
 
-Das Volume muss über die normale Container-Neuerstellung hinweg persistent bleiben.
+The volume must remain persistent across normal container recreation.
 
-Der Anwendungscontainer selbst ist wegwerfbar.
+The application container itself is disposable.
 
-Die Anwendungsdaten nicht.
+The application data is not.
 
-Daher:
+Therefore:
 
 ```text id="z9f4ws"
 Container
@@ -2156,37 +2324,37 @@ Container
 Persistent database
 ```
 
-Das Neuerstellen des Containers darf nicht mit dem Neuerstellen des Daten-Volumes verwechselt werden.
+Recreating the container must not be confused with recreating the data volume.
 
 ---
 
-# 52. Datenbank-Festplattenplatz
+# 52. Database Disk Space
 
-SQLite benötigt verfügbaren Dateisystemplatz für den normalen Betrieb.
+SQLite requires available filesystem space for normal operation.
 
-Prüfen Sie das Host-Dateisystem:
+Check the host filesystem:
 
 ```bash id="j6k1pt"
 df -h
 ```
 
-Prüfen Sie auch die Inode-Verfügbarkeit:
+Also check inode availability:
 
 ```bash id="q2c5ra"
 df -i
 ```
 
-Wenig Festplattenplatz kann Datenbankfehler erzeugen, die anfangs wie Anwendungsprobleme aussehen.
+Low disk space can produce database errors that initially look like application problems.
 
-Wenn die Datenbank plötzlich schreibgeschützt wird oder Schreibvorgänge zu fehlschlagen beginnen, prüfen Sie die Dateisystemkapazität, bevor Sie die SQLite-Konfiguration ändern.
+If the database suddenly becomes read-only or writes begin failing, verify filesystem capacity before modifying SQLite configuration.
 
 ---
 
-# 53. RBAC-Fehlerbehebung
+# 53. RBAC Troubleshooting
 
-LUMS verwendet rollenbasierte Zugriffskontrolle.
+LUMS uses role-based access control.
 
-Die aktuellen Rollen sind:
+The current roles are:
 
 ```text id="k8w5j2"
 Administrator
@@ -2194,13 +2362,13 @@ Operator
 Viewer
 ```
 
-Die Berechtigungen sind absichtlich unterschiedlich.
+The permissions are intentionally different.
 
 ---
 
 ## 53.1 Administrator
 
-Administratoren können:
+Administrators can:
 
 ```text id="n4x7pa"
 View clients
@@ -2216,13 +2384,13 @@ Manage users
 Manage roles
 ```
 
-Ausschließlich für Administratoren vorgesehene Operationen umfassen Benutzerverwaltung und Rollenadministration.
+Administrator-only operations include user management and role administration.
 
 ---
 
 ## 53.2 Operator
 
-Operatoren können:
+Operators can:
 
 ```text id="b7c2mz"
 View clients
@@ -2234,7 +2402,7 @@ Use package management
 Use system maintenance
 ```
 
-Operatoren können nicht:
+Operators cannot:
 
 ```text id="q8v3kd"
 Manage users
@@ -2247,16 +2415,16 @@ Rotate client tokens
 
 ## 53.3 Viewer
 
-Viewer haben absichtlich eingeschränkten Zugriff.
+Viewers have deliberately restricted access.
 
-Ein Viewer kann:
+A Viewer can:
 
 ```text id="y5m2rx"
 View clients
 View installed software
 ```
 
-Die folgende Funktionalität ist für die Viewer-Oberfläche ausgeblendet und serverseitig blockiert:
+The following functionality is hidden from the Viewer interface and blocked server-side:
 
 ```text id="e8c4nw"
 Available Updates
@@ -2266,15 +2434,15 @@ Package Management
 System Maintenance
 ```
 
-Dies ist eine beabsichtigte Sicherheitskontrolle.
+This is an intentional security control.
 
-Wenn ein Viewer auf eine dieser Funktionen zugreifen kann, behandeln Sie das Problem als RBAC-Problem und nicht nur als UI-Problem.
+If a Viewer can access one of these functions, treat the problem as an RBAC issue rather than simply a UI issue.
 
 ---
 
-# 54. Viewer sieht zu viel
+# 54. Viewer Sees Too Much
 
-Wenn ein Viewer Funktionalität sieht, die nicht verfügbar sein sollte, prüfen Sie beide Schichten:
+If a Viewer sees functionality that should not be available, check both layers:
 
 ```text id="x5j3mq"
 Browser UI
@@ -2282,27 +2450,27 @@ Browser UI
 Server-side authorization
 ```
 
-Das Ausblenden eines Elements in JavaScript oder HTML ist keine ausreichende Sicherheit.
+Hiding an element in JavaScript or HTML is not sufficient security.
 
-Die API muss nicht autorisierte Operationen ebenfalls ablehnen.
+The API must also reject unauthorized operations.
 
-Bei der Untersuchung:
+When investigating:
 
-1. Stellen Sie die Rolle des authentifizierten Benutzers fest.
-2. Identifizieren Sie den betroffenen Endpunkt.
-3. Prüfen Sie die Serverantwort.
-4. Inspizieren Sie bei Bedarf die Anwendungslogs.
-5. Verifizieren Sie den relevanten RBAC-Test.
+1. Determine the authenticated user's role.
+2. Identify the affected endpoint.
+3. Check the server response.
+4. Inspect the application logs if necessary.
+5. Verify the relevant RBAC test.
 
-Lösen Sie ein Autorisierungsproblem nicht nur durch Ausblenden des UI-Elements.
+Do not solve an authorization problem by only hiding the UI element.
 
 ---
 
-# 55. Viewer kann erwartete Daten nicht sehen
+# 55. Viewer Cannot See Expected Data
 
-Ein Viewer sollte weiterhin auf die Informationen zugreifen können, die durch das aktuelle RBAC-Modell ausdrücklich erlaubt sind.
+A Viewer should still be able to access the information explicitly permitted by the current RBAC model.
 
-Wenn erlaubte Client-Informationen fehlen:
+If permitted client information is missing:
 
 ```text id="3h6q8f"
 Verify login
@@ -2316,17 +2484,17 @@ Inspect API response
 Inspect browser console if necessary
 ```
 
-Gewähren Sie keine zusätzlichen Berechtigungen, nur weil eine Seite derzeit unvollständig erscheint.
+Do not grant additional permissions merely because a page currently appears incomplete.
 
-Stellen Sie zuerst fest, ob die fehlenden Informationen absichtlich eingeschränkt sind.
+Determine whether the missing information is intentionally restricted first.
 
 ---
 
-# 56. Operator kann eine Operation nicht durchführen
+# 56. Operator Cannot Perform an Operation
 
-Wenn ein Operator `403 Forbidden` erhält, stellen Sie zuerst fest, ob die angeforderte Aktion ausschließlich für Administratoren vorgesehen ist.
+If an Operator receives `403 Forbidden`, first determine whether the requested action is Administrator-only.
 
-Operatorzugriff umfasst nicht:
+Operator access does not include:
 
 ```text id="n5y7cu"
 User management
@@ -2335,17 +2503,17 @@ Client creation/deactivation
 Client token rotation
 ```
 
-Wenn die Operation für Operatoren erlaubt sein sollte, inspizieren Sie den Autorisierungsdekorator des Endpunkts und die entsprechenden RBAC-Tests.
+If the operation should be allowed for Operators, inspect the endpoint's authorization decorator and corresponding RBAC tests.
 
-Befördern Sie den Benutzer nicht vorübergehend zum Administrator als Diagnose-Abkürzung.
+Do not temporarily promote the user to Administrator as a diagnostic shortcut.
 
 ---
 
-# 57. Administrator kann eine Operation nicht durchführen
+# 57. Administrator Cannot Perform an Operation
 
-Ein Administrator sollte Zugriff auf alle derzeit unterstützten administrativen Operationen haben.
+An Administrator should have access to all currently supported administrative operations.
 
-Wenn ein Administrator einen Autorisierungsfehler erhält:
+If an Administrator receives an authorization error:
 
 ```text id="q7d2nv"
 Verify authenticated session
@@ -2359,17 +2527,17 @@ Inspect CSRF requirements
 Inspect application logs
 ```
 
-Für zustandsändernde Operationen kann eine gültige Sitzung allein nicht ausreichend sein.
+For state-changing operations, a valid session alone may not be sufficient.
 
-Der CSRF-Schutz muss, wo erforderlich, ebenfalls erfüllt sein.
+CSRF protection must also be satisfied where required.
 
 ---
 
-# 58. Benutzerverwaltung
+# 58. User Management
 
-Die Benutzerverwaltung ist auf Administratoren beschränkt.
+User management is restricted to Administrators.
 
-Der Benutzerverwaltungs-Workflow ist:
+The user-management workflow is:
 
 ```text id="x4j6pw"
 Administrator
@@ -2382,7 +2550,7 @@ User Management
     └── Enable / disable user
 ```
 
-Wenn ein Benutzer nicht erstellt werden kann, prüfen Sie:
+When a user cannot be created, check:
 
 ```text id="b3q9fz"
 Current role
@@ -2394,17 +2562,17 @@ CSRF protection
 Application logs
 ```
 
-Erstellen Sie Benutzer nicht direkt in SQLite.
+Do not create users directly in SQLite.
 
-Direkte Datenbankeinfügung umgeht Passwort-Hashing, Validierung, Autorisierung und Audit-Logging.
+Direct database insertion bypasses password hashing, validation, authorization, and audit logging.
 
 ---
 
-# 59. Benutzererstellung schlägt fehl
+# 59. User Creation Fails
 
-Wenn die Benutzererstellung fehlschlägt, inspizieren Sie die Browserantwort und die Serverlogs.
+If user creation fails, inspect the browser response and server logs.
 
-Die API sollte validieren:
+The API should validate:
 
 ```text id="7x3m5n"
 Username
@@ -2415,17 +2583,17 @@ Authenticated administrator
 CSRF token
 ```
 
-Wenn die Anfrage abgelehnt wird, stellen Sie fest, welche Validierungsregel ausgelöst wurde.
+If the request is rejected, determine which validation rule was triggered.
 
-Schwächen Sie die Validierung nicht, nur damit eine einzelne Kontoerstellungsanfrage erfolgreich ist.
+Do not weaken validation merely to make one account creation request succeed.
 
 ---
 
-# 60. Passwortprobleme
+# 60. Password Problems
 
-LUMS speichert Benutzerpasswörter mit einem Passwort-Hashing-Mechanismus statt Klartextpasswörtern.
+LUMS stores user passwords using a password-hashing mechanism rather than plaintext passwords.
 
-Wenn ein Benutzer sich nicht anmelden kann:
+If a user cannot log in:
 
 ```text id="9w3r5b"
 Verify username
@@ -2439,17 +2607,17 @@ Check login rate limiting
 Inspect authentication logs
 ```
 
-Speichern oder loggen Sie niemals Klartextpasswörter.
+Never store or log plaintext passwords.
 
-Kopieren Sie Passwörter nicht in Diagnosebefehle oder Logdateien.
+Do not copy passwords into diagnostic commands or log files.
 
 ---
 
-# 61. Deaktiviertes Benutzerkonto
+# 61. Disabled User Account
 
-Ein deaktiviertes Konto darf nicht als aktives Login-Konto behandelt werden.
+A disabled account must not be treated as an active login account.
 
-Wenn sich ein deaktivierter Benutzer weiterhin authentifizieren kann, untersuchen Sie:
+If a disabled user can still authenticate, investigate:
 
 ```text id="z6t2hx"
 Current account state
@@ -2460,19 +2628,19 @@ Browser session
 Server-side authorization
 ```
 
-Löschen Sie das Konto nicht einfach.
+Do not simply delete the account.
 
-Die Bewahrung des Kontos kann für den Audit-Verlauf wichtig sein.
+Preserving the account can be important for audit history.
 
 ---
 
-# 62. Sitzungsprobleme
+# 62. Session Problems
 
-LUMS verwendet serverseitige Sitzungsverwaltung.
+LUMS uses server-side session handling.
 
-Wenn ein Benutzer veralteten oder unerwarteten Zugriff zu haben scheint, melden Sie sich zuerst ab und stellen Sie eine frische Sitzung her.
+When a user appears to have stale or unexpected access, first log out and establish a fresh session.
 
-Wenn das Problem fortbesteht, untersuchen Sie:
+If the problem persists, investigate:
 
 ```text id="q1y7vm"
 Account state
@@ -2483,13 +2651,13 @@ Cookie configuration
 CSRF protection
 ```
 
-Deaktivieren Sie keine Sitzungssicherheitskontrollen, um ein Login-Problem zu umgehen.
+Do not disable session security controls to bypass a login problem.
 
 ---
 
-# 63. Sitzungswiderruf
+# 63. Session Revocation
 
-Der Sitzungswiderruf ist relevant, wenn:
+Session revocation is relevant when:
 
 ```text id="4n8z7p"
 A password changes
@@ -2499,19 +2667,19 @@ A session must be invalidated
 A security event requires forced logout
 ```
 
-Wenn ein Benutzer nach einer Kontoänderung weiterhin Zugriff zu haben scheint, stellen Sie fest, ob die bestehende Sitzung korrekt invalidiert wurde.
+If a user appears to retain access after an account change, determine whether the existing session was correctly invalidated.
 
-Testen Sie mit einer frischen Browsersitzung erst, nachdem Sie den Kontozustand bestätigt haben.
+Test with a fresh browser session only after confirming the account state.
 
-Gehen Sie nicht davon aus, dass das Löschen von Browser-Cookies allein beweist, dass der serverseitige Sitzungswiderruf funktioniert.
+Do not assume that deleting browser cookies alone proves that server-side session revocation works.
 
 ---
 
-# 64. Login-Ratenbegrenzung
+# 64. Login Rate Limiting
 
-LUMS wendet Login-Ratenbegrenzung auf wiederholte fehlgeschlagene Authentifizierungsversuche an.
+LUMS applies login rate limiting to repeated failed authentication attempts.
 
-Das aktuelle Verhalten verwendet zunehmende Sperrintervalle:
+The current behavior uses increasing lockout intervals:
 
 ```text id="p7k4xz"
 5 attempts  → 30 seconds
@@ -2520,21 +2688,21 @@ Das aktuelle Verhalten verwendet zunehmende Sperrintervalle:
 8+ attempts → 300 seconds
 ```
 
-Der Fehlerzustand wird in SQLite persistiert.
+The failure state is persisted in SQLite.
 
-Wenn Login-Versuche unerwartet blockiert werden, inspizieren Sie den Authentifizierungszustand, bevor Sie die Datenbank ändern.
+If login attempts are unexpectedly blocked, inspect the authentication state before changing the database.
 
-Eine Rate-Limit-Antwort ist nicht automatisch ein Authentifizierungsfehler.
+A rate-limit response is not automatically an authentication failure.
 
-Sie kann anzeigen, dass das Konto den konfigurierten Fehlversuchs-Schwellenwert erreicht hat.
+It may indicate that the account has reached the configured failed-attempt threshold.
 
 ---
 
-# 65. Login funktioniert, aber API gibt `403` zurück
+# 65. Login Works but API Returns `403`
 
-Ein erfolgreicher Login beweist Authentifizierung, nicht Autorisierung.
+A successful login proves authentication, not authorization.
 
-Eine `403 Forbidden`-Antwort kann anzeigen:
+A `403 Forbidden` response may indicate:
 
 ```text id="m9c2vx"
 Insufficient role
@@ -2543,29 +2711,29 @@ Disallowed operation
 Disabled functionality
 ```
 
-Identifizieren Sie den genauen Endpunkt, bevor Sie etwas ändern.
+Identify the exact endpoint before changing anything.
 
-Die korrekte Fehlerbehebungsfrage ist:
+The correct troubleshooting question is:
 
 ```text id="0q4g1k"
 "Is this user authenticated?"
 ```
 
-gefolgt von:
+followed by:
 
 ```text id="x8v5md"
 "Is this authenticated user authorized for this operation?"
 ```
 
-Dies sind getrennte Sicherheitsprüfungen.
+These are separate security checks.
 
 ---
 
-# 66. CSRF-Fehler
+# 66. CSRF Errors
 
-Zustandsändernde Browser-Anfragen sind gegen Cross-Site Request Forgery geschützt.
+State-changing browser requests are protected against cross-site request forgery.
 
-Wenn eine zustandsändernde Anfrage unerwartet fehlschlägt:
+If a state-changing request fails unexpectedly:
 
 ```text id="6z4qpn"
 Verify authenticated session
@@ -2579,15 +2747,15 @@ Verify endpoint
 Inspect server response
 ```
 
-Deaktivieren Sie den CSRF-Schutz nicht als Fehlerbehebungs-Workaround.
+Do not disable CSRF protection as a troubleshooting workaround.
 
-Eine fehlgeschlagene CSRF-Prüfung ist eine Sicherheitskontrolle, die wie vorgesehen funktioniert.
+A failed CSRF check is a security control working as intended.
 
 ---
 
-# 67. Browser-UI und API stimmen nicht überein
+# 67. Browser UI and API Disagree
 
-Wenn die UI anzeigt, dass eine Aktion verfügbar ist, aber die API sie ablehnt:
+If the UI shows that an action is available but the API rejects it:
 
 ```text id="v8n3ty"
 Browser UI
@@ -2599,9 +2767,9 @@ API request
 Server-side authorization
 ```
 
-Das serverseitige Ergebnis ist maßgeblich.
+The server-side result is authoritative.
 
-Die UI kann veralteten Zustand enthalten nach:
+The UI may contain stale state after:
 
 ```text id="4g7m2x"
 Role changes
@@ -2610,31 +2778,31 @@ Client changes
 Page remains open for a long time
 ```
 
-Laden Sie die Seite neu und stellen Sie eine frische Sitzung her, bevor Sie annehmen, dass die serverseitige Autorisierung falsch ist.
+Reload the page and establish a fresh session before assuming that the server-side authorization is incorrect.
 
 ---
 
-# 68. RBAC-Diagnosematrix
+# 68. RBAC Diagnostic Matrix
 
-| Symptom                          | Zuerst zu prüfende Komponente           |
-| -------------------------------- | --------------------------------------- |
-| Viewer sieht Management-UI       | Rollenbehandlung der Client-Seite       |
-| Viewer-API-Anfrage ist erfolgreich | Serverseitige RBAC                    |
-| Operator erhält `403`            | Berechtigungsmodell des Endpunkts       |
-| Administrator erhält `403`       | Sitzung / CSRF / Endpunkt-Autorisierung |
-| Benutzer kann nicht erstellt werden | Admin-Rolle + Validierung           |
-| Deaktivierter Benutzer kann sich anmelden | Kontozustand + Sitzungsverwaltung |
-| Login vorübergehend blockiert    | Ratenbegrenzung                         |
-| Zustandsändernde Anfrage abgelehnt | CSRF / Sitzung                        |
-| UI und API stimmen nicht überein | Browserzustand + Server-Autorisierung   |
+| Symptom                         | First component to inspect              |
+| ------------------------------- | --------------------------------------- |
+| Viewer sees management UI       | Client page role handling               |
+| Viewer API request succeeds     | Server-side RBAC                        |
+| Operator receives `403`         | Endpoint permission model               |
+| Administrator receives `403`    | Session / CSRF / endpoint authorization |
+| User cannot be created          | Admin role + validation                 |
+| Disabled user can log in        | Account state + session handling        |
+| Login temporarily blocked       | Rate limiting                           |
+| State-changing request rejected | CSRF / session                          |
+| UI and API disagree             | Browser state + server authorization    |
 
-Das serverseitige Autorisierungsergebnis ist immer wichtiger als die Frage, ob ein Oberflächenelement sichtbar ist.
+The server-side authorization result is always more important than whether an interface element is visible.
 
 ---
 
-# 69. Nächster Fehlerbehebungsbereich
+# 69. Next Troubleshooting Area
 
-Die nächsten Diagnosebereiche sind:
+The next diagnostic areas are:
 
 ```text id="8r5w2q"
 Application and audit logging
@@ -2646,13 +2814,13 @@ Diagnostic snapshots
 Final recovery checklist
 ```
 
-Diese Bereiche sollten untersucht werden, ohne die Sicherheitsbasis zu schwächen.
+These areas should be investigated without weakening the security baseline.
 
-# 70. Anwendungs-Logging
+# 70. Application Logging
 
-LUMS verwendet Anwendungs-Logging, um Diagnoseinformationen bereitzustellen, ohne sensible Anmeldeinformationen preiszugeben.
+LUMS uses application logging to provide diagnostic information without exposing sensitive credentials.
 
-Beginnen Sie bei der Untersuchung eines Anwendungsproblems mit den aktuellsten Logs:
+When investigating an application problem, start with the most recent logs:
 
 ```bash id="f6m2qa"
 sudo docker logs \
@@ -2660,7 +2828,7 @@ sudo docker logs \
     lums
 ```
 
-Für kontinuierliche Überwachung:
+For continuous monitoring:
 
 ```bash id="x3v8kp"
 sudo docker logs \
@@ -2668,9 +2836,9 @@ sudo docker logs \
     lums
 ```
 
-Reproduzieren Sie das Problem nach Möglichkeit, während Sie die Logs überwachen.
+When possible, reproduce the problem while monitoring the logs.
 
-Dies erleichtert die Korrelation von:
+This makes it easier to correlate:
 
 ```text id="p8k4zw"
 User action
@@ -2686,11 +2854,11 @@ Agent interaction
 
 ---
 
-# 71. Anwendungslogs enthalten einen Fehler
+# 71. Application Logs Contain an Error
 
-Identifizieren Sie zuerst die Komponente, die die Meldung erzeugt hat.
+First identify the component that produced the message.
 
-Typische Quellen sind:
+Typical sources include:
 
 ```text id="w4c8rn"
 Flask application
@@ -2703,11 +2871,11 @@ Job execution
 Client reporting
 ```
 
-Gehen Sie nicht davon aus, dass die letzte Log-Meldung die Grundursache ist.
+Do not assume that the last log message is the root cause.
 
-Suchen Sie den ersten relevanten Fehler in der Ereignissequenz.
+Look for the first relevant error in the event sequence.
 
-Korrelieren Sie, wo möglich:
+When possible, correlate:
 
 ```text id="n6q2vy"
 Timestamp
@@ -2720,11 +2888,11 @@ Result
 
 ---
 
-# 72. Audit-Logging
+# 72. Audit Logging
 
-LUMS zeichnet sicherheitsrelevante Anwendungsaktionen im Audit-Log auf.
+LUMS records security-relevant application actions in the audit log.
 
-Audit-Logging ist nützlich bei der Untersuchung von:
+Audit logging is useful when investigating:
 
 ```text id="j8r4px"
 User changes
@@ -2736,33 +2904,33 @@ Update-job creation
 Security-relevant state changes
 ```
 
-Ein Audit-Ereignis sollte als Nachweis eines Anwendungsereignisses behandelt werden, nicht als Ersatz für Systemlogs.
+An audit event should be treated as evidence of an application event, not as a replacement for system logs.
 
-Verwenden Sie Anwendungslogs für technische Ausführungsdetails und Audit-Logs für sicherheitsrelevante Anwendungsaktionen.
-
----
-
-# 73. Audit-Ereignis fehlt
-
-Wenn ein erwartetes Audit-Ereignis fehlt:
-
-1. Identifizieren Sie die genaue Aktion.
-2. Identifizieren Sie den API-Endpunkt.
-3. Prüfen Sie, ob die Aktion tatsächlich den Server erreicht hat.
-4. Inspizieren Sie die Anwendungslogs.
-5. Stellen Sie fest, ob die Aktion abgelehnt wurde, bevor das Audit-Ereignis hätte erstellt werden sollen.
-
-Fügen Sie Audit-Datensätze nicht manuell ein, nur damit eine Audit-Spur vollständig erscheint.
-
-Ein Audit-Datensatz sollte einem realen Anwendungsereignis entsprechen.
+Use application logs for technical execution details and audit logs for security-relevant application actions.
 
 ---
 
-# 74. Audit-Log und Anwendungslog unterscheiden sich
+# 73. Audit Event Is Missing
 
-Die beiden Logging-Systeme haben unterschiedliche Zwecke.
+If an expected audit event is missing:
 
-Zum Beispiel:
+1. Identify the exact action.
+2. Identify the API endpoint.
+3. Verify that the action actually reached the server.
+4. Inspect the application logs.
+5. Determine whether the action was rejected before the audit event should have been created.
+
+Do not manually insert audit records simply to make an audit trail appear complete.
+
+An audit record should correspond to a real application event.
+
+---
+
+# 74. Audit Log and Application Log Differ
+
+The two logging systems have different purposes.
+
+For example:
 
 ```text id="7q2m5k"
 Application log
@@ -2772,15 +2940,15 @@ Audit log
 → security-relevant application event
 ```
 
-Ein Paketmanager-Fehler kann daher im Anwendungs- oder Agent-Log erscheinen, ohne ein separates administratives Audit-Ereignis darzustellen.
+A package-manager error may therefore appear in the application or Agent log without representing a separate administrative audit event.
 
-Umgekehrt sollte eine Benutzerverwaltungsaktion ein auditierbares Anwendungsereignis erzeugen, selbst wenn die Operation technisch einfach ist.
+Conversely, a user-management action should produce an auditable application event even if the operation itself is technically simple.
 
 ---
 
-# 75. Sensible Informationen in Logs
+# 75. Sensitive Information in Logs
 
-Platzieren Sie niemals absichtlich Folgendes in Diagnoseausgaben:
+Never intentionally place the following into diagnostic output:
 
 ```text id="3m7v9x"
 Client tokens
@@ -2791,17 +2959,17 @@ Private keys
 TLS private material
 ```
 
-Wenn ein Diagnosebefehl einen dieser Werte offenlegen würde, verwenden Sie stattdessen eine redigierte oder reine Metadaten-Prüfung.
+If a diagnostic command would expose one of these values, use a redacted or metadata-only check instead.
 
-Überprüfen Sie Logs beim Teilen zur Fehlerbehebung auf Secrets, bevor Sie sie in Tickets, Dokumentation, GitHub-Issues oder Chats kopieren.
+When sharing logs for troubleshooting, review them for secrets before copying them into tickets, documentation, GitHub issues, or chat.
 
 ---
 
-# 76. Docker-Container-Sicherheit
+# 76. Docker Container Security
 
-Der LUMS-Produktionscontainer ist absichtlich gehärtet.
+The production LUMS container is intentionally hardened.
 
-Die erwarteten Sicherheitseigenschaften umfassen:
+The expected security properties include:
 
 ```text id="z4w6pt"
 Non-root application user
@@ -2814,21 +2982,21 @@ Read-only secret mount
 Restricted temporary filesystems
 ```
 
-Wenn eine dieser Eigenschaften unerwartet ändert, behandeln Sie es als Konfigurationsdrift.
+If one of these properties changes unexpectedly, treat it as configuration drift.
 
-Schwächen Sie den Container nicht, um ein Anwendungsproblem zu lösen, es sei denn, die Sicherheitsauswirkungen wurden ausdrücklich bewertet.
+Do not weaken the container to solve an application problem unless the security impact has been explicitly evaluated.
 
 ---
 
-# 77. Laufzeit-Sicherheit des Containers prüfen
+# 77. Verify Container Runtime Security
 
-Inspizieren Sie den Container:
+Inspect the container:
 
 ```bash id="b8x5jq"
 sudo docker inspect lums
 ```
 
-Für eine fokussierte Laufzeitprüfung:
+For a focused runtime check:
 
 ```bash id="r3n7cw"
 sudo docker inspect \
@@ -2836,7 +3004,7 @@ sudo docker inspect \
     lums
 ```
 
-Die erwarteten Werte umfassen:
+The expected values include:
 
 ```text id="k5m2zr"
 ReadonlyRootfs=true
@@ -2845,17 +3013,17 @@ CapDrop=[ALL]
 SecurityOpt=[no-new-privileges:true]
 ```
 
-Die genaue Formatierung kann zwischen Docker-Versionen variieren.
+The exact formatting may vary between Docker versions.
 
-Die Sicherheitseigenschaften selbst sind entscheidend.
+The security properties themselves are what matter.
 
 ---
 
-# 78. Container läuft als Root
+# 78. Container Runs as Root
 
-Die LUMS-Anwendung sollte als ihr dedizierter unprivilegierter Anwendungsbenutzer laufen.
+The LUMS application should run as its dedicated unprivileged application user.
 
-Wenn der Container unerwartet als Root läuft, inspizieren Sie zuerst das Image und die Laufzeitkonfiguration:
+If the container unexpectedly runs as root, first inspect the image and runtime configuration:
 
 ```bash id="p6x4nz"
 sudo docker inspect \
@@ -2863,21 +3031,21 @@ sudo docker inspect \
     lums
 ```
 
-Inspizieren Sie dann das Dockerfile.
+Then inspect the Dockerfile.
 
-Lösen Sie Anwendungsberechtigungsprobleme nicht, indem Sie den Produktionscontainer auf Root umstellen.
+Do not solve application permission problems by switching the production container to root.
 
-Wenn ein Verzeichnis Schreibzugriff erfordert, identifizieren Sie den genauen Pfad und stellen Sie fest, ob es persistente Anwendungsdaten oder temporäre Daten sein sollten.
+If a directory requires write access, identify the exact path and determine whether it should be persistent application data or temporary data.
 
 ---
 
-# 79. Schreibgeschütztes Root-Dateisystem
+# 79. Read-Only Root Filesystem
 
-Der Produktionscontainer verwendet ein schreibgeschütztes Root-Dateisystem.
+The production container uses a read-only root filesystem.
 
-Dies schützt das Anwendungsimage vor unnötiger Laufzeitänderung.
+This protects the application image from unnecessary runtime modification.
 
-Wenn die Anwendung meldet:
+If the application reports:
 
 ```text id="y5k8mc"
 Read-only filesystem
@@ -2886,25 +3054,25 @@ Cannot create file
 Cannot write temporary data
 ```
 
-stellen Sie zuerst fest, **wohin** die Anwendung zu schreiben versucht.
+first determine **where** the application is attempting to write.
 
-Erwartete beschreibbare Speicherorte sind absichtlich begrenzt.
+Expected writable locations are deliberately limited.
 
-Persistente Anwendungsdaten gehören in:
+Persistent application data belongs in:
 
 ```text id="q9m3xr"
 /var/lib/lums
 ```
 
-Temporäre Laufzeitdaten können die konfigurierten temporären Dateisysteme verwenden.
+Temporary runtime data may use the configured temporary filesystems.
 
-Deaktivieren Sie `--read-only` nicht nur deshalb, weil ein Anwendungspfad unerwartet beschreibbar ist.
+Do not disable `--read-only` merely because an application path is unexpectedly writable.
 
 ---
 
-# 80. `/tmp` ist nicht beschreibbar
+# 80. `/tmp` Is Not Writable
 
-Wenn die Anwendung temporären Speicher benötigt, prüfen Sie das temporäre Dateisystem:
+If the application requires temporary storage, verify the temporary filesystem:
 
 ```bash id="a7w4vn"
 sudo docker inspect \
@@ -2912,59 +3080,59 @@ sudo docker inspect \
     lums
 ```
 
-Der Produktionscontainer stellt ein eingeschränktes `/tmp` bereit.
+The production container provides a restricted `/tmp`.
 
-Das temporäre Dateisystem ist nur für flüchtige Daten vorgesehen.
+The temporary filesystem is intended for transient data only.
 
-Persistente Daten dürfen dort nicht gespeichert werden.
+Persistent data must not be stored there.
 
 ---
 
-# 81. Secret-Mount-Probleme
+# 81. Secret Mount Problems
 
-Das LUMS-Anwendungssecret wird über einen geschützten Datei-Mount bereitgestellt.
+The LUMS application secret is provided through a protected file mount.
 
-Das Secret sollte nicht direkt in das Image eingebettet werden.
+The secret should not be embedded directly into the image.
 
-Wenn LUMS ein fehlendes Secret meldet, inspizieren Sie zuerst die Laufzeitkonfiguration:
+If LUMS reports a missing secret, first inspect the runtime configuration:
 
 ```bash id="j4p7zx"
 sudo docker inspect \
     lums
 ```
 
-Prüfen Sie, dass der Secret-Mount existiert und schreibgeschützt ist.
+Check that the secret mount exists and is read-only.
 
-Geben Sie den Inhalt des Secrets nicht aus.
+Do not print the contents of the secret.
 
-Eine nützliche Diagnose ist, zu prüfen, dass die Datei existiert und die erwarteten Berechtigungen hat, ohne ihren Inhalt anzuzeigen.
-
----
-
-# 82. Secret-Datei fehlt
-
-Wenn die Secret-Datei auf dem Host nicht existiert, kann der Container nicht korrekt authentifizieren oder initialisieren.
-
-Stellen Sie zuerst fest, ob der erwartete Secret-Pfad existiert.
-
-Erstellen Sie das Secret nicht zufällig neu.
-
-Ein Ersatz-Secret kann bestehende Sitzungen oder andere kryptografische Zustände ungültig machen, je nachdem, wie die Anwendung es verwendet.
-
-Jeder absichtliche Secret-Ersatz muss daher als kontrollierte Sicherheitsoperation behandelt werden.
+A useful diagnostic is to verify that the file exists and has the expected permissions without displaying its contents.
 
 ---
 
-# 83. Persistentes Volume ist nicht beschreibbar
+# 82. Secret File Is Missing
 
-Wenn LUMS keine Anwendungsdaten schreiben kann, inspizieren Sie das Volume:
+If the secret file does not exist on the host, the container cannot authenticate or initialize correctly.
+
+First determine whether the expected secret path exists.
+
+Do not recreate the secret randomly.
+
+A replacement secret may invalidate existing sessions or other cryptographic state depending on how the application uses it.
+
+Any intentional secret replacement must therefore be treated as a controlled security operation.
+
+---
+
+# 83. Persistent Volume Is Not Writable
+
+If LUMS cannot write application data, inspect the volume:
 
 ```bash id="y6c2mt"
 sudo docker volume inspect \
     lums-data
 ```
 
-Inspizieren Sie dann die Container-Mounts:
+Then inspect the container mounts:
 
 ```bash id="e5w8rq"
 sudo docker inspect \
@@ -2972,24 +3140,24 @@ sudo docker inspect \
     lums
 ```
 
-Die Anwendungsdatenbank muss auf dem persistenten beschreibbaren Volume liegen.
+The application database must reside on the persistent writable volume.
 
-Machen Sie nicht das gesamte Container-Dateisystem beschreibbar als Workaround.
+Do not make the entire container filesystem writable as a workaround.
 
-Die korrekte Lösung besteht darin, den spezifischen Pfad zu identifizieren, der Persistenz erfordert.
+The correct solution is to identify the specific path that requires persistence.
 
 ---
 
-# 84. Docker-Container startet, aber Anwendung schlägt fehl
+# 84. Docker Container Starts but Application Fails
 
-Wenn der Container startet und sofort beendet wird:
+If the container starts and immediately exits:
 
 ```bash id="t7x3mp"
 sudo docker ps -a \
     --filter name=lums
 ```
 
-Inspizieren Sie dann:
+Then inspect:
 
 ```bash id="n4q6vz"
 sudo docker logs \
@@ -2997,7 +3165,7 @@ sudo docker logs \
     lums
 ```
 
-Häufige Ursachen sind:
+Common causes include:
 
 ```text id="w3j8kc"
 Application startup error
@@ -3009,17 +3177,17 @@ Permission problem
 Dependency problem
 ```
 
-Bauen Sie nicht sofort das Image neu.
+Do not immediately rebuild the image.
 
-Stellen Sie fest, ob das Problem im Image, in der Laufzeitkonfiguration, in persistenten Daten oder in der externen Konfiguration liegt.
+Determine whether the problem is in the image, runtime configuration, persistent data, or external configuration.
 
 ---
 
-# 85. Docker-Image vs. Container-Konfiguration
+# 85. Docker Image vs. Container Configuration
 
-Ein funktionierendes Image kann trotzdem wegen falscher Laufzeitkonfiguration fehlschlagen.
+A working image can still fail because of incorrect runtime configuration.
 
-Unterscheiden Sie immer:
+Always distinguish:
 
 ```text id="s7q2mj"
 Docker image
@@ -3031,7 +3199,7 @@ Persistent volume
 Secret/configuration
 ```
 
-Zum Beispiel:
+For example:
 
 ```text id="m5v9rz"
 Image is valid
@@ -3041,7 +3209,7 @@ Wrong volume
 Application failure
 ```
 
-oder:
+or:
 
 ```text id="r6c3pk"
 Image is valid
@@ -3051,21 +3219,21 @@ Missing secret
 Application startup failure
 ```
 
-Bauen Sie kein ansonsten gültiges Image neu, um ein Laufzeitkonfigurationsproblem zu beheben.
+Do not rebuild an otherwise valid image to fix a runtime configuration problem.
 
 ---
 
-# 86. Docker-Build-Probleme
+# 86. Docker Build Problems
 
-Wenn ein neues Image nicht gebaut werden kann, inspizieren Sie zuerst das Dockerfile.
+If a new image cannot be built, inspect the Dockerfile first.
 
-Prüfen Sie das Basisimage und die Abhängigkeitsdefinitionen.
+Check the base image and dependency definitions.
 
-Das Produktions-Dockerfile verwendet einen gepinnten Python-Basisimage-Digest.
+The production Dockerfile uses a pinned Python base-image digest.
 
-Dies bietet Reproduzierbarkeit und verhindert, dass der Build stillschweigend auf eine unzusammenhängende Basisimage-Revision wechselt.
+This provides reproducibility and prevents the build from silently moving to an unrelated base-image revision.
 
-Wenn ein Build plötzlich sein Verhalten ändert, vergleichen Sie:
+If a build suddenly changes behavior, compare:
 
 ```text id="e3y7pn"
 Dockerfile
@@ -3077,11 +3245,11 @@ Build context
 
 ---
 
-# 87. `.dockerignore`-Probleme
+# 87. `.dockerignore` Problems
 
-Der Docker-Build-Kontext sollte keine unnötigen lokalen Dateien oder sensibles Material enthalten.
+The Docker build context should not contain unnecessary local files or sensitive material.
 
-Das Repository verwendet `.dockerignore`, um Dateien wie Folgt auszuschließen:
+The repository uses `.dockerignore` to exclude files such as:
 
 ```text id="k2x8vw"
 Local backups
@@ -3091,28 +3259,28 @@ Backup copies
 Other unnecessary runtime material
 ```
 
-Wenn ein Build unerwartet eine Datei enthält, die nicht vorhanden sein sollte, inspizieren Sie:
+If a build unexpectedly contains a file that should not be present, inspect:
 
 ```bash id="q5m8cz"
 cat .dockerignore
 ```
 
-Lösen Sie Build-Kontext-Probleme nicht, indem Sie sensible Dateien in das Image kopieren.
+Do not solve build-context problems by copying sensitive files into the image.
 
 ---
 
-# 88. Dateisystem-Berechtigungsprobleme
+# 88. Filesystem Permission Problems
 
-Wenn LUMS Berechtigungsfehler meldet, identifizieren Sie zuerst den genauen Pfad.
+If LUMS reports permission errors, identify the exact path first.
 
-Nützliche Informationen:
+Useful information:
 
 ```bash id="p4r7yn"
 sudo docker inspect \
     lums
 ```
 
-und:
+and:
 
 ```bash id="n8v2km"
 sudo docker logs \
@@ -3120,7 +3288,7 @@ sudo docker logs \
     lums
 ```
 
-Die wichtige Unterscheidung ist:
+The important distinction is:
 
 ```text id="x6c9pw"
 Application data
@@ -3130,17 +3298,17 @@ Secret material
 Host configuration
 ```
 
-Jede hat andere erwartete Berechtigungen.
+Each has different expected permissions.
 
-Ändern Sie nicht rekursiv Eigentümer oder Berechtigungen im gesamten Dateisystem als Fehlerbehebungs-Abkürzung.
+Do not recursively change ownership or permissions across the entire filesystem as a troubleshooting shortcut.
 
 ---
 
-# 89. Produktionskonfigurationsdrift
+# 89. Production Configuration Drift
 
-Konfigurationsdrift tritt auf, wenn die laufende Umgebung nicht mehr zur beabsichtigten Sicherheitsbasis passt.
+Configuration drift occurs when the running environment no longer matches the intended security baseline.
 
-Beispiele sind:
+Examples include:
 
 ```text id="r5j8tx"
 Container runs as root
@@ -3152,37 +3320,37 @@ Secret mounted read-write
 Unexpected container running
 ```
 
-Wenn Drift erkannt wird:
+If drift is detected:
 
-1. Den aktuellen Zustand aufzeichnen.
-2. Feststellen, wann er sich geändert hat.
-3. Die verantwortliche Konfiguration identifizieren.
-4. Die Konfiguration bewusst korrigieren.
-5. Die relevante Sicherheitsverifikation erneut ausführen.
+1. Record the current state.
+2. Determine when it changed.
+3. Identify the responsible configuration.
+4. Correct the configuration deliberately.
+5. Re-run the relevant security verification.
 
-Nehmen Sie nicht mehrere unzusammenhängende Änderungen gleichzeitig vor.
+Do not make several unrelated changes at once.
 
 ---
 
-# 90. Unerwartete Netzwerkexposition
+# 90. Unexpected Network Exposure
 
-Der Anwendungsport sollte lokal bleiben:
+The application port should remain local:
 
 ```text id="n7w4cp"
 127.0.0.1:5050
 ```
 
-Prüfen Sie Listener:
+Check listeners:
 
 ```bash id="y2m6vk"
 sudo ss -lntp
 ```
 
-Wenn `5050` auf einer Nicht-Loopback-Adresse exponiert ist, untersuchen Sie die Docker-Port-Zuordnung sofort.
+If `5050` is exposed on a non-loopback address, investigate the Docker port mapping immediately.
 
-Setzen Sie den Anwendungsport nicht aus, nur weil Nginx schwierig zu diagnostizieren erscheint.
+Do not expose the application port simply because Nginx appears difficult to diagnose.
 
-Die beabsichtigte Architektur ist:
+The intended architecture is:
 
 ```text id="h3x8qm"
 Network
@@ -3196,17 +3364,17 @@ LUMS
 
 ---
 
-# 91. Unerwartete Docker-Container
+# 91. Unexpected Docker Containers
 
-Listen Sie alle Container auf:
+List all containers:
 
 ```bash id="c6w9rz"
 sudo docker ps -a
 ```
 
-Unerwartete Container sollten identifiziert werden, bevor sie entfernt werden.
+Unexpected containers should be identified before they are removed.
 
-Prüfen Sie:
+Check:
 
 ```text id="m8x2kf"
 Container name
@@ -3217,31 +3385,31 @@ Volumes
 Restart policy
 ```
 
-Löschen Sie keinen unbekannten Container, ohne festzustellen, ob er Teil der LUMS-Bereitstellung oder eine erforderliche Fallback-Umgebung ist.
+Do not delete an unknown container without determining whether it is part of the LUMS deployment or a required fallback environment.
 
 ---
 
-# 92. Docker-Volume darf während normaler Fehlerbehebung nicht gelöscht werden
+# 92. Docker Volume Must Not Be Deleted During Normal Troubleshooting
 
-Die folgende Operation ist destruktiv:
+The following operation is destructive:
 
 ```bash id="q7v3mc"
 sudo docker volume rm lums-data
 ```
 
-Sie darf nicht als allgemeiner Fehlerbehebungsschritt verwendet werden.
+It must not be used as a general troubleshooting step.
 
-Das Löschen des Volumes kann die Anwendungsdatenbank und den zugehörigen persistenten Zustand entfernen.
+Deleting the volume can remove the application database and associated persistent state.
 
-Wenn eine saubere Installation absichtlich erforderlich ist, behandeln Sie sie als separate Migrations- oder Wiederherstellungsoperation und verifizieren Sie zuerst Backups.
+If a clean installation is intentionally required, treat it as a separate migration or recovery operation and verify backups first.
 
 ---
 
-# 93. Sicherheitsbasis nach Laufzeitänderungen
+# 93. Security Baseline After Runtime Changes
 
-Prüfen Sie nach Änderungen der Produktions-Docker-Konfiguration die Sicherheitsbasis erneut.
+After changing production Docker configuration, verify the security baseline again.
 
-Prüfen Sie mindestens:
+At minimum verify:
 
 ```text id="z5n8xp"
 Container runs as intended user
@@ -3254,13 +3422,13 @@ Database volume is writable
 Application port is loopback-only
 ```
 
-Eine Konfiguration, die die Anwendung funktionieren lässt, aber diese Eigenschaften schwächt, sollte nicht als erfolgreiche Behebung betrachtet werden.
+A configuration that makes the application work but weakens these properties should not be considered a successful fix.
 
 ---
 
-# 94. Nächster Fehlerbehebungsbereich
+# 94. Next Troubleshooting Area
 
-Die verbleibenden Fehlerbehebungsthemen sind:
+The remaining troubleshooting topics are:
 
 ```text id="v4m7yx"
 Tests and CI
@@ -3270,31 +3438,33 @@ Recovery principles
 Final troubleshooting checklist
 ```
 
-Die abschließenden Abschnitte bieten ein kompaktes Verfahren zum Sammeln ausreichender Informationen, um ein Problem zu diagnostizieren, ohne die Produktionsumgebung unnötig zu verändern.
+The final sections provide a compact procedure for collecting enough information to diagnose a problem without unnecessarily changing the production environment.
 
-# 95. Tests und CI
+# 95. Tests and CI
 
-Automatisierte Tests sind ein wichtiger Bestandteil der LUMS-Fehlerbehebung.
+Automated tests are an important part of troubleshooting LUMS.
 
-Bevor Sie ein Produktionsproblem als Anwendungsdefekt untersuchen, prüfen Sie, ob das relevante Verhalten bereits durch die Testsuite abgedeckt ist.
+Before investigating a production problem as an application defect, verify whether the relevant behavior is already covered by the test suite.
 
-Die aktuelle vollständige Testsuite sollte bestehen, bevor ein Release als bereit gilt.
+The current full test suite should pass before a release is considered ready.
 
-Führen Sie die vollständige Testsuite aus dem Repository aus:
+Run the complete test suite from the repository:
 
 ```bash id="m4x8kp"
 ./.venv-test/bin/pytest -q
 ```
 
-Ein erfolgreicher Lauf sollte alle Tests als bestanden melden.
+A successful run should report all tests as passed.
 
-Die Anzahl der Tests ändert sich, während zusätzliche Tests hinzugefügt werden. Die wichtige Bedingung ist, dass die vollständige Testsuite erfolgreich ist, anstatt sich auf eine feste Testanzahl zu verlassen.
+The number of tests changes as additional tests are added. The important
+condition is that the complete test suite succeeds rather than relying on a
+fixed test count.
 
 ---
 
-# 96. Ein Testfehler bedeutet nicht automatisch, dass die Produktion defekt ist
+# 96. A Test Failure Does Not Automatically Mean Production Is Broken
 
-Ein fehlgeschlagener Test kann verursacht werden durch:
+A failed test can be caused by:
 
 ```text id="q8r5wy"
 Application regression
@@ -3305,11 +3475,11 @@ Missing test dependency
 Incorrect test configuration
 ```
 
-Inspizieren Sie zuerst die vollständige Fehlerausgabe.
+First inspect the complete failure output.
 
-Ändern Sie die Produktionskonfiguration nicht allein deshalb, weil ein lokaler Test fehlschlägt.
+Do not modify production configuration simply because a local test fails.
 
-Die korrekte Sequenz ist:
+The correct sequence is:
 
 ```text id="n4m7tx"
 Test failure
@@ -3331,43 +3501,43 @@ Run full test suite
 
 ---
 
-# 97. RBAC-Testfehler
+# 97. RBAC Test Failures
 
-Führen Sie bei der Untersuchung von Autorisierungsproblemen zuerst die RBAC-Tests aus:
+When investigating authorization problems, run the RBAC tests first:
 
 ```bash id="k6w2pv"
 ./.venv-test/bin/pytest -q tests/test_rbac.py
 ```
 
-Die Tests decken rollenspezifisches Verhalten und Autorisierungsgrenzen ab.
+The tests cover role-specific behavior and authorization boundaries.
 
-Wenn das Problem die Client-Seite betrifft, verwenden Sie nach Bedarf die relevante Teilmenge:
+If the problem concerns the client page, use the relevant subset when appropriate:
 
 ```bash id="z5n8rc"
 ./.venv-test/bin/pytest -q \
     tests/test_rbac.py -k client_page
 ```
 
-Schwächen Sie die Autorisierung nicht, damit ein Test besteht.
+Do not weaken authorization to make a test pass.
 
-Ein fehlgeschlagener Autorisierungstest kann auf eine Sicherheitsregression hinweisen.
+A failed authorization test may indicate a security regression.
 
 ---
 
-# 98. Paketsuche-Testfehler
+# 98. Package Search Test Failures
 
-Paketverwaltungsfunktionalität hat dedizierte Testabdeckung.
+Package-management functionality has dedicated test coverage.
 
-Bei der Untersuchung des Paketsuche-Verhaltens:
+When investigating package-search behavior:
 
 ```bash id="b7x3mf"
 ./.venv-test/bin/pytest -q \
     tests/test_package_search.py
 ```
 
-Wenn der Fehler die Paketausführung oder Job-Ergebnisse betrifft, inspizieren Sie auch die relevanten Job-Ergebnis-Tests.
+If the failure involves package execution or job results, also inspect the relevant job-result tests.
 
-Die Testsuite sollte verwendet werden, um zu unterscheiden zwischen:
+The test suite should be used to distinguish:
 
 ```text id="y9r4nk"
 Application logic problem
@@ -3378,48 +3548,48 @@ Integration problem
 
 ---
 
-# 99. Tests zur Validierung von Job-Ergebnissen
+# 99. Job Result Validation Tests
 
-Die Behandlung von Job-Ergebnissen ist sicherheitssensibel, weil der Server beliebige Client-Eingaben nicht blind vertrauen darf.
+Job-result handling is security-sensitive because the server must not blindly trust arbitrary client input.
 
-Führen Sie bei der Untersuchung der Ergebnisvalidierung die relevanten Tests aus:
+Run the relevant tests when investigating result validation:
 
 ```bash id="w6q2vz"
 ./.venv-test/bin/pytest -q \
     tests/test_job_result.py
 ```
 
-Ein Fehler hier sollte als Problem der Anwendungskorrektheit und Sicherheit behandelt werden.
+A failure here should be treated as an application correctness and security issue.
 
-Umgehen Sie die Ergebnisvalidierung nicht, damit ein Client-Bericht erfolgreich ist.
-
----
-
-# 100. CI-Fehler
-
-LUMS verwendet kontinuierliche Integration, um das Projekt zu verifizieren, bevor Änderungen akzeptiert werden.
-
-Wenn CI fehlschlägt:
-
-1. Den fehlgeschlagenen Job identifizieren.
-2. Die vollständige Fehlermeldung lesen.
-3. Feststellen, ob der Fehler code-, abhängigkeits-, test- oder umgebungsbezogen ist.
-4. Lokal reproduzieren, wo möglich.
-5. Die Grundursache beheben.
-6. Die relevanten Tests ausführen.
-7. Die vollständige Testsuite ausführen.
-
-Ignorieren Sie CI-Fehler nicht nur deshalb, weil die Produktionsumgebung derzeit funktional erscheint.
+Do not bypass result validation to make a client report succeed.
 
 ---
 
-# 101. Diagnose-Snapshot
+# 100. CI Failures
 
-Wenn Sie bei einem LUMS-Problem um Hilfe bitten, sammeln Sie einen minimalen Diagnose-Snapshot.
+LUMS uses continuous integration to verify the project before changes are accepted.
 
-Das Ziel ist, genügend Informationen bereitzustellen, um die fehlschlagende Komponente zu identifizieren, ohne Secrets offenzulegen.
+If CI fails:
 
-Ein nützlicher Snapshot umfasst:
+1. Identify the failed job.
+2. Read the complete error.
+3. Determine whether the failure is code, dependency, test, or environment related.
+4. Reproduce locally where possible.
+5. Fix the root cause.
+6. Run the relevant tests.
+7. Run the complete test suite.
+
+Do not ignore CI failures simply because the production environment currently appears functional.
+
+---
+
+# 101. Diagnostic Snapshot
+
+When asking for help with a LUMS problem, collect a minimal diagnostic snapshot.
+
+The goal is to provide enough information to identify the failing component without exposing secrets.
+
+A useful snapshot includes:
 
 ```bash id="x8p4qn"
 sudo docker ps
@@ -3453,15 +3623,15 @@ sudo journalctl -u lums-agent-watcher.service -n 100 --no-pager
 sudo ss -lntp
 ```
 
-Verwenden Sie nur die für das Problem relevanten Befehle.
+Use only the commands relevant to the problem.
 
-Dumpen Sie nicht die vollständige Umgebung in eine Support-Anfrage.
+Do not dump the complete environment into a support request.
 
 ---
 
-# 102. Diagnose-Snapshot darf keine Secrets enthalten
+# 102. Diagnostic Snapshot Must Not Contain Secrets
 
-Prüfen Sie vor dem Teilen von Diagnoseausgaben auf:
+Before sharing diagnostic output, check for:
 
 ```text id="r4m8yn"
 Passwords
@@ -3473,55 +3643,55 @@ TLS private material
 Credentials
 ```
 
-Schwärzen Sie sensible Werte vor dem Teilen.
+Redact sensitive values before sharing.
 
-Gehen Sie nicht davon aus, dass ein Log sicher ist, nur weil es von einem Systemdienst stammt.
-
----
-
-# 103. Fehlerkombinations-Matrix
-
-Einige Symptome lassen sich leichter diagnostizieren, wenn mehrere Komponenten zusammen betrachtet werden.
-
-| Symptom                                       | Wahrscheinlichster zuerst zu prüfender Bereich |
-| --------------------------------------------- | ---------------------------------------------- |
-| Browser kann keine Verbindung herstellen      | Nginx / TLS / Netzwerk                         |
-| Nginx funktioniert, aber Anwendung schlägt fehl | Docker / LUMS                               |
-| LUMS funktioniert, aber Client kann nicht berichten | Agent / TLS / Token                      |
-| Client berichtet, aber Job bleibt ausstehend  | Watcher / Berechtigung                         |
-| Job läuft, aber Paket schlägt fehl            | APT / pacman                                   |
-| Paket erfolgreich, aber Ergebnis fehlt        | Agent-Berichterstattung                        |
-| Ergebnis erreicht Server, aber UI ist veraltet | API / Datenbank / Browserzustand              |
-| Viewer kann Daten verändern                   | Serverseitige RBAC                             |
-| Benutzer kann sich nicht anmelden             | Konto / Passwort / Ratenbegrenzung             |
-| Login funktioniert, aber Aktion abgelehnt     | RBAC / CSRF                                    |
-| Datenbankschreibvorgänge schlagen fehl        | SQLite / Festplatte / Berechtigungen           |
-| Container verliert Daten nach Neuerstellung   | Persistente Volume-Konfiguration               |
-| Anwendung schreibt auf Root-Dateisystem       | Container-Dateisystem-Konfiguration            |
-| Port 5050 ist extern erreichbar               | Docker-/Firewall-Konfiguration                 |
-
-Diese Tabelle identifiziert den ersten Ort zur Untersuchung, nicht notwendigerweise die endgültige Grundursache.
+Do not assume that a log is safe simply because it came from a system service.
 
 ---
 
-# 104. Häufige Fehlerbehebungsfehler
+# 103. Failure Combination Matrix
 
-Vermeiden Sie die folgenden Abkürzungen:
+Some symptoms become easier to diagnose when several components are considered together.
 
-## Löschen Sie nicht die Datenbank
+| Symptom                                | Most likely area to inspect first  |
+| -------------------------------------- | ---------------------------------- |
+| Browser cannot connect                 | Nginx / TLS / network              |
+| Nginx works but application fails      | Docker / LUMS                      |
+| LUMS works but client cannot report    | Agent / TLS / token                |
+| Client reports but job stays pending   | Watcher / eligibility              |
+| Job runs but package fails             | APT / pacman                       |
+| Package succeeds but result is missing | Agent reporting                    |
+| Result reaches server but UI is stale  | API / database / browser state     |
+| Viewer can mutate data                 | Server-side RBAC                   |
+| User cannot log in                     | Account / password / rate limiting |
+| Login works but action is rejected     | RBAC / CSRF                        |
+| Database writes fail                   | SQLite / disk / permissions        |
+| Container loses data after recreation  | Persistent volume configuration    |
+| Application writes to root filesystem  | Container filesystem configuration |
+| Port 5050 is externally reachable      | Docker / firewall configuration    |
+
+This table identifies the first place to investigate, not necessarily the final root cause.
+
+---
+
+# 104. Common Troubleshooting Mistakes
+
+Avoid the following shortcuts:
+
+## Do not delete the database
 
 ```text id="h7k2px"
 Deleting lums.db
 Deleting lums-data
 ```
 
-kann persistente Anwendungsdaten zerstören.
+can destroy persistent application state.
 
 ---
 
-## Deaktivieren Sie keine Sicherheitskontrollen
+## Do not disable security controls
 
-Deaktivieren Sie nicht dauerhaft:
+Do not permanently disable:
 
 ```text id="j5r9cw"
 RBAC
@@ -3533,82 +3703,82 @@ no-new-privileges
 Capability restrictions
 ```
 
-Ein Workaround, der eine Sicherheitskontrolle entfernt, ist keine abgeschlossene Behebung.
+A workaround that removes a security control is not a completed fix.
 
 ---
 
-## Führen Sie den Container nicht als privilegiert aus
+## Do not run the container as privileged
 
-Vermeiden Sie:
+Avoid:
 
 ```text id="b3x7mz"
 --privileged
 ```
 
-als Fehlerbehebungslösung.
+as a troubleshooting solution.
 
-Wenn die Anwendung zusätzlichen Zugriff erfordert, stellen Sie genau fest, welcher Zugriff erforderlich ist.
+If the application requires additional access, determine exactly what access is required.
 
 ---
 
-## Setzen Sie Port 5050 nicht aus
+## Do not expose port 5050
 
-Ändern Sie nicht:
+Do not change:
 
 ```text id="v8n4qr"
 127.0.0.1:5050
 ```
 
-zu:
+to:
 
 ```text id="p2m6wy"
 0.0.0.0:5050
 ```
 
-nur um Nginx zu umgehen.
+simply to bypass Nginx.
 
-Die Anwendung ist absichtlich hinter dem Reverse-Proxy geschützt.
+The application is intentionally protected behind the reverse proxy.
 
 ---
 
-## Ändern Sie Job-Zustände nicht manuell
+## Do not modify job states manually
 
-Vermeiden Sie direkte Änderungen an:
+Avoid directly changing:
 
 ```text id="r7c5xn"
 update_jobs
 update_job_packages
 ```
 
-um ein operatives Problem zu verbergen.
+to hide an operational problem.
 
-Verwenden Sie die Anwendungs-, Agent-, Watcher- und Wiederherstellungsmechanismen.
-
----
-
-## Löschen Sie Paketmanager-Sperren nicht blind
-
-Eine Sperre kann einen aktiven Paketmanager-Prozess anzeigen.
-
-Identifizieren Sie zuerst den Prozess.
+Use the application, Agent, watcher, and recovery mechanisms.
 
 ---
 
-## Rotieren Sie Anmeldeinformationen nicht wiederholt
+## Do not delete package-manager locks blindly
 
-Wiederholte Token- oder Secret-Rotation kann zusätzliche Authentifizierungsprobleme schaffen.
+A lock may indicate an active package-manager process.
 
-Stellen Sie zuerst fest, welches Credential derzeit konfiguriert ist und welches Credential der Server erwartet.
+Identify the process first.
 
 ---
 
-# 105. Wiederherstellungsprinzipien
+## Do not rotate credentials repeatedly
 
-Die folgenden Prinzipien gelten für alle LUMS-Fehlerbehebungen:
+Repeated token or secret rotation can create additional authentication problems.
 
-### Zuerst bewahren
+First determine which credential is currently configured and which credential the server expects.
 
-Bewahren Sie:
+---
+
+# 105. Recovery Principles
+
+The following principles apply to all LUMS troubleshooting:
+
+### Preserve first
+
+Keep:
 
 ```text id="q3m8vx"
 Logs
@@ -3619,15 +3789,15 @@ Configuration
 Error messages
 ```
 
-bis das Problem verstanden ist.
+until the problem is understood.
 
-### Ändern Sie eine Sache nach der anderen
+### Change one thing at a time
 
-Wenn mehrere Änderungen gleichzeitig vorgenommen werden, wird die ursprüngliche Ursache schwerer zu identifizieren.
+When several changes are made simultaneously, the original cause becomes harder to identify.
 
-### Verifizieren Sie nach jeder Änderung
+### Verify after every change
 
-Nach einer kontrollierten Änderung:
+After a controlled change:
 
 ```text id="z6w2kp"
 Re-test
@@ -3636,19 +3806,19 @@ Verify state
 Confirm security properties
 ```
 
-### Bevorzugen Sie umkehrbare Änderungen
+### Prefer reversible changes
 
-Verwenden Sie nach Möglichkeit Änderungen, die ohne Zerstörung des Anwendungszustands rückgängig gemacht werden können.
+Whenever possible, use changes that can be reverted without destroying application state.
 
-### Halten Sie Sicherheitskontrollen aktiv
+### Keep security controls active
 
-Ein erfolgreiches Fehlerbehebungsergebnis darf keine unnötige Sicherheitsregression einführen.
+A successful troubleshooting result must not introduce an unnecessary security regression.
 
 ---
 
-# 106. Produktions-Fehlerbehebungssequenz
+# 106. Production Troubleshooting Sequence
 
-Für ein allgemeines LUMS-Produktionsproblem verwenden Sie diese Reihenfolge:
+For a general LUMS production problem, use this order:
 
 ```text id="f4n8rx"
 1. Identify the symptom
@@ -3672,13 +3842,13 @@ Für ein allgemeines LUMS-Produktionsproblem verwenden Sie diese Reihenfolge:
 10. Document the result
 ```
 
-Diese Reihenfolge verhindert, dass unzusammenhängende Komponenten unnötig geändert werden.
+This order prevents unrelated components from being changed unnecessarily.
 
 ---
 
-# 107. Vollständiger Systemdiagnosepfad
+# 107. Full System Diagnostic Path
 
-Wenn die betroffene Komponente unbekannt ist, folgen Sie dem vollständigen Pfad:
+When the affected component is unknown, follow the complete path:
 
 ```text id="u7x3mp"
 Browser
@@ -3723,7 +3893,7 @@ SQLite
 Web UI
 ```
 
-Fragen Sie auf jeder Stufe:
+At each stage, ask:
 
 ```text id="k5r2qy"
 Did the request reach this component?
@@ -3735,13 +3905,13 @@ Did it produce the expected result?
 Did the next component receive that result?
 ```
 
-Das erste `NEIN` identifiziert normalerweise den Bereich, der untersucht werden muss.
+The first `NO` normally identifies the area that requires investigation.
 
 ---
 
-# 108. Release-Fehlerbehebung
+# 108. Release Troubleshooting
 
-Bevor Sie ein Release vorbereiten, prüfen Sie:
+Before preparing a release, verify:
 
 ```text id="m8x4vp"
 Full test suite passes
@@ -3758,13 +3928,13 @@ Update-job execution works
 Recovery behavior is verified
 ```
 
-Ein Release sollte nicht allein deshalb erstellt werden, weil die Anwendung erfolgreich startet.
+A release should not be created merely because the application starts successfully.
 
 ---
 
-# 109. Fehlerbehebungs-Checkliste
+# 109. Troubleshooting Checklist
 
-Verwenden Sie diese Checkliste, bevor Sie ein Produktionsproblem als gelöst erklären:
+Use this checklist before declaring a production problem resolved:
 
 ```text id="y6q3kn"
 [ ] Root cause identified
@@ -3786,9 +3956,9 @@ Verwenden Sie diese Checkliste, bevor Sie ein Produktionsproblem als gelöst erk
 
 ---
 
-# 110. Wann die Fehlerbehebung stoppen
+# 110. When to Stop Troubleshooting
 
-Hören Sie auf, Änderungen vorzunehmen, wenn:
+Stop making changes when:
 
 ```text id="v9m4xr"
 The root cause is identified
@@ -3800,23 +3970,23 @@ The system is stable
 Security controls remain intact
 ```
 
-Wenn die Grundursache nicht verstanden ist, bewahren Sie den aktuellen Zustand, anstatt die Umgebung wiederholt zu ändern.
+If the root cause is not understood, preserve the current state rather than repeatedly changing the environment.
 
-Ein sauber bewahrter Fehler ist leichter zu diagnostizieren als ein teilweise verändertes System.
+A cleanly preserved failure is easier to diagnose than a partially modified system.
 
 ---
 
-# 111. Abschließendes Wiederherstellungsprinzip
+# 111. Final Recovery Principle
 
-Die wichtigste LUMS-Fehlerbehebungsregel ist:
+The most important LUMS troubleshooting rule is:
 
-> **Zuerst beobachten. Zweitens ändern. Drittens verifizieren.**
+> **Observe first. Change second. Verify third.**
 
-LUMS enthält mehrere unabhängige Sicherheits- und Ausführungsschichten.
+LUMS contains several independent security and execution layers.
 
-Ein Problem in einer Schicht sollte nicht automatisch zu Änderungen in einer anderen führen.
+A problem in one layer should not automatically result in changes to another.
 
-Der bevorzugte Fehlerbehebungsansatz ist daher:
+The preferred troubleshooting approach is therefore:
 
 ```text id="c8w5zn"
 Observe
@@ -3832,15 +4002,15 @@ Verify
 Document
 ```
 
-Dies hält die Fehlerbehebung kontrolliert, reproduzierbar und kompatibel mit der LUMS-Sicherheitsbasis.
+This keeps troubleshooting controlled, reproducible, and compatible with the LUMS security baseline.
 
 ---
 
-# 112. Dokumentationspflege
+# 112. Documentation Maintenance
 
-Dieses Dokument sollte aktualisiert werden, wenn sich ein dokumentiertes operatives Verhalten ändert.
+This document should be updated whenever a documented operational behavior changes.
 
-Dokumentationsänderungen sollten konsistent bleiben mit:
+Documentation changes should remain consistent with:
 
 ```text id="q7m3vx"
 Security documentation
@@ -3853,15 +4023,15 @@ Docker runtime configuration
 Test baseline
 ```
 
-Veraltete Fehlerbehebungsanweisungen können gefährlich sein, wenn sie veraltete Befehle oder sicherheitsschwächende Workarounds empfehlen.
+Outdated troubleshooting instructions can be dangerous when they recommend deprecated commands or security-weakening workarounds.
 
-Wenn sich ein Produktionsverhalten ändert, aktualisieren Sie die relevante Dokumentation, bevor Sie das Fehlerbehebungsverfahren als abgeschlossen betrachten.
+When a production behavior changes, update the relevant documentation before treating the troubleshooting procedure as complete.
 
 ---
 
-# 113. Aktuelle Basis
+# 113. Current Baseline
 
-Die aktuelle von diesem Fehlerbehebungshandbuch dokumentierte LUMS-Basis umfasst:
+The current LUMS baseline documented by this troubleshooting guide includes:
 
 ```text id="m4x8qp"
 Agent version: 1.7.0
@@ -3904,17 +4074,17 @@ Full test suite:
 Passing baseline
 ```
 
-Die genaue Testanzahl kann sich ändern, während das Projekt wächst.
+The exact test count may change as the project grows.
 
-Die Sicherheits- und Architektureigenschaften sind die wichtige Basis.
+The security and architectural properties are the important baseline.
 
 ---
 
-# 114. Ende des Fehlerbehebungshandbuchs
+# 114. End of Troubleshooting Guide
 
-Die LUMS-Fehlerbehebung sollte evidenzbasiert und sicherheitsbewusst bleiben.
+LUMS troubleshooting should remain evidence-driven and security-conscious.
 
-Im Zweifelsfall:
+When in doubt:
 
 ```text id="r9x4kw"
 Preserve the state.
@@ -3925,8 +4095,9 @@ Verify the result.
 Document what happened.
 ```
 
-Tauschen Sie Sicherheit oder Datenintegrität nicht gegen einen schnellen Workaround ein.
+Do not trade security or data integrity for a quick workaround.
 
 ---
 
-**Ende des LUMS-Fehlerbehebungshandbuchs**
+**End of LUMS Troubleshooting Guide**
+
