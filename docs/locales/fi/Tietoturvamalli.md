@@ -316,28 +316,28 @@ Audit #18 remains open until the complete documentation set has been reviewed an
 
 ## SQLite Foreign Keys
 
-SQLite foreign-key enforcement is enabled for application database connections.
+SQLite-vieraiden avainten valvonta on käytössä sovelluksen tietokantayhteydelle.
 
-The application explicitly enables:
+Sovellus nimenomaisesti ottaa käyttöön:
 
 `PRAGMA foreign_keys = ON`
 
-This ensures that referential integrity is enforced for relationships between related database records.
+Tämä varmistaa, että viiteellinen eheys vaalitaan liittyvien tietokantarekistien välillä.
 
-The audit verified:
+Auditointi tarkisti:
 
-* runtime foreign-key enforcement
-* foreign-key integrity
-* client lifecycle behavior
-* client disable behavior
-* preservation of historical job information
-* preservation of audit information
+* ajonaikaisen vieraasave-avainten valvonnan
+* vieraasave-avainten eheyden
+* asiakkaan elinkaarenkäyttäytymisen
+* asiakkaan käytöstä poistamisen käyttäytymisen
+* historiallisen työtiedon säilyttämisen
+* auditointitiedon säilyttämisen
 
-Client state is handled conservatively.
+Asiakkaan tilaa käsitellään konservatiivisesti.
 
-Where appropriate, clients are disabled rather than removed in a way that would destroy historical operational information.
+Tarvittaessa asiakkaita poistetaan käytöstä sen sijaan, että ne poistettaisiin tavalla, joka tuhoaisi historiallisen operatiivisen tiedon.
 
-**Status: PASS**
+**Tila: LÄPÄISTY**
 
 ---
 
@@ -345,19 +345,19 @@ Where appropriate, clients are disabled rather than removed in a way that would 
 
 ## SQLite Runtime Configuration
 
-The production SQLite database was reviewed for its runtime configuration.
+Tuotannon SQLite-tietokanta tarkistettiin sen ajonaikaiselle konfiguraatiolle.
 
-The verified production configuration is:
+Vahvistettu tuotannon konfiguraatio on:
 
 * `journal_mode`: `wal`
 * `busy_timeout`: `5000`
 * `synchronous`: `2`
 
-The application explicitly enables:
+Sovellus nimenomaisesti ottaa käyttöön:
 
 `PRAGMA foreign_keys = ON`
 
-The production database currently uses WAL mode.
+Tuotannon tietokanta käyttää tällä hetkellä WAL-tilaa.
 
 The database configuration was documented based on the actual verified production state rather than the historical development configuration.
 
