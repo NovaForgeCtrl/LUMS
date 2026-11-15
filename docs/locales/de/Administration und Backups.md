@@ -1,5 +1,127 @@
 # LUMS — Administrationshandbuch
 
+<!-- LUMS-POSTGRES-STATUS-2026-11-15 -->
+## PostgreSQL-Nachfolger: Aktueller Betriebsstatus
+
+**Status-Datum: 15. November 2026**
+
+### Bereitstellungstrennung
+
+LUMS verfügt derzeit über zwei separate Bereitstellungen:
+
+- Die bestehende produktive Installation nutzt die SQLite-basierte Anwendung.
+- Der PostgreSQL-Nachfolger läuft als isolierter Release-Kandidat.
+
+Der PostgreSQL-Kandidat ist nicht der aktive Produktionsdienst. Seine Datenbank, sein persistentes Volume, seine Container, sein Netzwerk und seine Anwendungskonfiguration müssen bis zur vollständigen Validierung und expliziter Genehmigung einer kontrollierten Cutover vom produktiven SQLite-System getrennt bleiben.
+
+Stoppen, ersetzen oder rekonfigurieren Sie nicht den produktiven `lums`-Container, seine Datenbank, seinen Persistente Speicher, seinen Reverse-Proxy oder seine externe URL als Teil der Kandidaten-Administration.
+
+### PostgreSQL-Kandidaten-Architektur
+
+Der Kandidat ist in: `/etc/lums-postgres-soc-test-20261115/compose.yaml` definiert.
+
+Sein Compose-Projekt ist `lums-postgres-soc-test-20261115`.
+
+Der Datenbankdienst nutzt PostgreSQL 18.6 auf Debian Trixie. Das Image ist auf einen SHA-256-Digest festgelegt. Die konfigurierte Datenbank ist `lums_soc_test`; die anfängliche Datenbankeinrichtung nutzt die Bootstrap-Rolle `lums_pg_bootstrap`. Die Host-Authentifizierung ist für SCRAM-SHA-256 konfiguriert.
+
+Die Datenbank speichert ihre persistenten Daten im benannten Volume `lums-postgres-soc-test-data-20261115`. Kandidaten-Dienste kommunizieren über das externe Docker-Netzwerk `lums-postgres-soc-test-net-20261115`.
+
+Das Compose-Projekt enthält diese Dienste:
+
+- `db`: PostgreSQL-Datenbankdienst mit einem `pg_isready`-Healthcheck.
+- `provision`: Einmalige Datenbank- und Rollenbereitstellung.
+- `migrate`: Einmalige Schema-Migration mit `python -m server.postgres_migrate`.
+- `worker-grants`: Einmalige Einrichtung von Datenbankberechtigungen für den SOC-Worker.
+- `app-grants`: Einmalige Anwendungsdatenbank-Berechtigungseinrichtung.
+- `app`: PostgreSQL-basierte LUMS-Webanwendung.
+- `soc-worker`: Kontinuierlicher SOC-Worker-Prozess mit `server.soc.postgres_worker_cli`.
+
+Bereitstellungs-, Migrations- und Grant-Dienste sollten nach Abschluss ihrer Aufgaben erfolgreich beendet werden; sie sind keine permanenten Anwendungsdienste.
+
+### Beobachteter Laufzeitzustand
+
+Die Compose-Status-Inspektionen am 15. November 2026 zeigten:
+
+- `db`: läuft und ist fehlerfrei.
+- `app`: läuft und ist fehlerfrei.
+- `soc-worker`: läuft.
+- `provision`: beendet mit Status 0.
+- `migrate`: beendet mit Status 0.
+- `worker-grants`: beendet mit Status 0.
+- `app-grants`: beendet mit Status 0.
+
+Diese Ergebnisse beschreiben den beobachteten Kandidaten-Zustand zum Zeitpunkt der Inspektionen. Dies ist keine Garantie, dass jedes Anwendungsmodul oder Workflow die funktionale Akzeptanztestung bestanden hat. Die Anwesenheit und der Laufzustand des SOC-Workers darf nicht als Beweis dafür interpretiert werden, dass der vollständige SOC-Collector-Dienst, das Collector-facing mTLS-Gateway oder die SOC-Verwaltungsoberfläche fertiggestellt ist.
+
+Der Anwendungs-Container ist auf dem Kandidaten-Netzwerk mit der statischen Adresse `172.30.0.4` konfiguriert. Die Compose-Datei veröffentlicht keinen Anwendungsport auf dem Host. Sein Container-Port darf nicht mit einem extern verfügbaren Produktionsendpunkt verwechselt werden.
+
+### Container- und Secret-Verarbeitung
+
+Die Anwendung und der SOC-Worker laufen als UID/GID `10001:10001`. Die Anwendung nutzt ein schreibgeschütztes Root-Dateisystem, ein eingeschränktes temporäres Dateisystem, `no-new-privileges` und gelöschte Linux-Capabilities.
+
+Der Migrationsdienst nutzt auch ein schreibgeschütztes Root-Dateisystem und läuft als UID/GID `10001:10001`. Die Anwendungs-Grant-Einrichtung läuft als Root in seinem kurzlebigen Container, aber hat ein schreibgeschütztes Root-Dateisystem, gelöschte Capabilities und `no-new-privileges`.
+
+Compose bindet Anmeldeinformationen als dateibasierte Secrets ein. Die konfigurierten Secret-Dateien umfassen:
+
+- PostgreSQL-Bootstrap-Passwort
+- Anwendungsdatenbank-Passwort
+- Migrations-Datenbankpasswort
+- SOC-Worker-Datenbankpasswort
+- Anwendungsdatenbank-Verbindungs-URL
+- Migrations-Datenbankverbindungs-URL
+- SOC-Worker-Datenbankverbindungs-URL
+- LUMS-Anwendungs-Secret
+
+Geben Sie keine Secret-Inhalte in Terminalausgabe, Dokumentation, Tickets oder Logs aus. Kopieren Sie keine Kandidaten-Secrets in die produktive Bereitstellung.
+
+### Anwendungsmodul-Status
+
+Die PostgreSQL-Anwendung meldet derzeit den Backend-Status `migration_in_progress`.
+
+Die folgenden Module werden von der Anwendung als verfügbar aufgelistet:
+
+- Authentifizierung
+- Autorisierung
+- Sprache
+- Clients
+- Infrastruktur
+- Telemetrie
+- Paketsuche
+- Benachrichtigungen
+- Benachrichtigungs-Dashboard
+- Updates
+- Benutzerverwaltung
+
+Die Anwendung listet diese Module als ausstehend auf:
+
+- SOC
+- Backups
+
+Dieser Modul-Status ist maßgeblich für den aktuell selbstgemeldeten Integrationszustand der Anwendung. Ein laufender Worker-Prozess negiert nicht die Tatsache, dass das `soc`-Modul noch als ausstehend aufgelistet ist.
+
+### Ausstehende Produktionsreife-Arbeiten
+
+Die folgenden Fähigkeiten darf nicht als abgeschlossene Produktionsmerkmale beschrieben werden, bis ihre Implementierung und Akzeptanztests verifiziert wurden:
+
+- Vollständige SOC-Modulintegration, einschließlich Collector-Registrierung, Authentifizierung, Event-Erfassung und Administration.
+- Collector-facing Envoy-Gateway und End-to-End mTLS-Durchsetzung.
+- Produktives vertrauenswürdiges Zeitangebot und operative Zertifikatlebenszyklusverwaltung.
+- Vollständige SOC-Verwaltungs-API und Weboberfläche.
+- Integrierte PostgreSQL-Backup-, Wiederherstellungs- und Recovery-Verwaltung.
+- Vollständige Produktions-Cutover, Überwachung und Rollback-Validierung.
+
+Ein isoliertes Datenbankbackup oder Wiederherstellungstest stellt durch sich selbst keine integrierte administrative Backup- und Recovery-Funktion bereit.
+
+### Administrative Sicherheitsregeln
+
+- Identifizieren Sie die Bereitstellung, das Compose-Projekt, den Container und die Datenbank, bevor Sie einen administrativen Befehl ausführen.
+- Verwenden Sie PostgreSQL-spezifische Verfahren für den Kandidaten; SQLite-Befehle in diesem Handbuch darf nicht auf PostgreSQL angewendet werden.
+- Entfernen oder erstellen Sie niemals das produktive SQLite-Volume während der Kandidaten-Entwicklung oder Tests neu.
+- Behandeln Sie einen erfolgreichen Container-Healthcheck nicht als Beweis für vollständige Anwendungsfunktionalität.
+- Halten Sie Kandidaten-Anmeldeinformationen, Speicher und Netzwerkgrenzen von der Produktion getrennt.
+- Eine Produktions-Cutover erfordert verifizierte Backups, getestete Wiederherstellung, dokumentierten Rollback, validierte Datenbankberechtigungen und explizite Genehmigung.
+
+<!-- /LUMS-POSTGRES-STATUS-2026-11-15 -->
+
 > **Linux Update Management ohne das Rauschen.**
 
 Dieses Handbuch beschreibt die tägliche Administration und den Betrieb von LUMS, nachdem Server und Clients installiert wurden.

@@ -2,6 +2,26 @@
 
 **Linux-Update-Verwaltung ohne Störungen.**
 
+<!-- LUMS-POSTGRES-STATUS-2026-11-15 -->
+## Aktuelle Datenbankarchitektur und Migrationsstatus
+
+**Status-Datum: 15. November 2026**
+
+LUMS wird von einer bestehenden SQLite-basierten Bereitstellung zu einem PostgreSQL-basierten Nachfolger übergeleitet.
+
+Dies sind separate Bereitstellungszustände:
+
+- **Bestehende Produktion:** Die SQLite-basierte LUMS-Installation bleibt der aktive produktive Dienst.
+- **PostgreSQL-Kandidat:** Eine isolierte Nachfolgerumgebung, die für Implementierung und Validierung verwendet wird.
+
+Der Kandidat enthält derzeit die PostgreSQL-Datenbank, Bereitstellungs- und Migrationsdienste, separate Anwendungs- und Worker-Berechtigungsdienste, die Webanwendung und den SOC-Worker.
+
+Der PostgreSQL-Kandidat ist noch kein vollständiger Produktionsersatz. Der SOC-Collector und das Envoy-Gateway sind nicht als Teil des Kandidaten-Compose-Stacks bereitgestellt. Runtime-mTLS-Durchsetzung, ein vertrauenswürdiger Produktionszeitanbieter und ein integriertes PostgreSQL-Backup- und Restore-Management sind noch ausstehend.
+
+Das Vorhandensein von PostgreSQL-Code oder einem laufenden Kandidaten-Container darf nicht als Beweis dafür interpretiert werden, dass die entsprechende Funktion vollständig integriert oder produktionsreif ist.
+
+<!-- /LUMS-POSTGRES-STATUS-2026-11-15 -->
+
 ## Erste Schritte
 
 LUMS verwaltet Linux-Updates zentral. Ein Server zeigt Clients, installierte

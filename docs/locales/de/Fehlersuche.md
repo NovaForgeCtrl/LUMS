@@ -4,6 +4,17 @@ Dieses Handbuch bietet Fehlerbehebungsverfahren für den LUMS-Server, Linux-Agen
 
 Der Fehlerbehebungsprozess sollte immer mit **Beobachtung vor Änderung** beginnen.
 
+## Datenbank-Bereitstellungsbereich
+
+LUMS verfügt derzeit über zwei separate Datenbankbereitstellungen:
+
+- Die bestehende produktive Installation nutzt SQLite.
+- Der PostgreSQL-Nachfolger ist ein isolierter Kandidat, der sich in Validierung befindet.
+
+SQLite-spezifische Befehle in diesem Handbuch darf nicht gegen den PostgreSQL-Kandidaten verwendet werden. Identifizieren Sie immer die Datenbank-Engine, das Compose-Projekt, den Container und den persistenten Speicher, bevor Sie Fehlerbehebung oder Wiederherstellung durchführen.
+
+Der PostgreSQL-Kandidat ist noch kein vollständiger Produktionsersatz. Seine SOC-Collector-Runtime, mTLS-Integration und integrierte Backup- und Wiederherstellungsverwaltung sind noch ausstehend.
+
 Das Ziel ist es, die erste Komponente zu identifizieren, bei der das erwartete Verhalten aufhört, ohne unnötig Konfiguration, Datenbankzustand, Anmeldeinformationen oder Sicherheitskontrollen zu verändern.
 
 ---
