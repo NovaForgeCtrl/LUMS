@@ -1,0 +1,83 @@
+services:
+  api:
+    image: lums-soc-worker-test:worker-fix-20261102
+    read_only: true
+    cap_drop:
+      - ALL
+    restart: "no"
+    security_opt:
+      - no-new-privileges:true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=64m
+      - /run:rw,noexec,nosuid,size=16m
+    volumes:
+      - lums_soc_worker_test_data:/var/lib/lums
+      - type: bind
+        source: ${LUMS_SOC_TEST_BACKUP_DIR:?Set LUMS_SOC_TEST_BACKUP_DIR}
+        target: /var/backups/lums
+    environment:
+      LUMS_DB_PATH: /var/lib/lums/lums.db
+      LUMS_BACKUP_DIR: /var/backups/lums
+      LUMS_SECRET_KEY_FILE: /run/secrets/lums_secret
+    secrets:
+      - lums_secret
+    healthcheck:
+      test:
+        - CMD
+        - python3
+        - -c
+        - >-
+          import json,urllib.request;
+          r=urllib.request.urlopen('http://127.0.0.1:5000/api/health',timeout=2);
+          d=json.load(r);
+          assert r.status == 200 and d.get('status') == 'ok' and d.get('service') == 'LUMS API'
+      interval: 5s
+      timeout: 3s
+      retries: 20
+      start_period: 10s
+    networks:
+      - isolated
+
+  worker:
+    image: lums-soc-worker-test:worker-fix-20261102
+    entrypoint:
+      - python3
+      - -m
+      - soc.worker
+    command:
+      - --continuous
+      - --poll-interval
+      - "1"
+    read_only: true
+    cap_drop:
+      - ALL
+    restart: "no"
+    stop_grace_period: 30s
+    security_opt:
+      - no-new-privileges:true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=32m
+      - /run:rw,noexec,nosuid,size=8m
+    volumes:
+      - lums_soc_worker_test_data:/var/lib/lums
+    environment:
+      LUMS_DB_PATH: /var/lib/lums/lums.db
+      LUMS_SOC_RULES_PATH: /app/server/soc/rules.json
+    depends_on:
+      api:
+        condition: service_healthy
+    networks:
+      - isolated
+
+volumes:
+  lums_soc_worker_test_data:
+    name: lums-soc-worker-service-isolated-data-20261102
+
+secrets:
+  lums_secret:
+    file: ${LUMS_SOC_TEST_SECRET_FILE:?Set LUMS_SOC_TEST_SECRET_FILE}
+
+networks:
+  isolated:
+    name: lums-soc-worker-service-isolated-net-20261102
+    internal: true

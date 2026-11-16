@@ -1352,6 +1352,8 @@ function createPermissionEditorRow(user) {
                         t("The selection contains invalid permissions or is missing required base permissions."),
                     last_enabled_administrator:
                         t("At least one active user must be allowed to manage users."),
+                    last_enabled_permission_manager:
+                        t("At least one active user must be allowed to manage permissions."),
                     user_not_found:
                         t("User not found."),
                     csrf_validation_failed:
@@ -1648,6 +1650,8 @@ async function loadUsers(focusUserId = null) {
                                 t("You cannot delete your own account."),
                             last_enabled_administrator:
                                 t("The last active administrator cannot be deleted."),
+                            last_enabled_permission_manager:
+                                t("At least one active user must be allowed to manage permissions."),
                             user_not_found:
                                 t("User not found."),
                             csrf_validation_failed:
@@ -1851,7 +1855,9 @@ async function createUser(event) {
                     t("That username already exists."),
 
                 csrf_validation_failed:
-                    t("CSRF validation failed.")
+                    t("CSRF validation failed."),
+                permission_delegation_required:
+                    t("You do not have permission to do that.")
             };
 
             throw new Error(

@@ -1,8 +1,8 @@
 # LUMSin pikaopas — suomi
 
-Tämä lyhyt opas on tarkoitettu LUMSin tai Linuxin uusille käyttäjille. Se ei
-ole kaikkien teknisten käsikirjojen täydellinen käännös; projektin yksityiskohtaisia
-ohjeita ylläpidetään englanniksi. [Kielihakemisto](../../README.md).
+Tämä lyhyt opas on tarkoitettu LUMSin tai Linuxin uusille käyttäjille. Katso
+[dokumentaation kielihakemistosta](../../README.md) kaikki saatavilla olevat
+käännökset käyttäjille ja ylläpitäjille. Oppaat on tarkoitettu käyttäjille ja ylläpitäjille; varmista tuotantojärjestelmään tehtävissä muutoksissa aina myös oman julkaisusi asetukset ja lähdekoodin mukainen toiminta.
 
 ## Mikä LUMS on?
 

@@ -2458,28 +2458,45 @@ First establish the current state.
 ## 91. Docker Image Maintenance
 
 LUMS application images should be rebuilt from the reviewed source tree.
+The host updater currently provides repository and deployment checks only.
+Production container replacement is deliberately disabled until database
+backup, migration safety, and restoration/rollback have been implemented
+and tested against the actual deployment configuration.
 
-Before building a new image:
+Run repository freshness checks from the checkout as your normal account:
 
-```bash id="x0m7r4"
-cd /opt/lums-public
+```bash
+bash scripts/update-lums.sh --check-repository
 ```
 
-Run the automated test suite:
+This fetches `origin/main` and compares its commit with the local `HEAD`.
+It does not update the checkout, build an image, or change the running service.
 
-```bash id="4gk1dp"
-./.venv-test/bin/pytest -q
+The deployment check can be run with:
+
+```bash
+bash scripts/update-lums.sh --check
 ```
 
-Only proceed when the test result is understood.
+It requires a clean checkout and validates the current container configuration.
+It may refuse a deployment whose volumes, mounts, or security settings differ
+from the documented fixture. A successful check is not proof that database
+restoration or rollback will work.
 
-Build the new image using a distinct temporary tag:
+Without `--check` or `--check-repository`, the updater still refuses to replace
+the production container. Do not stop or replace the running container using
+this updater until the production-specific backup, migration, and rollback
+procedure has been implemented and verified in an isolated environment.
 
-```bash id="m8q3vz"
-sudo docker build -t lums:new .
+The updater does not run the full test suite. In a checkout with the project
+virtual environment, run the relevant tests with:
+
+```bash
+.venv/bin/python -m pytest -q tests/test_database_backup.py tests/test_update_lums.py
 ```
 
-A temporary tag allows the currently running image to remain identifiable during the replacement process.
+Only proceed when the test result is understood. A passing test suite does not
+replace a verified backup and restore test for the actual production database.
 
 ---
 
@@ -3084,4 +3101,3 @@ When something breaks:
 When something works:
 
 **Record the result and keep the known-good baseline.**
-

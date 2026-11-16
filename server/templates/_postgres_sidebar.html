@@ -1,0 +1,135 @@
+<aside class="lums-sidebar" id="lums-sidebar"
+       aria-label="{{ tr('Main navigation') }}">
+    <div class="lums-sidebar-brand">
+        <span class="lums-sidebar-mark" aria-hidden="true">
+            <img src="{{ url_for('static', filename='images/LUMS_Logo.jpg') }}" alt="" />
+        </span>
+        <div class="lums-sidebar-brand-text">
+            <strong>LUMS</strong>
+            <small>{{ tr("Linux Update Management Server") }}</small>
+        </div>
+    </div>
+
+    <nav class="lums-sidebar-nav" id="lums-sidebar-nav"
+         data-user-id="{{ session.get('user_id', 'anonymous') }}">
+        <a href="{{ url_for('index') }}"
+           data-nav-id="dashboard"
+           class="lums-sidebar-link{% if request.path == '/' %} is-active{% endif %}">
+            <span class="lums-sidebar-icon" aria-hidden="true">⌂</span>
+            <span class="lums-sidebar-label">{{ tr("Dashboard") }}</span>
+        </a>
+
+        {% if user_role == "administrator" and "system.update" in user_permissions %}
+        <a href="{{ url_for('postgres_system_updates_page') }}"
+           data-nav-id="system-updates"
+           class="lums-sidebar-link{% if request.path == '/updates' %} is-active{% endif %}"
+           {% if request.path == '/updates' %}aria-current="page"{% endif %}>
+            <span class="lums-sidebar-icon" aria-hidden="true">↻</span>
+            <span class="lums-sidebar-label">{{ tr("Update system") }}</span>
+        </a>
+        {% endif %}
+
+        {% if "clients.view" in user_permissions %}
+        <a href="{{ url_for('infrastructure_page') }}"
+           data-nav-id="infrastructure"
+           class="lums-sidebar-link{% if request.path == '/infrastructure' %} is-active{% endif %}"
+           {% if request.path == '/infrastructure' %}aria-current="page"{% endif %}>
+            <span class="lums-sidebar-icon" aria-hidden="true">⌘</span>
+            <span class="lums-sidebar-label">{{ tr("Infrastructure topology") }}</span>
+        </a>
+        {% endif %}
+
+        {% if "clients.view" in user_permissions %}
+        <a href="{{ url_for('health_page') }}"
+           data-nav-id="health"
+           class="lums-sidebar-link{% if request.path == '/health' %} is-active{% endif %}"
+           {% if request.path == '/health' %}aria-current="page"{% endif %}>
+            <span class="lums-sidebar-icon" aria-hidden="true">♥</span>
+            <span class="lums-sidebar-label">{{ tr("Health Dashboard") }}</span>
+        </a>
+
+        <a href="{{ url_for('monitoring_page') }}"
+           data-nav-id="monitoring"
+           class="lums-sidebar-link{% if request.path == '/monitoring' %} is-active{% endif %}"
+           {% if request.path == '/monitoring' %}aria-current="page"{% endif %}>
+            <span class="lums-sidebar-icon" aria-hidden="true">◷</span>
+            <span class="lums-sidebar-label">{{ tr("Live system monitoring") }}</span>
+        </a>
+        {% endif %}
+
+        {% if "alerts.view" in user_permissions %}
+        <a href="{{ url_for('postgres_alert_dashboard') }}"
+           data-nav-id="alerts"
+           class="lums-sidebar-link{% if request.path == '/alerts' %} is-active{% endif %}"
+           {% if request.path == '/alerts' %}aria-current="page"{% endif %}>
+            <span class="lums-sidebar-icon" aria-hidden="true">!</span>
+            <span class="lums-sidebar-label">{{ tr("Alerts") }}</span>
+        </a>
+        {% endif %}
+
+        {% if "users.manage" in user_permissions %}
+        <a href="{{ url_for('postgres_users_page') }}"
+           data-nav-id="users"
+           class="lums-sidebar-link{% if request.path == '/users' %} is-active{% endif %}"
+           {% if request.path == '/users' %}aria-current="page"{% endif %}>
+            <span class="lums-sidebar-icon" aria-hidden="true">♙</span>
+            <span class="lums-sidebar-label">{{ tr("User management") }}</span>
+        </a>
+        {% endif %}
+    </nav>
+
+    <div class="lums-sidebar-customizer" id="lums-sidebar-customizer"
+        data-edit="{{ tr('Customize navigation') }}"
+        data-done="{{ tr('Finish navigation editing') }}"
+        data-save="{{ tr('Save navigation') }}"
+        data-reset="{{ tr('Restore default navigation') }}"
+        data-sections="{{ tr('Navigation sections') }}"
+        data-move-up="{{ tr('Move section up') }}"
+        data-move-down="{{ tr('Move section down') }}"
+        data-show="{{ tr('Show section') }}"
+        data-hide="{{ tr('Hide section') }}"
+        data-saved="{{ tr('Navigation preferences saved.') }}"
+        data-error="{{ tr('Navigation preferences could not be saved.') }}">
+        <button type="button" class="lums-sidebar-link lums-sidebar-edit-toggle"
+            id="lums-sidebar-edit-toggle" aria-expanded="false">
+            <span class="lums-sidebar-icon" aria-hidden="true">⚙</span>
+            <span class="lums-sidebar-label">{{ tr("Customize navigation") }}</span>
+        </button>
+        <section class="lums-sidebar-editor" id="lums-sidebar-editor" hidden>
+            <h2>{{ tr("Navigation sections") }}</h2>
+            <ol id="lums-sidebar-editor-list"></ol>
+            <div class="lums-sidebar-editor-actions">
+                <button type="button" id="lums-sidebar-save">{{ tr("Save navigation") }}</button>
+                <button type="button" id="lums-sidebar-reset">{{ tr("Restore default navigation") }}</button>
+                <p id="lums-sidebar-editor-status" role="status" aria-live="polite"></p>
+            </div>
+        </section>
+    </div>
+
+    <div class="lums-sidebar-footer">
+        <form action="{{ url_for('postgres_auth.change_language') }}"
+              method="POST" class="lums-sidebar-language">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            <label for="lums-sidebar-language">{{ tr("Language") }}</label>
+            <select id="lums-sidebar-language" name="language">
+                {% for code, name in languages.items() %}
+                <option value="{{ code }}"
+                    {% if code == language %}selected{% endif %}>
+                    {{ name }}
+                </option>
+                {% endfor %}
+            </select>
+            <button type="submit">{{ tr("Save") }}</button>
+        </form>
+
+        <form action="{{ url_for('postgres_logout') }}"
+              method="POST" class="lums-sidebar-logout">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            <button type="submit" class="lums-sidebar-link">
+                <span class="lums-sidebar-icon" aria-hidden="true">↪</span>
+                <span class="lums-sidebar-label">{{ tr("Sign out") }}</span>
+            </button>
+        </form>
+    </div>
+</aside>
+<div class="lums-sidebar-scrim" id="lums-sidebar-scrim" hidden></div>

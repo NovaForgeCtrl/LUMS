@@ -1,9 +1,11 @@
 # Szybki start z LUMS — polski
 
 Ten krótki przewodnik jest przeznaczony dla osób, które dopiero poznają LUMS
-lub Linux. Nie jest pełnym tłumaczeniem wszystkich podręczników technicznych;
-szczegółowa dokumentacja projektu jest utrzymywana po angielsku.
-[Indeks języków](../../README.md).
+lub Linux. Przetłumaczone przewodniki dla użytkowników i administratorów
+znajdują się w [indeksie dokumentacji według języka](../../README.md).
+Angielskie dokumenty źródłowe pozostają technicznym punktem odniesienia;
+przed zmianami w systemie produkcyjnym postępuj zgodnie z nimi, jeśli
+tłumaczenie jest niepełne lub różni się od źródła.
 
 ## Czym jest LUMS?
 

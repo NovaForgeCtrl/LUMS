@@ -313,6 +313,25 @@ L'audit #16 est intentionnellement différent des contrôles de sécurité techn
 LUMS n'a actuellement pas de version stable officielle, pas d'étiquette de version et pas de version GitHub. C'est intentionnel car le projet reste en développement actif.
 
 L'audit #18 reste ouvert jusqu'à ce que l'ensemble complet de la documentation ait été examiné et synchronisé avec l'implémentation actuelle.
+| #01   | Clés étrangères SQLite                 | RÉUSSI                    |
+| #02   | Configuration d'exécution SQLite       | RÉUSSI                    |
+| #03   | Gestion des délais de mise à jour      | RÉUSSI                    |
+| #04   | Limitation du taux de connexion        | RÉUSSI                    |
+| #05   | Validation des entrées de l'API        | RÉUSSI                    |
+| #06   | Révocation de session                  | RÉUSSI                    |
+| #07   | Rotation des tokens clients            | RÉUSSI                    |
+| #08   | Gestion des adresses IP / Réseaux hors ligne | RÉUSSI              |
+| #09   | Récupération de job / Checkpointing    | RÉUSSI                    |
+| #10   | Robustesse APT                         | RÉUSSI                    |
+| #11   | Détection de redémarrage Arch          | RÉUSSI                    |
+| #12   | Tests unitaires / Validation des résultats de l'API | RÉUSSI    |
+| #13   | Tests de simulation                    | RÉUSSI                    |
+| #14   | Intégration continue                   | RÉUSSI                    |
+| #15   | Journalisation applicative / d'audit   | RÉUSSI                    |
+| #16   | Versionnement / Releases               | Vérifier les releases et tags actuels du dépôt |
+| #17   | Contrôle d'accès basé sur les rôles    | RÉUSSI                    |
+
+Ce tableau récapitule le périmètre et les résultats des vérifications antérieures ; il ne constitue ni une certification ni une garantie pour les révisions ultérieures. Relancez les contrôles pertinents sur le code exact à déployer. La disponibilité des releases évolue ; ne déduisez donc pas leur état de ce document, mais consultez la [page Releases](https://github.com/NovaForgeCtrl/LUMS/releases) et les [tags](https://github.com/NovaForgeCtrl/LUMS/tags) du dépôt.
 
 # Audit de Sécurité #01
 
@@ -489,6 +508,7 @@ The following audit areas are documented in the subsequent sections:
 * #17 Contrôle d'Accès Basé sur les Rôles
 
 Audit #18 — Documentation Review — remains open until the complete documentation set has been reviewed and synchronized with the current implementation.
+Examinez la documentation au regard de l'implémentation lorsque le code ou le comportement du déploiement change. Elle doit décrire le système réel, et non un état de développement antérieur. Traitez cette revue comme une tâche de maintenance continue, et non comme un état d'audit ponctuel.
 
 # Audit de Sécurité #05
 
@@ -954,6 +974,7 @@ The current repository state therefore intentionally has:
 * no official stable release version
 * no release tag
 * no GitHub Release
+Le versionnement et la gestion des releases font partie de la revue de sécurité, car les opérateurs doivent pouvoir identifier précisément le code et les artefacts qu'ils déploient. La disponibilité des releases et les versions des composants évoluent indépendamment de ce guide. Consultez les tags actuels et la [page Releases](https://github.com/NovaForgeCtrl/LUMS/releases) du dépôt, ainsi que les métadonnées de version de la révision exacte du code source à déployer. Ce document n'est pas un catalogue des releases en temps réel.
 
 The current component versions include:
 
@@ -965,6 +986,7 @@ There is currently no single formal version number representing the complete LUM
 This is an intentional project-state decision rather than an accidental omission.
 
 The planned release process is:
+Le processus de release prévu est :
 
 1. Complete implementation work.
 2. Complete the security review.
@@ -1006,6 +1028,22 @@ The following security audit areas are complete:
 | #14   | Continuous Integration                 | PASS                      |
 | #15   | Application / Audit Logging            | PASS                      |
 | #16   | Versioning / Releases                  | REVIEWED — OPEN BY DESIGN |
+| #01   | Clés étrangères SQLite                 | RÉUSSI                    |
+| #02   | Configuration d'exécution SQLite       | RÉUSSI                    |
+| #03   | Délai de mise à jour / Gestion des processus | RÉUSSI              |
+| #04   | Limitation du taux de connexion        | RÉUSSI                    |
+| #05   | Validation des entrées de l'API        | RÉUSSI                    |
+| #06   | Révocation de session                  | RÉUSSI                    |
+| #07   | Rotation des tokens clients            | RÉUSSI                    |
+| #08   | Gestion des adresses IP / Réseaux hors ligne | RÉUSSI              |
+| #09   | Récupération de job / Checkpointing    | RÉUSSI                    |
+| #10   | Robustesse APT                         | RÉUSSI                    |
+| #11   | Détection de redémarrage Arch          | RÉUSSI                    |
+| #12   | Tests unitaires / Validation des résultats de l'API | RÉUSSI    |
+| #13   | Tests de simulation                    | RÉUSSI                    |
+| #14   | Intégration continue                   | RÉUSSI                    |
+| #15   | Journalisation applicative / d'audit   | RÉUSSI                    |
+| #16   | Versionnement / Releases               | Vérifier les releases et tags actuels du dépôt |
 
 The remaining numbered technical audit area is:
 
@@ -1014,6 +1052,7 @@ The remaining numbered technical audit area is:
 The documentation review is tracked separately as:
 
 * #18 Documentation Review — IN PROGRESS
+La revue de la documentation est un processus continu, mené indépendamment de tout état d'audit numéroté.
 
 # Audit de Sécurité #17
 
@@ -1216,6 +1255,9 @@ The server remains the authoritative security boundary.
 ## Documentation Review
 
 The security documentation is reviewed against the currently implemented LUMS system.
+## Revue de documentation
+
+La documentation de sécurité doit être maintenue en fonction du système LUMS actuellement implémenté.
 
 The purpose of this review is to ensure that security documentation describes the actual implementation rather than an earlier development state.
 
@@ -1254,6 +1296,36 @@ Historical implementation details must not be presented as current production co
 In particular, the documentation reflects the current SQLite production configuration rather than the current WAL configuration.
 
 The current production runtime is documented as:
+* authentification des clients
+* gestion des tokens
+* gestion des sessions
+* protection CSRF
+* limitation du taux
+* configuration SQLite
+* exécution des mises à jour
+* récupération de job
+* gestion des paquets
+* durcissement du conteneur
+* exposition réseau
+* gestion des secrets
+* sécurité des dépendances et de la construction
+* permissions du système de fichiers
+* journalisation applicative et d'audit
+* versionnement et gestion des releases
+* tests de sécurité automatisés
+
+La documentation doit distinguer entre :
+
+* contrôles implémentés
+* comportement de production vérifié
+* améliorations prévues
+* décisions de projet intentionnellement ouvertes
+
+Les détails d'implémentation historiques ne doivent pas être présentés comme une configuration de production actuelle.
+
+En particulier, la documentation reflète la configuration SQLite de production actuellement implémentée.
+
+L'exécution de production actuelle est documentée comme :
 
 * `journal_mode = wal`
 * `busy_timeout = 5000`
@@ -1278,6 +1350,7 @@ Viewer users do not have access to:
 The documentation review also removes or replaces outdated references to earlier test counts, migration states, deployment configurations, and development-only behavior.
 
 **Status: IN PROGRESS**
+Réexaminez la documentation lorsque le code ou le comportement du déploiement change. Supprimez ou remplacez alors les références obsolètes aux nombres de tests antérieurs, aux états de migration, aux configurations de déploiement et au comportement réservé au développement.
 
 ---
 
@@ -1486,12 +1559,30 @@ The numbered audit results are:
 | #16   | Versioning / Releases                  | REVIEWED — OPEN BY DESIGN |
 | #17   | Contrôle d'Accès Basé sur les Rôles              | PASS                      |
 | #18   | Documentation Review                   | IN PROGRESS               |
+| #01   | Clés étrangères SQLite                 | RÉUSSI                    |
+| #02   | Configuration d'exécution SQLite       | RÉUSSI                    |
+| #03   | Délai de mise à jour / Gestion des processus | RÉUSSI              |
+| #04   | Limitation du taux de connexion        | RÉUSSI                    |
+| #05   | Validation des entrées de l'API        | RÉUSSI                    |
+| #06   | Révocation de session                  | RÉUSSI                    |
+| #07   | Rotation des tokens clients            | RÉUSSI                    |
+| #08   | Gestion des adresses IP / Réseaux hors ligne | RÉUSSI              |
+| #09   | Récupération de job / Checkpointing    | RÉUSSI                    |
+| #10   | Robustesse APT                         | RÉUSSI                    |
+| #11   | Détection de redémarrage Arch          | RÉUSSI                    |
+| #12   | Tests unitaires / Validation des résultats de l'API | RÉUSSI    |
+| #13   | Tests de simulation                    | RÉUSSI                    |
+| #14   | Intégration continue                   | RÉUSSI                    |
+| #15   | Journalisation applicative / d'audit   | RÉUSSI                    |
+| #16   | Versionnement / Releases               | Vérifier les releases et tags actuels du dépôt |
+| #17   | Contrôle d'accès basé sur les rôles    | RÉUSSI                    |
 
 The technical security controls reviewed in audits #01–#15 and #17 have passed.
 
 Audit #16 remains intentionally open because LUMS has not yet reached its first official stable release.
 
 Audit #18 remains open until the complete project documentation has been reviewed and synchronized with the final implementation state.
+La disponibilité des releases et des tags peut évoluer ; consultez les [releases](https://github.com/NovaForgeCtrl/LUMS/releases) et les [tags](https://github.com/NovaForgeCtrl/LUMS/tags) actuels du dépôt.
 
 No security audit result should be interpreted as a guarantee that LUMS is free from vulnerabilities.
 
@@ -1528,6 +1619,33 @@ The baseline includes:
 * automated security testing
 
 Future changes should preserve these properties unless a deliberate architectural change replaces them with an equivalent or stronger control.
+# Base de sécurité
+
+Cette base décrit les contrôles configurés dans le code source et les consignes de déploiement. Elle ne prouve pas qu'une installation particulière les applique ; vérifiez les paramètres effectifs dans l'environnement cible.
+
+La base comprend :
+
+* authentification côté serveur
+* RBAC côté serveur
+* hachage de mot de passe Argon2
+* condensés SHA-256 des tokens clients
+* protection CSRF
+* limitation du taux de connexion
+* SQL paramétré
+* entrée API validée
+* exécution contrôlée du gestionnaire de paquets
+* récupération de job de mise à jour
+* journalisation d'audit
+* exécution Docker durcie
+* HTTPS via Nginx
+* exposition du port applicatif limitée au loopback
+* restrictions du pare-feu
+* secrets de production protégés
+* dépendances de production épinglées
+* permissions du système de fichiers restreintes
+* tests de sécurité automatisés
+
+Les modifications futures devraient préserver ces propriétés, sauf si un changement architectural délibéré les remplace par un contrôle équivalent ou plus fort.
 
 ---
 
@@ -1591,4 +1709,3 @@ The current security baseline is documented according to the verified implementa
 **LUMS — Linux Update Management without the noise.**
 
 `segfault // override`
-

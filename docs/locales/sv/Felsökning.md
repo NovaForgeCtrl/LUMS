@@ -798,7 +798,7 @@ Agentkonfiguration
 Aktivera inte klienten bara för att få ett fel att försvinna.
 
 Avgör först varför klienten inaktiverades.
-15. Uppdateringsidentifiering
+# 15. Uppdateringsidentifiering
 
 Uppdateringsidentifiering består av flera oberoende steg.
 
@@ -1162,7 +1162,7 @@ Vänta eller lös processen säkert
    ↓
 Försök igen
 
-23. Pakethanteringsfel vs. LUMS-fel
+# 23. Pakethanteringsfel vs. LUMS-fel
 
 Skilj alltid mellan ett pakethanteringsfel och ett LUMS-fel.
 
@@ -1190,7 +1190,7 @@ LUMS tar aldrig emot SUCCESS
 Här kan paketåtgärden ha lyckats medan LUMS rapporteringsväg misslyckades.
 
 Pakethanterarens resultat och LUMS jobbresultat måste därför undersökas separat.
-24. Användbar diagnostisk separation
+# 24. Användbar diagnostisk separation
 
 När ett paketjobb misslyckas, klassificera felet först:
 text
@@ -1351,7 +1351,7 @@ Omstartskrav
 Avsluta inte en aktiv paketoperation enbart för att användargränssnittet inte har uppdaterats ännu.
 
 Avgör först om den underliggande processen fortfarande är aktiv.
-28. Jobbet är FAILED
+# 28. Jobbet är FAILED
 
 Ett misslyckat jobb indikerar inte nödvändigtvis ett LUMS-serverfel.
 
@@ -1521,7 +1521,7 @@ text
 Klienten kvalificerad för underhållsexekvering
 
 Dessa är separata tillstånd.
-33. Idle-detektering är otillgänglig
+# 33. Idle-detektering är otillgänglig
 
 Vissa system kanske inte tillhandahåller all idle-tillståndsinformation.
 
@@ -1538,7 +1538,7 @@ Idle-tillstånd
 Idle-varaktighet
 
 Om plattformen inte kan tillhandahålla den förväntade idle-informationen, undersök Agentens plattformsspecifika implementering istället för att ändra serverdatabasen.
-34. Återställning av uppdateringsjobb
+# 34. Återställning av uppdateringsjobb
 
 LUMS använder checkpointing och återställning för att förhindra att avbrutna uppdateringsjobb behandlas som slutförda.
 
@@ -1604,7 +1604,7 @@ Jobb
 Återställning bör bevara de lyckade posterna och fortsätta med återstående arbete.
 
 Om detta beteende verkar felaktigt, inspektera jobb- och paketposthistoriken innan du ändrar databasen.
-37. Klienten startar om under en uppdatering
+# 37. Klienten startar om under en uppdatering
 
 En omstart kan avbryta Agent-processen.
 
@@ -1702,7 +1702,7 @@ Watcher-tillstånd
 Återställningsmekanismen ansvarar för att avgöra om avbrutet arbete säkert kan fortsätta.
 
 Skriv inte manuellt om jobbtillstånd efter en serveromstart.
-41. Databasen är tillgänglig men jobbtillståndet verkar fel
+# 41. Databasen är tillgänglig men jobbtillståndet verkar fel
 
 Om SQLite är åtkomligt men jobbtillståndet verkar inkonsekvent, inspektera applikations- och granskningsloggarna innan du ändrar databasen.
 
@@ -1743,7 +1743,7 @@ såvida inte en kontrollerad databasåterställningsprocedur uttryckligen kräve
 Om en databasreparation på databasnivå verkligen är nödvändig, bevara en säkerhetskopia och dokumentera den exakta ändringen innan den tillämpas.
 
 Normala operativa problem bör lösas genom applikations- och Agent-mekanismerna.
-43. Diagnostisk matris för Watcher och Agent
+# 43. Diagnostisk matris för Watcher och Agent
 
 Använd följande matris för att identifiera det mest sannolika lagret:
 | Symtom | Första komponent att inspektera |
@@ -1760,7 +1760,7 @@ Använd följande matris för att identifiera det mest sannolika lagret:
 | Användargränssnittet visar inaktuellt tillstånd | API + senaste klientrapport |
 
 Denna matris är en utgångspunkt, inte en ersättning för att inspektera de faktiska loggarna och jobbtillståndet.
-44. Nästa felsökningsområde
+# 44. Nästa felsökningsområde
 
 Efter att ha verifierat jobbexekveringen är nästa områden:
 text
@@ -2094,7 +2094,7 @@ Inspektera webbläsarkonsolen vid behov
 Bevilja inte ytterligare behörigheter bara för att en sida för närvarande verkar ofullständig.
 
 Avgör först om den saknade informationen är avsiktligt begränsad.
-56. Operator kan inte utföra en operation
+# 56. Operator kan inte utföra en operation
 
 Om en Operator får 403 Forbidden, avgör först om den begärda åtgärden är administratörsspecifik.
 
@@ -2109,7 +2109,7 @@ Klienttokenrotation
 Om operationen bör tillåtas för Operatorer, inspektera slutpunktens auktoriseringsdekorator och motsvarande RBAC-tester.
 
 Befordra inte tillfälligt användaren till Administrator som en diagnostisk genväg.
-57. Administrator kan inte utföra en operation
+# 57. Administrator kan inte utföra en operation
 
 En Administrator bör ha åtkomst till alla för närvarande stödda administrativa operationer.
 
@@ -2180,7 +2180,7 @@ CSRF-token
 Om begäran avvisas, avgör vilken valideringsregel som utlöstes.
 
 Försvaga inte valideringen bara för att få en kontoskapandebegäran att lyckas.
-60. Lösenordsproblem
+# 60. Lösenordsproblem
 
 LUMS lagrar användarlösenord med en lösenordshashningsmekanism snarare än klartextlösenord.
 
@@ -2200,7 +2200,7 @@ Inspektera autentiseringsloggar
 Lagra eller logga aldrig klartextlösenord.
 
 Kopiera inte lösenord till diagnostiska kommandon eller loggfiler.
-61. Inaktiverat användarkonto
+# 61. Inaktiverat användarkonto
 
 Ett inaktiverat konto får inte behandlas som ett aktivt inloggningskonto.
 
@@ -2217,7 +2217,7 @@ Auktorisering på serversidan
 Ta inte bara bort kontot.
 
 Att bevara kontot kan vara viktigt för granskningshistoriken.
-62. Sessionsproblem
+# 62. Sessionsproblem
 
 LUMS använder sessionshantering på serversidan.
 
@@ -2234,7 +2234,7 @@ Cookie-konfiguration
 CSRF-skydd
 
 Inaktivera inte sessionssäkerhetskontroller för att kringgå ett inloggningsproblem.
-63. Sessionsåterkallelse
+# 63. Sessionsåterkallelse
 
 Sessionsåterkallelse är relevant när:
 text
@@ -2250,7 +2250,7 @@ Om en användare verkar behålla åtkomst efter en kontoändring, avgör om den 
 Testa med en ny webbläsarsession först efter att ha bekräftat kontotillståndet.
 
 Anta inte att enbart radering av webbläsarcookies bevisar att sessionsåterkallelse på serversidan fungerar.
-64. Inloggningshastighetsbegränsning
+# 64. Inloggningshastighetsbegränsning
 
 LUMS tillämpar inloggningshastighetsbegränsning för upprepade misslyckade autentiseringsförsök.
 
@@ -2269,7 +2269,7 @@ Om inloggningsförsök oväntat blockeras, inspektera autentiseringstillståndet
 Ett hastighetsbegränsningssvar är inte automatiskt ett autentiseringsfel.
 
 Det kan indikera att kontot har nått den konfigurerade tröskeln för misslyckade försök.
-65. Inloggning fungerar men API returnerar 403
+# 65. Inloggning fungerar men API returnerar 403
 
 En lyckad inloggning bevisar autentisering, inte auktorisering.
 
@@ -2294,7 +2294,7 @@ text
 "Är denna autentiserade användare auktoriserad för denna operation?"
 
 Dessa är separata säkerhetskontroller.
-66. CSRF-fel
+# 66. CSRF-fel
 
 Tillståndsändrande webbläsarbegäranden skyddas mot cross-site request forgery.
 
@@ -2316,7 +2316,7 @@ Inspektera serversvar
 Inaktivera inte CSRF-skydd som en felsökningslösning.
 
 En misslyckad CSRF-kontroll är en säkerhetskontroll som fungerar som avsett.
-67. Webbläsargränssnitt och API är oense
+# 67. Webbläsargränssnitt och API är oense
 
 Om användargränssnittet visar att en åtgärd är tillgänglig men API:et avvisar den:
 text
@@ -2340,7 +2340,7 @@ Klientändringar
 Sidan har varit öppen länge
 
 Ladda om sidan och upprätta en ny session innan du antar att auktoriseringen på serversidan är felaktig.
-68. Diagnostisk RBAC-matris
+# 68. Diagnostisk RBAC-matris
 | Symtom | Första komponent att inspektera |
 | --- | --- |
 | Viewer ser management-UI | Klientsidans rollhantering |
@@ -2354,7 +2354,7 @@ Ladda om sidan och upprätta en ny session innan du antar att auktoriseringen p�
 | UI och API är oense | Webbläsartillstånd + serverauktorisering |
 
 Resultatet av auktoriseringen på serversidan är alltid viktigare än huruvida ett gränssnittselement är synligt.
-69. Nästa felsökningsområde
+# 69. Nästa felsökningsområde
 
 Nästa diagnostiska områden är:
 text
@@ -2433,7 +2433,7 @@ Jobb-ID
 Fel
 Resultat
 
-72. Granskningsloggning
+# 72. Granskningsloggning
 
 LUMS registrerar säkerhetsrelevanta applikationsåtgärder i granskningsloggen.
 
@@ -2451,7 +2451,7 @@ Säkerhetsrelevanta tillståndsändringar
 En granskningshändelse bör behandlas som bevis på en applikationshändelse, inte som en ersättning för systemloggar.
 
 Använd applikationsloggar för tekniska körningsdetaljer och granskningsloggar för säkerhetsrelevanta applikationsåtgärder.
-73. Granskningshändelse saknas
+# 73. Granskningshändelse saknas
 
 Om en förväntad granskningshändelse saknas:
 
@@ -2468,7 +2468,7 @@ Om en förväntad granskningshändelse saknas:
 Infoga inte manuellt granskningsposter bara för att få en granskningskedja att verka komplett.
 
 En granskningspost bör motsvara en verklig applikationshändelse.
-74. Granskningslogg och applikationslogg skiljer sig
+# 74. Granskningslogg och applikationslogg skiljer sig
 
 De två loggsystemen har olika syften.
 
@@ -2484,7 +2484,7 @@ Granskningslogg
 Ett pakethanteringsfel kan därför förekomma i applikations- eller Agent-loggen utan att representera en separat administrativ granskningshändelse.
 
 Omvänt bör en användarhanteringsåtgärd producera en granskningsbar applikationshändelse även om operationen i sig är tekniskt enkel.
-75. Känslig information i loggar
+# 75. Känslig information i loggar
 
 Placera aldrig avsiktligt följande i diagnostisk utdata:
 text
@@ -2499,7 +2499,7 @@ TLS-privat material
 Om ett diagnostiskt kommando skulle exponera ett av dessa värden, använd en redigerad eller metadatabaserad kontroll istället.
 
 När du delar loggar för felsökning, granska dem för hemligheter innan du kopierar dem till ärenden, dokumentation, GitHub-ärenden eller chatt.
-76. Docker-containersäkerhet
+# 76. Docker-containersäkerhet
 
 Produktionscontainern för LUMS är avsiktligt härdad.
 
@@ -2626,15 +2626,10 @@ Skriv inte ut innehållet i hemligheten.
 En användbar diagnostik är att verifiera att filen finns och har förväntade behörigheter utan att visa dess innehåll.
 # 82. Hemlig fil saknas
 
-Om den hemliga filen inte finns på värden kan containern inte autentisera eller initiera korrekt.
+Om den hemliga filen saknas på värden och ingen reservvariabel `LUMS_SECRET_KEY` har angetts misslyckas applikationen omedelbart vid start med `RuntimeError: LUMS secret is not configured. Provide LUMS_SECRET_KEY_FILE or LUMS_SECRET_KEY.` (`server/app.py`). Detta är ett startfel, inte bara ett autentiseringssymtom. Se avsnitt 114 för reservbeteendet mellan fil och variabel.
 
-Avgör först om den förväntade hemliga sökvägen finns.
+Kontrollera att sökvägen finns. Återskapa inte hemligheten slumpmässigt; en ersättning kan ogiltigförklara sessioner eller annat kryptografiskt tillstånd och måste behandlas som en kontrollerad säkerhetsåtgärd.
 
-Återskapa inte hemligheten slumpmässigt.
-
-En ersättningshemlighet kan ogiltigförklara befintliga sessioner eller annat kryptografiskt tillstånd beroende på hur applikationen använder den.
-
-Varje avsiktlig hemlig ersättning måste därför behandlas som en kontrollerad säkerhetsoperation.
 # 83. Beständig volym är inte skrivbar
 
 Om LUMS inte kan skriva applikationsdata, inspektera volymen:
@@ -2724,7 +2719,7 @@ Saknad hemlighet
 Applikationsstartfel
 
 Bygg inte om en annars giltig avbildning för att åtgärda ett runtime-konfigurationsproblem.
-86. Docker-byggproblem
+# 86. Docker-byggproblem
 
 Om en ny avbildning inte kan byggas, inspektera Dockerfile först.
 
@@ -2743,7 +2738,7 @@ Krav
 Applikationskälla
 Byggkontext
 
-87. Problem med .dockerignore
+# 87. Problem med .dockerignore
 
 Docker-byggkontexten bör inte innehålla onödiga lokala filer eller känsligt material.
 
@@ -2904,7 +2899,7 @@ Databasvolymen är skrivbar
 Applikationsporten är endast loopback
 
 En konfiguration som får applikationen att fungera men försvagar dessa egenskaper bör inte betraktas som en lyckad åtgärd.
-94. Nästa felsökningsområde
+# 94. Nästa felsökningsområde
 
 De återstående felsökningsämnena är:
 text
@@ -3110,7 +3105,7 @@ Autentiseringsuppgifter
 Redigera känsliga värden innan du delar.
 
 Anta inte att en logg är säker bara för att den kom från en systemtjänst.
-103. Matris för felkombinationer
+# 103. Matris för felkombinationer
 
 Vissa symtom blir lättare att diagnostisera när flera komponenter beaktas tillsammans.
 | Symtom | Mest sannolikt område att inspektera först |
@@ -3131,7 +3126,7 @@ Vissa symtom blir lättare att diagnostisera när flera komponenter beaktas till
 | Port 5050 är externt nåbar | Docker / brandväggskonfiguration |
 
 Denna tabell identifierar den första platsen att undersöka, inte nödvändigtvis den slutliga rotorsaken.
-104. Vanliga felsökningsmisstag
+# 104. Vanliga felsökningsmisstag
 
 Undvik följande genvägar:
 Radera inte databasen
@@ -3205,7 +3200,7 @@ Rotera inte autentiseringsuppgifter upprepade gånger
 Upprepad token- eller hemlighetsrotation kan skapa ytterligare autentiseringsproblem.
 
 Avgör först vilken autentiseringsuppgift som för närvarande är konfigurerad och vilken autentiseringsuppgift servern förväntar sig.
-105. Återställningsprinciper
+# 105. Återställningsprinciper
 
 Följande principer gäller för all LUMS-felsökning:
 Bevara först
@@ -3240,7 +3235,7 @@ Använd när det är möjligt ändringar som kan återställas utan att förstö
 Håll säkerhetskontroller aktiva
 
 Ett lyckat felsökningsresultat får inte införa en onödig säkerhetsregression.
-106. Produktionsfelsökningssekvens
+# 106. Produktionsfelsökningssekvens
 
 För ett allmänt LUMS-produktionsproblem, använd denna ordning:
 text
@@ -3326,7 +3321,7 @@ Producerade den det förväntade resultatet?
 Tog nästa komponent emot det resultatet?
 
 Det första NEJ identifierar normalt det område som kräver undersökning.
-108. Releasefelsökning
+# 108. Releasefelsökning
 
 Innan du förbereder en release, verifiera:
 text
@@ -3345,7 +3340,7 @@ Uppdateringsjobbsexekvering fungerar
 Återställningsbeteende är verifierat
 
 En release bör inte skapas bara för att applikationen startar framgångsrikt.
-109. Felsökningschecklista
+# 109. Felsökningschecklista
 
 Använd denna checklista innan du förklarar ett produktionsproblem löst:
 text
@@ -3366,7 +3361,7 @@ text
 [ ] Databastillstånd verifierat där det är relevant
 [ ] Dokumentation uppdaterad om beteendet ändrades
 
-110. När du ska sluta felsöka
+# 110. När du ska sluta felsöka
 
 Sluta göra ändringar när:
 text
@@ -3382,7 +3377,7 @@ Säkerhetskontroller förblir intakta
 Om rotorsaken inte är förstådd, bevara det aktuella tillståndet snarare än att upprepade gånger ändra miljön.
 
 Ett rent bevarat fel är lättare att diagnostisera än ett delvis modifierat system.
-111. Slutlig återställningsprincip
+# 111. Slutlig återställningsprincip
 
 Den viktigaste LUMS-felsökningsregeln är:
 
@@ -3408,7 +3403,7 @@ Verifiera
 Dokumentera
 
 Detta håller felsökningen kontrollerad, reproducerbar och kompatibel med LUMS säkerhetsbaslinje.
-112. Dokumentationsunderhåll
+# 112. Dokumentationsunderhåll
 
 Detta dokument bör uppdateras när ett dokumenterat operativt beteende ändras.
 
@@ -3429,21 +3424,21 @@ Föråldrade felsökningsinstruktioner kan vara farliga när de rekommenderar ut
 När ett produktionsbeteende ändras, uppdatera relevant dokumentation innan felsökningsproceduren anses slutförd.
 # 113. Aktuell baslinje
 
-Den aktuella LUMS-baslinjen som dokumenteras av denna felsökningsguide inkluderar:
-text
+Den aktuella LUMS-baslinjen som dokumenteras i den här felsökningsguiden omfattar:
 
-Agentversion: 1.7.0
-Watcher-version: 1.2.1
+```text
+Agent version: 1.7.0
+Watcher version: 1.2.1
 
-Applikationsport:
-```text id="m4x8qp"
+Application port:
 127.0.0.1:5050
 
-Databas:
+Database:
 SQLite
 
-SQLite journal-läge:
-delete
+SQLite journal mode:
+WAL (enabled by server/init_db.py; verify on your database with
+sqlite3 <db> "pragma journal_mode;")
 
 SQLite busy timeout:
 5000 ms
@@ -3451,15 +3446,15 @@ SQLite busy timeout:
 SQLite synchronous:
 2
 
-SQLite främmandenycklar:
-Aktiverade av applikationen
+SQLite foreign keys:
+Enabled by the application
 
 Container:
-Icke-root
-Skrivskyddat rotfilsystem
-Kapabiliteter borttagna
-no-new-privileges aktiverat
-Privilegierat läge inaktiverat
+Non-root
+Read-only root filesystem
+Capabilities dropped
+no-new-privileges enabled
+Privileged mode disabled
 
 RBAC:
 Administrator
@@ -3467,29 +3462,163 @@ Operator
 Viewer
 
 Viewer:
+Clients + Installed Software only
+
+Full test suite:
+Run on Linux (the CI reference is Ubuntu with Python 3.13). Some tests
+assume Linux features such as os.geteuid() or an installed apt/pacman and
+can fail on Windows; check the CI result for the revision you deploy.
 ```
-Endast klienter + installerad programvara
 
-Fullständig testsvit:
-Passerande baslinje
+Behandla inte baslinjen som bevis för att en viss installation är frisk; verifiera varje värde på målsystemet.
 
-Det exakta testantalet kan ändras när projektet växer.
+Turvallisuus- ja arkkitehtuuriominaisuudet ovat tärkeä perustaso.
 
-Säkerhets- och arkitekturegenskaperna är den viktiga baslinjen.
-# 114. Slut på felsökningsguiden
+# 114. Fallgropar i startkonfigurationen
 
-LUMS-felsökning bör förbli evidensdriven och säkerhetsmedveten.
+**Symtom:** Containern avslutas omedelbart eller använder en annan databas/säkerhetskopieringskatalog än Docker-volymen antyder.
 
-När du är osäker:
-text
+**Fakta från koden (`server/app.py`):**
 
-Bevara tillståndet.
-Inspektera bevisen.
-Identifiera det felande lagret.
-Gör den minsta säkra ändringen.
-Verifiera resultatet.
-Dokumentera vad som hände.
+- Utan hemlighet utlöser applikationen `RuntimeError: LUMS secret is not configured. Provide LUMS_SECRET_KEY_FILE or LUMS_SECRET_KEY.`
+- Om filen i `LUMS_SECRET_KEY_FILE` saknas används `LUMS_SECRET_KEY` som reserv. Endast en saknad fil hanteras så; en oläsbar fil kan orsaka filsystemfel.
+- `LUMS_DB_PATH` och `LUMS_BACKUP_DIR` åsidosätter `/var/lib/lums/lums.db` och `/var/backups/lums`. En inaktuell åsidosättning kan peka LUMS bort från den monterade volymen.
 
-Byt inte bort säkerhet eller dataintegritet för en snabb lösning.
+**Kontrollera (skrivskyddat):**
 
-Slut på LUMS Felsökningsguide
+```text
+docker compose logs lums | grep "LUMS secret"
+docker inspect lums --format '{{range .Config.Env}}{{println .}}{{end}}'
+ls -l <secret file>   # permissions only; never print the contents
+```
+
+Korrigera hemlig sökväg/behörigheter eller ta bort inaktuella åsidosättningar. Skapa inte en ersättningshemlighet lättvindigt (avsnitt 82).
+
+---
+
+# 115. Agenten startar inte på grund av kontroller vid import
+
+`lums-agent` kan misslyckas före tokenläsning, exempelvis med `RuntimeError: No supported package manager found. Supported package managers: apt, pacman` eller SSL-fel om CA-filen. `agent/agent.py` identifierar pakethanterare och skapar TLS-kontext vid import. Värdar utan `apt`/`pacman` eller med saknad/oläsbar `LUMS_CA_FILE` misslyckas vid start; samma gäller Windows-testmiljöer. Använd stödd distribution och kontrollera tjänstens `PATH` och CA-filens läsbehörighet.
+
+```text
+systemctl status lums-agent --no-pager
+journalctl -u lums-agent -n 50 --no-pager
+```
+
+---
+
+# 116. Agenten använder fel serveradress (port 5000 jämfört med 5050)
+
+Agentens standard är `LUMS_BASE=http://127.0.0.1:5000`, men containern publiceras på `127.0.0.1:5050`. Exemplen med `5050` gäller serverns publicerade port, inte agentens standard.
+
+```text
+systemctl show lums-agent --property=Environment
+ss -lntp | grep -E ':5000|:5050'
+```
+
+Ange `LUMS_BASE` som den faktiska slutpunkt klienten når (vanligen HTTPS-URL:en). Exponera inte port `5050` offentligt.
+
+---
+
+# 117. Watchern avslutas med status 1
+
+Watchern kan logga `CLIENT LOOKUP FAILED`, `RUNNING JOB LOOKUP FAILED`, `JOB LOOKUP FAILED`, `IDLE CHECK FAILED`, `JOB CLAIM FAILED` eller `UPDATE EXECUTION FAILED`. Den körs en gång: loggar fel, avslutas med status 1 och försöker inte igen förrän nästa timerstart. Endast jobb med exakt status `running` återupptas; annars söks väntande jobb. `NO UPDATE JOB // SYSTEM CLEAN` är normalt.
+
+```text
+journalctl -u lums-watcher -n 100 --no-pager
+systemctl status lums-watcher lums-watcher.timer
+```
+
+Åtgärda API-, token-, inaktivitets- eller pakethanterarlåsproblem. Granska jobb via gränssnitt/API; redigera aldrig SQLite manuellt.
+
+---
+
+# 118. Värduppdateraren loggar heartbeat-fel
+
+`lums-host-updater` fångar loopfel och försöker igen. Vanliga orsaker (`host_updater/agent.py`): tokenfil saknas eller är under 32 tecken (`Host-updater token is missing or too short`); fel loopback-URL (`Only a loopback LUMS endpoint is permitted`: `http`/`https`, exakt värd `127.0.0.1`, port krävs, inga autentiseringsuppgifter/fråga/fragment, t.ex. `http://127.0.0.1:5050`); HTTP `401` / `host_updater_authentication_required` = ogiltig Bearer-token; HTTP `503` / `host_updater_not_configured` = servertoken saknas. Om svaret inte uttryckligen anger `update_execution_enabled: false` avslutas tjänsten med `Unexpected update-execution state; stopping` (status 1); kontrollera versionsmatchning.
+
+```text
+journalctl -u lums-host-updater -n 100 --no-pager
+systemctl show lums-host-updater --property=Environment
+stat /etc/lums-host-updater/token
+```
+
+Visa inte tokenen. Korrigera filägarskap/läge och URL, starta sedan om tjänsten en gång.
+
+---
+
+# 119. Begäranden till larmintegrationer returnerar 501
+
+E-post-, Slack-, PagerDuty- eller webhookkonfiguration/test/borttagning returnerar `501` med `Notification integrations are disabled pending secure persistent configuration`. Detta är avsiktligt (`server/alerts_routes.py`): integrationer saknas, `POST /alerts/clear-all` returnerar också `501` och regler utvärderas inte automatiskt. Försök inte igen och ange inga leverantörshemligheter.
+
+Routningarna kräver `alerts.manage` och CSRF. Saknad/felaktig CSRF-token ger först `403` med `csrf_validation_failed`. Inaktivera inte CSRF. Se `docs/LUMS_REALTIME_ALERTING_IMPLEMENTATION.md`.
+
+---
+
+# 120. Inloggningsfel: CSRF, hastighetsbegränsning och låsning
+
+Ett giltigt lösenord kan avvisas efter flera försök; loggen kan visa `login.rate_limit`. Försök begränsas per användarnamn och källa och lagras i SQLite (`login_rate_limits`, `locked_until`) även efter omstart. `/login` undantas från CSRF-kontrollen; kontrollera autentiseringsuppgifter, cookies och begränsningen.
+
+```text
+sqlite3 /var/lib/lums/lums.db "select rate_limit_key, locked_until from login_rate_limits;"
+```
+
+Vänta tills låsningen upphör och åtgärda orsaken. Radera inte rader manuellt och överbelasta inte inloggningen för test.
+
+---
+
+# 121. SQLite är upptagen eller migreringar träffar fel databas
+
+Skrivningar kan misslyckas vid konkurrens, eller så kan en migrering lyckas utan att servern får nya tabeller/funktioner. `PRAGMA busy_timeout = 5000` väntar högst fem sekunder. Databasen använder WAL (`server/init_db.py`); `-wal` och `-shm` är normala. Migreringar läser sin egen `LUMS_DB_PATH` och kan ändra en annan fil.
+
+```text
+sqlite3 /var/lib/lums/lums.db "pragma busy_timeout; pragma journal_mode;"
+docker inspect lums --format '{{range .Config.Env}}{{println .}}{{end}}'
+```
+
+Stoppa konkurrerande process, behåll WAL/SHM och rikta migreringsmiljön rätt. Radera aldrig sidofilerna.
+
+---
+
+# 122. Återställningen vägrar köra (WAL/SHM finns)
+
+Återställningen avbryts med `Restore verweigert: SQLite-WAL/SHM-Datei vorhanden.` (meddelandet är tyskt i koden). `server/database_backup.py` avbryter säkert när måldatabasens sidofiler finns, så att gammal och ny data inte blandas.
+
+Kontrollera: `find /var/lib/lums -maxdepth 1 -type f -name 'lums.db*'`
+
+Stoppa/pausa applikationen och använd dokumenterad återställning. Ta aldrig bort sidofiler manuellt.
+
+---
+
+# 123. Fel vid ögonblicksbild och releaseverifiering
+
+(`scripts/volume_snapshot.py`, `scripts/release_verification.py`)
+
+| Meddelande | Betydelse |
+| --- | --- |
+| `Could not create or publish the snapshot.` | Målet finns redan eller kan inte skrivas; ögonblicksbilder skrivs inte över. |
+| `Source tree changed during snapshot creation.` | Filer ändrades under kopiering; pausa skrivningar och försök igen. |
+| `Invalid snapshot filename.` / `Invalid restore target.` | Osäker sökväg eller filnamn avvisades. |
+| `Duplicate restore target: ...` | Arkivet har dubbla poster; använd arkiv från det stödda verktyget. |
+| Kontrollsummedata får releaseverifieringen att misslyckas | Metadata är högst 4096 byte; hämta officiell kontrollsummefil i stället för att kringgå verifiering. |
+
+Återställning utan root tillämpar inte godtyckligt arkiverat ägarskap. Kör som avsedd tjänsteanvändare, inte som root. Lista arkivet med `tar -tf` utan att extrahera.
+
+# 124. Slut på felsökningsguiden
+
+LUMS-felsökning bör förbli evidensbaserad och säkerhetsmedveten.
+
+Om du är osäker:
+
+```text
+Preserve the state.
+Inspect the evidence.
+Identify the failing layer.
+Make the smallest safe change.
+Verify the result.
+Document what happened.
+```
+
+Kompromissa inte med säkerhet eller dataintegritet för en snabb lösning.
+
+Slut på LUMS felsökningsguide

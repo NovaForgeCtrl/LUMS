@@ -313,6 +313,27 @@ La Auditoría #16 es intencionalmente diferente de los controles de seguridad t�
 LUMS actualmente no tiene una versión estable oficial, sin etiqueta de versión y sin versión de GitHub. Esto es intencional porque el proyecto sigue en desarrollo activo.
 
 La Auditoría #18 permanece abierta hasta que se haya revisado y sincronizado todo el conjunto de documentación con la implementación actual.
+| Auditoría | Área                                    | Estado                    |
+| --------- | --------------------------------------- | ------------------------- |
+| #01       | Claves foráneas SQLite                  | SUPERADA                  |
+| #02       | Configuración de ejecución SQLite       | SUPERADA                  |
+| #03       | Manejo de timeouts de actualización     | SUPERADA                  |
+| #04       | Limitación de la tasa de inicio de sesión | SUPERADA                |
+| #05       | Validación de entrada de API            | SUPERADA                  |
+| #06       | Revocación de sesión                    | SUPERADA                  |
+| #07       | Rotación de token de cliente            | SUPERADA                  |
+| #08       | Manejo de direcciones IP / Redes sin conexión | SUPERADA           |
+| #09       | Recuperación de trabajos / Checkpointing | SUPERADA                 |
+| #10       | Robustez de APT                         | SUPERADA                  |
+| #11       | Detección de reinicio en Arch           | SUPERADA                  |
+| #12       | Pruebas unitarias / Validación de resultados de API | SUPERADA    |
+| #13       | Pruebas de simulación                   | SUPERADA                  |
+| #14       | Integración continua                    | SUPERADA                  |
+| #15       | Registro de aplicación / auditoría      | SUPERADA                  |
+| #16       | Versionado / Lanzamientos               | Consultar [Releases](https://github.com/NovaForgeCtrl/LUMS/releases) y [etiquetas](https://github.com/NovaForgeCtrl/LUMS/tags) |
+| #17       | Control de acceso basado en roles       | SUPERADA                  |
+
+Esta tabla registra el alcance y los resultados de verificaciones anteriores; no constituye una certificación ni una garantía para revisiones posteriores. Repite las comprobaciones pertinentes sobre el código exacto que se vaya a implementar. La disponibilidad de versiones cambia: consulta [Releases](https://github.com/NovaForgeCtrl/LUMS/releases) y las [etiquetas](https://github.com/NovaForgeCtrl/LUMS/tags) del repositorio en lugar de inferir el estado a partir de este documento.
 
 # Auditoría de Seguridad #01
 
@@ -495,6 +516,7 @@ Las siguientes áreas de auditoría se documentan en las secciones posteriores:
 La Auditoría #18 — Revisión de Documentación — permanece abierta hasta que se haya revisado y sincronizado todo el conjunto de documentación con la implementación actual.
 
 # Auditoría de Seguridad #05
+# Auditoría de seguridad #05
 
 ## Validación de Entrada de API
 
@@ -958,6 +980,7 @@ El estado actual del repositorio por lo tanto intencionalmente tiene:
 * sin versión de versión estable oficial
 * sin etiqueta de versión
 * sin Versión de GitHub
+El versionado y la gestión de lanzamientos forman parte de la revisión de seguridad porque los operadores deben poder identificar el código y los artefactos exactos que implementan. La disponibilidad de versiones y las versiones de los componentes cambian independientemente de esta guía. Consulta las [etiquetas](https://github.com/NovaForgeCtrl/LUMS/tags) y la página [Releases](https://github.com/NovaForgeCtrl/LUMS/releases) actuales del repositorio, y revisa los metadatos de versión en la revisión exacta del código fuente que vayas a implementar. No uses este documento como catálogo actualizado de versiones.
 
 Las versiones actuales de componentes incluyen:
 
@@ -969,6 +992,7 @@ Actualmente no hay un único número de versión formal que represente la aplica
 Esta es una decisión de estado de proyecto intencional en lugar de una omisión accidental.
 
 El proceso de lanzamiento planeado es:
+El proceso de lanzamiento planificado es:
 
 1. Completar el trabajo de implementación.
 2. Completar la revisión de seguridad.
@@ -1020,6 +1044,38 @@ La revisión de documentación se rastrea por separado como:
 * #18 Revisión de Documentación — EN PROGRESO
 
 # Auditoría de Seguridad #17
+Publica una versión solo después de completar la implementación, la revisión de seguridad, la documentación y las pruebas de regresión de esa revisión.
+
+---
+
+# Estado de la auditoría después de la parte 5
+
+Las siguientes áreas de auditoría de seguridad están completas:
+
+| Auditoría | Área                                    | Estado                    |
+| --------- | --------------------------------------- | ------------------------- |
+| #01       | Claves foráneas SQLite                  | SUPERADA                  |
+| #02       | Configuración de ejecución SQLite       | SUPERADA                  |
+| #03       | Timeout de actualización / Manejo de procesos | SUPERADA              |
+| #04       | Limitación de la tasa de inicio de sesión | SUPERADA                |
+| #05       | Validación de entrada de API            | SUPERADA                  |
+| #06       | Revocación de sesión                    | SUPERADA                  |
+| #07       | Rotación de token de cliente            | SUPERADA                  |
+| #08       | Manejo de direcciones IP / Redes sin conexión | SUPERADA           |
+| #09       | Recuperación de trabajos / Checkpointing | SUPERADA                 |
+| #10       | Robustez de APT                         | SUPERADA                  |
+| #11       | Detección de reinicio en Arch           | SUPERADA                  |
+| #12       | Pruebas unitarias / Validación de resultados de API | SUPERADA    |
+| #13       | Pruebas de simulación                   | SUPERADA                  |
+| #14       | Integración continua                    | SUPERADA                  |
+| #15       | Registro de aplicación / auditoría      | SUPERADA                  |
+| #16       | Versionado / Lanzamientos               | Consultar [Releases](https://github.com/NovaForgeCtrl/LUMS/releases) y [etiquetas](https://github.com/NovaForgeCtrl/LUMS/tags) |
+
+El área de auditoría técnica numerada restante es:
+
+* #17 Control de acceso basado en roles
+
+# Auditoría de seguridad #17
 
 ## Control de Acceso Basado en Roles
 
@@ -1215,6 +1271,7 @@ The server remains the authoritative security boundary.
 **Status: APROBADO**
 
 # Auditoría de Seguridad #18
+# Política de revisión de la documentación
 
 ## Documentation Review
 
@@ -1281,6 +1338,7 @@ Viewer users do not have access to:
 The documentation review also removes or replaces outdated references to earlier test counts, migration states, deployment configurations, and development-only behavior.
 
 **Status: EN PROGRESO**
+Esta guía debe revisarse frente a la implementación correspondiente cada vez que cambien las funciones o los controles de seguridad. Las afirmaciones históricas no deben presentarse como estado actual sin verificarlas.
 
 ---
 
@@ -1497,6 +1555,35 @@ La Auditoría #16 permanece intencionalmente abierta porque LUMS aún no ha lleg
 La Auditoría #18 permanece abierta hasta que se haya revisado toda la documentación del proyecto y se sincronice con el estado de implementación final.
 
 Ningún resultado de auditoría de seguridad debe interpretarse como una garantía de que LUMS no tenga vulnerabilidades.
+* seguridad de dependencias y construcción
+
+Los resultados de la auditoría numerada son:
+
+| Auditoría | Área                                    | Estado                    |
+| --------- | --------------------------------------- | ------------------------- |
+| #01       | Claves foráneas SQLite                  | SUPERADA                  |
+| #02       | Configuración de ejecución SQLite       | SUPERADA                  |
+| #03       | Timeout de actualización / Manejo de procesos | SUPERADA              |
+| #04       | Limitación de la tasa de inicio de sesión | SUPERADA                |
+| #05       | Validación de entrada de API            | SUPERADA                  |
+| #06       | Revocación de sesión                    | SUPERADA                  |
+| #07       | Rotación de token de cliente            | SUPERADA                  |
+| #08       | Manejo de direcciones IP / Redes sin conexión | SUPERADA           |
+| #09       | Recuperación de trabajos / Checkpointing | SUPERADA                 |
+| #10       | Robustez de APT                         | SUPERADA                  |
+| #11       | Detección de reinicio en Arch           | SUPERADA                  |
+| #12       | Pruebas unitarias / Validación de resultados de API | SUPERADA    |
+| #13       | Pruebas de simulación                   | SUPERADA                  |
+| #14       | Integración continua                    | SUPERADA                  |
+| #15       | Registro de aplicación / auditoría      | SUPERADA                  |
+| #16       | Versionado / Lanzamientos               | Consultar las versiones y etiquetas actuales |
+| #17       | Control de acceso basado en roles       | SUPERADA                  |
+
+Los controles técnicos de seguridad revisados en las auditorías #01–#15 y #17 han superado la revisión.
+
+La disponibilidad de versiones y etiquetas puede cambiar sin que se actualice esta guía. Consulta [Releases](https://github.com/NovaForgeCtrl/LUMS/releases) y las [etiquetas](https://github.com/NovaForgeCtrl/LUMS/tags) del repositorio para conocer el estado actual.
+
+Ningún resultado de auditoría de seguridad debe interpretarse como una garantía de que LUMS está libre de vulnerabilidades.
 
 La seguridad es un proceso continuo.
 
@@ -1507,6 +1594,7 @@ Los cambios en la aplicación, Agente, dependencias, configuración del contened
 # Línea Base de Seguridad
 
 La línea base de seguridad actual se basa en el estado de implementación y despliegue de producción verificado.
+Esta línea base describe los controles configurados en el código fuente y en las indicaciones de despliegue. No demuestra que una instalación concreta los aplique; verifica la configuración efectiva en el entorno de destino.
 
 La línea base incluye:
 
@@ -1588,10 +1676,10 @@ En su lugar, la autenticación, la autorización, la validación, la ejecución 
 El proyecto deliberadamente favorece la aplicación explícita del lado del servidor sobre la seguridad por interfaz.
 
 La línea base de seguridad actual se documenta de acuerdo con el estado de implementación verificado en lugar del comportamiento de desarrollo histórico.
+La línea base de seguridad documenta el estado verificado de la implementación, no el comportamiento histórico de desarrollo. No demuestra por sí sola que una instalación concreta aplique esos controles; verifica la configuración efectiva en el entorno de destino.
 
 ---
 
 **LUMS — Linux Update Management without the noise.**
 
 `segfault // override`
-

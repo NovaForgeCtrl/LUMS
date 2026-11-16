@@ -311,10 +311,33 @@ Audit #16 is intentionally different from the technical security controls above.
 LUMS currently has no official stable release, no release tag, and no GitHub Release. This is intentional because the project remains under active development.
 
 Audit #18 remains open until the complete documentation set has been reviewed and synchronized with the current implementation.
+| Tarkastus | Alue                                   | Tila                      |
+| --------- | -------------------------------------- | ------------------------- |
+| #01       | SQLite Foreign Keys                    | PASS                      |
+| #02       | SQLite Runtime Configuration           | PASS                      |
+| #03       | Update Timeout Handling                | PASS                      |
+| #04       | Login Rate Limiting                    | PASS                      |
+| #05       | API Input Validation                   | PASS                      |
+| #06       | Session Revocation                     | PASS                      |
+| #07       | Client Token Rotation                  | PASS                      |
+| #08       | IP Address Handling / Offline Networks | PASS                      |
+| #09       | Job Recovery / Checkpointing           | PASS                      |
+| #10       | APT Robustness                         | PASS                      |
+| #11       | Arch Reboot Detection                  | PASS                      |
+| #12       | Unit Tests / API Result Validation     | PASS                      |
+| #13       | Simulation Tests                       | PASS                      |
+| #14       | Continuous Integration                 | PASS                      |
+| #15       | Application / Audit Logging            | PASS                      |
+| #16       | Versioning / Releases                  | Tarkista arkiston nykyiset julkaisut ja tunnisteet |
+| #17       | Role-Based Access Control              | PASS                      |
+
+Tämä tarkastus käsittelee versionhallintaa ja julkaisuja erillään teknisistä tietoturvakontrolleista. Julkaisujen ja Git-tunnisteiden saatavuus voi muuttua tämän dokumentin päivityksistä riippumatta. Tarkista ajantasainen tilanne arkiston [Releases-sivulta](https://github.com/NovaForgeCtrl/LUMS/releases) ja [tunnisteista](https://github.com/NovaForgeCtrl/LUMS/tags).
+
+Dokumentaation yhdenmukaisuus toteutuksen kanssa on jatkuvaa ylläpitotyötä, ei erillinen numeroitu tietoturvatarkastus. Käännettyjen oppaiden ja kielikohtaisten oppaiden hakemisto on tiedostossa [`docs/README.md`](../../README.md).
 
 # Tietoturva-auditointi #01
 
-## SQLite Foreign Keys
+## SQLite-viiteavaimet
 
 SQLite-vieraiden avainten valvonta on käytössä sovelluksen tietokantayhteydelle.
 
@@ -338,12 +361,13 @@ Asiakkaan tilaa käsitellään konservatiivisesti.
 Tarvittaessa asiakkaita poistetaan käytöstä sen sijaan, että ne poistettaisiin tavalla, joka tuhoaisi historiallisen operatiivisen tiedon.
 
 **Tila: LÄPÄISTY**
+**Tila: Hyväksytty**
 
 ---
 
 # Tietoturva-auditointi #02
 
-## SQLite Runtime Configuration
+## SQLite-ajonaikainen määritys
 
 Tuotannon SQLite-tietokanta tarkistettiin sen ajonaikaiselle konfiguraatiolle.
 
@@ -368,12 +392,13 @@ The application-level foreign-key setting ensures referential integrity for each
 The audit included production verification of the active SQLite configuration.
 
 **Status: PASS**
+**Tila: Hyväksytty**
 
 ---
 
 # Tietoturva-auditointi #03
 
-## Update Timeout and Process Handling
+## Päivityksen aikakatkaisu ja prosessien käsittely
 
 Update execution is protected against indefinitely blocking package-manager processes.
 
@@ -417,12 +442,13 @@ The current documented LUMS Agent version is:
 `1.7.0`
 
 **Status: PASS**
+**Tila: Hyväksytty**
 
 ---
 
 # Tietoturva-auditointi #04
 
-## Login Rate Limiting
+## Kirjautumisen nopeusrajoitus
 
 Administrative login attempts are rate limited.
 
@@ -456,6 +482,7 @@ The audit covered:
 The rate limiter therefore provides a server-side control against repeated authentication attempts rather than relying on client-side behavior.
 
 **Status: PASS**
+**Tila: Hyväksytty**
 
 ---
 
@@ -487,10 +514,11 @@ The following audit areas are documented in the subsequent sections:
 * #17 Roolipohjainen Pääsynvalvonta
 
 Audit #18 — Documentation Review — remains open until the complete documentation set has been reviewed and synchronized with the current implementation.
+Dokumentaation yhdenmukaisuus toteutuksen kanssa on jatkuvaa ylläpitotyötä, ei erillinen numeroitu tietoturvatarkastus. Käännettyjen oppaiden ja kielikohtaisten oppaiden hakemisto on tiedostossa [`docs/README.md`](../../README.md).
 
 # Tietoturva-auditointi #05
 
-## API Input Validation
+## API-syötteiden validointi
 
 LUMS validates security-sensitive API input on the server side.
 
@@ -533,12 +561,13 @@ The audit included negative input testing and SQL-injection-oriented test cases.
 The validation controls were also verified through the automated test suite.
 
 **Status: PASS**
+**Tila: Hyväksytty**
 
 ---
 
 # Tietoturva-auditointi #06
 
-## Session Revocation
+## Istunnon mitätöinti
 
 LUMS protects authenticated administrative sessions against continued use after logout.
 
@@ -568,12 +597,13 @@ The audit verified that:
 * role information is evaluated server-side
 
 **Status: PASS**
+**Tila: Hyväksytty**
 
 ---
 
 # Tietoturva-auditointi #07
 
-## Client Token Rotation
+## Asiakastunnisteen vaihto
 
 Each managed LUMS client uses an individual authentication token.
 
@@ -618,12 +648,13 @@ Client token rotation is restricted to ylläpitäjäs.
 Operators and katselijas cannot rotate client tokens.
 
 **Status: PASS**
+**Tila: Hyväksytty**
 
 ---
 
 # Tietoturva-auditointi #08
 
-## IP Address Handling and Offline Networks
+## IP-osoitteiden käsittely ja offline-verkot
 
 LUMS does not use a client's source IP address as the sole proof of client identity.
 
@@ -659,6 +690,7 @@ This is particularly important for laboratory environments and infrastructure wh
 The audit verified client authentication without relying on a fixed source IP address.
 
 **Status: PASS**
+**Tila: Hyväksytty**
 
 ---
 
@@ -686,7 +718,7 @@ The next section covers:
 
 # Tietoturva-auditointi #09
 
-## Job Recovery and Checkpointing
+## Työn palautus ja tarkistuspisteet
 
 LUMS update jobs are designed to recover safely from interrupted execution.
 
@@ -718,12 +750,13 @@ Recovery was tested with jobs containing multiple package operations and with pr
 The audit confirmed that completed work is preserved and remaining work can continue without unnecessarily repeating successful operations.
 
 **Status: PASS**
+**Tila: Hyväksytty**
 
 ---
 
 # Tietoturva-auditointi #10
 
-## APT Robustness
+## APT:n toimintavarmuus
 
 Debian-based package operations are executed through the LUMS package-management layer.
 
@@ -750,12 +783,13 @@ The corresponding hardening was committed as:
 The objective is to ensure that LUMS does not incorrectly report package-management state based solely on incomplete or ambiguous command output.
 
 **Status: PASS**
+**Tila: Hyväksytty**
 
 ---
 
 # Tietoturva-auditointi #11
 
-## Arch Linux Reboot Detection
+## Arch Linuxin uudelleenkäynnistyksen tunnistus
 
 Arch Linux package operations can result in a system state where a reboot is required or recommended.
 
@@ -776,12 +810,13 @@ The audit verified Arch Linux reboot detection using the actual package-manageme
 The implementation was tested against reboot-required conditions and normal completion conditions.
 
 **Status: PASS**
+**Tila: Hyväksytty**
 
 ---
 
 # Tietoturva-auditointi #12
 
-## Unit Tests and API Result Validation
+## Yksikkötestit ja API-tulosten validointi
 
 Security-sensitive behavior is covered by automated tests.
 
@@ -804,6 +839,7 @@ result of the current run rather than a fixed count in this document.
 The relevant security controls were additionally verified through focused test runs during the audit.
 
 **Status: PASS**
+**Tila: Hyväksytty**
 
 ---
 
@@ -835,7 +871,7 @@ The next section covers:
 
 # Tietoturva-auditointi #13
 
-## Simulation Tests
+## Simulaatiotestit
 
 LUMS provides a simulation mechanism for testing update-management workflows without performing the corresponding package-management operation on the managed system.
 
@@ -861,12 +897,13 @@ The simulation mechanism was used during the security audit to verify job creati
 Simulation mode is a testing mechanism and does not replace the authorization controls of normal update operations.
 
 **Status: PASS**
+**Tila: Hyväksytty**
 
 ---
 
 # Tietoturva-auditointi #14
 
-## Continuous Integration
+## Jatkuva integraatio
 
 LUMS uses automated testing to detect security and functional regressions before changes are considered complete.
 
@@ -894,12 +931,13 @@ The test count changes as the project evolves. CI provides an automated
 regression barrier for security-relevant application changes.
 
 **Status: PASS**
+**Tila: Hyväksytty**
 
 ---
 
 # Tietoturva-auditointi #15
 
-## Application and Audit Logging
+## Sovellus- ja valvontalokitus
 
 LUMS records security-sensitive administrative and operational events through application-level audit logging.
 
@@ -936,6 +974,7 @@ The audit logging implementation was reviewed for:
 The logging system is intended to support both operational troubleshooting and security investigation.
 
 **Status: PASS**
+**Tila: Hyväksytty**
 
 ---
 
@@ -954,9 +993,9 @@ The current repository state therefore intentionally has:
 * no GitHub Release
 
 The current component versions include:
+## Versiointi ja julkaisut
 
-* LUMS Agent: `1.7.0`
-* LUMS Watcher: `1.2.1`
+Versiointi ja julkaisujen hallinta kuuluvat tietoturvakatsaukseen, sillä ylläpitäjien on voitava tunnistaa käyttöönottamansa koodi ja artefaktit. Julkaisujen saatavuus ja komponenttiversiot muuttuvat tästä oppaasta riippumatta. Tarkista arkiston [nykyiset tunnisteet](https://github.com/NovaForgeCtrl/LUMS/tags) ja [Releases-sivu](https://github.com/NovaForgeCtrl/LUMS/releases) sekä tarkastele käyttöönotettavan tarkan lähdekoodiversion versiotietoja. Älä käsittele tätä dokumenttia reaaliaikaisena julkaisuluettelona.
 
 There is currently no single formal version number representing the complete LUMS application.
 
@@ -979,6 +1018,21 @@ No official release is created solely because the security audit reaches a parti
 Release creation will take place only after the remaining implementation and documentation work has been completed.
 
 **Status: REVIEWED — OPEN BY DESIGN**
+Tässä dokumentoidut komponenttiversiot ovat LUMS Agent `1.7.0` ja LUMS Watcher `1.2.1`.
+
+Suunniteltu julkaisuprosessi:
+
+1. Suorita toteutustyö loppuun.
+2. Suorita tietoturvakatsaus loppuun.
+3. Tarkista ja synkronisoi dokumentaatio.
+4. Suorita koko automatisoitu testisarja.
+5. Varmista CI.
+6. Määritä julkaisuversio.
+7. Luo vastaava Git-tunniste.
+8. Julkaise GitHub Release.
+9. Säilytä julkaisu dokumentoituna perustasona.
+
+Virallista julkaisua ei tehdä vain siksi, että tietoturvakatsaus saavuttaa tietyn numeron.
 
 ---
 
@@ -1004,6 +1058,24 @@ The following security audit areas are complete:
 | #14   | Continuous Integration                 | PASS                      |
 | #15   | Application / Audit Logging            | PASS                      |
 | #16   | Versioning / Releases                  | REVIEWED — OPEN BY DESIGN |
+| Tarkastus | Alue                                   | Tila                      |
+| --------- | -------------------------------------- | ------------------------- |
+| #01       | SQLite Foreign Keys                    | PASS                      |
+| #02       | SQLite Runtime Configuration           | PASS                      |
+| #03       | Update Timeout / Process Handling      | PASS                      |
+| #04       | Login Rate Limiting                    | PASS                      |
+| #05       | API Input Validation                   | PASS                      |
+| #06       | Session Revocation                     | PASS                      |
+| #07       | Client Token Rotation                  | PASS                      |
+| #08       | IP Address Handling / Offline Networks | PASS                      |
+| #09       | Job Recovery / Checkpointing           | PASS                      |
+| #10       | APT Robustness                         | PASS                      |
+| #11       | Arch Reboot Detection                  | PASS                      |
+| #12       | Unit Tests / API Result Validation     | PASS                      |
+| #13       | Simulation Tests                       | PASS                      |
+| #14       | Continuous Integration                 | PASS                      |
+| #15       | Application / Audit Logging            | PASS                      |
+| #16       | Versioning / Releases                  | Tarkista arkiston nykyiset julkaisut ja tunnisteet |
 
 The remaining numbered technical audit area is:
 
@@ -1012,10 +1084,12 @@ The remaining numbered technical audit area is:
 The documentation review is tracked separately as:
 
 * #18 Documentation Review — IN PROGRESS
+Dokumentaation yhdenmukaisuus toteutuksen kanssa on jatkuvaa ylläpitotyötä, ei erillinen numeroitu tietoturvatarkastus. Käännettyjen oppaiden ja kielikohtaisten oppaiden hakemisto on tiedostossa [`docs/README.md`](../../README.md).
 
 # Tietoturva-auditointi #17
 
 ## Roolipohjainen Pääsynvalvonta
+## Roolipohjainen käyttöoikeushallinta
 
 LUMS combines role templates with individually assigned permissions. The
 supported templates are `ylläpitäjä`, `operaattori`, and `katselija`; choosing a
@@ -1029,7 +1103,7 @@ boundary.
 
 ---
 
-## RBAC Permission Model
+## RBAC-oikeusmalli
 
 | Permission        | Access granted |
 | ----------------- | -------------- |
@@ -1056,7 +1130,7 @@ the same grants.
 
 ---
 
-## Authorization Enforcement
+## Valtuutuksen valvonta
 
 Protected operations use server-side authentication and permission checks.
 
@@ -1092,7 +1166,7 @@ This prevents bypassing the RBAC model by directly calling an API endpoint that 
 
 ---
 
-## Viewer Restrictions
+## Viewer-rajoitukset
 
 The Viewer template is intentionally restricted by its default permission set.
 
@@ -1116,7 +1190,7 @@ Installed software remains available to Viewer accounts as a read-only informati
 
 ---
 
-## Administrative User Management
+## Hallinnollinen käyttäjähallinta
 
 User management requires the `users.manage` permission.
 
@@ -1149,7 +1223,7 @@ Passwords are never stored in plaintext.
 
 ---
 
-## RBAC Database Migration
+## RBAC-tietokantamigraatio
 
 Role-template information remains in the user database record. Individual
 grants are stored in the `user_permissions` table with a foreign key to the
@@ -1168,7 +1242,7 @@ permissions and are integrity-checked before publication.
 
 ---
 
-## RBAC Security Testing
+## RBAC-tietoturvatestaus
 
 RBAC behavior is covered by automated tests.
 
@@ -1192,7 +1266,7 @@ Administrator, Operator, and Viewer templates.
 
 ---
 
-## RBAC Security Result
+## RBAC-tietoturvatulos
 
 The RBAC implementation provides layered authorization:
 
@@ -1210,8 +1284,9 @@ The server remains the authoritative security boundary.
 **Status: PASS**
 
 # Tietoturva-auditointi #18
+**Tila: Hyväksytty**
 
-## Documentation Review
+## Dokumentaation tarkistus
 
 The security documentation is reviewed against the currently implemented LUMS system.
 
@@ -1289,7 +1364,7 @@ These controls are documented here because they represent important security pro
 
 ---
 
-## Container Hardening
+## Kontin koventaminen
 
 The production LUMS container runs with a hardened Docker configuration.
 
@@ -1321,7 +1396,7 @@ The hardened runtime was also tested by verifying that:
 
 ---
 
-## Network Exposure
+## Verkon altistus
 
 The LUMS application port is not directly exposed to the LAN.
 
@@ -1349,7 +1424,7 @@ The default Nginx site was removed so that unrelated default content is not expo
 
 ---
 
-## Transport Security
+## Siirtoturvallisuus
 
 Administrative web access is provided through HTTPS.
 
@@ -1367,7 +1442,7 @@ A future deployment with direct public-Internet exposure would require an additi
 
 ---
 
-## Secrets and Configuration
+## Salaisuudet ja määritys
 
 Production secrets are not stored in the application source tree.
 
@@ -1395,7 +1470,7 @@ The repository also ignores common temporary backup patterns used during develop
 
 ---
 
-## Dependency and Build Security
+## Riippuvuus- ja koontiturvallisuus
 
 The production Docker image uses a pinned Python base-image digest.
 
@@ -1417,7 +1492,7 @@ This provides a reproducible baseline for the production image while keeping the
 
 ---
 
-## Filesystem and Runtime Permissions
+## Tiedostojärjestelmän ja ajonaikaiset käyttöoikeudet
 
 The production application runs as the dedicated `lums` user rather than root.
 
@@ -1526,6 +1601,89 @@ The baseline includes:
 * automated security testing
 
 Future changes should preserve these properties unless a deliberate architectural change replaces them with an equivalent or stronger control.
+* istunnon turvallisuus
+* CSRF-suojaus
+* kirjautumisen nopeusrajoitus
+* asiakastunnisteen turvallisuus
+* API-validointi
+* SQL-injektioresistenssi
+* SQLite-eheys
+* päivityksen suoritus
+* aikakatkaisun käsittely
+* työn palautus
+* paketinhallinnan robustisuus
+* tulosvalidointi
+* simulaatio
+* jatkuva integraatio
+* valvontalokitus
+* kontin koventaminen
+* verkon altistuminen
+* kuljetusturvallisuus
+* salaisuuksien käsittely
+* tiedostojärjestelmän käyttöoikeudet
+* riippuvuuksien ja koontien turvallisuus
+
+Numeroidut tarkastustulokset ovat:
+
+| Tarkastus | Alue                                   | Tila                      |
+| --------- | -------------------------------------- | ------------------------- |
+| #01       | SQLite Foreign Keys                    | PASS                      |
+| #02       | SQLite Runtime Configuration           | PASS                      |
+| #03       | Update Timeout / Process Handling      | PASS                      |
+| #04       | Login Rate Limiting                    | PASS                      |
+| #05       | API Input Validation                   | PASS                      |
+| #06       | Session Revocation                     | PASS                      |
+| #07       | Client Token Rotation                  | PASS                      |
+| #08       | IP Address Handling / Offline Networks | PASS                      |
+| #09       | Job Recovery / Checkpointing           | PASS                      |
+| #10       | APT Robustness                         | PASS                      |
+| #11       | Arch Reboot Detection                  | PASS                      |
+| #12       | Unit Tests / API Result Validation     | PASS                      |
+| #13       | Simulation Tests                       | PASS                      |
+| #14       | Continuous Integration                 | PASS                      |
+| #15       | Application / Audit Logging            | PASS                      |
+| #16       | Versioning / Releases                  | Tarkista arkiston nykyiset julkaisut ja tunnisteet |
+| #17       | Role-Based Access Control              | PASS                      |
+
+Tarkastuksissa #01–#15 ja #17 tarkastetut tekniset turvakontrollit läpäisivät niille kirjatut tarkistukset. Tulokset eivät ole sertifiointi eivätkä takuu myöhempien versioiden toiminnasta.
+
+Julkaisujen ja tunnisteiden saatavuus voi muuttua; tarkista arkiston [Releases-sivu](https://github.com/NovaForgeCtrl/LUMS/releases) ja [tunnisteet](https://github.com/NovaForgeCtrl/LUMS/tags).
+
+Mitään turvallisuustarkastuksen tulosta ei pidä tulkita takeeksi siitä, että LUMS on vapaa haavoittuvuuksista.
+
+Turvallisuus on jatkuva prosessi.
+
+Muutokset sovellukseen, agenttiin, riippuvuuksiin, kontin konfiguraatioon, verkon altistumiseen, todentamismalliin tai käyttöönottoarkkitehtuuriin tulisi laukaista uusi turvallisuuskatsaus asianomaisille kontrolleille.
+
+---
+
+# Turvallisuusperustaso
+
+Tässä kuvataan lähdekoodissa ja käyttöönotto-ohjeissa määritettyjä kontrolleja. Tämä ei todista, että yksittäinen asennus soveltaa niitä; varmista kohdeympäristön tosiasialliset asetukset.
+
+Perustaso sisältää:
+
+* palvelinpuolen todentaminen
+* palvelinpuolen RBAC
+* Argon2-salasanatiivistys
+* SHA-256-asiakastunnisteiden tiivisteet
+* CSRF-suojaus
+* kirjautumisen nopeusrajoitus
+* parametroitu SQL
+* validoitu API-syöte
+* hallittu paketinhallinnan suoritus
+* päivitystyön palautus
+* valvontalokitus
+* kovennettu Docker-ajonaikainen ympäristö
+* HTTPS Nginxin kautta
+* vain loopback -sovellusportin altistuminen
+* palomuurirajoitukset
+* suojatut tuotantosalaisuudet
+* kiinnitetyt tuotantoriippuvuudet
+* rajoitetut tiedostojärjestelmän käyttöoikeudet
+* automatisoitu turvallisuustestaus
+
+Tulevien muutosten tulisi säilyttää nämä ominaisuudet, ellei tarkoituksellinen arkkitehtoninen muutos korvaa niitä vastaavalla tai vahvemmalla kontrollilla.
 
 ---
 
@@ -1589,4 +1747,3 @@ The current security baseline is documented according to the verified implementa
 **LUMS — Linux Update Management without the noise.**
 
 `segfault // override`
-

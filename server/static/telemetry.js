@@ -4,7 +4,8 @@
     const root = document.getElementById("telemetry-dashboard");
     if (!root) return;
 
-    const clientSelect = document.getElementById("telemetry-client");
+    const clientSelect = document.getElementById("monitor-client") ||
+        document.getElementById("telemetry-client");
     const rangeSelect = document.getElementById("telemetry-range");
     const viewSelect = document.getElementById("telemetry-view");
     const status = document.getElementById("telemetry-status");
@@ -14,10 +15,38 @@
     const networkValue = document.getElementById("telemetry-network-value");
     const cpuChart = document.getElementById("telemetry-cpu-chart");
     const memoryChart = document.getElementById("telemetry-memory-chart");
+    const diskValue = document.getElementById("telemetry-disk-value");
+    const diskChart = document.getElementById("telemetry-disk-chart");
     const networkChart = document.getElementById("telemetry-network-chart");
     const fleetBody = document.getElementById("fleet-body");
     const fleetFilter = document.getElementById("fleet-filter");
     const fleetSearch = document.getElementById("fleet-search");
+    const systemRoot = document.getElementById("system-monitor");
+    const systemStatus = document.getElementById("system-monitor-status");
+    const systemDiagnostics = document.getElementById("system-monitor-diagnostics");
+    const systemDiagnosticMessage = document.getElementById(
+        "system-monitor-diagnostic-message"
+    );
+    const monitoringOnly = document.body.classList.contains("monitoring-only");
+    const systemLabels = Object.fromEntries(
+        [
+            "noData", "noSamples", "noSamplesHelp", "snapshotMissing",
+            "snapshotHelp", "stale", "staleHelp", "cpu", "memory", "load", "disk", "free",
+            "uptime", "os", "kernel", "temperatures", "fans", "noSensors",
+            "network", "interface", "link", "receive", "send",
+            "errorsDropped", "connectivity", "dns", "gateway", "internet",
+            "reachable", "unreachable", "runtime", "name", "state",
+            "notAvailable", "noItems", "up", "down", "active", "inactive",
+            "failed", "unknown", "containerUp", "containerStopped",
+            "containerUnhealthy", "containerUnknown", "journalUnavailable",
+            "sshUnavailable", "loginUnavailable", "bootUnavailable",
+            "securityNoData",
+            "resourceHigh", "resourceOk", "cpuLabel", "memoryLabel",
+            "timeLabel", "eventLabel", "loginLabel", "logoutLabel",
+            "bootStartedLabel", "lastEntryLabel", "noLoginEvents",
+            "noBootHistory"
+        ].map(key => [key, systemRoot ? systemRoot.dataset[key] : ""])
+    );
     const filterOptions = Object.fromEntries(
         Array.from(fleetFilter.options).map(option => [option.value, option.textContent])
     );
@@ -32,6 +61,7 @@
         updated: root.dataset.updated,
         cpu: root.dataset.cpu,
         memory: root.dataset.memory,
+        disk: root.dataset.disk,
         network: root.dataset.network,
         download: root.dataset.download,
         upload: root.dataset.upload,
@@ -43,6 +73,31 @@
         offline: filterOptions.offline,
         unknown: root.dataset.unknown
     };
+    const dashboardMessages = {
+        eventsEmpty: "No alerts or outages in this period.",
+        cpuHigh: "CPU threshold exceeded",
+        cpuRecovered: "CPU returned below threshold",
+        memoryHigh: "RAM threshold exceeded",
+        memoryRecovered: "RAM returned below threshold",
+        diskHigh: "Disk threshold exceeded",
+        diskRecovered: "Disk returned below the threshold",
+        telemetryLost: "Telemetry interrupted",
+        telemetryRestored: "Telemetry resumed",
+        sshFailure: "Failed SSH login",
+        serviceFailure: "Service failure",
+        serviceRecovered: "Service recovered",
+        notConfigured: "Not monitored on this client",
+        active: "Active",
+        inactive: "Inactive",
+        sshMetric: "SSH",
+        serviceMetric: "Service"
+    };
+    const dashboardLabels = Object.fromEntries(
+        Object.entries(dashboardMessages).map(([key, message]) => [
+            key,
+            window.lumsT && window.lumsT[message] || message
+        ])
+    );
 
     const VIEW_KEY = "lums.telemetry.view";
     const VIEWS = ["line", "area", "donut"];
@@ -57,6 +112,10 @@
     let knownClientIds = "";
     let sortKey = "status";
     let sortDirection = 1;
+    let dashboardSettings = {
+        thresholds: { cpu: 90, memory: 90, disk: 90 },
+        integrations: { wazuh: false, suricata: false }
+    };
 
     function readStoredView() {
         try {
@@ -245,9 +304,9 @@
         return { minTime, maxTime, span: Math.max(1, maxTime - minTime) };
     }
 
-    function drawPercentChart(svg, samples, key, label, view) {
+    function drawPercentChart(svg, samples, key, label, view, threshold) {
         if (view === "donut") {
-            drawDonut(svg, samples, key, label);
+            drawDonut(svg, samples, key, label, threshold);
             return;
         }
 
@@ -260,10 +319,21 @@
 
         const { minTime, maxTime, span } = timeBounds([series]);
         drawSeries(svg, series, minTime, span, 100, "telemetry-series-primary", view === "area");
+        if (Number.isFinite(threshold)) {
+            const y = PLOT.top +
+                (1 - threshold / 100) * (HEIGHT - PLOT.top - PLOT.bottom);
+            svg.appendChild(svgElement("line", {
+                x1: PLOT.left,
+                y1: y,
+                x2: WIDTH - PLOT.right,
+                y2: y,
+                class: "telemetry-threshold-line"
+            }));
+        }
         drawTimeLabels(svg, minTime, maxTime);
     }
 
-    function drawDonut(svg, samples, key, label) {
+    function drawDonut(svg, samples, key, label, threshold = 90) {
         svg.replaceChildren();
         svg.setAttribute("viewBox", `0 0 ${WIDTH} ${HEIGHT}`);
         svg.setAttribute("role", "img");
@@ -286,7 +356,9 @@
             cx: centerX, cy: centerY, r: radius,
             class: "telemetry-donut-track"
         }));
-        const level = value >= 90 ? "critical" : value >= 75 ? "warning" : "normal";
+        const level = value >= threshold
+            ? "critical"
+            : value >= Math.max(50, threshold - 15) ? "warning" : "normal";
         svg.appendChild(svgElement("circle", {
             cx: centerX, cy: centerY, r: radius,
             "stroke-dasharray": `${(value / 100) * circumference} ${circumference}`,
@@ -338,14 +410,25 @@
 
     function renderDetails(samples) {
         const view = viewSelect.value;
-        drawPercentChart(cpuChart, samples, "cpu_percent", labels.cpu, view);
-        drawPercentChart(memoryChart, samples, "memory_percent", labels.memory, view);
+        drawPercentChart(
+            cpuChart, samples, "cpu_percent", labels.cpu, view,
+            dashboardSettings.thresholds.cpu
+        );
+        drawPercentChart(
+            memoryChart, samples, "memory_percent", labels.memory, view,
+            dashboardSettings.thresholds.memory
+        );
+        drawPercentChart(
+            diskChart, samples, "disk_percent", labels.disk, view,
+            dashboardSettings.thresholds.disk
+        );
         drawNetworkChart(samples, view);
 
         const latest = samples[samples.length - 1];
         if (!latest) {
             cpuValue.textContent = "—";
             memoryValue.textContent = "—";
+            diskValue.textContent = "—";
             networkValue.textContent = "—";
             lastUpdated.textContent = "";
             return;
@@ -353,6 +436,7 @@
 
         cpuValue.textContent = formatPercent(Number(latest.cpu_percent));
         memoryValue.textContent = formatPercent(Number(latest.memory_percent));
+        diskValue.textContent = formatPercent(numberOrNull(latest.disk_percent));
         const rates = latestRates(samples);
         networkValue.textContent = rates
             ? `↓ ${formatRate(rates.rx)}  ↑ ${formatRate(rates.tx)}`
@@ -361,10 +445,17 @@
             `${labels.updated} ${new Date(latest.recorded_at).toLocaleString()}`;
     }
 
+    function clientHostname(entry) {
+        const hostname = typeof entry.hostname === "string"
+            ? entry.hostname.trim()
+            : "";
+        return hostname || labels.unknown;
+    }
+
     function clientMetrics(entry) {
         const latest = entry.latest;
         return {
-            hostname: entry.hostname.toLowerCase(),
+            hostname: clientHostname(entry).toLowerCase(),
             status: STATUS_ORDER[entry.status] ?? 1,
             cpu: latest ? numberOrNull(latest.cpu_percent) : null,
             memory: latest ? numberOrNull(latest.memory_percent) : null,
@@ -377,8 +468,10 @@
     function needsAttention(entry, metrics) {
         return entry.status !== "online" ||
             entry.telemetry_stale ||
-            (metrics.cpu ?? 0) >= 90 ||
-            (metrics.memory ?? 0) >= 90;
+            (metrics.cpu ?? 0) >= dashboardSettings.thresholds.cpu ||
+            (metrics.memory ?? 0) >= dashboardSettings.thresholds.memory ||
+            (numberOrNull(entry.latest && entry.latest.disk_percent) ?? 0) >=
+                dashboardSettings.thresholds.disk;
     }
 
     function matchesFilter(entry, metrics) {
@@ -395,6 +488,502 @@
         if (className) cell.className = className;
         row.appendChild(cell);
         return cell;
+    }
+
+    function formatBytes(bytes) {
+        if (!Number.isFinite(bytes) || bytes < 0) return "—";
+        const units = ["B", "KB", "MB", "GB", "TB"];
+        let value = bytes;
+        let unit = 0;
+        while (value >= 1000 && unit < units.length - 1) {
+            value /= 1000;
+            unit += 1;
+        }
+        return `${value.toFixed(unit === 0 || value >= 100 ? 0 : 1)} ${units[unit]}`;
+    }
+
+    function formatUptime(seconds) {
+        if (!Number.isFinite(seconds) || seconds < 0) return "—";
+        const days = Math.floor(seconds / 86400);
+        const hours = Math.floor((seconds % 86400) / 3600);
+        const minutes = Math.floor((seconds % 3600) / 60);
+        return days ? `${days} d ${hours} h` : `${hours} h ${minutes} min`;
+    }
+
+    function reachabilityText(value) {
+        if (value === true) return systemLabels.reachable;
+        if (value === false) return systemLabels.unreachable;
+        return systemLabels.unknown;
+    }
+
+    function setSystemValue(id, value) {
+        const node = document.getElementById(id);
+        if (node) node.textContent = value || "—";
+    }
+
+    function renderTableMessage(body, message, columnCount) {
+        body.replaceChildren();
+        const row = document.createElement("tr");
+        const cell = appendCell(row, message);
+        cell.colSpan = columnCount;
+        body.appendChild(row);
+    }
+
+    function localizedDate(value) {
+        const date = new Date(value);
+        return Number.isNaN(date.getTime()) ? value : date.toLocaleString();
+    }
+
+    function applyDashboardSettings(settings) {
+        if (!settings || !settings.thresholds || !settings.integrations) {
+            throw new Error("Dashboard settings response is invalid");
+        }
+        dashboardSettings = {
+            thresholds: settings.thresholds,
+            integrations: settings.integrations
+        };
+    }
+
+    async function loadDashboardSettings() {
+        try {
+            applyDashboardSettings(
+                await fetchJson(root.dataset.settingsUrl)
+            );
+        } catch (error) {
+            console.error(
+                "Dashboard settings could not be loaded; using default thresholds.",
+                error
+            );
+        }
+    }
+
+    function renderTelemetryEvents(events) {
+        const body = document.getElementById("telemetry-events-body");
+        body.replaceChildren();
+        if (!events.length) {
+            renderTableMessage(body, dashboardLabels.eventsEmpty, 5);
+            return;
+        }
+        const eventText = {
+            "cpu:threshold_exceeded": dashboardLabels.cpuHigh,
+            "cpu:threshold_recovered": dashboardLabels.cpuRecovered,
+            "memory:threshold_exceeded": dashboardLabels.memoryHigh,
+            "memory:threshold_recovered": dashboardLabels.memoryRecovered,
+            "disk:threshold_exceeded": dashboardLabels.diskHigh,
+            "disk:threshold_recovered": dashboardLabels.diskRecovered,
+            "null:telemetry_lost": dashboardLabels.telemetryLost,
+            "null:telemetry_restored": dashboardLabels.telemetryRestored,
+            "ssh:ssh_failure": dashboardLabels.sshFailure,
+            "service:service_failed": dashboardLabels.serviceFailure,
+            "service:service_recovered": dashboardLabels.serviceRecovered
+        };
+        for (const item of events) {
+            const row = document.createElement("tr");
+            row.dataset.kind = item.kind;
+            appendCell(row, localizedDate(item.timestamp));
+            appendCell(
+                row,
+                eventText[`${item.metric}:${item.kind}`] ||
+                    (item.kind === "service_failed"
+                        ? dashboardLabels.serviceFailure
+                        : item.kind === "service_recovered"
+                            ? dashboardLabels.serviceRecovered
+                            : item.kind)
+            );
+            const metricLabel = item.metric === "cpu" ? labels.cpu
+                    : item.metric === "memory" ? labels.memory
+                        : item.metric === "disk" ? systemLabels.disk
+                            : item.metric === "ssh" ? dashboardLabels.sshMetric
+                                : item.metric === "service" ||
+                                    (typeof item.metric === "string" &&
+                                        item.metric.endsWith(".service"))
+                                    ? `${dashboardLabels.serviceMetric}: ${item.metric}`
+                                    : "—";
+            appendCell(row, metricLabel);
+            appendCell(
+                row,
+                item.value === null ? "—"
+                    : ["cpu", "memory", "disk"].includes(item.metric)
+                        ? formatPercent(item.value)
+                        : String(item.value)
+            );
+            appendCell(
+                row,
+                item.threshold === null
+                    ? "—"
+                    : formatPercent(item.threshold)
+            );
+            body.appendChild(row);
+        }
+    }
+
+    function configureExportButtons() {
+        const clientId = clientSelect.value;
+        if (!clientId) return;
+        const hours = rangeSelect.value;
+        for (const [id, path, format] of [
+            ["export-history-csv", "export", "csv"],
+            ["export-history-json", "export", "json"],
+            ["export-events-csv", "events", "csv"],
+            ["export-events-json", "events", "json"]
+        ]) {
+            document.getElementById(id).onclick = () => {
+                const url =
+                    `/api/clients/${encodeURIComponent(clientId)}/telemetry/${path}` +
+                    `?hours=${encodeURIComponent(hours)}&format=${format}`;
+                window.location.assign(url);
+            };
+        }
+    }
+
+    function renderSystemTables(entry) {
+        const interfaceBody = document.getElementById("system-interface-body");
+        const serviceBody = document.getElementById("system-service-body");
+        const containerBody = document.getElementById("system-container-body");
+        const system = entry && entry.system;
+        if (!system) {
+            renderTableMessage(interfaceBody, "—", 5);
+            renderTableMessage(serviceBody, "—", 4);
+            renderTableMessage(containerBody, "—", 3);
+            return;
+        }
+
+        interfaceBody.replaceChildren();
+        if (!system.interfaces.length) {
+            renderTableMessage(interfaceBody, systemLabels.noItems, 5);
+        } else {
+            for (const item of system.interfaces) {
+                const row = document.createElement("tr");
+                appendCell(row, item.name);
+                const state = item.state === "up"
+                    ? systemLabels.up
+                    : item.state === "down" || item.state === "lowerlayerdown"
+                        ? systemLabels.down
+                        : item.state === "dormant"
+                            ? systemLabels.inactive
+                            : systemLabels.unknown;
+                appendCell(
+                    row,
+                    state,
+                    `monitor-state-${item.state === "up" ? "up" : "down"}`
+                );
+                const rx = numberOrNull(item.rx_bytes_per_second);
+                const tx = numberOrNull(item.tx_bytes_per_second);
+                appendCell(
+                    row,
+                    rx === null ? "—" : `${((rx * 8) / 1_000_000).toFixed(2)} Mbit/s`
+                );
+                appendCell(
+                    row,
+                    tx === null ? "—" : `${((tx * 8) / 1_000_000).toFixed(2)} Mbit/s`
+                );
+                appendCell(
+                    row,
+                    `RX ${item.rx_errors} / ${item.rx_dropped} · TX ${item.tx_errors} / ${item.tx_dropped}`
+                );
+                interfaceBody.appendChild(row);
+            }
+        }
+
+        serviceBody.replaceChildren();
+        if (!system.services.available) {
+            renderTableMessage(serviceBody, systemLabels.notAvailable, 4);
+        } else if (!system.services.items.length) {
+            renderTableMessage(serviceBody, systemLabels.noItems, 4);
+        } else {
+            for (const item of system.services.items) {
+                const row = document.createElement("tr");
+                appendCell(row, item.name);
+                const stateLabels = {
+                    active: systemLabels.active,
+                    failed: systemLabels.failed,
+                    inactive: systemLabels.inactive,
+                    unknown: systemLabels.unknown
+                };
+                appendCell(
+                    row,
+                    `${stateLabels[item.state] || systemLabels.unknown} · ${item.substate}`,
+                    `monitor-state-${item.state}`
+                );
+                appendCell(row, formatUptime(item.runtime_seconds));
+                appendCell(
+                    row,
+                    Number.isInteger(item.restarts) ? String(item.restarts) : "—"
+                );
+                serviceBody.appendChild(row);
+            }
+        }
+
+        containerBody.replaceChildren();
+        if (!system.containers.available) {
+            renderTableMessage(containerBody, systemLabels.notAvailable, 3);
+        } else if (!system.containers.items.length) {
+            renderTableMessage(containerBody, systemLabels.noItems, 3);
+        } else {
+            for (const item of system.containers.items) {
+                const row = document.createElement("tr");
+                appendCell(row, item.runtime);
+                appendCell(row, item.name);
+                const state = item.state === "running"
+                    ? "up"
+                    : item.state === "exited" ? "stopped" : item.state;
+                const stateLabels = {
+                    up: systemLabels.containerUp,
+                    stopped: systemLabels.containerStopped,
+                    unhealthy: systemLabels.containerUnhealthy,
+                    unknown: systemLabels.containerUnknown
+                };
+                const stateClass = state === "up" ? "active" :
+                    state === "unhealthy" || state === "stopped"
+                        ? "failed"
+                        : "";
+                appendCell(
+                    row,
+                    stateLabels[state] || systemLabels.containerUnknown,
+                    stateClass ? `monitor-state-${stateClass}` : ""
+                );
+                containerBody.appendChild(row);
+            }
+        }
+    }
+
+    function renderSecurityMonitor(entry) {
+        const events = entry && entry.system && entry.system.security_events;
+        const statusNode = document.getElementById("security-monitor-status");
+        const alert = document.getElementById("resource-alert");
+        const loginBody = document.getElementById("security-login-body");
+        const bootBody = document.getElementById("security-boot-body");
+        const latest = entry && entry.latest;
+        const cpu = latest ? numberOrNull(latest.cpu_percent) : null;
+        const memory = latest ? numberOrNull(latest.memory_percent) : null;
+        const fresh = entry && !entry.telemetry_stale;
+        const disk = latest ? numberOrNull(latest.disk_percent) : null;
+        const highCpu = fresh && cpu !== null &&
+            cpu >= dashboardSettings.thresholds.cpu;
+        const highMemory = fresh && memory !== null &&
+            memory >= dashboardSettings.thresholds.memory;
+        const highDisk = fresh && disk !== null &&
+            disk >= dashboardSettings.thresholds.disk;
+
+        alert.classList.toggle("is-high", highCpu || highMemory || highDisk);
+        if (highCpu || highMemory || highDisk) {
+            const levels = [];
+            if (highCpu) levels.push(`${systemLabels.cpuLabel} ${formatPercent(cpu)} (≥ ${dashboardSettings.thresholds.cpu}%)`);
+            if (highMemory) levels.push(`${systemLabels.memoryLabel} ${formatPercent(memory)} (≥ ${dashboardSettings.thresholds.memory}%)`);
+            if (highDisk) levels.push(`${systemLabels.disk} ${formatPercent(disk)} (≥ ${dashboardSettings.thresholds.disk}%)`);
+            alert.textContent = `${systemLabels.resourceHigh} (${levels.join(", ")})`;
+        } else if (entry && latest && !entry.telemetry_stale) {
+            alert.textContent = systemLabels.resourceOk;
+        } else {
+            alert.textContent = "";
+        }
+
+        if (!events) {
+            statusNode.textContent = entry
+                ? (entry.system ? systemLabels.securityNoData : systemLabels.noData)
+                : labels.noClients;
+            for (const id of [
+                "security-ssh-failures", "security-ssh-last",
+                "security-journal-errors", "security-journal-warnings",
+            ]) setSystemValue(id, "—");
+            renderTableMessage(loginBody, systemLabels.securityNoData, 2);
+            renderTableMessage(bootBody, systemLabels.securityNoData, 2);
+            return;
+        }
+
+        const unavailable = [];
+        setSystemValue(
+            "security-ssh-failures",
+            events.ssh_available
+                ? `${events.ssh_failed_24h}${events.ssh_failed_24h === 500 ? "+" : ""}`
+                : "—"
+        );
+        setSystemValue(
+            "security-ssh-last",
+            events.ssh_available && events.ssh_last_failed_at
+                ? localizedDate(events.ssh_last_failed_at)
+                : "—"
+        );
+        setSystemValue(
+            "security-journal-errors",
+            events.journal_available
+                ? `${events.journal_errors_1h}${events.journal_errors_1h === 500 ? "+" : ""}`
+                : "—"
+        );
+        setSystemValue(
+            "security-journal-warnings",
+            events.journal_available
+                ? `${events.journal_warnings_1h}${events.journal_warnings_1h === 500 ? "+" : ""}`
+                : "—"
+        );
+        if (!events.journal_available) unavailable.push(systemLabels.journalUnavailable);
+        else if (!events.ssh_available) unavailable.push(systemLabels.sshUnavailable);
+        if (!events.login_history_available) unavailable.push(systemLabels.loginUnavailable);
+        if (!events.boot_history_available) unavailable.push(systemLabels.bootUnavailable);
+        statusNode.textContent = unavailable.join(" ");
+
+        loginBody.replaceChildren();
+        if (!events.login_history_available) {
+            renderTableMessage(loginBody, systemLabels.loginUnavailable, 2);
+        } else if (!events.login_events.length) {
+            renderTableMessage(loginBody, systemLabels.noLoginEvents, 2);
+        } else {
+            for (const event of events.login_events.slice().reverse()) {
+                const row = document.createElement("tr");
+                appendCell(row, localizedDate(event.timestamp));
+                appendCell(
+                    row,
+                    event.action === "login"
+                        ? systemLabels.loginLabel
+                        : systemLabels.logoutLabel
+                );
+                loginBody.appendChild(row);
+            }
+        }
+
+        bootBody.replaceChildren();
+        if (!events.boot_history_available) {
+            renderTableMessage(bootBody, systemLabels.bootUnavailable, 2);
+        } else if (!events.boot_history.length) {
+            renderTableMessage(bootBody, systemLabels.noBootHistory, 2);
+        } else {
+            for (const boot of events.boot_history.slice().reverse()) {
+                const row = document.createElement("tr");
+                appendCell(row, localizedDate(boot.started_at));
+                appendCell(row, localizedDate(boot.ended_at));
+                bootBody.appendChild(row);
+            }
+        }
+    }
+
+    function renderOptionalIntegrations(system) {
+        const services = system && system.services && system.services.items || [];
+        const integrationSpecs = [
+            {
+                id: "wazuh",
+                rowId: "wazuh-status-row",
+                valueId: "wazuh-status",
+                match: /^(wazuh-agent|wazuh-manager|wazuh)$/i
+            },
+            {
+                id: "suricata",
+                rowId: "suricata-status-row",
+                valueId: "suricata-status",
+                match: /^(suricata|suricata-update)$/i
+            }
+        ];
+        let missing = false;
+        for (const spec of integrationSpecs) {
+            const row = document.getElementById(spec.rowId);
+            row.hidden = !dashboardSettings.integrations[spec.id];
+            if (!dashboardSettings.integrations[spec.id]) continue;
+            const matches = services.filter(item =>
+                spec.match.test(item.name.replace(/\.service$/, ""))
+            );
+            if (!matches.length) {
+                setSystemValue(spec.valueId, dashboardLabels.notConfigured);
+                missing = true;
+                continue;
+            }
+            setSystemValue(
+                spec.valueId,
+                matches.map(item =>
+                    `${item.name}: ${item.state === "active" || item.state === "running"
+                        ? dashboardLabels.active
+                        : dashboardLabels.inactive}`
+                ).join(" · ")
+            );
+        }
+        document.getElementById("integration-monitor-help").hidden =
+            !missing;
+    }
+
+    function renderSystemMonitor() {
+        if (!systemRoot) return;
+        const entry = fleet.find(
+            item => String(item.client_id) === clientSelect.value
+        );
+        const system = entry && entry.system;
+        if (!system) {
+            let message = labels.noClients;
+            let diagnostic = "";
+            if (entry && !entry.latest) {
+                message = systemLabels.noSamples;
+                diagnostic = systemLabels.noSamplesHelp;
+            } else if (entry) {
+                message = systemLabels.snapshotMissing;
+                diagnostic = systemLabels.snapshotHelp;
+            }
+            systemStatus.textContent = message;
+            systemDiagnostics.hidden = !diagnostic;
+            systemDiagnosticMessage.textContent = diagnostic;
+            for (const id of [
+                "system-cpu", "system-memory", "system-load", "system-disk",
+                "system-uptime", "system-os", "system-kernel",
+                "system-temperatures", "system-fans", "system-dns",
+                "system-gateway", "system-internet",
+            ]) {
+                setSystemValue(id, "—");
+            }
+            renderSystemTables(entry);
+            renderSecurityMonitor(entry);
+            renderOptionalIntegrations(null);
+            return;
+        }
+
+        const stale = entry.system_age_seconds === null ||
+            entry.system_age_seconds > 120;
+        systemStatus.textContent = stale ? systemLabels.stale : "";
+        systemDiagnostics.hidden = !stale;
+        systemDiagnosticMessage.textContent = stale
+            ? systemLabels.staleHelp
+            : "";
+
+        const latest = entry.latest;
+        setSystemValue("system-cpu", latest
+            ? formatPercent(numberOrNull(latest.cpu_percent))
+            : "—");
+        setSystemValue("system-memory", latest
+            ? `${formatPercent(numberOrNull(latest.memory_percent))} · ${formatBytes(
+                latest.memory_total_bytes - latest.memory_available_bytes
+            )} / ${formatBytes(latest.memory_total_bytes)}`
+            : "—");
+        setSystemValue("system-load", Array.isArray(system.load_average)
+            ? system.load_average.map(value => Number(value).toFixed(2)).join(" · ")
+            : "—");
+        setSystemValue("system-disk", system.disk
+            ? `${formatBytes(system.disk.used_bytes)} / ${formatBytes(system.disk.total_bytes)} · ${systemLabels.free} ${formatBytes(system.disk.free_bytes)}`
+            : "—");
+        setSystemValue("system-uptime", formatUptime(system.uptime_seconds));
+        setSystemValue("system-os", system.os);
+        setSystemValue("system-kernel", system.kernel);
+        setSystemValue("system-temperatures", system.temperatures.length
+            ? system.temperatures
+                .map(item => `${item.name} ${Number(item.celsius).toFixed(1)} °C`)
+                .join(" · ")
+            : systemLabels.noSensors);
+        setSystemValue("system-fans", system.fans.length
+            ? system.fans.map(item => `${item.name} ${item.rpm} rpm`).join(" · ")
+            : systemLabels.noSensors);
+
+        const dnsServers = system.dns_servers.length
+            ? system.dns_servers.join(", ")
+            : systemLabels.unknown;
+        setSystemValue(
+            "system-dns",
+            `${dnsServers} · ${reachabilityText(system.dns_reachable)}`
+        );
+        setSystemValue(
+            "system-gateway",
+            `${system.gateway || systemLabels.unknown} · ${reachabilityText(system.gateway_reachable)}`
+        );
+        setSystemValue(
+            "system-internet",
+            reachabilityText(system.internet_reachable)
+        );
+        renderSystemTables(entry);
+        renderSecurityMonitor(entry);
+        renderOptionalIntegrations(system);
     }
 
     function renderFleet() {
@@ -434,7 +1023,7 @@
             const select = document.createElement("button");
             select.type = "button";
             select.className = "fleet-client";
-            select.textContent = entry.hostname;
+            select.textContent = clientHostname(entry);
             select.addEventListener("click", () => {
                 clientSelect.value = String(entry.client_id);
                 renderFleet();
@@ -479,7 +1068,7 @@
         for (const entry of fleet) {
             const option = document.createElement("option");
             option.value = String(entry.client_id);
-            option.textContent = entry.hostname;
+            option.textContent = clientHostname(entry);
             clientSelect.appendChild(option);
         }
         if (fleet.some(entry => String(entry.client_id) === previous)) {
@@ -502,6 +1091,7 @@
         fleet = Array.isArray(result.clients) ? result.clients : [];
         syncClientOptions();
         renderFleet();
+        renderSystemMonitor();
     }
 
     async function refreshDetails() {
@@ -514,22 +1104,36 @@
 
         const sequence = ++requestSequence;
         const hours = rangeSelect.value;
-        const result = await fetchJson(
-            `/api/clients/${encodeURIComponent(clientId)}/telemetry?hours=${encodeURIComponent(hours)}`
-        );
+        const baseUrl =
+            `/api/clients/${encodeURIComponent(clientId)}/telemetry`;
+        const [result, eventResult] = await Promise.all([
+            fetchJson(`${baseUrl}?hours=${encodeURIComponent(hours)}`),
+            fetchJson(`${baseUrl}/events?hours=${encodeURIComponent(hours)}`)
+        ]);
         if (sequence !== requestSequence) return;
 
         const samples = Array.isArray(result.samples) ? result.samples : [];
+        const events = Array.isArray(eventResult.events) ? eventResult.events : [];
         renderDetails(samples);
+        renderTelemetryEvents(events);
+        configureExportButtons();
         setStatus(samples.length ? "" : labels.noSamples);
     }
 
     async function refresh() {
         try {
             await refreshFleet();
-            await refreshDetails();
-        } catch {
+            if (!monitoringOnly) await refreshDetails();
+        } catch (error) {
+            console.error("Telemetry refresh failed:", error);
             setStatus(labels.loadError, true);
+
+            if (systemStatus) {
+                systemStatus.textContent = labels.loadError;
+            }
+            if (systemDiagnostics) {
+                systemDiagnostics.hidden = true;
+            }
         }
     }
 
@@ -539,7 +1143,8 @@
 
     clientSelect.addEventListener("change", () => {
         renderFleet();
-        safeRefreshDetails();
+        renderSystemMonitor();
+        if (!monitoringOnly) safeRefreshDetails();
     });
     rangeSelect.addEventListener("change", safeRefreshDetails);
     viewSelect.addEventListener("change", () => {
@@ -558,10 +1163,20 @@
         });
     }
 
-    viewSelect.value = readStoredView();
-    setStatus(labels.loading);
-    refresh();
-    timer = window.setInterval(refresh, 5000);
+    function startRefresh() {
+        renderFleet();
+        renderSystemMonitor();
+        refresh();
+        timer = window.setInterval(refresh, 5000);
+    }
+
+    if (monitoringOnly) {
+        startRefresh();
+    } else {
+        viewSelect.value = readStoredView();
+        setStatus(labels.loading);
+        loadDashboardSettings().finally(startRefresh);
+    }
 
     window.addEventListener("pagehide", () => {
         if (timer !== null) window.clearInterval(timer);

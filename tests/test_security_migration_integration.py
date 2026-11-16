@@ -1,5 +1,11 @@
 import sqlite3
 
+import pytest
+from server.database_backup import (
+    create_database_backup,
+    restore_database_backup,
+)
+
 from server import security_migration as migration
 
 
@@ -69,6 +75,17 @@ def test_full_security_migration_is_repeatable(tmp_path, monkeypatch):
             migration.TELEMETRY_RETENTION_INDEX_MIGRATION_VERSION
             in versions
         )
+        assert migration.TELEMETRY_SYSTEM_STATE_MIGRATION_VERSION in versions
+        assert migration.TELEMETRY_DASHBOARD_MIGRATION_VERSION in versions
+        assert migration.TELEMETRY_EVENT_HISTORY_MIGRATION_VERSION in versions
+        assert migration.SYSTEM_UPDATE_PERMISSION_MIGRATION_VERSION in versions
+        assert migration.INFRASTRUCTURE_TOPOLOGY_MIGRATION_VERSION in versions
+        assert connection.execute(
+            "SELECT COUNT(*) FROM infrastructure_nodes"
+        ).fetchone()[0] == 0
+        assert connection.execute(
+            "SELECT COUNT(*) FROM infrastructure_relations"
+        ).fetchone()[0] == 0
 
         telemetry_columns = {
             row[1]
@@ -84,6 +101,7 @@ def test_full_security_migration_is_repeatable(tmp_path, monkeypatch):
             "memory_percent",
             "memory_total_bytes",
             "memory_available_bytes",
+            "disk_percent",
         } <= telemetry_columns
 
         telemetry_indexes = {
@@ -94,6 +112,38 @@ def test_full_security_migration_is_repeatable(tmp_path, monkeypatch):
         }
         assert "idx_client_telemetry_client_time" in telemetry_indexes
         assert "idx_client_telemetry_recorded_at" in telemetry_indexes
+        system_columns = {
+            row[1]
+            for row in connection.execute(
+                "PRAGMA table_info(client_system_status)"
+            )
+        }
+        assert {"client_id", "recorded_at", "payload_json"} <= system_columns
+        dashboard_columns = {
+            row[1]
+            for row in connection.execute(
+                "PRAGMA table_info(user_dashboard_settings)"
+            )
+        }
+        assert {
+            "user_id", "settings_json", "updated_at",
+        } <= dashboard_columns
+        event_columns = {
+            row[1]
+            for row in connection.execute(
+                "PRAGMA table_info(client_telemetry_events)"
+            )
+        }
+        assert {
+            "id", "client_id", "recorded_at", "event_type", "metric", "value",
+        } <= event_columns
+        event_indexes = {
+            row[1]
+            for row in connection.execute(
+                "PRAGMA index_list(client_telemetry_events)"
+            )
+        }
+        assert "idx_client_telemetry_events_client_time" in event_indexes
 
         query_plan = connection.execute(
             """
@@ -155,6 +205,7 @@ def test_full_security_migration_is_repeatable(tmp_path, monkeypatch):
     finally:
         connection.close()
 
+
     # Running the migration again must not duplicate migration records
     # or fail because the columns and tables already exist.
     migration.run_migration(
@@ -179,6 +230,33 @@ def test_full_security_migration_is_repeatable(tmp_path, monkeypatch):
         ).fetchone()[0] == 1
     finally:
         connection.close()
+
+
+def test_system_update_permission_migration_grants_only_administrators():
+    connection = sqlite3.connect(":memory:")
+    connection.executescript("""
+        CREATE TABLE users (
+            id INTEGER PRIMARY KEY,
+            role TEXT NOT NULL
+        );
+        CREATE TABLE user_permissions (
+            user_id INTEGER NOT NULL,
+            permission TEXT NOT NULL,
+            PRIMARY KEY (user_id, permission)
+        );
+        INSERT INTO users (id, role) VALUES
+            (1, 'administrator'),
+            (2, 'operator'),
+            (3, 'viewer');
+    """)
+
+    migration.migrate_system_update_permission(connection)
+    migration.migrate_system_update_permission(connection)
+
+    assert connection.execute(
+        "SELECT user_id FROM user_permissions WHERE permission = 'system.update'"
+    ).fetchall() == [(1,)]
+    connection.close()
 
 
 def test_full_migration_delegates_permission_to_one_active_admin(tmp_path):
@@ -250,7 +328,7 @@ def test_full_migration_delegates_permission_to_one_active_admin(tmp_path):
                 "SELECT version FROM schema_migrations"
             )
         }
-        assert migration.PERMISSION_DELEGATION_MIGRATION_VERSION in versions
+        assert migration.CUSTOM_RBAC_MIGRATION_VERSION in versions
     finally:
         connection.close()
 
@@ -314,7 +392,7 @@ def test_delegation_migration_stays_pending_without_eligible_user(tmp_path):
                 "SELECT version FROM schema_migrations"
             )
         }
-        assert migration.PERMISSION_DELEGATION_MIGRATION_VERSION not in versions
+        assert migration.CUSTOM_RBAC_MIGRATION_VERSION not in versions
 
         grants = connection.execute("""
             SELECT COUNT(*)
@@ -351,3 +429,109 @@ def test_create_admin_rejects_existing_disabled_account(tmp_path):
             migration.create_admin(connection, "disabled-admin")
     finally:
         connection.close()
+
+
+def test_failed_migration_restores_pre_migration_backup(
+    tmp_path, monkeypatch
+):
+    """A committed migration can be undone by restoring a verified backup."""
+    db_path = tmp_path / "lums-rollback-integration.sqlite"
+    backup_dir = tmp_path / "backups"
+    backup_dir.mkdir()
+
+    create_legacy_database(db_path)
+    backup = create_database_backup(db_path, backup_dir, "db")
+
+    def fail_rbac_migration(connection):
+        raise RuntimeError("simulated RBAC migration failure")
+
+    monkeypatch.setattr(migration, "migrate_rbac", fail_rbac_migration)
+
+    with pytest.raises(
+        RuntimeError, match="simulated RBAC migration failure"
+    ):
+        migration.run_migration(
+            db_path=str(db_path),
+            admin_username="rollback-test-admin",
+            skip_admin=True,
+        )
+
+    # The first migration was committed before the simulated failure.
+    with sqlite3.connect(db_path) as connection:
+        versions = {
+            row[0]
+            for row in connection.execute(
+                "SELECT version FROM schema_migrations"
+            )
+        }
+        assert migration.MIGRATION_VERSION in versions
+
+    # The migration connection has closed, so restoring is safe here.
+    restore_database_backup(
+        backup_dir,
+        backup["filename"],
+        db_path,
+    )
+
+    with sqlite3.connect(db_path) as connection:
+        tables = {
+            row[0]
+            for row in connection.execute(
+                "SELECT name FROM sqlite_master WHERE type = 'table'"
+            )
+        }
+        assert "clients" in tables
+        assert "schema_migrations" not in tables
+        client = connection.execute(
+            "SELECT hostname, ip FROM clients"
+        ).fetchone()
+        assert client == ("integration-client", "192.0.2.10")
+
+
+def test_alerting_permission_migration_grants_only_administrators():
+    connection = sqlite3.connect(":memory:")
+    connection.executescript("""
+        CREATE TABLE users (
+            id INTEGER PRIMARY KEY,
+            role TEXT NOT NULL
+        );
+        CREATE TABLE user_permissions (
+            user_id INTEGER NOT NULL,
+            permission TEXT NOT NULL,
+            PRIMARY KEY (user_id, permission)
+        );
+        INSERT INTO users (id, role) VALUES
+            (1, 'administrator'),
+            (2, 'operator'),
+            (3, 'viewer');
+        INSERT INTO user_permissions (user_id, permission) VALUES
+            (1, 'clients.view'),
+            (2, 'updates.view');
+    """)
+
+    migration.migrate_alerting_permissions(connection)
+    migration.migrate_alerting_permissions(connection)
+
+    grants = connection.execute("""
+        SELECT user_id, permission
+        FROM user_permissions
+        WHERE permission IN ('alerts.view', 'alerts.manage')
+        ORDER BY user_id, permission
+    """).fetchall()
+
+    assert grants == [
+        (1, 'alerts.manage'),
+        (1, 'alerts.view'),
+    ]
+
+    # Existing unrelated permissions must remain untouched.
+    assert connection.execute("""
+        SELECT user_id, permission
+        FROM user_permissions
+        WHERE permission IN ('clients.view', 'updates.view')
+        ORDER BY user_id, permission
+    """).fetchall() == [
+        (1, 'clients.view'),
+        (2, 'updates.view'),
+    ]
+    connection.close()

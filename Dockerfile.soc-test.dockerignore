@@ -1,0 +1,54 @@
+# Standardmäßig alles ausschließen.
+**
+
+# Benötigte Projektbereiche freigeben.
+!server/
+!server/**
+!tests/
+!tests/**
+!docs/
+!docs/**
+!agent/
+!agent/**
+!host_updater/
+!host_updater/**
+!scripts/
+!scripts/**
+
+# Benötigte Dateien im Projektstamm.
+!requirements-dev.txt
+!pytest.ini
+!docker-entrypoint.sh
+
+# Geheimnisse und Konfigurationsdateien ausschließen.
+**/.env
+**/*.env
+**/*.env.*
+**/secrets/
+**/secrets/**
+
+# Schlüssel und Zertifikate ausschließen.
+**/*.pem
+**/*.key
+
+# Datenbanken ausschließen.
+**/*.db
+**/*.sqlite
+**/*.sqlite3
+
+# Backups und Laufzeitdaten ausschließen.
+**/*.bak
+**/*.bak-*
+**/*.before-*
+**/*.log
+**/data/
+**/logs/
+**/tmp/
+**/cache/
+**/.backups/
+
+# Python-generierte Dateien ausschließen.
+**/__pycache__/
+**/*.pyc
+**/*.pyo
+**/.pytest_cache/

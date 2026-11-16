@@ -6,7 +6,22 @@ import sqlite3
 import sys
 from pathlib import Path
 
-from security import hash_password, utc_now
+if __package__:
+    from .security import (
+        hash_password,
+        utc_now,
+        ROLE_ADMINISTRATOR,
+        ROLE_DEFAULT_PERMISSIONS,
+        store_user_permissions,
+    )
+else:
+    from security import (
+        hash_password,
+        utc_now,
+        ROLE_ADMINISTRATOR,
+        ROLE_DEFAULT_PERMISSIONS,
+        store_user_permissions,
+    )
 
 
 DEFAULT_DB_PATH = "/var/lib/lums/lums.db"
@@ -36,6 +51,7 @@ def create_admin(db_path, username):
 
     try:
         connection.execute("PRAGMA foreign_keys = ON")
+        connection.execute("BEGIN IMMEDIATE")
 
         existing = connection.execute(
             "SELECT id FROM users WHERE username = ?",
@@ -55,18 +71,29 @@ def create_admin(db_path, username):
                 username,
                 password_hash,
                 created_at,
-                enabled
+                enabled,
+                role
             )
-            VALUES (?, ?, ?, 1)
+            VALUES (?, ?, ?, 1, ?)
             """,
             (
                 username,
                 password_hash,
                 now,
+                ROLE_ADMINISTRATOR,
             ),
         )
 
         user_id = cursor.lastrowid
+
+        store_user_permissions(
+            connection,
+            user_id,
+            ROLE_ADMINISTRATOR,
+            ROLE_DEFAULT_PERMISSIONS[ROLE_ADMINISTRATOR],
+            actor_id=None,
+            timestamp=now,
+        )
 
         connection.execute(
             """

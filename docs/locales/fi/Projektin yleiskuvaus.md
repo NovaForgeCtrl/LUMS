@@ -38,6 +38,21 @@ saved to your account takes precedence. Some technical or dynamic text may
 remain in its original language when a translation is not available. Markdown
 guides are separate from the web interface and are not translated
 automatically.
+**Linux-päivitysten hallinta ilman turhaa kohinaa.**
+
+## Aloittaminen
+
+LUMS hallinnoi Linux-päivityksiä keskitetysti. Palvelin näyttää asiakkaat, asennetut ohjelmistot ja saatavilla olevat päivitykset. Jokaisella hallinnoidulla Linux-järjestelmällä oleva agentti suorittaa hyväksytyt pakettitoiminnot kyseisen järjestelmän paketinhallinnalla. LUMS ei korvaa APT:ta Debian/Ubuntu-järjestelmissä eikä pacmania Arch Linuxissa.
+
+**Käytätkö vain olemassa olevaa LUMS-asennusta?** Avaa ylläpitäjän antama osoite ja kirjaudu sisään omalla tililläsi. Jos jokin ominaisuus puuttuu, tililläsi ei ehkä ole oikeutta käyttää sitä. Kysy apua ylläpitäjältä; älä jaa tilejä äläkä käytä asiakastunnistetta verkkosalasanana.
+
+**Asennatko tai ylläpidätkö LUMSia?** Aloita [asennusoppaasta](<Asennus ja päivitykset.md>) ja lue sitten [hallintaopas](<Ylläpito ja varmuuskopiot.md>). Jos jotain menee pieleen, käytä [vianmääritysopasta](Vianmääritys.md). Käännettyjä oppaita on myös saatavilla, mutta niiden kattavuus voi poiketa englanninkielisistä teknisistä alkuperäisversioista. [Dokumentaatiohakemisto](../../README.md) näyttää saatavilla olevat kieliversiot.
+
+Testiajo tai onnistuneesti rakennettu Docker-kuva **ei** ole tuotantoasennus. Tuotantokäyttöönotto vaatii myös HTTPS:n, suojatun sovellussalaisuuden, pysyvät tiedot, varmennetut varmuuskopiot ja kovennetun kontin. Älä kopioi tuotantokomentoja ennen kuin olet tarkistanut niiden paikkamerkit ja tallennuspolut omaa asennustasi vasten.
+
+### Verkkokäyttöliittymän kielet
+
+Verkkokäyttöliittymä tarjoaa saksan, englannin (US ja UK), ranskan, espanjan, yksinkertaistetun kiinan, japanin, puolan, ruotsin, norjan bokmålin ja suomen. Valitse kieli kirjautumissivun oikeasta yläkulmasta. Jos et valitse kieltä, LUMS yrittää käyttää selaimen kieltä; kirjautumisen jälkeen tilillesi tallennettu kieli on ensisijainen. Jotkin tekniset tai dynaamiset tekstit voivat jäädä alkuperäiselle kielelle, jos käännöstä ei ole saatavilla. Markdown-oppaat ovat erillisiä verkkokäyttöliittymästä eikä niitä käännetä automaattisesti.
 
 ---
 
@@ -335,6 +350,19 @@ a restore test. See [LUMS_Health_Dashboard.md](LUMS_Health_Dashboard.md).
 Administrative and security-relevant actions are recorded through the LUMS audit-log system.
 
 The audit trail is intended to answer:
+Tunnisteen vaihto mahdollistaa ylläpitäjän mitätöidä aiemmin myönnetyn asiakastunnisteen luomatta asiakasta uudelleen.
+
+
+### Terveystilan koontinäyttö
+
+Kirjautumisen takana oleva `/health`-koontinäyttö kokoaa yhteen tietokannan tilan, asiakkaiden raportoinnin, varmuuskopioinnin tallennustilan näkyvyyden sekä CPU- ja muistitietotelemetrian, jos se on määritetty. Se on nopea käyttötilannekuva, ei korvike kontin, välityspalvelimen, isännän tai varmuuskopioiden lokien tarkastamiselle tai palautustestille. Katso [terveystilan opas](LUMS-terveystila.md).
+
+---
+
+### Hälytykset
+
+LUMS tarjoaa tallennettujen hälytystietueiden hallintaan rajapinnan ja peruskoontinäytön. Ylläpitäjä voi hallita sääntöjä, käynnistää hälytyksen manuaalisesti sekä kuitata, ratkaista tai eskaloida aktiivisen hälytyksen. Sääntöjen ehtoja ja kynnysarvoja tallennetaan asetuksina, mutta palvelin ei arvioi niitä automaattisesti telemetrian perusteella. Ilmoitusintegraatiot (sähköposti, Slack, PagerDuty ja yleiset webhookit) eivät ole käytettävissä API:n kautta, ja historiatiedot säilytetään poistamalla massatyhjennys käytöstä. Katso [hälytysten hallinnan toteutusrajat](<Hälytyksen hallinta.md>).
+Valvottavuus
 
 ```text
 Who?
@@ -1495,6 +1523,40 @@ This is why documentation consistency is treated as part of the engineering proc
 ## Tuetut järjestelmät
 
 LUMS is designed to manage Linux systems using supported native package managers.
+Nykyinen tila
+
+LUMS on aktiivisesti kehitettävä Linux-päivitysten hallinta-alusta.
+
+Nykyiseen toteutukseen kuuluvat:
+
+* keskitetty asiakashallinta
+* ohjelmistoluettelo
+* päivitysten tunnistus
+* pakettihaku
+* pakettien asennus ja poisto
+* pakettikohtaiset päivitykset
+* järjestelmäpäivitykset
+* pysyvät päivitystyöt
+* pakettikohtainen työn tila
+* töiden palautus
+* uudelleenkäynnistyksen tunnistus
+* käyttämättömyyden huomioiva suoritus
+* asiakastunnisteisiin perustuva todennus ja tunnisteiden vaihto
+* ylläpitäjien todennus
+* rooli- ja käyttöoikeuspohjainen pääsynhallinta
+* käyttäjähallinta
+* valvontalokitus
+* kontin kovennus ja HTTPS-liikenne
+* automatisoitu testaus ja jatkuva integraatio
+* valinnainen suoritin-, muisti-, levy-, verkko-, isäntä- ja tapahtumatelemetria
+* rekisteröityihin asiakkaisiin ja manuaalisesti ylläpidettyyn luetteloon perustuva infrastruktuurin topologia
+* pysyvät hälytystiedot ja hälytyssääntöjen hallintapäätepisteet dokumentoituine rajoituksineen
+
+Luettelo on yleiskuvaus, ei väite ominaisuuksien täydellisyydestä tai julkaisukelpoisuudesta. Valinnaiset osat voivat edellyttää erillistä asennusta ja määritystä, ja yksittäisillä ominaisuuksilla on dokumentoituja rajoituksia. Tarkista tietyn version toiminta sen lähdekoodin versiosta ja testeistä.
+
+Hälytyssäännöt ja niiden ehdot sekä kynnysarvot tallennetaan, mutta palvelin ei arvioi niitä automaattisesti telemetrian perusteella. Hälytys käynnistetään manuaalisesti. Eskalointipolussa nimetyt palveluntarjoajat voidaan kutsua manuaalisessa käynnistyksessä, mutta verkkosovellus luo hälytyshallinnan tyhjällä palveluntarjoajakartalla eikä integraatiopäätepisteillä voi määrittää palveluntarjoajia. Ryhmittely- ja deduplikointiasetukset tallennetaan, mutta niitä ei sovelleta. Katso toteutuksen rajat tiedostosta `docs/LUMS_REALTIME_ALERTING_IMPLEMENTATION.md`.
+
+Tuetut järjestelmät
 
 ### Debian / Ubuntu
 
@@ -2164,6 +2226,8 @@ There is currently:
 * no GitHub Release
 
 The project deliberately follows the release sequence:
+Projekti noudattaa tarkoituksella julkaisujärjestystä:
+text
 
 ```text id="f3c4y9"
 Implementation
@@ -2186,6 +2250,19 @@ GitHub Release
 The first official release should only be created after the current implementation, security review, documentation, and regression testing are considered complete.
 
 ---
+GitHub-julkaisu
+
+Julkaisu- ja tunnistetietojen saatavuus voi muuttua tästä dokumentaatiosta riippumatta. Tarkista ajantasainen tilanne arkiston [Releases-sivulta](https://github.com/NovaForgeCtrl/LUMS/releases) ja [tunnisteista](https://github.com/NovaForgeCtrl/LUMS/tags). Julkaisu tulisi tehdä vasta, kun kyseisen version toteutus, tietoturvakatsaus, dokumentaatio ja regressiotestit ovat valmiit.
+Tiekartta
+
+Tiekartta keskittyy tarkoituksella vakauteen ja ylläpidettävyyteen sen sijaan, että lisättäisiin ominaisuuksia ilman olemassa olevan perustan viimeistelyä.
+Tuleva kehitys
+
+Mahdollinen tuleva työ voi sisältää:
+
+* lisää Linux-jakeluja
+
+* lisää paketinhallinnan taustajärjestelmiä
 
 ## Roadmap
 

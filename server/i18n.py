@@ -45,6 +45,58 @@ _COMMON = {
         "Main navigation": 'Hauptnavigation',
         "User management": "Benutzerverwaltung",
         "Database backups": "Datenbank-Backups",
+        "Update system": "Updatesystem",
+        "Check tested LUMS releases and apply an update with backup and rollback.": "Geprüfte LUMS-Versionen prüfen und Updates mit Backup und Rollback installieren.",
+        "Installed version": "Installierte Version",
+        "Available release": "Verfügbares Release",
+        "Verified commit": "Verifizierter Commit",
+        "Host service": "Host-Dienst",
+        "Release compatibility": "Release-Kompatibilität",
+        "Release changes": "Änderungen im Release",
+        "No release information loaded.": "Keine Release-Informationen geladen.",
+        "Open release on GitHub": "Release auf GitHub öffnen",
+        "Install this release": "Dieses Release installieren",
+        "Installation starts only after an administrator confirms it here.": "Die Installation startet erst nach der Bestätigung durch einen Administrator.",
+        "Update progress": "Update-Fortschritt",
+        "A failed check never counts as a successful update. The host service records rollback results.": "Eine fehlgeschlagene Prüfung gilt nie als erfolgreiches Update. Der Host-Dienst protokolliert auch Rollbacks.",
+        "Check prerequisites": "Voraussetzungen prüfen",
+        "Create verified backup": "Geprüftes Backup erstellen",
+        "Prepare and test release": "Release vorbereiten und testen",
+        "Switch application": "Anwendung umschalten",
+        "Verify application and database": "Anwendung und Datenbank prüfen",
+        "Record result or rollback": "Ergebnis oder Rollback protokollieren",
+        "Update history": "Update-Verlauf",
+        "Recent update attempts, their result, and rollback status.": "Letzte Updateversuche mit Ergebnis und Rollback-Status.",
+        "Started": "Gestartet",
+        "Started by": "Gestartet von",
+        "Release": "Release",
+        "Step": "Schritt",
+        "Result": "Ergebnis",
+        "Details": "Details",
+        "Checking GitHub and the host update service...": "Prüfe GitHub und den Host-Update-Dienst …",
+        "No update attempts have been recorded yet.": "Bisher wurden keine Updateversuche protokolliert.",
+        "Could not load update status.": "Update-Status konnte nicht geladen werden.",
+        "Not reported": "Nicht gemeldet",
+        "Connected": "Verbunden",
+        "Not connected": "Nicht verbunden",
+        "Release is CI-tested; host checks are required before switching.": "Das Release wurde in CI getestet; vor dem Umschalten sind Host-Prüfungen erforderlich.",
+        "Host checks unavailable until the host service is connected.": "Host-Prüfungen sind erst nach Verbindung des Host-Dienstes möglich.",
+        "Update in progress": "Update läuft",
+        "The host update service is not connected. No update can be started.": "Der Host-Update-Dienst ist nicht verbunden. Es kann kein Update gestartet werden.",
+        "Release information is current.": "Die Release-Informationen sind aktuell.",
+        "Queued": "In Warteschlange",
+        "Running": "Läuft",
+        "Rolling back": "Rollback läuft",
+        "Completed": "Abgeschlossen",
+        "Failed": "Fehlgeschlagen",
+        "Rolled back": "Zurückgerollt",
+        "Rollback failed": "Rollback fehlgeschlagen",
+        "Unknown": "Unbekannt",
+        "Install this release?": "Dieses Release installieren?",
+        "The host service will create a verified backup and will attempt rollback if any step fails.": "Der Host-Dienst erstellt ein geprüftes Backup und versucht bei einem Fehler ein Rollback.",
+        "Submitting update request...": "Update-Auftrag wird gesendet …",
+        "The update request was rejected.": "Der Update-Auftrag wurde abgelehnt.",
+        "Update request accepted": "Update-Auftrag angenommen",
         "Sign out": "Abmelden",
         "Refresh": "Aktualisieren",
         "Clients": "Clients",
@@ -160,8 +212,124 @@ _COMMON = {
         "Permanently delete this backup?": "Backup endgültig löschen?",
         "This action cannot be undone.": "Diese Aktion kann nicht rückgängig gemacht werden.",
         "Delete backup": "Backup löschen",
+        "Alerts & Monitoring": "Warnungen und Überwachung",
+        "Alert overview": "Warnungsübersicht",
+        "Alert history": "Warnungsverlauf",
+        "Alert rules": "Warnungsregeln",
+        "Notifications": "Benachrichtigungen",
+        "Integrations & Webhooks": "Integrationen und Webhooks",
+        "Critical": "Kritisch",
+        "Warning": "Warnung",
+        "Info": "Info",
+        "Create alert rule": "Warnungsregel erstellen",
+        "Edit alert rule": "Warnungsregel bearbeiten",
+        "Delete alert rule": "Warnungsregel löschen",
+        "Alert name": "Warnungsname",
+        "Alert description": "Warnungsbeschreibung",
+        "Condition": "Bedingung",
+        "Threshold": "Schwellwert",
+        "Severity level": "Schweregrad",
+        "Enabled": "Aktiviert",
+        "Disabled": "Deaktiviert",
+        "Alert triggered": "Warnung ausgelöst",
+        "Alert resolved": "Warnung behoben",
+        "Acknowledged": "Bestätigt",
+        "Alert escalated": "Warnung eskaliert",
+        "Escalation path": "Eskalationspfad",
+        "Group similar alerts": "Ähnliche Warnungen gruppieren",
+        "Deduplicate alerts": "Doppelte Warnungen entfernen",
+        'Configure alert rules and their thresholds.': 'Warnungsregeln und ihre Schwellwerte konfigurieren.',
+        'Enable rule': 'Regel aktivieren',
+        'Disable rule': 'Regel deaktivieren',
+        'Threshold must be valid JSON.': 'Der Schwellwert muss gültiges JSON sein.',
+        'No alert rules configured.': 'Keine Warnungsregeln konfiguriert.',
+        'Escalation path must be a valid JSON array of non-empty strings.': 'Der Eskalationspfad muss ein gültiges JSON-Array aus nicht leeren Zeichenfolgen sein.',
+        'The request failed. Please try again.': 'Die Anfrage ist fehlgeschlagen. Bitte versuche es erneut.',
+        "Email notifications": "E-Mail-Benachrichtigungen",
+        "Slack integration": "Slack-Integration",
+        "PagerDuty integration": "PagerDuty-Integration",
+        "SMS notifications": "SMS-Benachrichtigungen",
+        "Webhook URL": "Webhook-URL",
+        "Webhook payload": "Webhook-Nutzlast",
+        "Outbound webhooks": "Ausgehende Webhooks",
+        "Inbound webhooks": "Eingehende Webhooks",
+        "Test integration": "Integration testen",
+        "Integration settings": "Integrationseinstellungen",
+        "No alerts": "Keine Warnungen",
+        "Recent alerts": "Aktuelle Warnungen",
+        "Alert timestamp": "Warnungs-Zeitstempel",
+        "Alert status": "Warnungsstatus",
+        "Alert count": "Warnungsanzahl",
+        "Clear all alerts": "Alle Warnungen löschen",
+        "Mute notifications": "Benachrichtigungen stummschalten",
+        "Unmute notifications": "Benachrichtigungen einschalten",
+        'Monitor alert activity and respond to incidents.': 'Warnungsaktivität überwachen und auf Vorfälle reagieren.',
+        'Loading alerts…': 'Warnungen werden geladen …',
+        'The alert action failed.': 'Die Warnungsaktion ist fehlgeschlagen.',
+        'Resolve': 'Auflösen',
+        'Connecting…': 'Verbindung wird hergestellt …',
+        'Last updated': 'Letzte Aktualisierung',
+        'Current incidents and recent alert activity.': 'Aktuelle Vorfälle und letzte Warnungsaktivitäten.',
+        'Active alerts': 'Aktive Warnungen',
+        'Live updates': 'Automatische Aktualisierung',
+        'No alerts found.': 'Keine Warnungen gefunden.',
+        'This section will be implemented in a later step.': 'Dieser Bereich wird in einem späteren Schritt implementiert.',
+        'Alerts could not be loaded.': 'Warnungen konnten nicht geladen werden.',
+        'Acknowledge': 'Bestätigen',
     },
-    "en-US": {},
+    "en-US": {
+        "Alerts & Monitoring": "Alerts & Monitoring",
+        "Alert overview": "Alert overview",
+        "Alert history": "Alert history",
+        "Alert rules": "Alert rules",
+        "Notifications": "Notifications",
+        "Integrations & Webhooks": "Integrations & Webhooks",
+        "Critical": "Critical",
+        "Warning": "Warning",
+        "Info": "Info",
+        "Create alert rule": "Create alert rule",
+        "Edit alert rule": "Edit alert rule",
+        "Delete alert rule": "Delete alert rule",
+        "Alert name": "Alert name",
+        "Alert description": "Alert description",
+        "Condition": "Condition",
+        "Threshold": "Threshold",
+        "Severity level": "Severity level",
+        "Enabled": "Enabled",
+        "Disabled": "Disabled",
+        "Alert triggered": "Alert triggered",
+        "Alert resolved": "Alert resolved",
+        "Acknowledged": "Acknowledged",
+        "Alert escalated": "Alert escalated",
+        "Escalation path": "Escalation path",
+        "Group similar alerts": "Group similar alerts",
+        "Deduplicate alerts": "Deduplicate alerts",
+        'Configure alert rules and their thresholds.': 'Configure alert rules and their thresholds.',
+        'Enable rule': 'Enable rule',
+        'Disable rule': 'Disable rule',
+        'Threshold must be valid JSON.': 'Threshold must be valid JSON.',
+        'No alert rules configured.': 'No alert rules configured.',
+        'Escalation path must be a valid JSON array of non-empty strings.': 'Escalation path must be a valid JSON array of non-empty strings.',
+        'The request failed. Please try again.': 'The request failed. Please try again.',
+        "Email notifications": "Email notifications",
+        "Slack integration": "Slack integration",
+        "PagerDuty integration": "PagerDuty integration",
+        "SMS notifications": "SMS notifications",
+        "Webhook URL": "Webhook URL",
+        "Webhook payload": "Webhook payload",
+        "Outbound webhooks": "Outbound webhooks",
+        "Inbound webhooks": "Inbound webhooks",
+        "Test integration": "Test integration",
+        "Integration settings": "Integration settings",
+        "No alerts": "No alerts",
+        "Recent alerts": "Recent alerts",
+        "Alert timestamp": "Alert timestamp",
+        "Alert status": "Alert status",
+        "Alert count": "Alert count",
+        "Clear all alerts": "Clear all alerts",
+        "Mute notifications": "Mute notifications",
+        "Unmute notifications": "Unmute notifications",
+    },
     "en-GB": {
         "Sign out": "Sign out",
         "IP address": "IP address",
@@ -169,6 +337,57 @@ _COMMON = {
         "Operating system": "Operating system",
         "Architecture": "Architecture",
         "File format": "File format",
+        "Alerts & Monitoring": "Alerts & Monitoring",
+        "Alert overview": "Alert overview",
+        "Alert history": "Alert history",
+        "Alert rules": "Alert rules",
+        "Notifications": "Notifications",
+        "Integrations & Webhooks": "Integrations & Webhooks",
+        "Critical": "Critical",
+        "Warning": "Warning",
+        "Info": "Info",
+        "Create alert rule": "Create alert rule",
+        "Edit alert rule": "Edit alert rule",
+        "Delete alert rule": "Delete alert rule",
+        "Alert name": "Alert name",
+        "Alert description": "Alert description",
+        "Condition": "Condition",
+        "Threshold": "Threshold",
+        "Severity level": "Severity level",
+        "Enabled": "Enabled",
+        "Disabled": "Disabled",
+        "Alert triggered": "Alert triggered",
+        "Alert resolved": "Alert resolved",
+        "Acknowledged": "Acknowledged",
+        "Alert escalated": "Alert escalated",
+        "Escalation path": "Escalation path",
+        "Group similar alerts": "Group similar alerts",
+        "Deduplicate alerts": "Deduplicate alerts",
+        'Configure alert rules and their thresholds.': 'Configure alert rules and their thresholds.',
+        'Enable rule': 'Enable rule',
+        'Disable rule': 'Disable rule',
+        'Threshold must be valid JSON.': 'Threshold must be valid JSON.',
+        'No alert rules configured.': 'No alert rules configured.',
+        'Escalation path must be a valid JSON array of non-empty strings.': 'Escalation path must be a valid JSON array of non-empty strings.',
+        'The request failed. Please try again.': 'The request failed. Please try again.',
+        "Email notifications": "Email notifications",
+        "Slack integration": "Slack integration",
+        "PagerDuty integration": "PagerDuty integration",
+        "SMS notifications": "SMS notifications",
+        "Webhook URL": "Webhook URL",
+        "Webhook payload": "Webhook payload",
+        "Outbound webhooks": "Outbound webhooks",
+        "Inbound webhooks": "Inbound webhooks",
+        "Test integration": "Test integration",
+        "Integration settings": "Integration settings",
+        "No alerts": "No alerts",
+        "Recent alerts": "Recent alerts",
+        "Alert timestamp": "Alert timestamp",
+        "Alert status": "Alert status",
+        "Alert count": "Alert count",
+        "Clear all alerts": "Clear all alerts",
+        "Mute notifications": "Mute notifications",
+        "Unmute notifications": "Unmute notifications",
     },
     "fr": {
         "Standard LUMS": "LUMS standard",
@@ -303,6 +522,70 @@ _COMMON = {
         "Permanently delete this backup?": "Supprimer définitivement cette sauvegarde ?",
         "This action cannot be undone.": "Cette action est irréversible.",
         "Delete backup": "Supprimer la sauvegarde",
+        "Alerts & Monitoring": "Alertes et surveillance",
+        "Alert overview": "Aperçu des alertes",
+        "Alert history": "Historique des alertes",
+        "Alert rules": "Règles d'alerte",
+        "Notifications": "Notifications",
+        "Integrations & Webhooks": "Intégrations et webhooks",
+        "Critical": "Critique",
+        "Warning": "Avertissement",
+        "Info": "Information",
+        "Create alert rule": "Créer une règle d'alerte",
+        "Edit alert rule": "Modifier la règle d'alerte",
+        "Delete alert rule": "Supprimer la règle d'alerte",
+        "Alert name": "Nom de l'alerte",
+        "Alert description": "Description de l'alerte",
+        "Condition": "Condition",
+        "Threshold": "Seuil",
+        "Severity level": "Niveau de gravité",
+        "Enabled": "Activé",
+        "Disabled": "Désactivé",
+        "Alert triggered": "Alerte déclenchée",
+        "Alert resolved": "Alerte résolue",
+        "Acknowledged": "Reconnu",
+        "Alert escalated": "Alerte escaladée",
+        "Escalation path": "Chemin de escalade",
+        "Group similar alerts": "Regrouper les alertes similaires",
+        "Deduplicate alerts": "Dédupliquer les alertes",
+        'Configure alert rules and their thresholds.': 'Configurez les règles d’alerte et leurs seuils.',
+        'Enable rule': 'Activer la règle',
+        'Disable rule': 'Désactiver la règle',
+        'Threshold must be valid JSON.': 'Le seuil doit être un JSON valide.',
+        'No alert rules configured.': 'Aucune règle d’alerte configurée.',
+        'Escalation path must be a valid JSON array of non-empty strings.': 'Le chemin d’escalade doit être un tableau JSON valide contenant des chaînes non vides.',
+        'The request failed. Please try again.': 'La requête a échoué. Veuillez réessayer.',
+        "Email notifications": "Notifications par e-mail",
+        "Slack integration": "Intégration Slack",
+        "PagerDuty integration": "Intégration PagerDuty",
+        "SMS notifications": "Notifications par SMS",
+        "Webhook URL": "URL du webhook",
+        "Webhook payload": "Charge utile du webhook",
+        "Outbound webhooks": "Webhooks sortants",
+        "Inbound webhooks": "Webhooks entrants",
+        "Test integration": "Tester l'intégration",
+        "Integration settings": "Paramètres d'intégration",
+        "No alerts": "Aucune alerte",
+        "Recent alerts": "Alertes récentes",
+        "Alert timestamp": "Horodatage de l'alerte",
+        "Alert status": "État de l'alerte",
+        "Alert count": "Nombre d'alertes",
+        "Clear all alerts": "Effacer toutes les alertes",
+        "Mute notifications": "Désactiver les notifications",
+        "Unmute notifications": "Réactiver les notifications",
+        'Monitor alert activity and respond to incidents.': 'Surveillez les alertes et réagissez aux incidents.',
+        'Loading alerts…': 'Chargement des alertes…',
+        'The alert action failed.': 'L’action sur l’alerte a échoué.',
+        'Resolve': 'Résoudre',
+        'Connecting…': 'Connexion…',
+        'Last updated': 'Dernière mise à jour',
+        'Current incidents and recent alert activity.': 'Incidents en cours et activité récente des alertes.',
+        'Active alerts': 'Alertes actives',
+        'Live updates': 'Mise à jour automatique',
+        'No alerts found.': 'Aucune alerte trouvée.',
+        'This section will be implemented in a later step.': 'Cette section sera mise en œuvre ultérieurement.',
+        'Alerts could not be loaded.': 'Impossible de charger les alertes.',
+        'Acknowledge': 'Acquitter',
     },
     "es": {
         "Standard LUMS": "LUMS estándar",
@@ -437,6 +720,70 @@ _COMMON = {
         "Permanently delete this backup?": "¿Eliminar esta copia de seguridad definitivamente?",
         "This action cannot be undone.": "Esta acción no se puede deshacer.",
         "Delete backup": "Eliminar copia de seguridad",
+        "Alerts & Monitoring": "Alertas y supervisión",
+        "Alert overview": "Descripción de alertas",
+        "Alert history": "Historial de alertas",
+        "Alert rules": "Reglas de alerta",
+        "Notifications": "Notificaciones",
+        "Integrations & Webhooks": "Integraciones y webhooks",
+        "Critical": "Crítico",
+        "Warning": "Advertencia",
+        "Info": "Información",
+        "Create alert rule": "Crear regla de alerta",
+        "Edit alert rule": "Editar regla de alerta",
+        "Delete alert rule": "Eliminar regla de alerta",
+        "Alert name": "Nombre de la alerta",
+        "Alert description": "Descripción de la alerta",
+        "Condition": "Condición",
+        "Threshold": "Umbral",
+        "Severity level": "Nivel de gravedad",
+        "Enabled": "Habilitado",
+        "Disabled": "Deshabilitado",
+        "Alert triggered": "Alerta activada",
+        "Alert resolved": "Alerta resuelta",
+        "Acknowledged": "Reconocido",
+        "Alert escalated": "Alerta escalada",
+        "Escalation path": "Ruta de escalada",
+        "Group similar alerts": "Agrupar alertas similares",
+        "Deduplicate alerts": "Deduplicar alertas",
+        'Configure alert rules and their thresholds.': 'Configura las reglas de alerta y sus umbrales.',
+        'Enable rule': 'Activar regla',
+        'Disable rule': 'Desactivar regla',
+        'Threshold must be valid JSON.': 'El umbral debe ser JSON válido.',
+        'No alert rules configured.': 'No hay reglas de alerta configuradas.',
+        'Escalation path must be a valid JSON array of non-empty strings.': 'La ruta de escalado debe ser una matriz JSON válida de cadenas no vacías.',
+        'The request failed. Please try again.': 'La solicitud ha fallado. Inténtalo de nuevo.',
+        "Email notifications": "Notificaciones por correo electrónico",
+        "Slack integration": "Integración de Slack",
+        "PagerDuty integration": "Integración de PagerDuty",
+        "SMS notifications": "Notificaciones por SMS",
+        "Webhook URL": "URL del webhook",
+        "Webhook payload": "Carga útil del webhook",
+        "Outbound webhooks": "Webhooks salientes",
+        "Inbound webhooks": "Webhooks entrantes",
+        "Test integration": "Probar integración",
+        "Integration settings": "Configuración de integración",
+        "No alerts": "Sin alertas",
+        "Recent alerts": "Alertas recientes",
+        "Alert timestamp": "Marca de tiempo de la alerta",
+        "Alert status": "Estado de la alerta",
+        "Alert count": "Número de alertas",
+        "Clear all alerts": "Borrar todas las alertas",
+        "Mute notifications": "Silenciar notificaciones",
+        "Unmute notifications": "Activar notificaciones",
+        'Monitor alert activity and respond to incidents.': 'Supervisa las alertas y responde a los incidentes.',
+        'Loading alerts…': 'Cargando alertas…',
+        'The alert action failed.': 'La acción de alerta ha fallado.',
+        'Resolve': 'Resolver',
+        'Connecting…': 'Conectando…',
+        'Last updated': 'Última actualización',
+        'Current incidents and recent alert activity.': 'Incidentes actuales y actividad reciente de alertas.',
+        'Active alerts': 'Alertas activas',
+        'Live updates': 'Actualización automática',
+        'No alerts found.': 'No se encontraron alertas.',
+        'This section will be implemented in a later step.': 'Esta sección se implementará más adelante.',
+        'Alerts could not be loaded.': 'No se pudieron cargar las alertas.',
+        'Acknowledge': 'Confirmar',
     },
     "zh-CN": {
         "Standard LUMS": "LUMS 标准版",
@@ -571,6 +918,70 @@ _COMMON = {
         "Permanently delete this backup?": "永久删除此备份？",
         "This action cannot be undone.": "此操作无法撤销。",
         "Delete backup": "删除备份",
+        "Alerts & Monitoring": "警报和监控",
+        "Alert overview": "警报概览",
+        "Alert history": "警报历史",
+        "Alert rules": "警报规则",
+        "Notifications": "通知",
+        "Integrations & Webhooks": "集成和Webhook",
+        "Critical": "严重",
+        "Warning": "警告",
+        "Info": "信息",
+        "Create alert rule": "创建警报规则",
+        "Edit alert rule": "编辑警报规则",
+        "Delete alert rule": "删除警报规则",
+        "Alert name": "警报名称",
+        "Alert description": "警报描述",
+        "Condition": "条件",
+        "Threshold": "阈值",
+        "Severity level": "严重程度",
+        "Enabled": "已启用",
+        "Disabled": "已禁用",
+        "Alert triggered": "警报已触发",
+        "Alert resolved": "警报已解决",
+        "Acknowledged": "已确认",
+        "Alert escalated": "警报已升级",
+        "Escalation path": "升级路径",
+        "Group similar alerts": "分组相似警报",
+        "Deduplicate alerts": "删除重复警报",
+        'Configure alert rules and their thresholds.': '配置警报规则及其阈值。',
+        'Enable rule': '启用规则',
+        'Disable rule': '禁用规则',
+        'Threshold must be valid JSON.': '阈值必须是有效的 JSON。',
+        'No alert rules configured.': '尚未配置警报规则。',
+        'Escalation path must be a valid JSON array of non-empty strings.': '升级路径必须是由非空字符串组成的有效 JSON 数组。',
+        'The request failed. Please try again.': '请求失败，请重试。',
+        "Email notifications": "电子邮件通知",
+        "Slack integration": "Slack集成",
+        "PagerDuty integration": "PagerDuty集成",
+        "SMS notifications": "短信通知",
+        "Webhook URL": "Webhook URL",
+        "Webhook payload": "Webhook有效负载",
+        "Outbound webhooks": "出站Webhook",
+        "Inbound webhooks": "入站Webhook",
+        "Test integration": "测试集成",
+        "Integration settings": "集成设置",
+        "No alerts": "无警报",
+        "Recent alerts": "最近的警报",
+        "Alert timestamp": "警报时间戳",
+        "Alert status": "警报状态",
+        "Alert count": "警报计数",
+        "Clear all alerts": "清除所有警报",
+        "Mute notifications": "静音通知",
+        "Unmute notifications": "取消通知静音",
+        'Monitor alert activity and respond to incidents.': '监控警报活动并响应事件。',
+        'Loading alerts…': '正在加载警报…',
+        'The alert action failed.': '警报操作失败。',
+        'Resolve': '解决',
+        'Connecting…': '正在连接…',
+        'Last updated': '上次更新',
+        'Current incidents and recent alert activity.': '当前事件和最近的警报活动。',
+        'Active alerts': '活动警报',
+        'Live updates': '自动更新',
+        'No alerts found.': '未找到警报。',
+        'This section will be implemented in a later step.': '此部分将在后续步骤中实现。',
+        'Alerts could not be loaded.': '无法加载警报。',
+        'Acknowledge': '确认',
     },
     "ja": {
         "Standard LUMS": "LUMS 標準",
@@ -705,6 +1116,70 @@ _COMMON = {
         "Permanently delete this backup?": "このバックアップを完全に削除しますか？",
         "This action cannot be undone.": "この操作は取り消せません。",
         "Delete backup": "バックアップを削除",
+        "Alerts & Monitoring": "アラートと監視",
+        "Alert overview": "アラート概要",
+        "Alert history": "アラート履歴",
+        "Alert rules": "アラートルール",
+        "Notifications": "通知",
+        "Integrations & Webhooks": "統合とWebhook",
+        "Critical": "重大",
+        "Warning": "警告",
+        "Info": "情報",
+        "Create alert rule": "アラートルールを作成",
+        "Edit alert rule": "アラートルールを編集",
+        "Delete alert rule": "アラートルールを削除",
+        "Alert name": "アラート名",
+        "Alert description": "アラートの説明",
+        "Condition": "条件",
+        "Threshold": "閾値",
+        "Severity level": "重大度レベル",
+        "Enabled": "有効",
+        "Disabled": "無効",
+        "Alert triggered": "アラートが発火しました",
+        "Alert resolved": "アラートが解決しました",
+        "Acknowledged": "確認済み",
+        "Alert escalated": "アラートがエスカレーションされました",
+        "Escalation path": "エスカレーションパス",
+        "Group similar alerts": "類似アラートをグループ化",
+        "Deduplicate alerts": "重複排除アラート",
+        'Configure alert rules and their thresholds.': 'アラートルールとしきい値を設定します。',
+        'Enable rule': 'ルールを有効化',
+        'Disable rule': 'ルールを無効化',
+        'Threshold must be valid JSON.': 'しきい値は有効な JSON である必要があります。',
+        'No alert rules configured.': 'アラートルールが設定されていません。',
+        'Escalation path must be a valid JSON array of non-empty strings.': 'エスカレーションパスは、空でない文字列を含む有効な JSON 配列である必要があります。',
+        'The request failed. Please try again.': 'リクエストに失敗しました。もう一度お試しください。',
+        "Email notifications": "メール通知",
+        "Slack integration": "Slack統合",
+        "PagerDuty integration": "PagerDuty統合",
+        "SMS notifications": "SMS通知",
+        "Webhook URL": "Webhook URL",
+        "Webhook payload": "Webhookペイロード",
+        "Outbound webhooks": "送信Webhook",
+        "Inbound webhooks": "受信Webhook",
+        "Test integration": "統合をテスト",
+        "Integration settings": "統合設定",
+        "No alerts": "アラートなし",
+        "Recent alerts": "最近のアラート",
+        "Alert timestamp": "アラートのタイムスタンプ",
+        "Alert status": "アラート状態",
+        "Alert count": "アラート数",
+        "Clear all alerts": "すべてのアラートをクリア",
+        "Mute notifications": "通知をミュート",
+        "Unmute notifications": "通知をミュート解除",
+        'Monitor alert activity and respond to incidents.': 'アラートを監視し、インシデントに対応します。',
+        'Loading alerts…': 'アラートを読み込み中…',
+        'The alert action failed.': 'アラート操作に失敗しました。',
+        'Resolve': '解決',
+        'Connecting…': '接続中…',
+        'Last updated': '最終更新',
+        'Current incidents and recent alert activity.': '現在のインシデントと最近のアラート活動。',
+        'Active alerts': 'アクティブなアラート',
+        'Live updates': '自動更新',
+        'No alerts found.': 'アラートが見つかりません。',
+        'This section will be implemented in a later step.': 'このセクションは後の段階で実装されます。',
+        'Alerts could not be loaded.': 'アラートを読み込めませんでした。',
+        'Acknowledge': '確認',
     },
     "pl": {
         "Standard LUMS": "Standard LUMS",
@@ -839,6 +1314,70 @@ _COMMON = {
         "Permanently delete this backup?": "Trwale usunąć tę kopię zapasową?",
         "This action cannot be undone.": "Tej operacji nie można cofnąć.",
         "Delete backup": "Usuń kopię zapasową",
+        "Alerts & Monitoring": "Alerty i monitorowanie",
+        "Alert overview": "Przegląd alertów",
+        "Alert history": "Historia alertów",
+        "Alert rules": "Reguły alertów",
+        "Notifications": "Powiadomienia",
+        "Integrations & Webhooks": "Integracje i webhooks",
+        "Critical": "Krytyczne",
+        "Warning": "Ostrzeżenie",
+        "Info": "Informacja",
+        "Create alert rule": "Utwórz regułę alertu",
+        "Edit alert rule": "Edytuj regułę alertu",
+        "Delete alert rule": "Usuń regułę alertu",
+        "Alert name": "Nazwa alertu",
+        "Alert description": "Opis alertu",
+        "Condition": "Warunek",
+        "Threshold": "Próg",
+        "Severity level": "Poziom ważności",
+        "Enabled": "Włączone",
+        "Disabled": "Wyłączone",
+        "Alert triggered": "Alert wyzwolony",
+        "Alert resolved": "Alert rozwiązany",
+        "Acknowledged": "Potwierdzony",
+        "Alert escalated": "Alert eskalowany",
+        "Escalation path": "Ścieżka eskalacji",
+        "Group similar alerts": "Grupuj podobne alerty",
+        "Deduplicate alerts": "Deduplikuj alerty",
+        'Configure alert rules and their thresholds.': 'Konfiguruj reguły alertów i ich progi.',
+        'Enable rule': 'Włącz regułę',
+        'Disable rule': 'Wyłącz regułę',
+        'Threshold must be valid JSON.': 'Próg musi być poprawnym dokumentem JSON.',
+        'No alert rules configured.': 'Nie skonfigurowano reguł alertów.',
+        'Escalation path must be a valid JSON array of non-empty strings.': 'Ścieżka eskalacji musi być prawidłową tablicą JSON zawierającą niepuste ciągi znaków.',
+        'The request failed. Please try again.': 'Żądanie nie powiodło się. Spróbuj ponownie.',
+        "Email notifications": "Powiadomienia e-mailowe",
+        "Slack integration": "Integracja Slack",
+        "PagerDuty integration": "Integracja PagerDuty",
+        "SMS notifications": "Powiadomienia SMS",
+        "Webhook URL": "URL webhooką",
+        "Webhook payload": "Ładunek webhooką",
+        "Outbound webhooks": "Wychodzące webhooki",
+        "Inbound webhooks": "Przychodzące webhooki",
+        "Test integration": "Testuj integrację",
+        "Integration settings": "Ustawienia integracji",
+        "No alerts": "Brak alertów",
+        "Recent alerts": "Ostatnie alerty",
+        "Alert timestamp": "Znacznik czasu alertu",
+        "Alert status": "Stan alertu",
+        "Alert count": "Liczba alertów",
+        "Clear all alerts": "Wyczyść wszystkie alerty",
+        "Mute notifications": "Wycisz powiadomienia",
+        "Unmute notifications": "Włącz powiadomienia",
+        'Monitor alert activity and respond to incidents.': 'Monitoruj alerty i reaguj na incydenty.',
+        'Loading alerts…': 'Ładowanie alertów…',
+        'The alert action failed.': 'Operacja alertu nie powiodła się.',
+        'Resolve': 'Rozwiąż',
+        'Connecting…': 'Łączenie…',
+        'Last updated': 'Ostatnia aktualizacja',
+        'Current incidents and recent alert activity.': 'Bieżące incydenty i ostatnia aktywność alertów.',
+        'Active alerts': 'Aktywne alerty',
+        'Live updates': 'Automatyczne odświeżanie',
+        'No alerts found.': 'Nie znaleziono alertów.',
+        'This section will be implemented in a later step.': 'Ta sekcja zostanie zaimplementowana później.',
+        'Alerts could not be loaded.': 'Nie udało się załadować alertów.',
+        'Acknowledge': 'Potwierdź',
     },
     "sv": {
         "Standard LUMS": "LUMS standard",
@@ -973,6 +1512,70 @@ _COMMON = {
         "Permanently delete this backup?": "Ta bort säkerhetskopian permanent?",
         "This action cannot be undone.": "Åtgärden kan inte ångras.",
         "Delete backup": "Ta bort säkerhetskopia",
+        "Alerts & Monitoring": "Aviseringar och övervakning",
+        "Alert overview": "Aviseringöversikt",
+        "Alert history": "Aviseringshistorik",
+        "Alert rules": "Avisieringsregler",
+        "Notifications": "Meddelanden",
+        "Integrations & Webhooks": "Integreringar och webhooks",
+        "Critical": "Kritisk",
+        "Warning": "Varning",
+        "Info": "Information",
+        "Create alert rule": "Skapa avisieringsregel",
+        "Edit alert rule": "Redigera avisieringsregel",
+        "Delete alert rule": "Ta bort avisieringsregel",
+        "Alert name": "Avisieringsnamn",
+        "Alert description": "Aviseringsbeskrivning",
+        "Condition": "Villkor",
+        "Threshold": "Tröskel",
+        "Severity level": "Allvarlighetsgrad",
+        "Enabled": "Aktiverad",
+        "Disabled": "Inaktiverad",
+        "Alert triggered": "Avisering utlöst",
+        "Alert resolved": "Avisering löst",
+        "Acknowledged": "Bekräftad",
+        "Alert escalated": "Avisering eskalerad",
+        "Escalation path": "Eskaleringsväg",
+        "Group similar alerts": "Gruppera liknande aviseringar",
+        "Deduplicate alerts": "Deduplicera aviseringar",
+        'Configure alert rules and their thresholds.': 'Konfigurera aviseringsregler och deras tröskelvärden.',
+        'Enable rule': 'Aktivera regel',
+        'Disable rule': 'Inaktivera regel',
+        'Threshold must be valid JSON.': 'Tröskelvärdet måste vara giltig JSON.',
+        'No alert rules configured.': 'Inga varningsregler har konfigurerats.',
+        'Escalation path must be a valid JSON array of non-empty strings.': 'Eskaleringsvägen måste vara en giltig JSON-array med icke-tomma strängar.',
+        'The request failed. Please try again.': 'Begäran misslyckades. Försök igen.',
+        "Email notifications": "E-postmeddelanden",
+        "Slack integration": "Slack-integration",
+        "PagerDuty integration": "PagerDuty-integration",
+        "SMS notifications": "SMS-meddelanden",
+        "Webhook URL": "Webhook-URL",
+        "Webhook payload": "Webhook-nyttolast",
+        "Outbound webhooks": "Utgående webhooks",
+        "Inbound webhooks": "Inkommande webhooks",
+        "Test integration": "Testa integration",
+        "Integration settings": "Integreringsinställningar",
+        "No alerts": "Inga aviseringar",
+        "Recent alerts": "Senaste aviseringar",
+        "Alert timestamp": "Aviserings tidsstämpel",
+        "Alert status": "Aviseringsstatus",
+        "Alert count": "Aviseringsantal",
+        "Clear all alerts": "Rensa alla aviseringar",
+        "Mute notifications": "Dölj meddelanden",
+        "Unmute notifications": "Visa meddelanden",
+        'Monitor alert activity and respond to incidents.': 'Övervaka aviseringar och hantera incidenter.',
+        'Loading alerts…': 'Läser in aviseringar…',
+        'The alert action failed.': 'Åtgärden för aviseringen misslyckades.',
+        'Resolve': 'Lös',
+        'Connecting…': 'Ansluter…',
+        'Last updated': 'Senast uppdaterad',
+        'Current incidents and recent alert activity.': 'Aktuella incidenter och senaste aviseringsaktivitet.',
+        'Active alerts': 'Aktiva aviseringar',
+        'Live updates': 'Automatisk uppdatering',
+        'No alerts found.': 'Inga aviseringar hittades.',
+        'This section will be implemented in a later step.': 'Det här avsnittet implementeras i ett senare steg.',
+        'Alerts could not be loaded.': 'Aviseringarna kunde inte läsas in.',
+        'Acknowledge': 'Bekräfta',
     },
     "nb": {
         "Standard LUMS": "LUMS standard",
@@ -1107,6 +1710,70 @@ _COMMON = {
         "Permanently delete this backup?": "Slette denne sikkerhetskopien permanent?",
         "This action cannot be undone.": "Denne handlingen kan ikke angres.",
         "Delete backup": "Slett sikkerhetskopi",
+        "Alerts & Monitoring": "Varsler og overvåking",
+        "Alert overview": "Varseloversikt",
+        "Alert history": "Varselhistorikk",
+        "Alert rules": "Varselregler",
+        "Notifications": "Varslinger",
+        "Integrations & Webhooks": "Integrasjoner og webhooks",
+        "Critical": "Kritisk",
+        "Warning": "Advarsel",
+        "Info": "Informasjon",
+        "Create alert rule": "Opprett varselregel",
+        "Edit alert rule": "Rediger varselregel",
+        "Delete alert rule": "Slett varselregel",
+        "Alert name": "Varselnavn",
+        "Alert description": "Varselbeskrivelse",
+        "Condition": "Betingelse",
+        "Threshold": "Terskel",
+        "Severity level": "Alvorlighetsgrad",
+        "Enabled": "Aktivert",
+        "Disabled": "Deaktivert",
+        "Alert triggered": "Varsel utløst",
+        "Alert resolved": "Varsel løst",
+        "Acknowledged": "Erkjent",
+        "Alert escalated": "Varsel eskalert",
+        "Escalation path": "Eskalasjonsti",
+        "Group similar alerts": "Grupper lignende varsler",
+        "Deduplicate alerts": "Dedupliser varsler",
+        'Configure alert rules and their thresholds.': 'Konfigurer varslingsregler og terskelverdiene deres.',
+        'Enable rule': 'Aktiver regel',
+        'Disable rule': 'Deaktiver regel',
+        'Threshold must be valid JSON.': 'Terskelverdien må være gyldig JSON.',
+        'No alert rules configured.': 'Ingen varslingsregel er konfigurert.',
+        'Escalation path must be a valid JSON array of non-empty strings.': 'Eskaleringsbanen må være en gyldig JSON-liste med ikke-tomme strenger.',
+        'The request failed. Please try again.': 'Forespørselen mislyktes. Prøv igjen.',
+        "Email notifications": "E-postvarsler",
+        "Slack integration": "Slack-integrasjon",
+        "PagerDuty integration": "PagerDuty-integrasjon",
+        "SMS notifications": "SMS-varsler",
+        "Webhook URL": "Webhook-URL",
+        "Webhook payload": "Webhook-last",
+        "Outbound webhooks": "Utgående webhooks",
+        "Inbound webhooks": "Innkommende webhooks",
+        "Test integration": "Test integrasjon",
+        "Integration settings": "Integrasjonsinnstillinger",
+        "No alerts": "Ingen varsler",
+        "Recent alerts": "Nylige varsler",
+        "Alert timestamp": "Varseltidsstempel",
+        "Alert status": "Varselstatus",
+        "Alert count": "Varselantall",
+        "Clear all alerts": "Fjern alle varsler",
+        "Mute notifications": "Demp varsler",
+        "Unmute notifications": "Aktivér varsler",
+        'Monitor alert activity and respond to incidents.': 'Overvåk varsler og håndter hendelser.',
+        'Loading alerts…': 'Laster inn varsler…',
+        'The alert action failed.': 'Varselhandlingen mislyktes.',
+        'Resolve': 'Løs',
+        'Connecting…': 'Kobler til…',
+        'Last updated': 'Sist oppdatert',
+        'Current incidents and recent alert activity.': 'Aktuelle hendelser og nylig varselaktivitet.',
+        'Active alerts': 'Aktive varsler',
+        'Live updates': 'Automatisk oppdatering',
+        'No alerts found.': 'Fant ingen varsler.',
+        'This section will be implemented in a later step.': 'Denne delen implementeres i et senere trinn.',
+        'Alerts could not be loaded.': 'Kunne ikke laste inn varsler.',
+        'Acknowledge': 'Bekreft',
     },
     "fi": {
         "Standard LUMS": "LUMS-vakio",
@@ -1241,6 +1908,70 @@ _COMMON = {
         "Permanently delete this backup?": "Poistetaanko tämä varmuuskopio pysyvästi?",
         "This action cannot be undone.": "Tätä toimintoa ei voi kumota.",
         "Delete backup": "Poista varmuuskopio",
+        "Alerts & Monitoring": "Hälytykset ja valvonta",
+        "Alert overview": "Hälytysten yleiskatsaus",
+        "Alert history": "Hälytysten historia",
+        "Alert rules": "Hälytysten säännöt",
+        "Notifications": "Ilmoitukset",
+        "Integrations & Webhooks": "Integroiminnot ja webhookit",
+        "Critical": "Kriittinen",
+        "Warning": "Varoitus",
+        "Info": "Tieto",
+        "Create alert rule": "Luo hälytysten sääntö",
+        "Edit alert rule": "Muokkaa hälytysten sääntöä",
+        "Delete alert rule": "Poista hälytysten sääntö",
+        "Alert name": "Hälytyksen nimi",
+        "Alert description": "Hälytyksen kuvaus",
+        "Condition": "Ehto",
+        "Threshold": "Kynnysarvo",
+        "Severity level": "Vakavuuden taso",
+        "Enabled": "Käytössä",
+        "Disabled": "Ei käytössä",
+        "Alert triggered": "Hälytys laukaissut",
+        "Alert resolved": "Hälytys ratkaissut",
+        "Acknowledged": "Vahvistettu",
+        "Alert escalated": "Hälytys eskaloitu",
+        "Escalation path": "Escalation-polku",
+        "Group similar alerts": "Ryhmitä samankaltaiset hälytykset",
+        "Deduplicate alerts": "Poista kaksoiskappaleet hälytyksistä",
+        'Configure alert rules and their thresholds.': 'Määritä hälytyssäännöt ja niiden kynnysarvot.',
+        'Enable rule': 'Ota sääntö käyttöön',
+        'Disable rule': 'Poista sääntö käytöstä',
+        'Threshold must be valid JSON.': 'Kynnysarvon on oltava kelvollista JSON-muotoa.',
+        'No alert rules configured.': 'Hälytyssääntöjä ei ole määritetty.',
+        'Escalation path must be a valid JSON array of non-empty strings.': 'Eskalointipolun on oltava kelvollinen JSON-taulukko, joka sisältää ei-tyhjiä merkkijonoja.',
+        'The request failed. Please try again.': 'Pyyntö epäonnistui. Yritä uudelleen.',
+        "Email notifications": "Sähköposti-ilmoitukset",
+        "Slack integration": "Slack-integrointi",
+        "PagerDuty integration": "PagerDuty-integrointi",
+        "SMS notifications": "SMS-ilmoitukset",
+        "Webhook URL": "Webhook-URL",
+        "Webhook payload": "Webhook-kuorma",
+        "Outbound webhooks": "Lähtevät webhookit",
+        "Inbound webhooks": "Saapuvat webhookit",
+        "Test integration": "Testaa integrointi",
+        "Integration settings": "Integrointiasetukset",
+        "No alerts": "Ei hälytyksiä",
+        "Recent alerts": "Viimeaikaiset hälytykset",
+        "Alert timestamp": "Hälytyksen aikaleima",
+        "Alert status": "Hälytyksen tila",
+        "Alert count": "Hälytysten määrä",
+        "Clear all alerts": "Poista kaikki hälytykset",
+        "Mute notifications": "Mykistä ilmoitukset",
+        "Unmute notifications": "Poista ilmoitusten mykistys",
+        'Monitor alert activity and respond to incidents.': 'Valvo hälytyksiä ja reagoi tapahtumiin.',
+        'Loading alerts…': 'Ladataan hälytyksiä…',
+        'The alert action failed.': 'Hälytystoiminto epäonnistui.',
+        'Resolve': 'Ratkaise',
+        'Connecting…': 'Yhdistetään…',
+        'Last updated': 'Viimeksi päivitetty',
+        'Current incidents and recent alert activity.': 'Nykyiset tapahtumat ja viimeaikainen hälytystoiminta.',
+        'Active alerts': 'Aktiiviset hälytykset',
+        'Live updates': 'Automaattinen päivitys',
+        'No alerts found.': 'Hälytyksiä ei löytynyt.',
+        'This section will be implemented in a later step.': 'Tämä osio toteutetaan myöhemmässä vaiheessa.',
+        'Alerts could not be loaded.': 'Hälytyksiä ei voitu ladata.',
+        'Acknowledge': 'Kuittaa',
     },
 }
 
@@ -1732,6 +2463,7 @@ _SURFACE_ADDITIONS = {
         "The selected role template is invalid.": "Die ausgewählte Rollen-Vorlage ist ungültig.",
         "The selection contains invalid permissions or is missing required base permissions.": "Die Auswahl enthält ungültige Rechte oder erforderliche Basisrechte fehlen.",
         "At least one active user must be allowed to manage users.": "Mindestens ein aktiver Benutzer muss Benutzer verwalten dürfen.",
+        "At least one active user must be allowed to manage permissions.": "Mindestens ein aktiver Benutzer muss Berechtigungen verwalten dürfen.",
         "Could not save permissions (HTTP {status}).": "Berechtigungen konnten nicht gespeichert werden (HTTP {status}).",
         'Permissions for "{username}" were saved.': 'Berechtigungen für "{username}" wurden gespeichert.',
         "Could not load users.": "Benutzer konnten nicht geladen werden.",
@@ -1780,6 +2512,7 @@ _SURFACE_ADDITIONS = {
         "The selected role template is invalid.": "Le modèle de rôle sélectionné est invalide.",
         "The selection contains invalid permissions or is missing required base permissions.": "La sélection contient des autorisations invalides ou ne comporte pas les autorisations de base requises.",
         "At least one active user must be allowed to manage users.": "Au moins un utilisateur actif doit être autorisé à gérer les utilisateurs.",
+        "At least one active user must be allowed to manage permissions.": "Au moins un utilisateur actif doit être autorisé à gérer les autorisations.",
         "Could not save permissions (HTTP {status}).": "Impossible d’enregistrer les autorisations (HTTP {status}).",
         'Permissions for "{username}" were saved.': 'Les autorisations de "{username}" ont été enregistrées.',
         "Could not load users.": "Impossible de charger les utilisateurs.",
@@ -1828,6 +2561,7 @@ _SURFACE_ADDITIONS = {
         "The selected role template is invalid.": "La plantilla de rol seleccionada no es válida.",
         "The selection contains invalid permissions or is missing required base permissions.": "La selección contiene permisos no válidos o faltan permisos básicos obligatorios.",
         "At least one active user must be allowed to manage users.": "Al menos un usuario activo debe poder administrar usuarios.",
+        "At least one active user must be allowed to manage permissions.": "Al menos un usuario activo debe poder administrar los permisos.",
         "Could not save permissions (HTTP {status}).": "No se pudieron guardar los permisos (HTTP {status}).",
         'Permissions for "{username}" were saved.': 'Se guardaron los permisos de "{username}".',
         "Could not load users.": "No se pudieron cargar los usuarios.",
@@ -1876,6 +2610,7 @@ _SURFACE_ADDITIONS = {
         "The selected role template is invalid.": "所选角色模板无效。",
         "The selection contains invalid permissions or is missing required base permissions.": "所选权限无效，或缺少必需的基础权限。",
         "At least one active user must be allowed to manage users.": "至少需要一名启用的用户拥有用户管理权限。",
+        "At least one active user must be allowed to manage permissions.": "至少需要一名启用的用户拥有权限管理权限。",
         "Could not save permissions (HTTP {status}).": "无法保存权限（HTTP {status}）。",
         'Permissions for "{username}" were saved.': "已保存“{username}”的权限。",
         "Could not load users.": "无法加载用户。",
@@ -1924,6 +2659,7 @@ _SURFACE_ADDITIONS = {
         "The selected role template is invalid.": "選択したロールテンプレートは無効です。",
         "The selection contains invalid permissions or is missing required base permissions.": "選択した権限が無効か、必須の基本権限が不足しています。",
         "At least one active user must be allowed to manage users.": "少なくとも 1 人の有効なユーザーにユーザー管理権限が必要です。",
+        "At least one active user must be allowed to manage permissions.": "少なくとも 1 人の有効なユーザーに権限管理権限が必要です。",
         "Could not save permissions (HTTP {status}).": "権限を保存できませんでした (HTTP {status})。",
         'Permissions for "{username}" were saved.': "{username} の権限を保存しました。",
         "Could not load users.": "ユーザーを読み込めませんでした。",
@@ -1972,6 +2708,7 @@ _SURFACE_ADDITIONS = {
         "The selected role template is invalid.": "Wybrany szablon roli jest nieprawidłowy.",
         "The selection contains invalid permissions or is missing required base permissions.": "Wybór zawiera nieprawidłowe uprawnienia lub brakuje wymaganych uprawnień podstawowych.",
         "At least one active user must be allowed to manage users.": "Co najmniej jeden aktywny użytkownik musi mieć uprawnienia do zarządzania użytkownikami.",
+        "At least one active user must be allowed to manage permissions.": "Co najmniej jeden aktywny użytkownik musi mieć uprawnienia do zarządzania uprawnieniami.",
         "Could not save permissions (HTTP {status}).": "Nie udało się zapisać uprawnień (HTTP {status}).",
         'Permissions for "{username}" were saved.': 'Zapisano uprawnienia użytkownika "{username}".',
         "Could not load users.": "Nie udało się wczytać użytkowników.",
@@ -2020,6 +2757,7 @@ _SURFACE_ADDITIONS = {
         "The selected role template is invalid.": "Den valda rollmallen är ogiltig.",
         "The selection contains invalid permissions or is missing required base permissions.": "Valet innehåller ogiltiga behörigheter eller saknar nödvändiga grundbehörigheter.",
         "At least one active user must be allowed to manage users.": "Minst en aktiv användare måste ha behörighet att hantera användare.",
+        "At least one active user must be allowed to manage permissions.": "Minst en aktiv användare måste ha behörighet att hantera behörigheter.",
         "Could not save permissions (HTTP {status}).": "Det gick inte att spara behörigheterna (HTTP {status}).",
         'Permissions for "{username}" were saved.': 'Behörigheterna för "{username}" har sparats.',
         "Could not load users.": "Det gick inte att läsa in användarna.",
@@ -2068,6 +2806,7 @@ _SURFACE_ADDITIONS = {
         "The selected role template is invalid.": "Den valgte rollemalen er ugyldig.",
         "The selection contains invalid permissions or is missing required base permissions.": "Valget inneholder ugyldige tillatelser eller mangler nødvendige grunntillatelser.",
         "At least one active user must be allowed to manage users.": "Minst én aktiv bruker må ha tillatelse til å administrere brukere.",
+        "At least one active user must be allowed to manage permissions.": "Minst én aktiv bruker må ha tillatelse til å administrere tillatelser.",
         "Could not save permissions (HTTP {status}).": "Kunne ikke lagre tillatelsene (HTTP {status}).",
         'Permissions for "{username}" were saved.': 'Tillatelsene for "{username}" ble lagret.',
         "Could not load users.": "Kunne ikke laste inn brukerne.",
@@ -2116,6 +2855,7 @@ _SURFACE_ADDITIONS = {
         "The selected role template is invalid.": "Valittu roolimalli ei kelpaa.",
         "The selection contains invalid permissions or is missing required base permissions.": "Valinta sisältää virheellisiä käyttöoikeuksia tai siitä puuttuu pakollisia perusoikeuksia.",
         "At least one active user must be allowed to manage users.": "Vähintään yhdellä aktiivisella käyttäjällä on oltava käyttäjien hallintaoikeus.",
+        "At least one active user must be allowed to manage permissions.": "Vähintään yhdellä aktiivisella käyttäjällä on oltava käyttöoikeuksien hallintaoikeus.",
         "Could not save permissions (HTTP {status}).": "Käyttöoikeuksia ei voitu tallentaa (HTTP {status}).",
         'Permissions for "{username}" were saved.': "Käyttäjän {username} käyttöoikeudet tallennettiin.",
         "Could not load users.": "Käyttäjien lataaminen epäonnistui.",
@@ -3074,6 +3814,12 @@ _USER_PROFILE_UI = {
         "Enter a function name.": "Saisissez un nom de fonction.",
         "Could not load functions.": "Impossible de charger les fonctions.",
         "That function already exists.": "Cette fonction existe déjà.",
+        "Could not create function (HTTP {status}).": "Impossible de créer la fonction (HTTP {status}).",
+        "Could not delete function (HTTP {status}).": "Impossible de supprimer la fonction (HTTP {status}).",
+        "Could not save profile (HTTP {status}).": "Impossible d’enregistrer le profil (HTTP {status}).",
+        "The selected function no longer exists.": "La fonction sélectionnée n’existe plus.",
+        "Select a function first.": "Sélectionnez d’abord une fonction.",
+        'Delete function "{name}"? Users assigned to it will have no function.': 'Supprimer la fonction « {name} » ? Les utilisateurs qui y sont affectés n’auront plus de fonction.',
         "Function created.": "Fonction créée.",
         "Function deleted.": "Fonction supprimée.",
         "Profile saved.": "Profil enregistré.",
@@ -3093,6 +3839,12 @@ _USER_PROFILE_UI = {
         "Enter a function name.": "Introduce un nombre de función.",
         "Could not load functions.": "No se pudieron cargar las funciones.",
         "That function already exists.": "Esa función ya existe.",
+        "Could not create function (HTTP {status}).": "No se pudo crear la función (HTTP {status}).",
+        "Could not delete function (HTTP {status}).": "No se pudo eliminar la función (HTTP {status}).",
+        "Could not save profile (HTTP {status}).": "No se pudo guardar el perfil (HTTP {status}).",
+        "The selected function no longer exists.": "La función seleccionada ya no existe.",
+        "Select a function first.": "Selecciona primero una función.",
+        'Delete function "{name}"? Users assigned to it will have no function.': '¿Eliminar la función «{name}»? Los usuarios asignados a ella se quedarán sin función.',
         "Function created.": "Función creada.",
         "Function deleted.": "Función eliminada.",
         "Profile saved.": "Perfil guardado.",
@@ -3112,6 +3864,12 @@ _USER_PROFILE_UI = {
         "Enter a function name.": "请输入职能名称。",
         "Could not load functions.": "无法加载职能。",
         "That function already exists.": "该职能已存在。",
+        "Could not create function (HTTP {status}).": "无法创建职能（HTTP {status}）。",
+        "Could not delete function (HTTP {status}).": "无法删除职能（HTTP {status}）。",
+        "Could not save profile (HTTP {status}).": "无法保存资料（HTTP {status}）。",
+        "The selected function no longer exists.": "所选职能已不存在。",
+        "Select a function first.": "请先选择一个职能。",
+        'Delete function "{name}"? Users assigned to it will have no function.': "要删除职能“{name}”吗？分配到该职能的用户将不再拥有职能。",
         "Function created.": "职能已创建。",
         "Function deleted.": "职能已删除。",
         "Profile saved.": "资料已保存。",
@@ -3131,6 +3889,12 @@ _USER_PROFILE_UI = {
         "Enter a function name.": "職務名を入力してください。",
         "Could not load functions.": "職務を読み込めませんでした。",
         "That function already exists.": "その職務は既に存在します。",
+        "Could not create function (HTTP {status}).": "職務を作成できませんでした（HTTP {status}）。",
+        "Could not delete function (HTTP {status}).": "職務を削除できませんでした（HTTP {status}）。",
+        "Could not save profile (HTTP {status}).": "プロフィールを保存できませんでした（HTTP {status}）。",
+        "The selected function no longer exists.": "選択した職務は存在しません。",
+        "Select a function first.": "先に職務を選択してください。",
+        'Delete function "{name}"? Users assigned to it will have no function.': "職務「{name}」を削除しますか？割り当てられているユーザーには職務がなくなります。",
         "Function created.": "職務を作成しました。",
         "Function deleted.": "職務を削除しました。",
         "Profile saved.": "プロフィールを保存しました。",
@@ -3150,6 +3914,12 @@ _USER_PROFILE_UI = {
         "Enter a function name.": "Wpisz nazwę funkcji.",
         "Could not load functions.": "Nie udało się wczytać funkcji.",
         "That function already exists.": "Ta funkcja już istnieje.",
+        "Could not create function (HTTP {status}).": "Nie udało się utworzyć funkcji (HTTP {status}).",
+        "Could not delete function (HTTP {status}).": "Nie udało się usunąć funkcji (HTTP {status}).",
+        "Could not save profile (HTTP {status}).": "Nie udało się zapisać profilu (HTTP {status}).",
+        "The selected function no longer exists.": "Wybrana funkcja już nie istnieje.",
+        "Select a function first.": "Najpierw wybierz funkcję.",
+        'Delete function "{name}"? Users assigned to it will have no function.': 'Usunąć funkcję „{name}”? Przypisani do niej użytkownicy nie będą mieć funkcji.',
         "Function created.": "Utworzono funkcję.",
         "Function deleted.": "Usunięto funkcję.",
         "Profile saved.": "Zapisano profil.",
@@ -3169,6 +3939,12 @@ _USER_PROFILE_UI = {
         "Enter a function name.": "Ange ett funktionsnamn.",
         "Could not load functions.": "Det gick inte att läsa in funktioner.",
         "That function already exists.": "Funktionen finns redan.",
+        "Could not create function (HTTP {status}).": "Det gick inte att skapa funktionen (HTTP {status}).",
+        "Could not delete function (HTTP {status}).": "Det gick inte att ta bort funktionen (HTTP {status}).",
+        "Could not save profile (HTTP {status}).": "Det gick inte att spara profilen (HTTP {status}).",
+        "The selected function no longer exists.": "Den valda funktionen finns inte längre.",
+        "Select a function first.": "Välj en funktion först.",
+        'Delete function "{name}"? Users assigned to it will have no function.': 'Ta bort funktionen ”{name}”? Användare som tilldelats den blir utan funktion.',
         "Function created.": "Funktionen har skapats.",
         "Function deleted.": "Funktionen har tagits bort.",
         "Profile saved.": "Profilen har sparats.",
@@ -3188,6 +3964,12 @@ _USER_PROFILE_UI = {
         "Enter a function name.": "Skriv inn et funksjonsnavn.",
         "Could not load functions.": "Kunne ikke laste funksjoner.",
         "That function already exists.": "Funksjonen finnes allerede.",
+        "Could not create function (HTTP {status}).": "Kunne ikke opprette funksjonen (HTTP {status}).",
+        "Could not delete function (HTTP {status}).": "Kunne ikke slette funksjonen (HTTP {status}).",
+        "Could not save profile (HTTP {status}).": "Kunne ikke lagre profilen (HTTP {status}).",
+        "The selected function no longer exists.": "Den valgte funksjonen finnes ikke lenger.",
+        "Select a function first.": "Velg en funksjon først.",
+        'Delete function "{name}"? Users assigned to it will have no function.': 'Slette funksjonen «{name}»? Brukere som er tilordnet den, vil ikke lenger ha en funksjon.',
         "Function created.": "Funksjonen er opprettet.",
         "Function deleted.": "Funksjonen er slettet.",
         "Profile saved.": "Profilen er lagret.",
@@ -3207,9 +3989,93 @@ _USER_PROFILE_UI = {
         "Enter a function name.": "Anna tehtävän nimi.",
         "Could not load functions.": "Tehtävien lataaminen epäonnistui.",
         "That function already exists.": "Tehtävä on jo olemassa.",
+        "Could not create function (HTTP {status}).": "Tehtävän luominen epäonnistui (HTTP {status}).",
+        "Could not delete function (HTTP {status}).": "Tehtävän poistaminen epäonnistui (HTTP {status}).",
+        "Could not save profile (HTTP {status}).": "Profiilin tallentaminen epäonnistui (HTTP {status}).",
+        "The selected function no longer exists.": "Valittua tehtävää ei enää ole.",
+        "Select a function first.": "Valitse ensin tehtävä.",
+        'Delete function "{name}"? Users assigned to it will have no function.': "Poistetaanko tehtävä ”{name}”? Siihen liitetyillä käyttäjillä ei sen jälkeen ole tehtävää.",
         "Function created.": "Tehtävä luotiin.",
         "Function deleted.": "Tehtävä poistettiin.",
         "Profile saved.": "Profiili tallennettiin.",
+    },
+}
+
+_PERMISSION_EDITOR_UI = {
+    "de": {
+        "Permissions for {username}": "Berechtigungen für {username}",
+        "Edit permissions for {username}": "Berechtigungen für {username} bearbeiten",
+    },
+    "fr": {
+        "Permissions for {username}": "Autorisations de {username}",
+        "Edit permissions for {username}": "Modifier les autorisations de {username}",
+    },
+    "es": {
+        "Permissions for {username}": "Permisos de {username}",
+        "Edit permissions for {username}": "Editar los permisos de {username}",
+    },
+    "zh-CN": {
+        "Permissions for {username}": "{username}的权限",
+        "Edit permissions for {username}": "编辑{username}的权限",
+    },
+    "ja": {
+        "Permissions for {username}": "{username}の権限",
+        "Edit permissions for {username}": "{username}の権限を編集",
+    },
+    "pl": {
+        "Permissions for {username}": "Uprawnienia użytkownika {username}",
+        "Edit permissions for {username}": "Edytuj uprawnienia użytkownika {username}",
+    },
+    "sv": {
+        "Permissions for {username}": "Behörigheter för {username}",
+        "Edit permissions for {username}": "Redigera behörigheter för {username}",
+    },
+    "nb": {
+        "Permissions for {username}": "Tilganger for {username}",
+        "Edit permissions for {username}": "Rediger tilganger for {username}",
+    },
+    "fi": {
+        "Permissions for {username}": "Käyttäjän {username} käyttöoikeudet",
+        "Edit permissions for {username}": "Muokkaa käyttäjän {username} käyttöoikeuksia",
+    },
+}
+
+_BACKUP_UI_TRANSLATIONS = {
+    "de": {
+        "Enter a relative subfolder without '..' or backslashes.": "Gib einen relativen Unterordner ohne '..' oder Backslashes ein.",
+        "SQLite (.db)": "SQLite-Datenbank (.db)",
+    },
+    "fr": {
+        "Enter a relative subfolder without '..' or backslashes.": "Saisissez un sous-dossier relatif sans « .. » ni barre oblique inverse.",
+        "SQLite (.db)": "Base de données SQLite (.db)",
+    },
+    "es": {
+        "Enter a relative subfolder without '..' or backslashes.": "Introduce una subcarpeta relativa sin «..» ni barras invertidas.",
+        "SQLite (.db)": "Base de datos SQLite (.db)",
+    },
+    "zh-CN": {
+        "Enter a relative subfolder without '..' or backslashes.": "请输入相对路径子文件夹，不能包含“..”或反斜杠。",
+        "SQLite (.db)": "SQLite 数据库 (.db)",
+    },
+    "ja": {
+        "Enter a relative subfolder without '..' or backslashes.": "「..」やバックスラッシュを含まない相対サブフォルダーを入力してください。",
+        "SQLite (.db)": "SQLite データベース (.db)",
+    },
+    "pl": {
+        "Enter a relative subfolder without '..' or backslashes.": "Wpisz względny podfolder bez „..” i ukośników odwrotnych.",
+        "SQLite (.db)": "Baza danych SQLite (.db)",
+    },
+    "sv": {
+        "Enter a relative subfolder without '..' or backslashes.": "Ange en relativ undermapp utan '..' eller omvänt snedstreck.",
+        "SQLite (.db)": "SQLite-databas (.db)",
+    },
+    "nb": {
+        "Enter a relative subfolder without '..' or backslashes.": "Angi en relativ undermappe uten '..' eller omvendte skråstreker.",
+        "SQLite (.db)": "SQLite-database (.db)",
+    },
+    "fi": {
+        "Enter a relative subfolder without '..' or backslashes.": "Anna suhteellinen alikansio ilman '..'-merkintää tai kenoviivoja.",
+        "SQLite (.db)": "SQLite-tietokanta (.db)",
     },
 }
 
@@ -3236,8 +4102,99 @@ def browser_language(accept_languages):
 
 _HEALTH_DASHBOARD_TRANSLATIONS = {
     'de': {
+        'Infrastructure topology': 'Infrastruktur-Topologie',
+        'See registered LUMS clients, infrastructure and their dependencies in one place.': 'Registrierte LUMS-Clients, Infrastruktur und Abhängigkeiten zentral im Blick.',
+        'Infrastructure map': 'Infrastrukturübersicht',
+        'LUMS clients are imported automatically. Other systems and links are maintained here.': 'LUMS-Clients werden automatisch übernommen. Weitere Systeme und Verbindungen werden hier gepflegt.',
+        'Loading infrastructure data…': 'Infrastrukturdaten werden geladen …',
+        'Topology summary': 'Topologie-Übersicht',
+        'Registered clients': 'Registrierte Clients',
+        'Infrastructure items': 'Infrastrukturelemente',
+        'Relationships': 'Verbindungen',
+        'Shared dependencies': 'Gemeinsam genutzte Abhängigkeiten',
+        'Registered clients and manually managed infrastructure connected by their relationships.': 'Registrierte Clients und manuell verwaltete Infrastruktur mit ihren Verbindungen.',
+        'LUMS client': 'LUMS-Client',
+        'Managed item': 'Verwaltetes Element',
+        'Relationship': 'Verbindung',
+        'Shared dependency': 'Zentrale Abhängigkeit',
+        'Inventory': 'Inventar',
+        'Hostname, IP address, role and location for each system.': 'Hostname, IP-Adresse, Rolle und Standort jedes Systems.',
+        'Add infrastructure item': 'Infrastrukturelement hinzufügen',
+        'Name': 'Name',
+        'Type': 'Typ',
+        'Server': 'Server',
+        'Virtual machine': 'Virtuelle Maschine',
+        'Container': 'Container',
+        'Network device': 'Netzwerkgerät',
+        'Service': 'Dienst',
+        'Storage': 'Speicher',
+        'Hostname': 'Hostname',
+        'IP address': 'IP-Adresse',
+        'Role': 'Rolle',
+        'Location': 'Standort',
+        'Notes': 'Notizen',
+        'Add item': 'Element hinzufügen',
+        'Cancel': 'Abbrechen',
+        'Hostname / IP address': 'Hostname / IP-Adresse',
+        'Role / location': 'Rolle / Standort',
+        'Source': 'Quelle',
+        'Automatically imported': 'Automatisch übernommen',
+        'Manually managed': 'Manuell verwaltet',
+        'Actions': 'Aktionen',
+        'Edit': 'Bearbeiten',
+        'Delete': 'Löschen',
+        'Relationships and dependencies': 'Verbindungen und Abhängigkeiten',
+        'Record what depends on, hosts, connects to or runs on another system.': 'Dokumentiere Abhängigkeiten, bereitgestellte Systeme, Netzwerkverbindungen und Laufzeitzuordnungen.',
+        'From': 'Von',
+        'To': 'Zu',
+        'Depends on': 'Benötigt',
+        'Hosts': 'Beherbergt',
+        'Connects to': 'Verbindet mit',
+        'Runs on': 'Läuft auf',
+        'Details': 'Details',
+        'Add relationship': 'Verbindung hinzufügen',
+        'Infrastructure data could not be loaded.': 'Infrastrukturdaten konnten nicht geladen werden.',
+        'The change could not be saved.': 'Die Änderung konnte nicht gespeichert werden.',
+        'Infrastructure data updated.': 'Infrastrukturdaten aktualisiert.',
+        'No infrastructure items are registered yet.': 'Es sind noch keine Infrastrukturelemente erfasst.',
+        'No relationships have been recorded yet.': 'Es sind noch keine Verbindungen erfasst.',
+        'Online': 'Online',
+        'Offline': 'Offline',
+        'Unknown': 'Unbekannt',
+        'Disabled': 'Deaktiviert',
+        'Client': 'Client',
+        'Delete this infrastructure item and its relationships?': 'Dieses Infrastrukturelement und alle zugehörigen Verbindungen löschen?',
+        'Delete this relationship?': 'Diese Verbindung löschen?',
+        'Save changes': 'Änderungen speichern',
+        'This relationship already exists.': 'Diese Verbindung ist bereits vorhanden.',
+        'Enter a valid IPv4 or IPv6 address.': 'Gib eine gültige IPv4- oder IPv6-Adresse ein.',
+        'Add systems and relationships to build the topology.': 'Füge Systeme und Verbindungen hinzu, um die Topologie aufzubauen.',
+        'Request failed (HTTP {status}).': 'Anfrage fehlgeschlagen (HTTP {status}).',
         'Health': 'Systemstatus',
         'Health Dashboard': 'Systemstatus-Dashboard',
+        'Open live monitoring': 'Live-Monitoring öffnen',
+        'Live monitoring': 'Live-Monitoring',
+        'Live host metrics, network interfaces and service states for the selected client.': 'Live-Systemwerte, Netzwerkschnittstellen und Dienststatus des ausgewählten Clients.',
+        'Customize navigation': 'Navigation anpassen',
+        'Finish navigation editing': 'Bearbeitung beenden',
+        'Save navigation': 'Navigation speichern',
+        'Restore default navigation': 'Standardnavigation wiederherstellen',
+        'Navigation sections': 'Navigationsbereiche',
+        'Move section up': 'Bereich nach oben verschieben',
+        'Move section down': 'Bereich nach unten verschieben',
+        'Show section': 'Bereich anzeigen',
+        'Hide section': 'Bereich ausblenden',
+        'Navigation preferences saved.': 'Navigationseinstellungen gespeichert.',
+        'Navigation preferences could not be saved.': 'Navigationseinstellungen konnten nicht gespeichert werden.',
+        'No telemetry samples have been received from this client yet.': 'Von diesem Client wurden noch keine Telemetriedaten empfangen.',
+        'The standard client agent may be online, but the separate telemetry service is not reporting.': 'Der normale Client-Agent kann online sein, während der separate Telemetriedienst keine Daten sendet.',
+        'Basic telemetry is arriving, but this client is not sending detailed system snapshots.': 'Einfache Telemetriedaten kommen an, aber dieser Client sendet keine detaillierten Systemdaten.',
+        'Update the telemetry agent on the Debian client; the detailed snapshot feature may be missing from its installed copy.': 'Aktualisiere den Telemetrie-Agenten auf dem Debian-Client; möglicherweise fehlt in der installierten Version die Erfassung detaillierter Systemdaten.',
+        'The last detailed system snapshot is older than two minutes. Check the telemetry timer and its latest service log.': 'Der letzte detaillierte Systemstatus ist älter als zwei Minuten. Prüfe den Telemetrie-Timer und das aktuelle Dienstprotokoll.',
+        'On the Debian client, run these checks without displaying its token:': 'Führe diese Prüfungen auf dem Debian-Client aus, ohne das Token anzuzeigen:',
+        'To install or update the collector, run this from the LUMS repository checkout on that client:': 'Installiere oder aktualisiere den Collector aus dem LUMS-Repository auf dem Client:',
+        'Confirm that /etc/default/lums-agent contains LUMS_BASE and LUMS_TOKEN. Do not paste or share the token.': 'Prüfe, ob /etc/default/lums-agent LUMS_BASE und LUMS_TOKEN enthält. Füge das Token nicht in Nachrichten ein und teile es nicht.',
+        'Details follow the selected client and refresh every five seconds.': 'Die Details folgen dem ausgewählten Client und werden alle fünf Sekunden aktualisiert.',
         'Current service, client and backup-storage status.': 'Aktueller Status von Dienst, Clients und Backup-Speicher.',
         'Database': 'Datenbank',
         'Managed clients': 'Verwaltete Clients',
@@ -3285,6 +4242,126 @@ _HEALTH_DASHBOARD_TRANSLATIONS = {
         'Last 7 days': 'Letzte 7 Tage',
         'CPU utilization': 'CPU-Auslastung',
         'Memory utilization': 'RAM-Auslastung',
+        'Disk utilization': 'Speicherauslastung',
+        'Live system, network and service monitoring for the LUMS host and managed clients.': 'Live-Überwachung von System, Netzwerk und Diensten für den LUMS-Host und alle verwalteten Clients.',
+        'Live system monitoring': 'Live-Systemmonitoring',
+        'Details follow the client selected above and refresh every five seconds.': 'Die Details folgen dem oben ausgewählten Client und werden alle fünf Sekunden aktualisiert.',
+        'Waiting for system telemetry.': 'Warte auf Systemtelemetrie.',
+        'No detailed system data is available for this client.': 'Für diesen Client sind keine detaillierten Systemdaten verfügbar.',
+        'System data is stale. Check whether the telemetry agent is running.': 'Systemdaten sind veraltet. Prüfe, ob der Telemetrie-Agent läuft.',
+        'System overview': 'Systemübersicht',
+        'Load average': 'Load Average',
+        'Disk usage': 'Festplattenbelegung',
+        'Uptime': 'Betriebszeit',
+        'Temperatures': 'Temperaturen',
+        'Fan speeds': 'Lüfterdrehzahlen',
+        'No sensors detected.': 'Keine Sensoren erkannt.',
+        'Network dashboard': 'Netzwerk-Dashboard',
+        'Network interfaces': 'Netzwerkschnittstellen',
+        'Interface': 'Schnittstelle',
+        'Link status': 'Verbindungsstatus',
+        'Receive': 'Empfangen',
+        'Send': 'Senden',
+        'Errors / dropped': 'Fehler / verworfen',
+        'Connectivity': 'Erreichbarkeit',
+        'DNS': 'DNS',
+        'Gateway': 'Gateway',
+        'Internet': 'Internet',
+        'Reachable': 'Erreichbar',
+        'Unreachable': 'Nicht erreichbar',
+        'Up': 'Verbunden',
+        'Down': 'Getrennt',
+        'Inactive': 'Inaktiv',
+        'Services and containers': 'Dienste und Container',
+        'Services': 'Dienste',
+        'Containers': 'Container',
+        'Runtime': 'Laufzeitumgebung',
+        'Name': 'Name',
+        'State': 'Status',
+        'Not available on this system.': 'Auf diesem System nicht verfügbar.',
+        'No items reported.': 'Keine Einträge gemeldet.',
+        'Failed': 'Fehlgeschlagen',
+        'Last successful backup run:': 'Letzter erfolgreicher Backup-Lauf:',
+        'No successful backup run is recorded.': 'Es ist kein erfolgreicher Backup-Lauf protokolliert.',
+        'Selected services': 'Ausgewählte Dienste',
+        'Restarts': 'Neustarts',
+        'Security and events': 'Sicherheit und Ereignisse',
+        'Failed SSH logins (24 h, max 500 records)': 'Fehlgeschlagene SSH-Anmeldungen (24 Std., max. 500 Einträge)',
+        'Journal errors (1 h, max 500 records)': 'Journalfehler (1 Std., max. 500 Einträge)',
+        'Journal warnings (1 h, max 500 records)': 'Journalwarnungen (1 Std., max. 500 Einträge)',
+        'Last failed SSH login': 'Letzter fehlgeschlagener SSH-Anmeldeversuch',
+        'Recent login history': 'Letzte Anmeldehistorie',
+        'Recent reboot history': 'Letzte Neustarthistorie',
+        'Time': 'Zeitpunkt',
+        'Event': 'Ereignis',
+        'Login': 'Anmeldung',
+        'Logout': 'Abmeldung',
+        'Boot started': 'Systemstart',
+        'Last journal entry': 'Letzter Journaleintrag',
+        'Customize dashboard': 'Dashboard anpassen',
+        'Finish customization': 'Anpassung beenden',
+        'Save layout': 'Anordnung speichern',
+        'Restore default layout': 'Standardanordnung wiederherstellen',
+        'Hide section': 'Bereich ausblenden',
+        'Show section': 'Bereich anzeigen',
+        'Move section up': 'Bereich nach oben verschieben',
+        'Move section down': 'Bereich nach unten verschieben',
+        'Drag to reorder': 'Zum Sortieren ziehen',
+        'Section width': 'Bereichsbreite',
+        'Visible sections': 'Sichtbare Bereiche',
+        'Alert thresholds (%)': 'Warnschwellen (%)',
+        'CPU': 'CPU',
+        'RAM': 'RAM',
+        'Disk': 'Speicher',
+        'Optional integrations': 'Optionale Integrationen',
+        'Wazuh': 'Wazuh',
+        'Suricata': 'Suricata',
+        'To enable status reporting, add the installed service unit to LUMS_MONITORED_SERVICES on the telemetry agent.': 'Füge zum Melden des Status die installierte Dienste-Unit bei LUMS_MONITORED_SERVICES im Telemetrie-Agenten hinzu.',
+        'One third': 'Ein Drittel',
+        'Half': 'Hälfte',
+        'Two thirds': 'Zwei Drittel',
+        'Full width': 'Volle Breite',
+        'Export history CSV': 'Verlauf als CSV exportieren',
+        'Export history JSON': 'Verlauf als JSON exportieren',
+        'Export events CSV': 'Ereignisse als CSV exportieren',
+        'Export events JSON': 'Ereignisse als JSON exportieren',
+        'Alert and outage history': 'Warnungs- und Ausfallverlauf',
+        'Threshold crossings and telemetry interruptions for the selected client and period.': 'Schwellenüberschreitungen und Telemetrieunterbrechungen für den ausgewählten Client und Zeitraum.',
+        'No alerts or outages in this period.': 'Keine Warnungen oder Ausfälle in diesem Zeitraum.',
+        'Metric': 'Messgröße',
+        'Value': 'Wert',
+        'Threshold': 'Schwelle',
+        'CPU threshold exceeded': 'CPU-Schwelle überschritten',
+        'CPU returned below threshold': 'CPU wieder unter der Schwelle',
+        'RAM threshold exceeded': 'RAM-Schwelle überschritten',
+        'RAM returned below threshold': 'RAM wieder unter der Schwelle',
+        'Disk threshold exceeded': 'Speicherschwelle überschritten',
+        'Disk returned below threshold': 'Speicher wieder unter der Schwelle',
+        'Telemetry interrupted': 'Telemetrie unterbrochen',
+        'Telemetry resumed': 'Telemetrie wieder verfügbar',
+        'Not monitored on this client': 'Auf diesem Client nicht überwacht',
+        'Dashboard preferences could not be loaded.': 'Dashboard-Einstellungen konnten nicht geladen werden.',
+        'Dashboard preferences could not be saved.': 'Dashboard-Einstellungen konnten nicht gespeichert werden.',
+        'Dashboard preferences saved.': 'Dashboard-Einstellungen gespeichert.',
+        'Failed SSH login': 'Fehlgeschlagene SSH-Anmeldung',
+        'Service failure': 'Dienstausfall',
+        'Service recovered': 'Dienst wiederhergestellt',
+        'SSH': 'SSH',
+        'Service': 'Dienst',
+        'High resource usage': 'Hohe Ressourcenauslastung',
+        'CPU or RAM utilization is at least 90%.': 'CPU- oder RAM-Auslastung beträgt mindestens 90 %.',
+        'No high resource usage detected.': 'Keine hohe Ressourcenauslastung erkannt.',
+        'Container up': 'Läuft',
+        'Container stopped': 'Gestoppt',
+        'Container unhealthy': 'Fehlerhaft',
+        'Container state unknown': 'Unbekannter Status',
+        'Journal access is unavailable. Grant the telemetry service read access to the system journal to enable event summaries.': 'Kein Journalzugriff. Gewähre dem Telemetrie-Dienst Lesezugriff auf das Systemjournal, um Ereigniszusammenfassungen zu aktivieren.',
+        'SSH event data is unavailable.': 'SSH-Ereignisdaten sind nicht verfügbar.',
+        'Login history is unavailable.': 'Die Anmeldehistorie ist nicht verfügbar.',
+        'Reboot history is unavailable.': 'Die Neustarthistorie ist nicht verfügbar.',
+        'Update the telemetry agent to enable security and event summaries.': 'Aktualisiere den Telemetrie-Agenten, um Sicherheits- und Ereigniszusammenfassungen zu aktivieren.',
+        'No login events reported.': 'Keine Anmeldeereignisse gemeldet.',
+        'No reboot history reported.': 'Keine Neustarthistorie gemeldet.',
         'Loading telemetry…': 'Telemetrie wird geladen …',
         'No enabled clients found.': 'Keine aktivierten Clients gefunden.',
         'No telemetry samples available yet.': 'Noch keine Telemetriedaten verfügbar.',
@@ -3574,6 +4651,1287 @@ _HEALTH_DASHBOARD_TRANSLATIONS = {
 }
 
 
+
+# Dynamic topology and telemetry translations
+_DYNAMIC_TOPOLOGY_TELEMETRY_TRANSLATIONS = {
+    'de': {
+        'Loading infrastructure data…': 'Infrastrukturdaten werden geladen …',
+        'Infrastructure data could not be loaded.': 'Infrastrukturdaten konnten nicht geladen werden.',
+        'The change could not be saved.': 'Die Änderung konnte nicht gespeichert werden.',
+        'Infrastructure data updated.': 'Infrastrukturdaten aktualisiert.',
+        'No infrastructure items are registered yet.': 'Es sind noch keine Infrastrukturelemente erfasst.',
+        'No relationships have been recorded yet.': 'Es sind noch keine Verbindungen erfasst.',
+        'LUMS client': 'LUMS-Client',
+        'Managed item': 'Verwaltetes Element',
+        'Online': 'Online',
+        'Offline': 'Offline',
+        'Unknown': 'Unbekannt',
+        'Disabled': 'Deaktiviert',
+        'Client': 'Client',
+        'Automatically imported': 'Automatisch übernommen',
+        'Manually managed': 'Manuell verwaltet',
+        'Name': 'Name',
+        'Type': 'Typ',
+        'Hostname': 'Hostname',
+        'IP address': 'IP-Adresse',
+        'Role': 'Rolle',
+        'Location': 'Standort',
+        'Actions': 'Aktionen',
+        'Edit': 'Bearbeiten',
+        'Delete': 'Löschen',
+        'Delete this infrastructure item and its relationships?': 'Dieses Infrastrukturelement und alle zugehörigen Verbindungen löschen?',
+        'Delete this relationship?': 'Diese Verbindung löschen?',
+        'Add infrastructure item': 'Infrastrukturelement hinzufügen',
+        'Save changes': 'Änderungen speichern',
+        'Add item': 'Element hinzufügen',
+        'Cancel': 'Abbrechen',
+        'Add relationship': 'Verbindung hinzufügen',
+        'This relationship already exists.': 'Diese Verbindung ist bereits vorhanden.',
+        'Enter a valid IPv4 or IPv6 address.': 'Gib eine gültige IPv4- oder IPv6-Adresse ein.',
+        'Network device': 'Netzwerkgerät',
+        'Server': 'Server',
+        'Virtual machine': 'Virtuelle Maschine',
+        'Container': 'Container',
+        'Service': 'Dienst',
+        'Storage': 'Speicher',
+        'Depends on': 'Benötigt',
+        'Hosts': 'Beherbergt',
+        'Connects to': 'Verbindet mit',
+        'Runs on': 'Läuft auf',
+        'Shared dependency': 'Zentrale Abhängigkeit',
+        'Add systems and relationships to build the topology.': 'Füge Systeme und Verbindungen hinzu, um die Topologie aufzubauen.',
+        'Request failed (HTTP {status}).': 'Anfrage fehlgeschlagen (HTTP {status}).',
+        'No alerts or outages in this period.': 'Keine Warnungen oder Ausfälle in diesem Zeitraum.',
+        'CPU threshold exceeded': 'CPU-Schwelle überschritten',
+        'CPU returned below threshold': 'CPU wieder unter der Schwelle',
+        'RAM threshold exceeded': 'RAM-Schwelle überschritten',
+        'RAM returned below threshold': 'RAM wieder unter der Schwelle',
+        'Disk threshold exceeded': 'Speicherschwelle überschritten',
+        'Disk returned below the threshold': 'Speicher wieder unter der Schwelle',
+        'Telemetry interrupted': 'Telemetrie unterbrochen',
+        'Telemetry resumed': 'Telemetrie wieder verfügbar',
+        'Failed SSH login': 'Fehlgeschlagene SSH-Anmeldung',
+        'Service failure': 'Dienstausfall',
+        'Service recovered': 'Dienst wiederhergestellt',
+        'Not monitored on this client': 'Auf diesem Client nicht überwacht',
+        'Active': 'Aktiv',
+        'Inactive': 'Inaktiv',
+        'SSH': 'SSH',
+    },
+    'fr': {
+        'Loading infrastructure data…': 'Chargement des données d’infrastructure…',
+        'Infrastructure data could not be loaded.': 'Impossible de charger les données d’infrastructure.',
+        'The change could not be saved.': 'Impossible d’enregistrer la modification.',
+        'Infrastructure data updated.': 'Données d’infrastructure mises à jour.',
+        'No infrastructure items are registered yet.': 'Aucun élément d’infrastructure n’est encore enregistré.',
+        'No relationships have been recorded yet.': 'Aucune relation n’a encore été enregistrée.',
+        'LUMS client': 'Client LUMS',
+        'Managed item': 'Élément géré',
+        'Online': 'En ligne',
+        'Offline': 'Hors ligne',
+        'Unknown': 'Inconnu',
+        'Disabled': 'Désactivé',
+        'Client': 'Client',
+        'Automatically imported': 'Importé automatiquement',
+        'Manually managed': 'Géré manuellement',
+        'Name': 'Nom',
+        'Type': 'Type',
+        'Hostname': 'Nom d’hôte',
+        'IP address': 'Adresse IP',
+        'Role': 'Rôle',
+        'Location': 'Emplacement',
+        'Actions': 'Actions',
+        'Edit': 'Modifier',
+        'Delete': 'Supprimer',
+        'Delete this infrastructure item and its relationships?': 'Supprimer cet élément d’infrastructure et ses relations ?',
+        'Delete this relationship?': 'Supprimer cette relation ?',
+        'Add infrastructure item': 'Ajouter un élément d’infrastructure',
+        'Save changes': 'Enregistrer les modifications',
+        'Add item': 'Ajouter un élément',
+        'Cancel': 'Annuler',
+        'Add relationship': 'Ajouter une relation',
+        'This relationship already exists.': 'Cette relation existe déjà.',
+        'Enter a valid IPv4 or IPv6 address.': 'Saisissez une adresse IPv4 ou IPv6 valide.',
+        'Network device': 'Équipement réseau',
+        'Server': 'Serveur',
+        'Virtual machine': 'Machine virtuelle',
+        'Container': 'Conteneur',
+        'Service': 'Service informatique',
+        'Storage': 'Stockage',
+        'Depends on': 'Dépend de',
+        'Hosts': 'Héberge',
+        'Connects to': 'Se connecte à',
+        'Runs on': 'Fonctionne sur',
+        'Shared dependency': 'Dépendance partagée',
+        'Add systems and relationships to build the topology.': 'Ajoutez des systèmes et des relations pour construire la topologie.',
+        'Request failed (HTTP {status}).': 'Échec de la requête (HTTP {status}).',
+        'No alerts or outages in this period.': 'Aucune alerte ni panne pendant cette période.',
+        'CPU threshold exceeded': 'Seuil CPU dépassé',
+        'CPU returned below threshold': 'Le CPU est repassé sous le seuil',
+        'RAM threshold exceeded': 'Seuil RAM dépassé',
+        'RAM returned below threshold': 'La RAM est repassée sous le seuil',
+        'Disk threshold exceeded': 'Seuil du disque dépassé',
+        'Disk returned below the threshold': 'Le disque est repassé sous le seuil',
+        'Telemetry interrupted': 'Télémétrie interrompue',
+        'Telemetry resumed': 'Télémétrie rétablie',
+        'Failed SSH login': 'Échec de connexion SSH',
+        'Service failure': 'Défaillance du service',
+        'Service recovered': 'Service rétabli',
+        'Not monitored on this client': 'Non surveillé sur ce client',
+        'Active': 'Actif',
+        'Inactive': 'Inactif',
+        'SSH': 'SSH',
+        'Infrastructure topology': 'Topologie de l’infrastructure',
+        'See registered LUMS clients, infrastructure and their dependencies in one place.': 'Consultez au même endroit les clients LUMS enregistrés, l’infrastructure et leurs dépendances.',
+        'Infrastructure map': 'Carte de l’infrastructure',
+        'LUMS clients are imported automatically. Other systems and links are maintained here.': 'Les clients LUMS sont importés automatiquement. Les autres systèmes et leurs liens sont gérés ici.',
+        'Topology summary': 'Résumé de la topologie',
+        'Registered clients': 'Clients enregistrés',
+        'Infrastructure items': 'Éléments d’infrastructure',
+        'Relationships': 'Relations',
+        'Shared dependencies': 'Dépendances communes',
+        'Registered clients and manually managed infrastructure connected by their relationships.': 'Clients enregistrés et infrastructure gérée manuellement, reliés par leurs relations.',
+        'Relationship': 'Relation',
+        'Inventory': 'Inventaire',
+        'Hostname, IP address, role and location for each system.': 'Nom d’hôte, adresse IP, rôle et emplacement de chaque système.',
+        'Notes': 'Remarques',
+        'Hostname / IP address': 'Nom d’hôte / adresse IP',
+        'Role / location': 'Rôle / emplacement',
+        'Source': 'Origine',
+        'Relationships and dependencies': 'Relations et dépendances',
+        'Record what depends on, hosts, connects to or runs on another system.': 'Indiquez les dépendances, les systèmes hébergés, les connexions et les systèmes d’exécution.',
+        'From': 'De',
+        'To': 'Vers',
+    },
+    'es': {
+        'Loading infrastructure data…': 'Cargando datos de infraestructura…',
+        'Infrastructure data could not be loaded.': 'No se pudieron cargar los datos de infraestructura.',
+        'The change could not be saved.': 'No se pudo guardar el cambio.',
+        'Infrastructure data updated.': 'Datos de infraestructura actualizados.',
+        'No infrastructure items are registered yet.': 'Todavía no hay elementos de infraestructura registrados.',
+        'No relationships have been recorded yet.': 'Todavía no se han registrado relaciones.',
+        'LUMS client': 'Cliente LUMS',
+        'Managed item': 'Elemento administrado',
+        'Online': 'En línea',
+        'Offline': 'Desconectado',
+        'Unknown': 'Desconocido',
+        'Disabled': 'Deshabilitado',
+        'Client': 'Cliente',
+        'Automatically imported': 'Importado automáticamente',
+        'Manually managed': 'Administrado manualmente',
+        'Name': 'Nombre',
+        'Type': 'Tipo',
+        'Hostname': 'Nombre de host',
+        'IP address': 'Dirección IP',
+        'Role': 'Rol',
+        'Location': 'Ubicación',
+        'Actions': 'Acciones',
+        'Edit': 'Editar',
+        'Delete': 'Eliminar',
+        'Delete this infrastructure item and its relationships?': '¿Eliminar este elemento de infraestructura y sus relaciones?',
+        'Delete this relationship?': '¿Eliminar esta relación?',
+        'Add infrastructure item': 'Añadir elemento de infraestructura',
+        'Save changes': 'Guardar cambios',
+        'Add item': 'Añadir elemento',
+        'Cancel': 'Cancelar',
+        'Add relationship': 'Añadir relación',
+        'This relationship already exists.': 'Esta relación ya existe.',
+        'Enter a valid IPv4 or IPv6 address.': 'Introduce una dirección IPv4 o IPv6 válida.',
+        'Network device': 'Dispositivo de red',
+        'Server': 'Servidor',
+        'Virtual machine': 'Máquina virtual',
+        'Container': 'Contenedor',
+        'Service': 'Servicio',
+        'Storage': 'Almacenamiento',
+        'Depends on': 'Depende de',
+        'Hosts': 'Aloja',
+        'Connects to': 'Se conecta a',
+        'Runs on': 'Se ejecuta en',
+        'Shared dependency': 'Dependencia compartida',
+        'Add systems and relationships to build the topology.': 'Añade sistemas y relaciones para crear la topología.',
+        'Request failed (HTTP {status}).': 'La solicitud falló (HTTP {status}).',
+        'No alerts or outages in this period.': 'No hay alertas ni interrupciones durante este período.',
+        'CPU threshold exceeded': 'Se superó el umbral de CPU',
+        'CPU returned below threshold': 'La CPU volvió a estar por debajo del umbral',
+        'RAM threshold exceeded': 'Se superó el umbral de RAM',
+        'RAM returned below threshold': 'La RAM volvió a estar por debajo del umbral',
+        'Disk threshold exceeded': 'Se superó el umbral del disco',
+        'Disk returned below the threshold': 'El disco volvió a estar por debajo del umbral',
+        'Telemetry interrupted': 'Telemetría interrumpida',
+        'Telemetry resumed': 'Telemetría reanudada',
+        'Failed SSH login': 'Error de inicio de sesión SSH',
+        'Service failure': 'Fallo del servicio',
+        'Service recovered': 'Servicio recuperado',
+        'Not monitored on this client': 'No supervisado en este cliente',
+        'Active': 'Activo',
+        'Inactive': 'Inactivo',
+        'SSH': 'SSH',
+        'Infrastructure topology': 'Topología de la infraestructura',
+        'See registered LUMS clients, infrastructure and their dependencies in one place.': 'Consulta en un solo lugar los clientes LUMS registrados, la infraestructura y sus dependencias.',
+        'Infrastructure map': 'Mapa de infraestructura',
+        'LUMS clients are imported automatically. Other systems and links are maintained here.': 'Los clientes LUMS se importan automáticamente. Aquí se gestionan los demás sistemas y sus conexiones.',
+        'Topology summary': 'Resumen de la topología',
+        'Registered clients': 'Clientes registrados',
+        'Infrastructure items': 'Elementos de infraestructura',
+        'Relationships': 'Relaciones',
+        'Shared dependencies': 'Dependencias compartidas',
+        'Registered clients and manually managed infrastructure connected by their relationships.': 'Clientes registrados e infraestructura gestionada manualmente, conectados mediante sus relaciones.',
+        'Relationship': 'Relación',
+        'Inventory': 'Inventario',
+        'Hostname, IP address, role and location for each system.': 'Nombre de host, dirección IP, función y ubicación de cada sistema.',
+        'Notes': 'Notas',
+        'Hostname / IP address': 'Nombre de host / dirección IP',
+        'Role / location': 'Función / ubicación',
+        'Source': 'Origen',
+        'Relationships and dependencies': 'Relaciones y dependencias',
+        'Record what depends on, hosts, connects to or runs on another system.': 'Registra las dependencias, los sistemas alojados, las conexiones y dónde se ejecuta cada sistema.',
+        'From': 'Desde',
+        'To': 'Hasta',
+    },
+    'zh-CN': {
+        'Loading infrastructure data…': '正在加载基础设施数据…',
+        'Infrastructure data could not be loaded.': '无法加载基础设施数据。',
+        'The change could not be saved.': '无法保存更改。',
+        'Infrastructure data updated.': '基础设施数据已更新。',
+        'No infrastructure items are registered yet.': '尚未登记任何基础设施项目。',
+        'No relationships have been recorded yet.': '尚未记录任何关系。',
+        'LUMS client': 'LUMS 客户端',
+        'Managed item': '受管项目',
+        'Online': '在线',
+        'Offline': '离线',
+        'Unknown': '未知',
+        'Disabled': '已禁用',
+        'Client': '客户端',
+        'Automatically imported': '自动导入',
+        'Manually managed': '手动管理',
+        'Name': '名称',
+        'Type': '类型',
+        'Hostname': '主机名',
+        'IP address': 'IP 地址',
+        'Role': '角色',
+        'Location': '位置',
+        'Actions': '操作',
+        'Edit': '编辑',
+        'Delete': '删除',
+        'Delete this infrastructure item and its relationships?': '删除此基础设施项目及其关联关系？',
+        'Delete this relationship?': '删除此关系？',
+        'Add infrastructure item': '添加基础设施项目',
+        'Save changes': '保存更改',
+        'Add item': '添加项目',
+        'Cancel': '取消',
+        'Add relationship': '添加关系',
+        'This relationship already exists.': '此关系已存在。',
+        'Enter a valid IPv4 or IPv6 address.': '请输入有效的 IPv4 或 IPv6 地址。',
+        'Network device': '网络设备',
+        'Server': '服务器',
+        'Virtual machine': '虚拟机',
+        'Container': '容器',
+        'Service': '服务',
+        'Storage': '存储',
+        'Depends on': '依赖于',
+        'Hosts': '托管',
+        'Connects to': '连接到',
+        'Runs on': '运行于',
+        'Shared dependency': '共享依赖项',
+        'Add systems and relationships to build the topology.': '添加系统和关系以构建拓扑。',
+        'Request failed (HTTP {status}).': '请求失败（HTTP {status}）。',
+        'No alerts or outages in this period.': '此时间段内没有警报或故障。',
+        'CPU threshold exceeded': 'CPU 阈值已超出',
+        'CPU returned below threshold': 'CPU 已恢复到阈值以下',
+        'RAM threshold exceeded': 'RAM 阈值已超出',
+        'RAM returned below threshold': 'RAM 已恢复到阈值以下',
+        'Disk threshold exceeded': '磁盘阈值已超出',
+        'Disk returned below the threshold': '磁盘使用率已降至阈值以下',
+        'Telemetry interrupted': '遥测中断',
+        'Telemetry resumed': '遥测已恢复',
+        'Failed SSH login': 'SSH 登录失败',
+        'Service failure': '服务故障',
+        'Service recovered': '服务已恢复',
+        'Not monitored on this client': '此客户端未进行监控',
+        'Active': '活动',
+        'Inactive': '非活动',
+        'SSH': 'SSH',
+        'Infrastructure topology': '基础设施拓扑',
+        'See registered LUMS clients, infrastructure and their dependencies in one place.': '在一个页面中查看已注册的 LUMS 客户端、基础设施及其依赖关系。',
+        'Infrastructure map': '基础设施地图',
+        'LUMS clients are imported automatically. Other systems and links are maintained here.': 'LUMS 客户端会自动导入。其他系统及其连接关系可在此维护。',
+        'Topology summary': '拓扑摘要',
+        'Registered clients': '已注册客户端',
+        'Infrastructure items': '基础设施项目',
+        'Relationships': '关联关系',
+        'Shared dependencies': '共享依赖项',
+        'Registered clients and manually managed infrastructure connected by their relationships.': '通过关联关系连接的已注册客户端和手动管理的基础设施。',
+        'Relationship': '关联关系',
+        'Inventory': '资产清单',
+        'Hostname, IP address, role and location for each system.': '每个系统的主机名、IP 地址、角色和位置。',
+        'Notes': '备注',
+        'Hostname / IP address': '主机名 / IP 地址',
+        'Role / location': '角色 / 位置',
+        'Source': '来源',
+        'Relationships and dependencies': '关联关系与依赖项',
+        'Record what depends on, hosts, connects to or runs on another system.': '记录系统依赖、承载、连接以及运行所在的其他系统。',
+        'From': '源',
+        'To': '目标',
+    },
+    'ja': {
+        'Loading infrastructure data…': 'インフラストラクチャデータを読み込み中…',
+        'Infrastructure data could not be loaded.': 'インフラストラクチャデータを読み込めませんでした。',
+        'The change could not be saved.': '変更を保存できませんでした。',
+        'Infrastructure data updated.': 'インフラストラクチャデータを更新しました。',
+        'No infrastructure items are registered yet.': 'インフラストラクチャ項目はまだ登録されていません。',
+        'No relationships have been recorded yet.': '関係はまだ記録されていません。',
+        'LUMS client': 'LUMS クライアント',
+        'Managed item': '管理対象項目',
+        'Online': 'オンライン',
+        'Offline': 'オフライン',
+        'Unknown': '不明',
+        'Disabled': '無効',
+        'Client': 'クライアント',
+        'Automatically imported': '自動インポート',
+        'Manually managed': '手動管理',
+        'Name': '名前',
+        'Type': '種類',
+        'Hostname': 'ホスト名',
+        'IP address': 'IPアドレス',
+        'Role': '役割',
+        'Location': '場所',
+        'Actions': '操作',
+        'Edit': '編集',
+        'Delete': '削除',
+        'Delete this infrastructure item and its relationships?': 'このインフラストラクチャ項目と関連する関係を削除しますか？',
+        'Delete this relationship?': 'この関係を削除しますか？',
+        'Add infrastructure item': 'インフラストラクチャ項目を追加',
+        'Save changes': '変更を保存',
+        'Add item': '項目を追加',
+        'Cancel': 'キャンセル',
+        'Add relationship': '関係を追加',
+        'This relationship already exists.': 'この関係はすでに存在します。',
+        'Enter a valid IPv4 or IPv6 address.': '有効なIPv4またはIPv6アドレスを入力してください。',
+        'Network device': 'ネットワーク機器',
+        'Server': 'サーバー',
+        'Virtual machine': '仮想マシン',
+        'Container': 'コンテナ',
+        'Service': 'サービス',
+        'Storage': 'ストレージ',
+        'Depends on': '依存先',
+        'Hosts': 'ホストする',
+        'Connects to': '接続先',
+        'Runs on': '実行環境',
+        'Shared dependency': '共有依存関係',
+        'Add systems and relationships to build the topology.': 'システムと関係を追加してトポロジーを構築します。',
+        'Request failed (HTTP {status}).': 'リクエストに失敗しました（HTTP {status}）。',
+        'No alerts or outages in this period.': 'この期間にアラートや停止はありません。',
+        'CPU threshold exceeded': 'CPUしきい値を超過',
+        'CPU returned below threshold': 'CPUがしきい値を下回りました',
+        'RAM threshold exceeded': 'RAMしきい値を超過',
+        'RAM returned below threshold': 'RAMがしきい値を下回りました',
+        'Disk threshold exceeded': 'ディスクしきい値を超過',
+        'Disk returned below the threshold': 'ディスク使用率がしきい値を下回りました',
+        'Telemetry interrupted': 'テレメトリが中断されました',
+        'Telemetry resumed': 'テレメトリが再開されました',
+        'Failed SSH login': 'SSHログイン失敗',
+        'Service failure': 'サービス障害',
+        'Service recovered': 'サービスが復旧しました',
+        'Not monitored on this client': 'このクライアントでは監視されていません',
+        'Active': 'アクティブ',
+        'Inactive': '非アクティブ',
+        'SSH': 'SSH',
+        'Infrastructure topology': 'インフラストラクチャのトポロジー',
+        'See registered LUMS clients, infrastructure and their dependencies in one place.': '登録済みの LUMS クライアント、インフラストラクチャ、依存関係を一か所で確認できます。',
+        'Infrastructure map': 'インフラストラクチャマップ',
+        'LUMS clients are imported automatically. Other systems and links are maintained here.': 'LUMS クライアントは自動的に取り込まれます。その他のシステムと接続関係はここで管理します。',
+        'Topology summary': 'トポロジーの概要',
+        'Registered clients': '登録済みクライアント',
+        'Infrastructure items': 'インフラストラクチャ項目',
+        'Relationships': '関連付け',
+        'Shared dependencies': '共有依存関係',
+        'Registered clients and manually managed infrastructure connected by their relationships.': '関連付けによって接続された登録済みクライアントと手動管理のインフラストラクチャ。',
+        'Relationship': '関連付け',
+        'Inventory': 'インベントリ',
+        'Hostname, IP address, role and location for each system.': '各システムのホスト名、IP アドレス、役割、場所。',
+        'Notes': 'メモ',
+        'Hostname / IP address': 'ホスト名 / IP アドレス',
+        'Role / location': '役割 / 場所',
+        'Source': 'ソース',
+        'Relationships and dependencies': '関連付けと依存関係',
+        'Record what depends on, hosts, connects to or runs on another system.': '依存先、ホストするシステム、接続先、実行先のシステムを記録します。',
+        'From': '接続元',
+        'To': '接続先',
+    },
+    'pl': {
+        'Loading infrastructure data…': 'Ładowanie danych infrastruktury…',
+        'Infrastructure data could not be loaded.': 'Nie udało się załadować danych infrastruktury.',
+        'The change could not be saved.': 'Nie udało się zapisać zmiany.',
+        'Infrastructure data updated.': 'Dane infrastruktury zostały zaktualizowane.',
+        'No infrastructure items are registered yet.': 'Nie zarejestrowano jeszcze żadnych elementów infrastruktury.',
+        'No relationships have been recorded yet.': 'Nie zapisano jeszcze żadnych powiązań.',
+        'LUMS client': 'Klient LUMS',
+        'Managed item': 'Zarządzany element',
+        'Online': 'Online',
+        'Offline': 'Offline',
+        'Unknown': 'Nieznany',
+        'Disabled': 'Wyłączony',
+        'Client': 'Klient',
+        'Automatically imported': 'Zaimportowano automatycznie',
+        'Manually managed': 'Zarządzany ręcznie',
+        'Name': 'Nazwa',
+        'Type': 'Typ',
+        'Hostname': 'Nazwa hosta',
+        'IP address': 'Adres IP',
+        'Role': 'Rola',
+        'Location': 'Lokalizacja',
+        'Actions': 'Akcje',
+        'Edit': 'Edytuj',
+        'Delete': 'Usuń',
+        'Delete this infrastructure item and its relationships?': 'Usunąć ten element infrastruktury i jego powiązania?',
+        'Delete this relationship?': 'Usunąć to powiązanie?',
+        'Add infrastructure item': 'Dodaj element infrastruktury',
+        'Save changes': 'Zapisz zmiany',
+        'Add item': 'Dodaj element',
+        'Cancel': 'Anuluj',
+        'Add relationship': 'Dodaj powiązanie',
+        'This relationship already exists.': 'To powiązanie już istnieje.',
+        'Enter a valid IPv4 or IPv6 address.': 'Wprowadź prawidłowy adres IPv4 lub IPv6.',
+        'Network device': 'Urządzenie sieciowe',
+        'Server': 'Serwer',
+        'Virtual machine': 'Maszyna wirtualna',
+        'Container': 'Kontener',
+        'Service': 'Usługa',
+        'Storage': 'Pamięć masowa',
+        'Depends on': 'Zależy od',
+        'Hosts': 'Hostuje',
+        'Connects to': 'Łączy się z',
+        'Runs on': 'Działa na',
+        'Shared dependency': 'Wspólna zależność',
+        'Add systems and relationships to build the topology.': 'Dodaj systemy i powiązania, aby zbudować topologię.',
+        'Request failed (HTTP {status}).': 'Żądanie nie powiodło się (HTTP {status}).',
+        'No alerts or outages in this period.': 'Brak alertów ani awarii w tym okresie.',
+        'CPU threshold exceeded': 'Przekroczono próg CPU',
+        'CPU returned below threshold': 'CPU ponownie poniżej progu',
+        'RAM threshold exceeded': 'Przekroczono próg pamięci RAM',
+        'RAM returned below threshold': 'RAM ponownie poniżej progu',
+        'Disk threshold exceeded': 'Przekroczono próg dysku',
+        'Disk returned below the threshold': 'Użycie dysku spadło poniżej progu',
+        'Telemetry interrupted': 'Telemetria przerwana',
+        'Telemetry resumed': 'Telemetria wznowiona',
+        'Failed SSH login': 'Nieudane logowanie SSH',
+        'Service failure': 'Awaria usługi',
+        'Service recovered': 'Usługa została przywrócona',
+        'Not monitored on this client': 'Brak monitorowania tego klienta',
+        'Active': 'Aktywny',
+        'Inactive': 'Nieaktywny',
+        'SSH': 'SSH',
+        'Infrastructure topology': 'Topologia infrastruktury',
+        'See registered LUMS clients, infrastructure and their dependencies in one place.': 'Wyświetl zarejestrowane klienty LUMS, infrastrukturę i jej zależności w jednym miejscu.',
+        'Infrastructure map': 'Mapa infrastruktury',
+        'LUMS clients are imported automatically. Other systems and links are maintained here.': 'Klienty LUMS są importowane automatycznie. Pozostałe systemy i połączenia są zarządzane tutaj.',
+        'Topology summary': 'Podsumowanie topologii',
+        'Registered clients': 'Zarejestrowane klienty',
+        'Infrastructure items': 'Elementy infrastruktury',
+        'Relationships': 'Powiązania',
+        'Shared dependencies': 'Współdzielone zależności',
+        'Registered clients and manually managed infrastructure connected by their relationships.': 'Zarejestrowane klienty i ręcznie zarządzana infrastruktura połączone relacjami.',
+        'Relationship': 'Powiązanie',
+        'Inventory': 'Ewidencja',
+        'Hostname, IP address, role and location for each system.': 'Nazwa hosta, adres IP, rola i lokalizacja każdego systemu.',
+        'Notes': 'Notatki',
+        'Hostname / IP address': 'Nazwa hosta / adres IP',
+        'Role / location': 'Rola / lokalizacja',
+        'Source': 'Źródło',
+        'Relationships and dependencies': 'Powiązania i zależności',
+        'Record what depends on, hosts, connects to or runs on another system.': 'Zapisuj zależności, hostowane systemy, połączenia i systemy, na których coś działa.',
+        'From': 'Od',
+        'To': 'Do',
+    },
+    'sv': {
+        'Loading infrastructure data…': 'Läser in infrastrukturdata…',
+        'Infrastructure data could not be loaded.': 'Det gick inte att läsa in infrastrukturdata.',
+        'The change could not be saved.': 'Ändringen kunde inte sparas.',
+        'Infrastructure data updated.': 'Infrastrukturdata har uppdaterats.',
+        'No infrastructure items are registered yet.': 'Inga infrastrukturobjekt har registrerats ännu.',
+        'No relationships have been recorded yet.': 'Inga relationer har registrerats ännu.',
+        'LUMS client': 'LUMS-klient',
+        'Managed item': 'Hanterat objekt',
+        'Online': 'Online',
+        'Offline': 'Offline',
+        'Unknown': 'Okänd',
+        'Disabled': 'Inaktiverad',
+        'Client': 'Klient',
+        'Automatically imported': 'Importerad automatiskt',
+        'Manually managed': 'Hanteras manuellt',
+        'Name': 'Namn',
+        'Type': 'Typ',
+        'Hostname': 'Värdnamn',
+        'IP address': 'IP-adress',
+        'Role': 'Roll',
+        'Location': 'Plats',
+        'Actions': 'Åtgärder',
+        'Edit': 'Redigera',
+        'Delete': 'Ta bort',
+        'Delete this infrastructure item and its relationships?': 'Ta bort infrastrukturobjektet och dess relationer?',
+        'Delete this relationship?': 'Ta bort den här relationen?',
+        'Add infrastructure item': 'Lägg till infrastrukturobjekt',
+        'Save changes': 'Spara ändringar',
+        'Add item': 'Lägg till objekt',
+        'Cancel': 'Avbryt',
+        'Add relationship': 'Lägg till relation',
+        'This relationship already exists.': 'Den här relationen finns redan.',
+        'Enter a valid IPv4 or IPv6 address.': 'Ange en giltig IPv4- eller IPv6-adress.',
+        'Network device': 'Nätverksenhet',
+        'Server': 'Server',
+        'Virtual machine': 'Virtuell maskin',
+        'Container': 'Container',
+        'Service': 'Tjänst',
+        'Storage': 'Lagring',
+        'Depends on': 'Beroende av',
+        'Hosts': 'Värdar',
+        'Connects to': 'Ansluter till',
+        'Runs on': 'Körs på',
+        'Shared dependency': 'Delat beroende',
+        'Add systems and relationships to build the topology.': 'Lägg till system och relationer för att bygga topologin.',
+        'Request failed (HTTP {status}).': 'Begäran misslyckades (HTTP {status}).',
+        'No alerts or outages in this period.': 'Inga larm eller avbrott under den här perioden.',
+        'CPU threshold exceeded': 'CPU-gränsen överskreds',
+        'CPU returned below threshold': 'CPU ligger åter under gränsen',
+        'RAM threshold exceeded': 'RAM-gränsen överskreds',
+        'RAM returned below threshold': 'RAM ligger åter under gränsen',
+        'Disk threshold exceeded': 'Diskgränsen överskreds',
+        'Disk returned below the threshold': 'Diskanvändningen är åter under gränsen',
+        'Telemetry interrupted': 'Telemetrin avbröts',
+        'Telemetry resumed': 'Telemetrin återupptogs',
+        'Failed SSH login': 'Misslyckad SSH-inloggning',
+        'Service failure': 'Tjänstefel',
+        'Service recovered': 'Tjänsten har återställts',
+        'Not monitored on this client': 'Övervakas inte på den här klienten',
+        'Active': 'Aktiv',
+        'Inactive': 'Inaktiv',
+        'SSH': 'SSH',
+        'Infrastructure topology': 'Infrastrukturens topologi',
+        'See registered LUMS clients, infrastructure and their dependencies in one place.': 'Se registrerade LUMS-klienter, infrastruktur och beroenden på ett och samma ställe.',
+        'Infrastructure map': 'Infrastrukturkarta',
+        'LUMS clients are imported automatically. Other systems and links are maintained here.': 'LUMS-klienter importeras automatiskt. Övriga system och anslutningar hanteras här.',
+        'Topology summary': 'Topologisammanfattning',
+        'Registered clients': 'Registrerade klienter',
+        'Infrastructure items': 'Infrastrukturkomponenter',
+        'Relationships': 'Relationer',
+        'Shared dependencies': 'Delade beroenden',
+        'Registered clients and manually managed infrastructure connected by their relationships.': 'Registrerade klienter och manuellt hanterad infrastruktur som kopplas samman genom sina relationer.',
+        'Relationship': 'Relation',
+        'Inventory': 'Inventering',
+        'Hostname, IP address, role and location for each system.': 'Värdnamn, IP-adress, roll och plats för varje system.',
+        'Notes': 'Anteckningar',
+        'Hostname / IP address': 'Värdnamn / IP-adress',
+        'Role / location': 'Roll / plats',
+        'Source': 'Källa',
+        'Relationships and dependencies': 'Relationer och beroenden',
+        'Record what depends on, hosts, connects to or runs on another system.': 'Dokumentera beroenden, värdsystem, anslutningar och vilket system något körs på.',
+        'From': 'Från',
+        'To': 'Till',
+    },
+    'nb': {
+        'Loading infrastructure data…': 'Laster inn infrastrukturdata…',
+        'Infrastructure data could not be loaded.': 'Kunne ikke laste inn infrastrukturdata.',
+        'The change could not be saved.': 'Kunne ikke lagre endringen.',
+        'Infrastructure data updated.': 'Infrastrukturdata er oppdatert.',
+        'No infrastructure items are registered yet.': 'Ingen infrastrukturelementer er registrert ennå.',
+        'No relationships have been recorded yet.': 'Ingen relasjoner er registrert ennå.',
+        'LUMS client': 'LUMS-klient',
+        'Managed item': 'Administrert element',
+        'Online': 'På nett',
+        'Offline': 'Frakoblet',
+        'Unknown': 'Ukjent',
+        'Disabled': 'Deaktivert',
+        'Client': 'Klient',
+        'Automatically imported': 'Importert automatisk',
+        'Manually managed': 'Administrert manuelt',
+        'Name': 'Navn',
+        'Type': 'Type',
+        'Hostname': 'Vertsnavn',
+        'IP address': 'IP-adresse',
+        'Role': 'Rolle',
+        'Location': 'Plassering',
+        'Actions': 'Handlinger',
+        'Edit': 'Rediger',
+        'Delete': 'Slett',
+        'Delete this infrastructure item and its relationships?': 'Slette dette infrastrukturelementet og tilhørende relasjoner?',
+        'Delete this relationship?': 'Slette denne relasjonen?',
+        'Add infrastructure item': 'Legg til infrastrukturelement',
+        'Save changes': 'Lagre endringer',
+        'Add item': 'Legg til element',
+        'Cancel': 'Avbryt',
+        'Add relationship': 'Legg til relasjon',
+        'This relationship already exists.': 'Denne relasjonen finnes allerede.',
+        'Enter a valid IPv4 or IPv6 address.': 'Angi en gyldig IPv4- eller IPv6-adresse.',
+        'Network device': 'Nettverksenhet',
+        'Server': 'Server',
+        'Virtual machine': 'Virtuell maskin',
+        'Container': 'Container',
+        'Service': 'Tjeneste',
+        'Storage': 'Lagring',
+        'Depends on': 'Avhenger av',
+        'Hosts': 'Er vert for',
+        'Connects to': 'Kobler til',
+        'Runs on': 'Kjører på',
+        'Shared dependency': 'Delt avhengighet',
+        'Add systems and relationships to build the topology.': 'Legg til systemer og relasjoner for å bygge topologien.',
+        'Request failed (HTTP {status}).': 'Forespørselen mislyktes (HTTP {status}).',
+        'No alerts or outages in this period.': 'Ingen varsler eller driftsavbrudd i denne perioden.',
+        'CPU threshold exceeded': 'CPU-terskelen er overskredet',
+        'CPU returned below threshold': 'CPU er tilbake under terskelen',
+        'RAM threshold exceeded': 'RAM-terskelen er overskredet',
+        'RAM returned below threshold': 'RAM er tilbake under terskelen',
+        'Disk threshold exceeded': 'Diskterskelen er overskredet',
+        'Disk returned below the threshold': 'Diskbruken er tilbake under terskelen',
+        'Telemetry interrupted': 'Telemetri avbrutt',
+        'Telemetry resumed': 'Telemetri gjenopptatt',
+        'Failed SSH login': 'Mislykket SSH-innlogging',
+        'Service failure': 'Tjenestefeil',
+        'Service recovered': 'Tjenesten er gjenopprettet',
+        'Not monitored on this client': 'Overvåkes ikke på denne klienten',
+        'Active': 'Aktiv',
+        'Inactive': 'Inaktiv',
+        'SSH': 'SSH',
+        'Infrastructure topology': 'Infrastrukturens topologi',
+        'See registered LUMS clients, infrastructure and their dependencies in one place.': 'Se registrerte LUMS-klienter, infrastruktur og avhengigheter på ett sted.',
+        'Infrastructure map': 'Infrastrukturkart',
+        'LUMS clients are imported automatically. Other systems and links are maintained here.': 'LUMS-klienter importeres automatisk. Andre systemer og forbindelser vedlikeholdes her.',
+        'Topology summary': 'Topologioversikt',
+        'Registered clients': 'Registrerte klienter',
+        'Infrastructure items': 'Infrastrukturelementer',
+        'Relationships': 'Forbindelser',
+        'Shared dependencies': 'Delte avhengigheter',
+        'Registered clients and manually managed infrastructure connected by their relationships.': 'Registrerte klienter og manuelt administrert infrastruktur som er koblet sammen gjennom forbindelsene sine.',
+        'Relationship': 'Forbindelse',
+        'Inventory': 'Inventar',
+        'Hostname, IP address, role and location for each system.': 'Vertsnavn, IP-adresse, rolle og plassering for hvert system.',
+        'Notes': 'Notater',
+        'Hostname / IP address': 'Vertsnavn / IP-adresse',
+        'Role / location': 'Rolle / plassering',
+        'Source': 'Kilde',
+        'Relationships and dependencies': 'Forbindelser og avhengigheter',
+        'Record what depends on, hosts, connects to or runs on another system.': 'Registrer avhengigheter, systemer som driftes, forbindelser og hvilket system noe kjører på.',
+        'From': 'Fra',
+        'To': 'Til',
+    },
+    'fi': {
+        'Loading infrastructure data…': 'Ladataan infrastruktuuritietoja…',
+        'Infrastructure data could not be loaded.': 'Infrastruktuuritietojen lataaminen epäonnistui.',
+        'The change could not be saved.': 'Muutosta ei voitu tallentaa.',
+        'Infrastructure data updated.': 'Infrastruktuuritiedot päivitetty.',
+        'No infrastructure items are registered yet.': 'Infrastruktuurikohteita ei ole vielä rekisteröity.',
+        'No relationships have been recorded yet.': 'Yhteyksiä ei ole vielä kirjattu.',
+        'LUMS client': 'LUMS-asiakas',
+        'Managed item': 'Hallinnoitu kohde',
+        'Online': 'Verkossa',
+        'Offline': 'Poissa verkosta',
+        'Unknown': 'Tuntematon',
+        'Disabled': 'Poistettu käytöstä',
+        'Client': 'Asiakas',
+        'Automatically imported': 'Tuotu automaattisesti',
+        'Manually managed': 'Hallitaan manuaalisesti',
+        'Name': 'Nimi',
+        'Type': 'Tyyppi',
+        'Hostname': 'Isäntänimi',
+        'IP address': 'IP-osoite',
+        'Role': 'Rooli',
+        'Location': 'Sijainti',
+        'Actions': 'Toiminnot',
+        'Edit': 'Muokkaa',
+        'Delete': 'Poista',
+        'Delete this infrastructure item and its relationships?': 'Poistetaanko tämä infrastruktuurikohde ja sen yhteydet?',
+        'Delete this relationship?': 'Poistetaanko tämä yhteys?',
+        'Add infrastructure item': 'Lisää infrastruktuurikohde',
+        'Save changes': 'Tallenna muutokset',
+        'Add item': 'Lisää kohde',
+        'Cancel': 'Peruuta',
+        'Add relationship': 'Lisää yhteys',
+        'This relationship already exists.': 'Tämä yhteys on jo olemassa.',
+        'Enter a valid IPv4 or IPv6 address.': 'Anna kelvollinen IPv4- tai IPv6-osoite.',
+        'Network device': 'Verkkolaite',
+        'Server': 'Palvelin',
+        'Virtual machine': 'Virtuaalikone',
+        'Container': 'Säiliö',
+        'Service': 'Palvelu',
+        'Storage': 'Tallennustila',
+        'Depends on': 'Riippuu kohteesta',
+        'Hosts': 'Isännöi',
+        'Connects to': 'Yhdistää kohteeseen',
+        'Runs on': 'Suoritetaan kohteessa',
+        'Shared dependency': 'Jaettu riippuvuus',
+        'Add systems and relationships to build the topology.': 'Lisää järjestelmiä ja yhteyksiä topologian rakentamiseksi.',
+        'Request failed (HTTP {status}).': 'Pyyntö epäonnistui (HTTP {status}).',
+        'No alerts or outages in this period.': 'Tällä ajanjaksolla ei ole hälytyksiä tai katkoksia.',
+        'CPU threshold exceeded': 'CPU-kynnysarvo ylitetty',
+        'CPU returned below threshold': 'CPU palasi kynnysarvon alle',
+        'RAM threshold exceeded': 'RAM-kynnysarvo ylitetty',
+        'RAM returned below threshold': 'RAM palasi kynnysarvon alle',
+        'Disk threshold exceeded': 'Levyn kynnysarvo ylitetty',
+        'Disk returned below the threshold': 'Levyn käyttö palasi kynnysarvon alle',
+        'Telemetry interrupted': 'Telemetria keskeytyi',
+        'Telemetry resumed': 'Telemetria jatkui',
+        'Failed SSH login': 'Epäonnistunut SSH-kirjautuminen',
+        'Service failure': 'Palveluhäiriö',
+        'Service recovered': 'Palvelu palautui',
+        'Not monitored on this client': 'Tätä asiakasta ei valvota',
+        'Active': 'Aktiivinen',
+        'Inactive': 'Ei aktiivinen',
+        'SSH': 'SSH',
+        'Infrastructure topology': 'Infrastruktuurin topologia',
+        'See registered LUMS clients, infrastructure and their dependencies in one place.': 'Tarkastele rekisteröityjä LUMS-asiakasohjelmia, infrastruktuuria ja niiden riippuvuuksia yhdessä paikassa.',
+        'Infrastructure map': 'Infrastruktuurikartta',
+        'LUMS clients are imported automatically. Other systems and links are maintained here.': 'LUMS-asiakasohjelmat tuodaan automaattisesti. Muita järjestelmiä ja yhteyksiä hallitaan täällä.',
+        'Topology summary': 'Topologian yhteenveto',
+        'Registered clients': 'Rekisteröidyt asiakkaat',
+        'Infrastructure items': 'Infrastruktuurin kohteet',
+        'Relationships': 'Yhteydet',
+        'Shared dependencies': 'Jaetut riippuvuudet',
+        'Registered clients and manually managed infrastructure connected by their relationships.': 'Rekisteröidyt asiakkaat ja manuaalisesti hallittu infrastruktuuri yhdistettyinä suhteidensa kautta.',
+        'Relationship': 'Yhteys',
+        'Inventory': 'Luettelo',
+        'Hostname, IP address, role and location for each system.': 'Jokaisen järjestelmän isäntänimi, IP-osoite, rooli ja sijainti.',
+        'Notes': 'Huomautukset',
+        'Hostname / IP address': 'Isäntänimi / IP-osoite',
+        'Role / location': 'Rooli / sijainti',
+        'Source': 'Lähde',
+        'Relationships and dependencies': 'Yhteydet ja riippuvuudet',
+        'Record what depends on, hosts, connects to or runs on another system.': 'Kirjaa riippuvuudet, isännöidyt järjestelmät, yhteydet ja järjestelmät, joissa jokin suoritetaan.',
+        'From': 'Lähde',
+        'To': 'Kohde',
+    },
+}
+
+for _language, _entries in _DYNAMIC_TOPOLOGY_TELEMETRY_TRANSLATIONS.items():
+    _HEALTH_DASHBOARD_TRANSLATIONS[_language].update(_entries)
+
+# Ende der dynamischen Topologie- und Telemetrieübersetzungen
+
+_SYSTEM_UPDATE_KEYS = (
+    "Update system",
+    "Check tested LUMS releases and apply an update with backup and rollback.",
+    "Installed version",
+    "Available release",
+    "Verified commit",
+    "Host service",
+    "Release compatibility",
+    "Release changes",
+    "No release information loaded.",
+    "Open release on GitHub",
+    "Install this release",
+    "Installation starts only after an administrator confirms it here.",
+    "Update progress",
+    "A failed check never counts as a successful update. The host service records rollback results.",
+    "Check prerequisites",
+    "Create verified backup",
+    "Prepare and test release",
+    "Switch application",
+    "Verify application and database",
+    "Record result or rollback",
+    "Update history",
+    "Recent update attempts, their result, and rollback status.",
+    "Started",
+    "Started by",
+    "Release",
+    "Step",
+    "Result",
+    "Details",
+    "Checking GitHub and the host update service...",
+    "No update attempts have been recorded yet.",
+    "Could not load update status.",
+    "Not reported",
+    "Connected",
+    "Not connected",
+    "Release is CI-tested; host checks are required before switching.",
+    "Host checks unavailable until the host service is connected.",
+    "Update in progress",
+    "The host update service is not connected. No update can be started.",
+    "Release information is current.",
+    "Queued",
+    "Running",
+    "Rolling back",
+    "Completed",
+    "Failed",
+    "Rolled back",
+    "Rollback failed",
+    "Unknown",
+    "Install this release?",
+    "The host service will create a verified backup and will attempt rollback if any step fails.",
+    "Submitting update request...",
+    "The update request was rejected.",
+    "Update request accepted",
+)
+_SYSTEM_UPDATE_UI = {
+    language: {key: key for key in _SYSTEM_UPDATE_KEYS}
+    for language in LANGUAGES
+}
+
+
+
+_UPDATE_SYSTEM_PAGE_TRANSLATIONS = {
+    "fr": {
+        "Check tested LUMS releases and apply an update with backup and rollback.": "Consultez les versions LUMS testées et appliquez une mise à jour avec sauvegarde et retour arrière.",
+        "Available release": "Version disponible",
+        "Verified commit": "Commit vérifié",
+        "Host service": "Service de l’hôte",
+        "Release compatibility": "Compatibilité de la version",
+        "Release changes": "Modifications de la version",
+        "No release information loaded.": "Aucune information de version chargée.",
+        "Open release on GitHub": "Ouvrir la version sur GitHub",
+        "Install this release": "Installer cette version",
+        "Installation starts only after an administrator confirms it here.": "L’installation démarre uniquement après confirmation d’un administrateur ici.",
+        "Update progress": "Progression de la mise à jour",
+        "A failed check never counts as a successful update. The host service records rollback results.": "Un contrôle échoué ne constitue jamais une mise à jour réussie. Le service de l’hôte enregistre les résultats du retour arrière.",
+        "Check prerequisites": "Vérifier les prérequis",
+        "Create verified backup": "Créer une sauvegarde vérifiée",
+        "Prepare and test release": "Préparer et tester la version",
+        "Switch application": "Basculer l’application",
+        "Verify application and database": "Vérifier l’application et la base de données",
+        "Record result or rollback": "Enregistrer le résultat ou le retour arrière",
+        "Update history": "Historique des mises à jour",
+        "Recent update attempts, their result, and rollback status.": "Tentatives récentes, résultats et état du retour arrière.",
+        "Started": "Démarrée",
+        "Started by": "Démarrée par",
+        "Release": "Version",
+        "Step": "Étape",
+        "Result": "Résultat",
+        "Details": "Détails",
+        "Checking GitHub and the host update service...": "Vérification de GitHub et du service de mise à jour de l’hôte…",
+        "No update attempts have been recorded yet.": "Aucune tentative de mise à jour n’a encore été enregistrée.",
+        "Could not load update status.": "Impossible de charger l’état de la mise à jour.",
+        "Not reported": "Non renseigné",
+        "Connected": "Connecté",
+        "Not connected": "Non connecté",
+        "Release is CI-tested; host checks are required before switching.": "La version est testée par l’intégration continue ; les contrôles de l’hôte sont requis avant le basculement.",
+        "Host checks unavailable until the host service is connected.": "Les contrôles de l’hôte sont indisponibles tant que le service n’est pas connecté.",
+        "Update in progress": "Mise à jour en cours",
+        "Host update execution is disabled. No update can be started.": "L’exécution des mises à jour de l’hôte est désactivée. Aucune mise à jour ne peut démarrer.",
+        "The host update service is not connected. No update can be started.": "Le service de mise à jour de l’hôte n’est pas connecté. Aucune mise à jour ne peut démarrer.",
+        "Release information is current.": "Les informations de version sont à jour.",
+        "Queued": "En attente",
+        "Running": "En cours",
+        "Rolling back": "Retour arrière en cours",
+        "Completed": "Terminée",
+        "Failed": "Échec",
+        "Rolled back": "Retour arrière effectué",
+        "Rollback failed": "Échec du retour arrière",
+        "Unknown": "Inconnu",
+        "Install this release?": "Installer cette version ?",
+        "The host service will create a verified backup and will attempt rollback if any step fails.": "Le service de l’hôte créera une sauvegarde vérifiée et tentera un retour arrière en cas d’échec d’une étape.",
+        "Submitting update request...": "Envoi de la demande de mise à jour…",
+        "The update request was rejected.": "La demande de mise à jour a été refusée.",
+        "Update request accepted": "Demande de mise à jour acceptée",
+    },
+    "es": {
+        "Check tested LUMS releases and apply an update with backup and rollback.": "Consulta las versiones de LUMS probadas y aplica actualizaciones con copia de seguridad y reversión.",
+        "Available release": "Versión disponible",
+        "Verified commit": "Commit verificado",
+        "Host service": "Servicio del host",
+        "Release compatibility": "Compatibilidad de la versión",
+        "Release changes": "Cambios de la versión",
+        "No release information loaded.": "No se ha cargado información de la versión.",
+        "Open release on GitHub": "Abrir versión en GitHub",
+        "Install this release": "Instalar esta versión",
+        "Installation starts only after an administrator confirms it here.": "La instalación solo comienza cuando un administrador la confirma aquí.",
+        "Update progress": "Progreso de la actualización",
+        "A failed check never counts as a successful update. The host service records rollback results.": "Una comprobación fallida nunca cuenta como una actualización correcta. El servicio del host registra los resultados de la reversión.",
+        "Check prerequisites": "Comprobar requisitos previos",
+        "Create verified backup": "Crear copia de seguridad verificada",
+        "Prepare and test release": "Preparar y probar la versión",
+        "Switch application": "Cambiar la aplicación",
+        "Verify application and database": "Verificar la aplicación y la base de datos",
+        "Record result or rollback": "Registrar el resultado o la reversión",
+        "Update history": "Historial de actualizaciones",
+        "Recent update attempts, their result, and rollback status.": "Intentos de actualización recientes, resultados y estado de reversión.",
+        "Started": "Iniciado",
+        "Started by": "Iniciado por",
+        "Release": "Versión",
+        "Step": "Paso",
+        "Result": "Resultado",
+        "Details": "Detalles",
+        "Checking GitHub and the host update service...": "Comprobando GitHub y el servicio de actualización del host…",
+        "No update attempts have been recorded yet.": "Todavía no se ha registrado ningún intento de actualización.",
+        "Could not load update status.": "No se pudo cargar el estado de la actualización.",
+        "Not reported": "No indicado",
+        "Connected": "Conectado",
+        "Not connected": "No conectado",
+        "Release is CI-tested; host checks are required before switching.": "La versión se ha probado mediante CI; se requieren comprobaciones del host antes de cambiar.",
+        "Host checks unavailable until the host service is connected.": "Las comprobaciones del host no estarán disponibles hasta conectar el servicio.",
+        "Update in progress": "Actualización en curso",
+        "Host update execution is disabled. No update can be started.": "La ejecución de las actualizaciones del host está deshabilitada. No se puede iniciar ninguna actualización.",
+        "The host update service is not connected. No update can be started.": "El servicio de actualización del host no está conectado. No se puede iniciar ninguna actualización.",
+        "Release information is current.": "La información de la versión está actualizada.",
+        "Queued": "En cola",
+        "Running": "En ejecución",
+        "Rolling back": "Revirtiendo cambios",
+        "Completed": "Completado",
+        "Failed": "Fallido",
+        "Rolled back": "Reversión completada",
+        "Rollback failed": "Error en la reversión",
+        "Unknown": "Desconocido",
+        "Install this release?": "¿Instalar esta versión?",
+        "The host service will create a verified backup and will attempt rollback if any step fails.": "El servicio del host creará una copia de seguridad verificada e intentará revertir los cambios si falla algún paso.",
+        "Submitting update request...": "Enviando solicitud de actualización…",
+        "The update request was rejected.": "Se rechazó la solicitud de actualización.",
+        "Update request accepted": "Solicitud de actualización aceptada",
+    },
+}
+
+_UPDATE_SYSTEM_PAGE_TRANSLATIONS["de"] = {
+    "Release": "Version",
+    "Details": "Einzelheiten",
+    "Host update execution is disabled. No update can be started.": (
+        "Die Ausführung von Host-Updates ist deaktiviert. "
+        "Es kann kein Update gestartet werden."
+    ),
+}
+
+_UPDATE_SYSTEM_PAGE_LOCALIZED_KEYS = (
+    "Check tested LUMS releases and apply an update with backup and rollback.",
+    "Available release",
+    "Verified commit",
+    "Host service",
+    "Release compatibility",
+    "Release changes",
+    "No release information loaded.",
+    "Open release on GitHub",
+    "Install this release",
+    "Installation starts only after an administrator confirms it here.",
+    "Update progress",
+    "A failed check never counts as a successful update. The host service records rollback results.",
+    "Check prerequisites",
+    "Create verified backup",
+    "Prepare and test release",
+    "Switch application",
+    "Verify application and database",
+    "Record result or rollback",
+    "Recent update attempts, their result, and rollback status.",
+    "Started",
+    "Started by",
+    "Release",
+    "Step",
+    "Result",
+    "Details",
+    "Checking GitHub and the host update service...",
+    "No update attempts have been recorded yet.",
+    "Could not load update status.",
+    "Not reported",
+    "Connected",
+    "Not connected",
+    "Release is CI-tested; host checks are required before switching.",
+    "Host checks unavailable until the host service is connected.",
+    "Update in progress",
+    "The host update service is not connected. No update can be started.",
+    "Release information is current.",
+    "Queued",
+    "Rolling back",
+    "Rolled back",
+    "Rollback failed",
+    "Install this release?",
+    "The host service will create a verified backup and will attempt rollback if any step fails.",
+    "Submitting update request...",
+    "The update request was rejected.",
+    "Update request accepted",
+    "Host update execution is disabled. No update can be started.",
+)
+
+_UPDATE_SYSTEM_PAGE_LOCALIZED_ROWS = {
+    "zh-CN": (
+        "检查经过测试的 LUMS 发布版本，并在创建备份和支持回滚的前提下执行更新。",
+        "可用版本",
+        "已验证的提交",
+        "主机服务",
+        "版本兼容性",
+        "版本变更",
+        "尚未加载版本信息。",
+        "在 GitHub 上查看发布版本",
+        "安装此版本",
+        "只有管理员在此确认后才会开始安装。",
+        "更新进度",
+        "检查失败不代表更新成功。主机服务会记录回滚结果。",
+        "检查先决条件",
+        "创建并验证备份",
+        "准备并测试版本",
+        "切换应用程序",
+        "验证应用程序和数据库",
+        "记录结果或回滚状态",
+        "最近的更新尝试、结果和回滚状态。",
+        "已开始",
+        "发起人",
+        "发布版本",
+        "步骤",
+        "结果",
+        "详情",
+        "正在检查 GitHub 和主机更新服务…",
+        "尚无更新尝试记录。",
+        "无法加载更新状态。",
+        "未报告",
+        "已连接",
+        "未连接",
+        "发布版本已通过 CI 测试；切换前仍需完成主机检查。",
+        "连接主机服务后才能执行主机检查。",
+        "正在更新",
+        "主机更新服务未连接，无法启动更新。",
+        "版本信息已是最新。",
+        "排队中",
+        "正在回滚",
+        "已回滚",
+        "回滚失败",
+        "确认安装此版本？",
+        "主机服务将创建经过验证的备份；任何步骤失败时都会尝试回滚。",
+        "正在提交更新请求…",
+        "更新请求已被拒绝。",
+        "更新请求已受理",
+        "主机更新执行已禁用，无法启动更新。",
+    ),
+    "ja": (
+        "テスト済みの LUMS リリースを確認し、バックアップとロールバックを行って更新します。",
+        "利用可能なリリース",
+        "検証済みコミット",
+        "ホストサービス",
+        "リリースの互換性",
+        "リリースの変更内容",
+        "リリース情報はまだ読み込まれていません。",
+        "GitHub でリリースを開く",
+        "このリリースをインストール",
+        "ここで管理者が確認した後にのみインストールが始まります。",
+        "更新の進行状況",
+        "チェックに失敗した場合、更新は成功として扱われません。ホストサービスがロールバック結果を記録します。",
+        "前提条件を確認",
+        "検証済みバックアップを作成",
+        "リリースを準備してテスト",
+        "アプリケーションを切り替え",
+        "アプリケーションとデータベースを検証",
+        "結果またはロールバックを記録",
+        "最近の更新試行、その結果、ロールバックの状態。",
+        "開始日時",
+        "開始ユーザー",
+        "リリース",
+        "手順",
+        "結果",
+        "詳細",
+        "GitHub とホスト更新サービスを確認しています…",
+        "更新試行の記録はまだありません。",
+        "更新状態を読み込めませんでした。",
+        "未報告",
+        "接続済み",
+        "未接続",
+        "リリースは CI でテスト済みです。切り替え前にホスト側の確認が必要です。",
+        "ホストサービスが接続されるまでホスト側の確認は利用できません。",
+        "更新中",
+        "ホスト更新サービスが接続されていないため、更新を開始できません。",
+        "リリース情報は最新です。",
+        "待機中",
+        "ロールバック中",
+        "ロールバック済み",
+        "ロールバックに失敗しました",
+        "このリリースをインストールしますか？",
+        "ホストサービスは検証済みバックアップを作成し、いずれかの手順が失敗した場合はロールバックを試みます。",
+        "更新リクエストを送信しています…",
+        "更新リクエストが拒否されました。",
+        "更新リクエストを受け付けました",
+        "ホスト更新の実行は無効になっています。更新を開始できません。",
+    ),
+    "pl": (
+        "Sprawdź przetestowane wydania LUMS i przeprowadź aktualizację z kopią zapasową oraz możliwością wycofania zmian.",
+        "Dostępne wydanie",
+        "Zweryfikowany commit",
+        "Usługa hosta",
+        "Zgodność wydania",
+        "Zmiany w wydaniu",
+        "Nie wczytano informacji o wydaniu.",
+        "Otwórz wydanie w GitHub",
+        "Zainstaluj to wydanie",
+        "Instalacja rozpocznie się dopiero po potwierdzeniu jej tutaj przez administratora.",
+        "Postęp aktualizacji",
+        "Nieudana kontrola nie oznacza udanej aktualizacji. Usługa hosta zapisuje wynik wycofania zmian.",
+        "Sprawdź wymagania wstępne",
+        "Utwórz zweryfikowaną kopię zapasową",
+        "Przygotuj i przetestuj wydanie",
+        "Przełącz aplikację",
+        "Zweryfikuj aplikację i bazę danych",
+        "Zapisz wynik lub wycofanie zmian",
+        "Ostatnie próby aktualizacji, ich wyniki i stan wycofania zmian.",
+        "Rozpoczęto",
+        "Rozpoczął użytkownik",
+        "Wydanie",
+        "Krok",
+        "Wynik",
+        "Szczegóły",
+        "Sprawdzanie GitHub i usługi aktualizacji hosta…",
+        "Nie zapisano jeszcze żadnych prób aktualizacji.",
+        "Nie udało się wczytać stanu aktualizacji.",
+        "Nie zgłoszono",
+        "Połączono",
+        "Nie połączono",
+        "Wydanie przetestowano w CI; przed przełączeniem wymagane są kontrole hosta.",
+        "Kontrole hosta będą dostępne po połączeniu usługi hosta.",
+        "Aktualizacja w toku",
+        "Usługa aktualizacji hosta nie jest połączona. Nie można rozpocząć aktualizacji.",
+        "Informacje o wydaniu są aktualne.",
+        "W kolejce",
+        "Wycofywanie zmian",
+        "Wycofano zmiany",
+        "Nie udało się wycofać zmian",
+        "Zainstalować to wydanie?",
+        "Usługa hosta utworzy zweryfikowaną kopię zapasową i podejmie próbę wycofania zmian, jeśli którykolwiek krok się nie powiedzie.",
+        "Wysyłanie żądania aktualizacji…",
+        "Odrzucono żądanie aktualizacji.",
+        "Przyjęto żądanie aktualizacji",
+        "Wykonywanie aktualizacji hosta jest wyłączone. Nie można rozpocząć aktualizacji.",
+    ),
+    "sv": (
+        "Kontrollera testade LUMS-utgåvor och installera en uppdatering med säkerhetskopia och återställning.",
+        "Tillgänglig utgåva",
+        "Verifierad incheckning",
+        "Värdtjänst",
+        "Utgåvans kompatibilitet",
+        "Ändringar i utgåvan",
+        "Ingen utgåveinformation har lästs in.",
+        "Öppna utgåvan på GitHub",
+        "Installera den här utgåvan",
+        "Installationen startar först när en administratör bekräftar den här.",
+        "Uppdateringsförlopp",
+        "En misslyckad kontroll räknas aldrig som en lyckad uppdatering. Värdtjänsten loggar resultatet av återställningen.",
+        "Kontrollera förutsättningar",
+        "Skapa verifierad säkerhetskopia",
+        "Förbered och testa utgåvan",
+        "Växla applikation",
+        "Verifiera applikation och databas",
+        "Logga resultat eller återställning",
+        "Senaste uppdateringsförsök, resultat och återställningsstatus.",
+        "Startad",
+        "Startad av",
+        "Utgåva",
+        "Steg",
+        "Resultat",
+        "Detaljer",
+        "Kontrollerar GitHub och värdtjänsten för uppdateringar…",
+        "Inga uppdateringsförsök har registrerats ännu.",
+        "Det gick inte att läsa in uppdateringsstatus.",
+        "Inte rapporterat",
+        "Ansluten",
+        "Inte ansluten",
+        "Utgåvan har testats i CI; värdkontroller krävs före växling.",
+        "Värdkontroller är inte tillgängliga förrän värdtjänsten är ansluten.",
+        "Uppdatering pågår",
+        "Värdtjänsten för uppdateringar är inte ansluten. Ingen uppdatering kan startas.",
+        "Utgåveinformationen är aktuell.",
+        "Köad",
+        "Återställer",
+        "Återställd",
+        "Återställningen misslyckades",
+        "Installera den här utgåvan?",
+        "Värdtjänsten skapar en verifierad säkerhetskopia och försöker återställa om något steg misslyckas.",
+        "Skickar uppdateringsbegäran…",
+        "Uppdateringsbegäran avvisades.",
+        "Uppdateringsbegäran godkändes",
+        "Körning av värduppdateringar är inaktiverad. Ingen uppdatering kan startas.",
+    ),
+    "nb": (
+        "Kontroller testede LUMS-utgivelser og gjennomfør en oppdatering med sikkerhetskopi og tilbakerulling.",
+        "Tilgjengelig utgivelse",
+        "Verifisert commit",
+        "Vertstjeneste",
+        "Utgivelseskompatibilitet",
+        "Endringer i utgivelsen",
+        "Ingen utgivelsesinformasjon er lastet inn.",
+        "Åpne utgivelsen på GitHub",
+        "Installer denne utgivelsen",
+        "Installasjonen starter først når en administrator bekrefter den her.",
+        "Oppdateringsfremdrift",
+        "En mislykket kontroll regnes aldri som en vellykket oppdatering. Vertstjenesten registrerer resultatet av tilbakerullingen.",
+        "Kontroller forutsetninger",
+        "Opprett verifisert sikkerhetskopi",
+        "Klargjør og test utgivelsen",
+        "Bytt applikasjon",
+        "Verifiser applikasjon og database",
+        "Registrer resultat eller tilbakerulling",
+        "Nylige oppdateringsforsøk, resultatene deres og status for tilbakerulling.",
+        "Startet",
+        "Startet av",
+        "Utgivelse",
+        "Trinn",
+        "Resultat",
+        "Detaljer",
+        "Kontrollerer GitHub og vertstjenesten for oppdateringer…",
+        "Ingen oppdateringsforsøk er registrert ennå.",
+        "Kunne ikke laste inn oppdateringsstatus.",
+        "Ikke rapportert",
+        "Tilkoblet",
+        "Ikke tilkoblet",
+        "Utgivelsen er CI-testet; vertskontroller må fullføres før bytte.",
+        "Vertskontroller er utilgjengelige til vertstjenesten er tilkoblet.",
+        "Oppdatering pågår",
+        "Vertstjenesten for oppdateringer er ikke tilkoblet. Ingen oppdatering kan startes.",
+        "Utgivelsesinformasjonen er oppdatert.",
+        "I kø",
+        "Ruller tilbake",
+        "Rullet tilbake",
+        "Tilbakerulling mislyktes",
+        "Installere denne utgivelsen?",
+        "Vertstjenesten oppretter en verifisert sikkerhetskopi og forsøker å rulle tilbake hvis et trinn mislykkes.",
+        "Sender oppdateringsforespørsel…",
+        "Oppdateringsforespørselen ble avvist.",
+        "Oppdateringsforespørselen ble godtatt",
+        "Kjøring av vertsoppdateringer er deaktivert. Ingen oppdatering kan startes.",
+    ),
+    "fi": (
+        "Tarkista testatut LUMS-julkaisut ja suorita päivitys varmuuskopioinnin ja palautusyrityksen kanssa.",
+        "Saatavilla oleva julkaisu",
+        "Vahvistettu commit",
+        "Isäntäpalvelu",
+        "Julkaisun yhteensopivuus",
+        "Julkaisun muutokset",
+        "Julkaisutietoja ei ole ladattu.",
+        "Avaa julkaisu GitHubissa",
+        "Asenna tämä julkaisu",
+        "Asennus alkaa vasta, kun järjestelmänvalvoja vahvistaa sen täällä.",
+        "Päivityksen edistyminen",
+        "Epäonnistunut tarkistus ei koskaan tarkoita onnistunutta päivitystä. Isäntäpalvelu kirjaa palautuksen tuloksen.",
+        "Tarkista edellytykset",
+        "Luo vahvistettu varmuuskopio",
+        "Valmistele ja testaa julkaisu",
+        "Vaihda sovellus",
+        "Vahvista sovellus ja tietokanta",
+        "Kirjaa tulos tai palautus",
+        "Viimeisimmät päivitysyritykset, niiden tulokset ja palautuksen tila.",
+        "Aloitettu",
+        "Aloittaja",
+        "Julkaisu",
+        "Vaihe",
+        "Tulos",
+        "Tiedot",
+        "Tarkistetaan GitHubia ja isäntäpalvelua…",
+        "Päivitysyrityksiä ei ole vielä kirjattu.",
+        "Päivityksen tilaa ei voitu ladata.",
+        "Ei ilmoitettu",
+        "Yhdistetty",
+        "Ei yhdistetty",
+        "Julkaisu on testattu CI:ssä; isäntätarkistukset vaaditaan ennen vaihtoa.",
+        "Isäntätarkistukset eivät ole käytettävissä ennen isäntäpalvelun yhdistämistä.",
+        "Päivitys käynnissä",
+        "Isäntäpalvelua ei ole yhdistetty. Päivitystä ei voi käynnistää.",
+        "Julkaisutiedot ovat ajan tasalla.",
+        "Jonossa",
+        "Palautetaan",
+        "Palautettu",
+        "Palautus epäonnistui",
+        "Asennetaanko tämä julkaisu?",
+        "Isäntäpalvelu luo vahvistetun varmuuskopion ja yrittää palautusta, jos jokin vaihe epäonnistuu.",
+        "Lähetetään päivityspyyntöä…",
+        "Päivityspyyntö hylättiin.",
+        "Päivityspyyntö hyväksyttiin",
+        "Isäntäkoneen päivitysten suorittaminen on poistettu käytöstä. Päivitystä ei voi aloittaa.",
+    ),
+}
+
+for _update_language, _update_values in _UPDATE_SYSTEM_PAGE_LOCALIZED_ROWS.items():
+    _UPDATE_SYSTEM_PAGE_TRANSLATIONS.setdefault(_update_language, {}).update(
+        dict(zip(_UPDATE_SYSTEM_PAGE_LOCALIZED_KEYS, _update_values, strict=True))
+    )
+
+for _update_language, _update_entries in _UPDATE_SYSTEM_PAGE_TRANSLATIONS.items():
+    _SYSTEM_UPDATE_UI[_update_language].update(_update_entries)
+
 def _fill_missing_translations():
     # Languages without a dedicated translation show the English text.
     english = _HEALTH_DASHBOARD_TRANSLATIONS['de'].keys()
@@ -3585,32 +5943,2171 @@ def _fill_missing_translations():
 _fill_missing_translations()
 
 
+
+# Reviewed core Live-Monitoring translations; preserve existing translations.
+_LIVE_MONITORING_CORE_TRANSLATIONS = {'fr': {'Live system monitoring': 'Surveillance en direct du système', 'Health Dashboard': 'Tableau de bord de santé', 'Live monitoring': 'Surveillance en direct', 'Live host metrics, network interfaces and service states for the selected client.': 'Métriques de l’hôte, interfaces réseau et états des services en direct pour le client sélectionné.', 'Live system, network and service monitoring for the LUMS host and managed clients.': 'Surveillance en direct du système, du réseau et des services pour l’hôte LUMS et les clients gérés.', 'CPU, memory and network history. Data refreshes every five seconds.': 'Historique du processeur, de la mémoire et du réseau. Actualisation toutes les cinq secondes.', 'Fleet overview': 'Vue d’ensemble du parc', 'All clients': 'Tous les clients', 'Needs attention': 'Nécessite une intervention', 'Online clients': 'Clients en ligne', 'No clients match the filter.': 'Aucun client ne correspond au filtre.', 'No enabled clients found.': 'Aucun client activé trouvé.', 'Loading telemetry…': 'Chargement de la télémétrie…', 'No telemetry samples available yet.': 'Aucun échantillon de télémétrie disponible pour le moment.', 'No telemetry samples have been received from this client yet.': 'Aucun échantillon de télémétrie n’a encore été reçu de ce client.', 'No detailed system data is available for this client.': 'Aucune donnée système détaillée n’est disponible pour ce client.', 'Telemetry could not be loaded. Check access and connection.': 'Impossible de charger la télémétrie. Vérifiez les droits d’accès et la connexion.', 'System data is stale. Check whether the telemetry agent is running.': 'Les données système sont obsolètes. Vérifiez que l’agent de télémétrie fonctionne.', 'The standard client agent may be online, but the separate telemetry service is not reporting.': 'L’agent client standard peut être en ligne, mais le service de télémétrie distinct ne transmet aucune donnée.', 'The last detailed system snapshot is older than two minutes. Check the telemetry timer and its latest service log.': 'Le dernier instantané système détaillé date de plus de deux minutes. Vérifiez le minuteur de télémétrie et le journal récent du service.', 'Current service, client and backup-storage status.': 'État actuel des services, des clients et du stockage des sauvegardes.', 'Details follow the selected client and refresh every five seconds.': 'Les détails correspondent au client sélectionné et sont actualisés toutes les cinq secondes.', 'No high resource usage detected.': 'Aucune utilisation élevée des ressources détectée.', 'No network data yet. Update the agent to report traffic.': 'Aucune donnée réseau pour le moment. Mettez à jour l’agent pour transmettre le trafic.', 'No sensors detected.': 'Aucun capteur détecté.', 'No items reported.': 'Aucun élément signalé.', 'Selected services': 'Services sélectionnés', 'Services and containers': 'Services et conteneurs', 'Alert and outage history': 'Historique des alertes et des interruptions', 'No alerts or outages in this period.': 'Aucune alerte ni interruption pendant cette période.', 'Export events CSV': 'Exporter les événements en CSV', 'Export events JSON': 'Exporter les événements en JSON', 'Export history CSV': 'Exporter l’historique en CSV', 'Export history JSON': 'Exporter l’historique en JSON', 'Backup storage could not be checked.': 'Impossible de vérifier le stockage des sauvegardes.', 'No backup files were found.': 'Aucun fichier de sauvegarde trouvé.', 'No successful backup run is recorded.': 'Aucune exécution de sauvegarde réussie n’est enregistrée.'}, 'es': {'Live system monitoring': 'Supervisión del sistema en tiempo real', 'Health Dashboard': 'Panel de estado', 'Live monitoring': 'Supervisión en tiempo real', 'Live host metrics, network interfaces and service states for the selected client.': 'Métricas del host, interfaces de red y estados de los servicios en tiempo real para el cliente seleccionado.', 'Live system, network and service monitoring for the LUMS host and managed clients.': 'Supervisión en tiempo real del sistema, la red y los servicios del host LUMS y de los clientes administrados.', 'CPU, memory and network history. Data refreshes every five seconds.': 'Historial de CPU, memoria y red. Los datos se actualizan cada cinco segundos.', 'Fleet overview': 'Resumen de equipos', 'All clients': 'Todos los clientes', 'Needs attention': 'Requiere atención', 'Online clients': 'Clientes conectados', 'No clients match the filter.': 'Ningún cliente coincide con el filtro.', 'No enabled clients found.': 'No se encontraron clientes habilitados.', 'Loading telemetry…': 'Cargando telemetría…', 'No telemetry samples available yet.': 'Todavía no hay muestras de telemetría disponibles.', 'No telemetry samples have been received from this client yet.': 'Todavía no se han recibido muestras de telemetría de este cliente.', 'No detailed system data is available for this client.': 'No hay datos detallados del sistema disponibles para este cliente.', 'Telemetry could not be loaded. Check access and connection.': 'No se pudo cargar la telemetría. Comprueba los permisos y la conexión.', 'System data is stale. Check whether the telemetry agent is running.': 'Los datos del sistema están desactualizados. Comprueba si el agente de telemetría está en ejecución.', 'The standard client agent may be online, but the separate telemetry service is not reporting.': 'El agente estándar del cliente puede estar conectado, pero el servicio de telemetría independiente no está enviando datos.', 'The last detailed system snapshot is older than two minutes. Check the telemetry timer and its latest service log.': 'La última instantánea detallada del sistema tiene más de dos minutos. Comprueba el temporizador de telemetría y el registro reciente del servicio.', 'Current service, client and backup-storage status.': 'Estado actual de los servicios, los clientes y el almacenamiento de copias de seguridad.', 'Details follow the selected client and refresh every five seconds.': 'Los detalles corresponden al cliente seleccionado y se actualizan cada cinco segundos.', 'No high resource usage detected.': 'No se ha detectado un uso elevado de recursos.', 'No network data yet. Update the agent to report traffic.': 'Todavía no hay datos de red. Actualiza el agente para informar del tráfico.', 'No sensors detected.': 'No se han detectado sensores.', 'No items reported.': 'No se han comunicado elementos.', 'Selected services': 'Servicios seleccionados', 'Services and containers': 'Servicios y contenedores', 'Alert and outage history': 'Historial de alertas e interrupciones', 'No alerts or outages in this period.': 'No hay alertas ni interrupciones durante este período.', 'Export events CSV': 'Exportar eventos en CSV', 'Export events JSON': 'Exportar eventos en JSON', 'Export history CSV': 'Exportar historial en CSV', 'Export history JSON': 'Exportar historial en JSON', 'Backup storage could not be checked.': 'No se pudo comprobar el almacenamiento de copias de seguridad.', 'No backup files were found.': 'No se encontraron archivos de copia de seguridad.', 'No successful backup run is recorded.': 'No hay registrada ninguna ejecución de copia de seguridad correcta.'}, 'zh-CN': {'Live system monitoring': '实时系统监控', 'Health Dashboard': '运行状态仪表板', 'Live monitoring': '实时监控', 'Live host metrics, network interfaces and service states for the selected client.': '所选客户端的实时主机指标、网络接口和服务状态。', 'Live system, network and service monitoring for the LUMS host and managed clients.': '实时监控 LUMS 主机及受管理客户端的系统、网络和服务。', 'CPU, memory and network history. Data refreshes every five seconds.': 'CPU、内存和网络历史记录。数据每五秒刷新一次。', 'Fleet overview': '设备总览', 'All clients': '所有客户端', 'Needs attention': '需要关注', 'Online clients': '在线客户端', 'No clients match the filter.': '没有符合筛选条件的客户端。', 'No enabled clients found.': '未找到已启用的客户端。', 'Loading telemetry…': '正在加载遥测数据…', 'No telemetry samples available yet.': '目前没有可用的遥测样本。', 'No telemetry samples have been received from this client yet.': '尚未收到此客户端的遥测样本。', 'No detailed system data is available for this client.': '此客户端没有可用的详细系统数据。', 'Telemetry could not be loaded. Check access and connection.': '无法加载遥测数据。请检查访问权限和连接。', 'System data is stale. Check whether the telemetry agent is running.': '系统数据已过期。请检查遥测代理是否正在运行。', 'The standard client agent may be online, but the separate telemetry service is not reporting.': '标准客户端代理可能处于在线状态，但独立的遥测服务没有上报数据。', 'The last detailed system snapshot is older than two minutes. Check the telemetry timer and its latest service log.': '最近一次详细系统快照已超过两分钟。请检查遥测定时器和最新的服务日志。', 'Current service, client and backup-storage status.': '当前服务、客户端和备份存储状态。', 'Details follow the selected client and refresh every five seconds.': '详细信息对应所选客户端，并每五秒刷新一次。', 'No high resource usage detected.': '未检测到资源使用率过高。', 'No network data yet. Update the agent to report traffic.': '暂无网络数据。请更新代理以报告流量。', 'No sensors detected.': '未检测到传感器。', 'No items reported.': '没有上报任何项目。', 'Selected services': '已选服务', 'Services and containers': '服务和容器', 'Alert and outage history': '告警和中断历史', 'No alerts or outages in this period.': '此时间段内没有告警或中断。', 'Export events CSV': '导出事件 CSV', 'Export events JSON': '导出事件 JSON', 'Export history CSV': '导出历史记录 CSV', 'Export history JSON': '导出历史记录 JSON', 'Backup storage could not be checked.': '无法检查备份存储。', 'No backup files were found.': '未找到备份文件。', 'No successful backup run is recorded.': '没有成功备份运行的记录。'}, 'ja': {'Live system monitoring': 'システムのリアルタイム監視', 'Health Dashboard': '稼働状況ダッシュボード', 'Live monitoring': 'リアルタイム監視', 'Live host metrics, network interfaces and service states for the selected client.': '選択したクライアントのホスト指標、ネットワークインターフェース、サービス状態をリアルタイムで表示します。', 'Live system, network and service monitoring for the LUMS host and managed clients.': 'LUMS ホストと管理対象クライアントのシステム、ネットワーク、サービスをリアルタイムで監視します。', 'CPU, memory and network history. Data refreshes every five seconds.': 'CPU、メモリ、ネットワークの履歴。データは 5 秒ごとに更新されます。', 'Fleet overview': 'クライアント一覧', 'All clients': 'すべてのクライアント', 'Needs attention': '要確認', 'Online clients': 'オンラインのクライアント', 'No clients match the filter.': '条件に一致するクライアントはありません。', 'No enabled clients found.': '有効なクライアントが見つかりません。', 'Loading telemetry…': 'テレメトリを読み込み中…', 'No telemetry samples available yet.': 'テレメトリデータはまだありません。', 'No telemetry samples have been received from this client yet.': 'このクライアントからテレメトリデータはまだ受信されていません。', 'No detailed system data is available for this client.': 'このクライアントの詳細なシステムデータはありません。', 'Telemetry could not be loaded. Check access and connection.': 'テレメトリを読み込めませんでした。アクセス権と接続を確認してください。', 'System data is stale. Check whether the telemetry agent is running.': 'システムデータが古くなっています。テレメトリエージェントが動作しているか確認してください。', 'The standard client agent may be online, but the separate telemetry service is not reporting.': '標準クライアントエージェントはオンラインでも、独立したテレメトリサービスからデータが送信されていない可能性があります。', 'The last detailed system snapshot is older than two minutes. Check the telemetry timer and its latest service log.': '最後の詳細なシステムスナップショットから 2 分以上経過しています。テレメトリのタイマーと最新のサービスログを確認してください。', 'Current service, client and backup-storage status.': 'サービス、クライアント、バックアップストレージの現在の状態。', 'Details follow the selected client and refresh every five seconds.': '詳細は選択したクライアントに合わせて表示され、5 秒ごとに更新されます。', 'No high resource usage detected.': 'リソースの高負荷は検出されていません。', 'No network data yet. Update the agent to report traffic.': 'ネットワークデータはまだありません。トラフィックを報告するにはエージェントを更新してください。', 'No sensors detected.': 'センサーは検出されていません。', 'No items reported.': '報告された項目はありません。', 'Selected services': '選択したサービス', 'Services and containers': 'サービスとコンテナ', 'Alert and outage history': 'アラートと停止の履歴', 'No alerts or outages in this period.': 'この期間にアラートや停止はありません。', 'Export events CSV': 'イベントを CSV でエクスポート', 'Export events JSON': 'イベントを JSON でエクスポート', 'Export history CSV': '履歴を CSV でエクスポート', 'Export history JSON': '履歴を JSON でエクスポート', 'Backup storage could not be checked.': 'バックアップストレージを確認できませんでした。', 'No backup files were found.': 'バックアップファイルが見つかりません。', 'No successful backup run is recorded.': '成功したバックアップ実行の記録はありません。'}, 'pl': {'Live system monitoring': 'Monitorowanie systemu na żywo', 'Health Dashboard': 'Pulpit stanu systemu', 'Live monitoring': 'Monitorowanie na żywo', 'Live host metrics, network interfaces and service states for the selected client.': 'Bieżące metryki hosta, interfejsy sieciowe i stany usług wybranego klienta.', 'Live system, network and service monitoring for the LUMS host and managed clients.': 'Monitorowanie na żywo systemu, sieci i usług hosta LUMS oraz zarządzanych klientów.', 'CPU, memory and network history. Data refreshes every five seconds.': 'Historia procesora, pamięci i sieci. Dane są odświeżane co pięć sekund.', 'Fleet overview': 'Przegląd klientów', 'All clients': 'Wszyscy klienci', 'Needs attention': 'Wymaga uwagi', 'Online clients': 'Klienci online', 'No clients match the filter.': 'Brak klientów pasujących do filtra.', 'No enabled clients found.': 'Nie znaleziono włączonych klientów.', 'Loading telemetry…': 'Wczytywanie telemetrii…', 'No telemetry samples available yet.': 'Brak dostępnych próbek telemetrii.', 'No telemetry samples have been received from this client yet.': 'Nie otrzymano jeszcze próbek telemetrii od tego klienta.', 'No detailed system data is available for this client.': 'Brak szczegółowych danych systemowych dla tego klienta.', 'Telemetry could not be loaded. Check access and connection.': 'Nie udało się wczytać telemetrii. Sprawdź uprawnienia i połączenie.', 'System data is stale. Check whether the telemetry agent is running.': 'Dane systemowe są nieaktualne. Sprawdź, czy agent telemetrii działa.', 'The standard client agent may be online, but the separate telemetry service is not reporting.': 'Standardowy agent klienta może być online, ale oddzielna usługa telemetrii nie przesyła danych.', 'The last detailed system snapshot is older than two minutes. Check the telemetry timer and its latest service log.': 'Ostatni szczegółowy zrzut systemu pochodzi sprzed ponad dwóch minut. Sprawdź harmonogram telemetrii i najnowszy dziennik usługi.', 'Current service, client and backup-storage status.': 'Bieżący stan usług, klientów i magazynu kopii zapasowych.', 'Details follow the selected client and refresh every five seconds.': 'Szczegóły dotyczą wybranego klienta i są odświeżane co pięć sekund.', 'No high resource usage detected.': 'Nie wykryto wysokiego wykorzystania zasobów.', 'No network data yet. Update the agent to report traffic.': 'Brak danych sieciowych. Zaktualizuj agenta, aby raportował ruch.', 'No sensors detected.': 'Nie wykryto czujników.', 'No items reported.': 'Nie zgłoszono żadnych elementów.', 'Selected services': 'Wybrane usługi', 'Services and containers': 'Usługi i kontenery', 'Alert and outage history': 'Historia alertów i przerw w działaniu', 'No alerts or outages in this period.': 'Brak alertów i przerw w działaniu w tym okresie.', 'Export events CSV': 'Eksportuj zdarzenia do CSV', 'Export events JSON': 'Eksportuj zdarzenia do JSON', 'Export history CSV': 'Eksportuj historię do CSV', 'Export history JSON': 'Eksportuj historię do JSON', 'Backup storage could not be checked.': 'Nie udało się sprawdzić magazynu kopii zapasowych.', 'No backup files were found.': 'Nie znaleziono plików kopii zapasowych.', 'No successful backup run is recorded.': 'Brak zarejestrowanego pomyślnego wykonania kopii zapasowej.'}, 'sv': {'Live system monitoring': 'Systemövervakning i realtid', 'Health Dashboard': 'Statusöversikt', 'Live monitoring': 'Realtidsövervakning', 'Live host metrics, network interfaces and service states for the selected client.': 'Värdmätvärden, nätverksgränssnitt och tjänstestatus i realtid för den valda klienten.', 'Live system, network and service monitoring for the LUMS host and managed clients.': 'Övervakning i realtid av system, nätverk och tjänster på LUMS-värden och hanterade klienter.', 'CPU, memory and network history. Data refreshes every five seconds.': 'Historik för processor, minne och nätverk. Data uppdateras var femte sekund.', 'Fleet overview': 'Översikt över klienter', 'All clients': 'Alla klienter', 'Needs attention': 'Kräver åtgärd', 'Online clients': 'Klienter online', 'No clients match the filter.': 'Inga klienter matchar filtret.', 'No enabled clients found.': 'Inga aktiverade klienter hittades.', 'Loading telemetry…': 'Läser in telemetri…', 'No telemetry samples available yet.': 'Inga telemetrivärden är tillgängliga ännu.', 'No telemetry samples have been received from this client yet.': 'Inga telemetrivärden har ännu tagits emot från den här klienten.', 'No detailed system data is available for this client.': 'Inga detaljerade systemdata finns tillgängliga för den här klienten.', 'Telemetry could not be loaded. Check access and connection.': 'Det gick inte att läsa in telemetri. Kontrollera behörighet och anslutning.', 'System data is stale. Check whether the telemetry agent is running.': 'Systemdata är inaktuella. Kontrollera att telemetriagenten körs.', 'The standard client agent may be online, but the separate telemetry service is not reporting.': 'Standardagenten kan vara online, men den separata telemetritjänsten rapporterar inte.', 'The last detailed system snapshot is older than two minutes. Check the telemetry timer and its latest service log.': 'Den senaste detaljerade systemavbildningen är äldre än två minuter. Kontrollera telemetritimern och tjänstens senaste logg.', 'Current service, client and backup-storage status.': 'Aktuell status för tjänster, klienter och säkerhetskopieringslagring.', 'Details follow the selected client and refresh every five seconds.': 'Detaljerna gäller den valda klienten och uppdateras var femte sekund.', 'No high resource usage detected.': 'Ingen hög resursanvändning upptäcktes.', 'No network data yet. Update the agent to report traffic.': 'Inga nätverksdata ännu. Uppdatera agenten för att rapportera trafik.', 'No sensors detected.': 'Inga sensorer upptäcktes.', 'No items reported.': 'Inga objekt rapporterade.', 'Selected services': 'Valda tjänster', 'Services and containers': 'Tjänster och containrar', 'Alert and outage history': 'Historik över larm och avbrott', 'No alerts or outages in this period.': 'Inga larm eller avbrott under den här perioden.', 'Export events CSV': 'Exportera händelser som CSV', 'Export events JSON': 'Exportera händelser som JSON', 'Export history CSV': 'Exportera historik som CSV', 'Export history JSON': 'Exportera historik som JSON', 'Backup storage could not be checked.': 'Det gick inte att kontrollera säkerhetskopieringslagringen.', 'No backup files were found.': 'Inga säkerhetskopior hittades.', 'No successful backup run is recorded.': 'Ingen lyckad säkerhetskopiering finns registrerad.'}, 'nb': {'Live system monitoring': 'Sanntidsovervåking av systemet', 'Health Dashboard': 'Statusoversikt', 'Live monitoring': 'Sanntidsovervåking', 'Live host metrics, network interfaces and service states for the selected client.': 'Vertsverdier, nettverksgrensesnitt og tjenestestatus i sanntid for den valgte klienten.', 'Live system, network and service monitoring for the LUMS host and managed clients.': 'Sanntidsovervåking av system, nettverk og tjenester på LUMS-verten og administrerte klienter.', 'CPU, memory and network history. Data refreshes every five seconds.': 'Historikk for prosessor, minne og nettverk. Data oppdateres hvert femte sekund.', 'Fleet overview': 'Klientoversikt', 'All clients': 'Alle klienter', 'Needs attention': 'Krever oppfølging', 'Online clients': 'Klienter tilkoblet', 'No clients match the filter.': 'Ingen klienter samsvarer med filteret.', 'No enabled clients found.': 'Fant ingen aktiverte klienter.', 'Loading telemetry…': 'Laster telemetri…', 'No telemetry samples available yet.': 'Ingen telemetriprøver er tilgjengelige ennå.', 'No telemetry samples have been received from this client yet.': 'Det er ennå ikke mottatt telemetriprøver fra denne klienten.', 'No detailed system data is available for this client.': 'Ingen detaljerte systemdata er tilgjengelige for denne klienten.', 'Telemetry could not be loaded. Check access and connection.': 'Kunne ikke laste telemetri. Kontroller tilgang og tilkobling.', 'System data is stale. Check whether the telemetry agent is running.': 'Systemdataene er utdaterte. Kontroller om telemetriagenten kjører.', 'The standard client agent may be online, but the separate telemetry service is not reporting.': 'Standard klientagent kan være tilkoblet, men den separate telemetritjenesten rapporterer ikke.', 'The last detailed system snapshot is older than two minutes. Check the telemetry timer and its latest service log.': 'Det siste detaljerte systembildet er eldre enn to minutter. Kontroller telemetritimeren og den nyeste tjenesteloggen.', 'Current service, client and backup-storage status.': 'Gjeldende status for tjenester, klienter og sikkerhetskopilagring.', 'Details follow the selected client and refresh every five seconds.': 'Detaljene gjelder den valgte klienten og oppdateres hvert femte sekund.', 'No high resource usage detected.': 'Ingen høy ressursbruk oppdaget.', 'No network data yet. Update the agent to report traffic.': 'Ingen nettverksdata ennå. Oppdater agenten for å rapportere trafikk.', 'No sensors detected.': 'Ingen sensorer oppdaget.', 'No items reported.': 'Ingen elementer rapportert.', 'Selected services': 'Valgte tjenester', 'Services and containers': 'Tjenester og containere', 'Alert and outage history': 'Historikk over varsler og avbrudd', 'No alerts or outages in this period.': 'Ingen varsler eller avbrudd i denne perioden.', 'Export events CSV': 'Eksporter hendelser som CSV', 'Export events JSON': 'Eksporter hendelser som JSON', 'Export history CSV': 'Eksporter historikk som CSV', 'Export history JSON': 'Eksporter historikk som JSON', 'Backup storage could not be checked.': 'Kunne ikke kontrollere sikkerhetskopilagringen.', 'No backup files were found.': 'Fant ingen sikkerhetskopifiler.', 'No successful backup run is recorded.': 'Ingen vellykket sikkerhetskopiering er registrert.'}, 'fi': {'Live system monitoring': 'Järjestelmän reaaliaikainen valvonta', 'Health Dashboard': 'Järjestelmän tilan koontinäyttö', 'Live monitoring': 'Reaaliaikainen valvonta', 'Live host metrics, network interfaces and service states for the selected client.': 'Valitun asiakkaan reaaliaikaiset isäntämittarit, verkkoliitännät ja palvelujen tilat.', 'Live system, network and service monitoring for the LUMS host and managed clients.': 'LUMS-isännän ja hallittujen asiakkaiden järjestelmän, verkon ja palvelujen reaaliaikainen valvonta.', 'CPU, memory and network history. Data refreshes every five seconds.': 'Suorittimen, muistin ja verkon historia. Tiedot päivittyvät viiden sekunnin välein.', 'Fleet overview': 'Asiakkaiden yleiskatsaus', 'All clients': 'Kaikki asiakkaat', 'Needs attention': 'Vaatii huomiota', 'Online clients': 'Verkossa olevat asiakkaat', 'No clients match the filter.': 'Suodatinta vastaavia asiakkaita ei ole.', 'No enabled clients found.': 'Käytössä olevia asiakkaita ei löytynyt.', 'Loading telemetry…': 'Ladataan telemetriatietoja…', 'No telemetry samples available yet.': 'Telemetrianäytteitä ei ole vielä saatavilla.', 'No telemetry samples have been received from this client yet.': 'Tältä asiakkaalta ei ole vielä vastaanotettu telemetrianäytteitä.', 'No detailed system data is available for this client.': 'Tälle asiakkaalle ei ole saatavilla yksityiskohtaisia järjestelmätietoja.', 'Telemetry could not be loaded. Check access and connection.': 'Telemetrian lataaminen epäonnistui. Tarkista käyttöoikeudet ja yhteys.', 'System data is stale. Check whether the telemetry agent is running.': 'Järjestelmätiedot ovat vanhentuneita. Tarkista, onko telemetria-agentti käynnissä.', 'The standard client agent may be online, but the separate telemetry service is not reporting.': 'Tavallinen asiakasagentti voi olla verkossa, mutta erillinen telemetriapalvelu ei lähetä tietoja.', 'The last detailed system snapshot is older than two minutes. Check the telemetry timer and its latest service log.': 'Viimeisin yksityiskohtainen järjestelmätilannekuva on yli kaksi minuuttia vanha. Tarkista telemetria-ajastin ja palvelun uusin loki.', 'Current service, client and backup-storage status.': 'Palvelujen, asiakkaiden ja varmuuskopiointitallennuksen nykyinen tila.', 'Details follow the selected client and refresh every five seconds.': 'Tiedot koskevat valittua asiakasta ja päivittyvät viiden sekunnin välein.', 'No high resource usage detected.': 'Suurta resurssien käyttöä ei havaittu.', 'No network data yet. Update the agent to report traffic.': 'Verkkotietoja ei vielä ole. Päivitä agentti, jotta se raportoi liikenteen.', 'No sensors detected.': 'Antureita ei havaittu.', 'No items reported.': 'Kohteita ei ole ilmoitettu.', 'Selected services': 'Valitut palvelut', 'Services and containers': 'Palvelut ja säilöt', 'Alert and outage history': 'Hälytysten ja käyttökatkojen historia', 'No alerts or outages in this period.': 'Tällä aikavälillä ei ole hälytyksiä eikä käyttökatkoja.', 'Export events CSV': 'Vie tapahtumat CSV-muodossa', 'Export events JSON': 'Vie tapahtumat JSON-muodossa', 'Export history CSV': 'Vie historia CSV-muodossa', 'Export history JSON': 'Vie historia JSON-muodossa', 'Backup storage could not be checked.': 'Varmuuskopiointitallennuksen tarkistus epäonnistui.', 'No backup files were found.': 'Varmuuskopiotiedostoja ei löytynyt.', 'No successful backup run is recorded.': 'Onnistunutta varmuuskopiointia ei ole kirjattu.'}}
+for _live_language, _live_entries in _LIVE_MONITORING_CORE_TRANSLATIONS.items():
+    _health_entries = _HEALTH_DASHBOARD_TRANSLATIONS.get(_live_language, {})
+    for _live_key, _live_value in _live_entries.items():
+        if _health_entries.get(_live_key, _live_key) == _live_key:
+            _health_entries[_live_key] = _live_value
+
+
+# Reviewed Live-Monitoring status and chart translations.
+_LIVE_MONITORING_STATUS_TRANSLATIONS = {'fr': {'Area chart': 'Graphique en aires', 'Boot started': 'Démarrage du système', 'CPU utilization': 'Utilisation du processeur', 'CPU or RAM utilization is at least 90%.': 'L’utilisation du processeur ou de la mémoire atteint au moins 90 %.', 'Client details': 'Détails du client', 'Connectivity': 'Connectivité', 'Container state unknown': 'État du conteneur inconnu', 'Container stopped': 'Conteneur arrêté', 'Container unhealthy': 'Conteneur en mauvais état', 'Container up': 'Conteneur en cours d’exécution', 'Containers': 'Conteneurs', 'Current': 'Actuel', 'Disk usage': 'Utilisation du disque', 'Disk utilization': 'Utilisation du disque', 'Donut (current)': 'Diagramme en anneau (actuel)', 'Down': 'Arrêté', 'Errors / dropped': 'Erreurs / paquets perdus', 'Event': 'Événement', 'Failed': 'Échec', 'Fan speeds': 'Vitesses des ventilateurs', 'Free': 'Disponible', 'Hide section': 'Masquer la section', 'History': 'Historique', 'Interface': 'Interface', 'Last 24 hours': 'Dernières 24 heures', 'Last 7 days': '7 derniers jours', 'Last hour': 'Dernière heure', 'Line chart': 'Graphique en courbes', 'Load average': 'Charge moyenne', 'Memory utilization': 'Utilisation de la mémoire', 'Network interfaces': 'Interfaces réseau', 'Network traffic': 'Trafic réseau', 'Recent login history': 'Historique récent des connexions', 'Recent reboot history': 'Historique récent des redémarrages', 'Security and events': 'Sécurité et événements', 'Show section': 'Afficher la section', 'System overview': 'Vue d’ensemble du système', 'System telemetry': 'Télémétrie système', 'Temperatures': 'Températures', 'Threshold': 'Seuil', 'Time': 'Heure', 'Up': 'En ligne', 'Uptime': 'Durée de fonctionnement', 'Used': 'Utilisé', 'Waiting for system telemetry.': 'En attente de la télémétrie système.'}, 'es': {'Area chart': 'Gráfico de áreas', 'Boot started': 'Inicio del sistema', 'CPU utilization': 'Uso de CPU', 'CPU or RAM utilization is at least 90%.': 'El uso de CPU o RAM es de al menos el 90 %.', 'Client details': 'Detalles del cliente', 'Connectivity': 'Conectividad', 'Container state unknown': 'Estado del contenedor desconocido', 'Container stopped': 'Contenedor detenido', 'Container unhealthy': 'Contenedor en estado incorrecto', 'Container up': 'Contenedor en ejecución', 'Containers': 'Contenedores', 'Current': 'Actual', 'Disk usage': 'Uso del disco', 'Disk utilization': 'Uso del disco', 'Donut (current)': 'Gráfico de anillo (actual)', 'Down': 'Inactivo', 'Errors / dropped': 'Errores / descartados', 'Event': 'Evento', 'Failed': 'Fallido', 'Fan speeds': 'Velocidades de los ventiladores', 'Free': 'Libre', 'Hide section': 'Ocultar sección', 'History': 'Historial', 'Interface': 'Interfaz', 'Last 24 hours': 'Últimas 24 horas', 'Last 7 days': 'Últimos 7 días', 'Last hour': 'Última hora', 'Line chart': 'Gráfico de líneas', 'Load average': 'Carga media', 'Memory utilization': 'Uso de memoria', 'Network interfaces': 'Interfaces de red', 'Network traffic': 'Tráfico de red', 'Recent login history': 'Historial reciente de inicios de sesión', 'Recent reboot history': 'Historial reciente de reinicios', 'Security and events': 'Seguridad y eventos', 'Show section': 'Mostrar sección', 'System overview': 'Resumen del sistema', 'System telemetry': 'Telemetría del sistema', 'Temperatures': 'Temperaturas', 'Threshold': 'Umbral', 'Time': 'Hora', 'Up': 'Activo', 'Uptime': 'Tiempo de actividad', 'Used': 'Usado', 'Waiting for system telemetry.': 'Esperando la telemetría del sistema.'}, 'zh-CN': {'Area chart': '面积图', 'Boot started': '系统启动', 'CPU utilization': 'CPU 使用率', 'CPU or RAM utilization is at least 90%.': 'CPU 或 RAM 使用率达到 90% 或以上。', 'Client details': '客户端详情', 'Connectivity': '连接状态', 'Container state unknown': '容器状态未知', 'Container stopped': '容器已停止', 'Container unhealthy': '容器运行异常', 'Container up': '容器运行中', 'Containers': '容器', 'Current': '当前', 'Disk usage': '磁盘使用情况', 'Disk utilization': '磁盘使用率', 'Donut (current)': '环形图（当前）', 'Down': '已停止', 'Errors / dropped': '错误 / 丢弃', 'Event': '事件', 'Failed': '失败', 'Fan speeds': '风扇转速', 'Free': '可用', 'Hide section': '隐藏分区', 'History': '历史记录', 'Interface': '接口', 'Last 24 hours': '最近 24 小时', 'Last 7 days': '最近 7 天', 'Last hour': '最近一小时', 'Line chart': '折线图', 'Load average': '平均负载', 'Memory utilization': '内存使用率', 'Network interfaces': '网络接口', 'Network traffic': '网络流量', 'Recent login history': '最近登录记录', 'Recent reboot history': '最近重启记录', 'Security and events': '安全与事件', 'Show section': '显示分区', 'System overview': '系统概览', 'System telemetry': '系统遥测', 'Temperatures': '温度', 'Threshold': '阈值', 'Time': '时间', 'Up': '运行中', 'Uptime': '运行时间', 'Used': '已用', 'Waiting for system telemetry.': '正在等待系统遥测数据。'}, 'ja': {'Area chart': '面グラフ', 'Boot started': 'システム起動', 'CPU utilization': 'CPU 使用率', 'CPU or RAM utilization is at least 90%.': 'CPU または RAM の使用率が 90% 以上です。', 'Client details': 'クライアントの詳細', 'Connectivity': '接続状態', 'Container state unknown': 'コンテナの状態が不明', 'Container stopped': 'コンテナ停止', 'Container unhealthy': 'コンテナの状態が異常', 'Container up': 'コンテナ稼働中', 'Containers': 'コンテナ', 'Current': '現在', 'Disk usage': 'ディスク使用量', 'Disk utilization': 'ディスク使用率', 'Donut (current)': 'ドーナツグラフ（現在）', 'Down': '停止', 'Errors / dropped': 'エラー / 破棄', 'Event': 'イベント', 'Failed': '失敗', 'Fan speeds': 'ファン速度', 'Free': '空き', 'Hide section': 'セクションを非表示', 'History': '履歴', 'Interface': 'インターフェース', 'Last 24 hours': '過去 24 時間', 'Last 7 days': '過去 7 日間', 'Last hour': '過去 1 時間', 'Line chart': '折れ線グラフ', 'Load average': 'ロードアベレージ', 'Memory utilization': 'メモリ使用率', 'Network interfaces': 'ネットワークインターフェース', 'Network traffic': 'ネットワークトラフィック', 'Recent login history': '最近のログイン履歴', 'Recent reboot history': '最近の再起動履歴', 'Security and events': 'セキュリティとイベント', 'Show section': 'セクションを表示', 'System overview': 'システム概要', 'System telemetry': 'システムテレメトリ', 'Temperatures': '温度', 'Threshold': 'しきい値', 'Time': '時刻', 'Up': '稼働中', 'Uptime': '稼働時間', 'Used': '使用済み', 'Waiting for system telemetry.': 'システムテレメトリを待機しています。'}, 'pl': {'Area chart': 'Wykres warstwowy', 'Boot started': 'Uruchomienie systemu', 'CPU utilization': 'Wykorzystanie procesora', 'CPU or RAM utilization is at least 90%.': 'Wykorzystanie procesora lub pamięci wynosi co najmniej 90%.', 'Client details': 'Szczegóły klienta', 'Connectivity': 'Łączność', 'Container state unknown': 'Nieznany stan kontenera', 'Container stopped': 'Kontener zatrzymany', 'Container unhealthy': 'Kontener w złym stanie', 'Container up': 'Kontener działa', 'Containers': 'Kontenery', 'Current': 'Bieżące', 'Disk usage': 'Użycie dysku', 'Disk utilization': 'Wykorzystanie dysku', 'Donut (current)': 'Wykres pierścieniowy (bieżący)', 'Down': 'Wyłączony', 'Errors / dropped': 'Błędy / odrzucone', 'Event': 'Zdarzenie', 'Failed': 'Niepowodzenie', 'Fan speeds': 'Prędkości wentylatorów', 'Free': 'Wolne', 'Hide section': 'Ukryj sekcję', 'History': 'Historia', 'Interface': 'Interfejs', 'Last 24 hours': 'Ostatnie 24 godziny', 'Last 7 days': 'Ostatnie 7 dni', 'Last hour': 'Ostatnia godzina', 'Line chart': 'Wykres liniowy', 'Load average': 'Średnie obciążenie', 'Memory utilization': 'Wykorzystanie pamięci', 'Network interfaces': 'Interfejsy sieciowe', 'Network traffic': 'Ruch sieciowy', 'Recent login history': 'Ostatnia historia logowań', 'Recent reboot history': 'Ostatnia historia ponownych uruchomień', 'Security and events': 'Bezpieczeństwo i zdarzenia', 'Show section': 'Pokaż sekcję', 'System overview': 'Przegląd systemu', 'System telemetry': 'Telemetria systemu', 'Temperatures': 'Temperatury', 'Threshold': 'Próg', 'Time': 'Czas', 'Up': 'Działa', 'Uptime': 'Czas działania', 'Used': 'Użyte', 'Waiting for system telemetry.': 'Oczekiwanie na telemetrię systemową.'}, 'sv': {'Area chart': 'Ytdiagram', 'Boot started': 'Systemstart', 'CPU utilization': 'Processoranvändning', 'CPU or RAM utilization is at least 90%.': 'Processor- eller minnesanvändningen är minst 90 %.', 'Client details': 'Klientinformation', 'Connectivity': 'Anslutning', 'Container state unknown': 'Okänt containertillstånd', 'Container stopped': 'Containern har stoppats', 'Container unhealthy': 'Containern är inte frisk', 'Container up': 'Containern körs', 'Containers': 'Containrar', 'Current': 'Aktuell', 'Disk usage': 'Diskanvändning', 'Disk utilization': 'Diskutnyttjande', 'Donut (current)': 'Ringdiagram (aktuell)', 'Down': 'Nere', 'Errors / dropped': 'Fel / borttappade', 'Event': 'Händelse', 'Failed': 'Misslyckades', 'Fan speeds': 'Fläkthastigheter', 'Free': 'Ledigt', 'Hide section': 'Dölj avsnitt', 'History': 'Historik', 'Interface': 'Gränssnitt', 'Last 24 hours': 'Senaste 24 timmarna', 'Last 7 days': 'Senaste 7 dagarna', 'Last hour': 'Senaste timmen', 'Line chart': 'Linjediagram', 'Load average': 'Genomsnittlig belastning', 'Memory utilization': 'Minnesanvändning', 'Network interfaces': 'Nätverksgränssnitt', 'Network traffic': 'Nätverkstrafik', 'Recent login history': 'Senaste inloggningshistoriken', 'Recent reboot history': 'Senaste omstartshistoriken', 'Security and events': 'Säkerhet och händelser', 'Show section': 'Visa avsnitt', 'System overview': 'Systemöversikt', 'System telemetry': 'Systemtelemetri', 'Temperatures': 'Temperaturer', 'Threshold': 'Tröskelvärde', 'Time': 'Tid', 'Up': 'Uppe', 'Uptime': 'Drifttid', 'Used': 'Använt', 'Waiting for system telemetry.': 'Väntar på systemtelemetri.'}, 'nb': {'Area chart': 'Områdediagram', 'Boot started': 'Systemoppstart', 'CPU utilization': 'Prosessorbruk', 'CPU or RAM utilization is at least 90%.': 'Prosessor- eller minnebruk er minst 90 %.', 'Client details': 'Klientdetaljer', 'Connectivity': 'Tilkobling', 'Container state unknown': 'Ukjent containertilstand', 'Container stopped': 'Container stoppet', 'Container unhealthy': 'Container fungerer ikke som den skal', 'Container up': 'Container kjører', 'Containers': 'Containere', 'Current': 'Gjeldende', 'Disk usage': 'Diskbruk', 'Disk utilization': 'Diskutnyttelse', 'Donut (current)': 'Smultringdiagram (gjeldende)', 'Down': 'Nede', 'Errors / dropped': 'Feil / forkastet', 'Event': 'Hendelse', 'Failed': 'Mislyktes', 'Fan speeds': 'Viftehastigheter', 'Free': 'Ledig', 'Hide section': 'Skjul seksjon', 'History': 'Historikk', 'Interface': 'Grensesnitt', 'Last 24 hours': 'Siste 24 timer', 'Last 7 days': 'Siste 7 dager', 'Last hour': 'Siste time', 'Line chart': 'Linjediagram', 'Load average': 'Gjennomsnittlig belastning', 'Memory utilization': 'Minnebruk', 'Network interfaces': 'Nettverksgrensesnitt', 'Network traffic': 'Nettverkstrafikk', 'Recent login history': 'Nylig innloggingshistorikk', 'Recent reboot history': 'Nylig omstartshistorikk', 'Security and events': 'Sikkerhet og hendelser', 'Show section': 'Vis seksjon', 'System overview': 'Systemoversikt', 'System telemetry': 'Systemtelemetri', 'Temperatures': 'Temperaturer', 'Threshold': 'Terskel', 'Time': 'Tid', 'Up': 'Oppe', 'Uptime': 'Oppetid', 'Used': 'Brukt', 'Waiting for system telemetry.': 'Venter på systemtelemetri.'}, 'fi': {'Area chart': 'Aluekaavio', 'Boot started': 'Järjestelmän käynnistys', 'CPU utilization': 'Suorittimen käyttö', 'CPU or RAM utilization is at least 90%.': 'Suorittimen tai muistin käyttöaste on vähintään 90 %.', 'Client details': 'Asiakkaan tiedot', 'Connectivity': 'Yhteydet', 'Container state unknown': 'Säilön tila tuntematon', 'Container stopped': 'Säilö pysäytetty', 'Container unhealthy': 'Säilö ei ole terveessä tilassa', 'Container up': 'Säilö käynnissä', 'Containers': 'Säilöt', 'Current': 'Nykyinen', 'Disk usage': 'Levyn käyttö', 'Disk utilization': 'Levyn käyttöaste', 'Donut (current)': 'Rengaskaavio (nykyinen)', 'Down': 'Poissa käytöstä', 'Errors / dropped': 'Virheet / pudotetut', 'Event': 'Tapahtuma', 'Failed': 'Epäonnistui', 'Fan speeds': 'Tuulettimien nopeudet', 'Free': 'Vapaana', 'Hide section': 'Piilota osio', 'History': 'Historia', 'Interface': 'Liitäntä', 'Last 24 hours': 'Viimeiset 24 tuntia', 'Last 7 days': 'Viimeiset 7 päivää', 'Last hour': 'Viimeinen tunti', 'Line chart': 'Viivakaavio', 'Load average': 'Keskimääräinen kuormitus', 'Memory utilization': 'Muistin käyttöaste', 'Network interfaces': 'Verkkoliitännät', 'Network traffic': 'Verkkoliikenne', 'Recent login history': 'Viimeisimmät kirjautumiset', 'Recent reboot history': 'Viimeisimmät uudelleenkäynnistykset', 'Security and events': 'Tietoturva ja tapahtumat', 'Show section': 'Näytä osio', 'System overview': 'Järjestelmän yleiskatsaus', 'System telemetry': 'Järjestelmän telemetria', 'Temperatures': 'Lämpötilat', 'Threshold': 'Kynnysarvo', 'Time': 'Aika', 'Up': 'Toiminnassa', 'Uptime': 'Käyttöaika', 'Used': 'Käytössä', 'Waiting for system telemetry.': 'Odotetaan järjestelmän telemetriatietoja.'}}
+for _live_language, _live_entries in _LIVE_MONITORING_STATUS_TRANSLATIONS.items():
+    _health_entries = _HEALTH_DASHBOARD_TRANSLATIONS.get(_live_language, {})
+    for _live_key, _live_value in _live_entries.items():
+        if _health_entries.get(_live_key, _live_key) == _live_key:
+            _health_entries[_live_key] = _live_value
+
+
+# Reviewed Live-Monitoring help and event translations.
+_LIVE_MONITORING_HELP_TRANSLATIONS = {'fr': {'Basic telemetry is arriving, but this client is not sending detailed system snapshots.': 'La télémétrie de base fonctionne, mais ce client n’envoie pas d’instantanés système détaillés.', 'Customize navigation': 'Personnaliser la navigation', 'Details follow the client selected above and refresh every five seconds.': 'Les détails correspondent au client sélectionné ci-dessus et sont actualisés toutes les cinq secondes.', 'Failed SSH logins (24 h, max 500 records)': 'Échecs de connexion SSH (24 h, 500 entrées maximum)', 'Finish navigation editing': 'Terminer la modification de la navigation', 'Journal access is unavailable. Grant the telemetry service read access to the system journal to enable event summaries.': 'L’accès au journal système est indisponible. Accordez au service de télémétrie un accès en lecture au journal système pour activer les résumés d’événements.', 'Journal errors (1 h, max 500 records)': 'Erreurs du journal (1 h, 500 entrées maximum)', 'Journal warnings (1 h, max 500 records)': 'Avertissements du journal (1 h, 500 entrées maximum)', 'Last failed SSH login': 'Dernière connexion SSH échouée', 'Last journal entry': 'Dernière entrée du journal', 'Last sample:': 'Dernier échantillon :', 'Last successful backup run:': 'Dernière sauvegarde réussie :', 'Link status': 'État de la liaison', 'Login history is unavailable.': 'L’historique des connexions est indisponible.', 'Navigation preferences could not be saved.': 'Impossible d’enregistrer les préférences de navigation.', 'Navigation preferences saved.': 'Préférences de navigation enregistrées.', 'Navigation sections': 'Sections de navigation', 'No login events reported.': 'Aucun événement de connexion signalé.', 'No reboot history reported.': 'Aucun historique de redémarrage signalé.', 'Not available on this system.': 'Indisponible sur ce système.', 'On the Debian client, run these checks without displaying its token:': 'Sur le client Debian, exécutez ces vérifications sans afficher son jeton :', 'Open live monitoring': 'Ouvrir la supervision en direct', 'Reboot history is unavailable.': 'L’historique des redémarrages est indisponible.', 'Restore default navigation': 'Rétablir la navigation par défaut', 'SSH event data is unavailable.': 'Les données des événements SSH sont indisponibles.', 'Threshold crossings and telemetry interruptions for the selected client and period.': 'Dépassements de seuil et interruptions de télémétrie pour le client et la période sélectionnés.', 'To enable status reporting, add the installed service unit to LUMS_MONITORED_SERVICES on the telemetry agent.': 'Pour activer le signalement d’état, ajoutez l’unité de service installée à LUMS_MONITORED_SERVICES sur l’agent de télémétrie.', 'To install or update the collector, run this from the LUMS repository checkout on that client:': 'Pour installer ou mettre à jour le collecteur, exécutez cette commande depuis la copie locale du dépôt LUMS sur ce client :', 'Update the telemetry agent on the Debian client; the detailed snapshot feature may be missing from its installed copy.': 'Mettez à jour l’agent de télémétrie sur le client Debian ; la version installée peut ne pas inclure les instantanés détaillés.', 'Update the telemetry agent to enable security and event summaries.': 'Mettez à jour l’agent de télémétrie pour activer les résumés de sécurité et d’événements.', 'Value': 'Valeur', 'View': 'Vue'}, 'es': {'Basic telemetry is arriving, but this client is not sending detailed system snapshots.': 'Se recibe telemetría básica, pero este cliente no envía instantáneas detalladas del sistema.', 'Customize navigation': 'Personalizar la navegación', 'Details follow the client selected above and refresh every five seconds.': 'Los detalles corresponden al cliente seleccionado arriba y se actualizan cada cinco segundos.', 'Failed SSH logins (24 h, max 500 records)': 'Inicios de sesión SSH fallidos (24 h, máximo 500 registros)', 'Finish navigation editing': 'Finalizar la edición de la navegación', 'Journal access is unavailable. Grant the telemetry service read access to the system journal to enable event summaries.': 'No se puede acceder al diario del sistema. Conceda al servicio de telemetría permiso de lectura para habilitar los resúmenes de eventos.', 'Journal errors (1 h, max 500 records)': 'Errores del diario (1 h, máximo 500 registros)', 'Journal warnings (1 h, max 500 records)': 'Advertencias del diario (1 h, máximo 500 registros)', 'Last failed SSH login': 'Último inicio de sesión SSH fallido', 'Last journal entry': 'Última entrada del diario', 'Last sample:': 'Última muestra:', 'Last successful backup run:': 'Última ejecución de copia de seguridad correcta:', 'Link status': 'Estado del enlace', 'Login history is unavailable.': 'El historial de inicios de sesión no está disponible.', 'Navigation preferences could not be saved.': 'No se pudieron guardar las preferencias de navegación.', 'Navigation preferences saved.': 'Preferencias de navegación guardadas.', 'Navigation sections': 'Secciones de navegación', 'No login events reported.': 'No se han notificado eventos de inicio de sesión.', 'No reboot history reported.': 'No se ha notificado historial de reinicios.', 'Not available on this system.': 'No disponible en este sistema.', 'On the Debian client, run these checks without displaying its token:': 'En el cliente Debian, ejecute estas comprobaciones sin mostrar su token:', 'Open live monitoring': 'Abrir la monitorización en directo', 'Reboot history is unavailable.': 'El historial de reinicios no está disponible.', 'Restore default navigation': 'Restablecer la navegación predeterminada', 'SSH event data is unavailable.': 'Los datos de eventos SSH no están disponibles.', 'Threshold crossings and telemetry interruptions for the selected client and period.': 'Superaciones de umbral e interrupciones de telemetría para el cliente y el período seleccionados.', 'To enable status reporting, add the installed service unit to LUMS_MONITORED_SERVICES on the telemetry agent.': 'Para habilitar los informes de estado, añada la unidad de servicio instalada a LUMS_MONITORED_SERVICES en el agente de telemetría.', 'To install or update the collector, run this from the LUMS repository checkout on that client:': 'Para instalar o actualizar el recopilador, ejecute esto desde la copia local del repositorio LUMS en ese cliente:', 'Update the telemetry agent on the Debian client; the detailed snapshot feature may be missing from its installed copy.': 'Actualice el agente de telemetría en el cliente Debian; la versión instalada podría no incluir las instantáneas detalladas.', 'Update the telemetry agent to enable security and event summaries.': 'Actualice el agente de telemetría para habilitar los resúmenes de seguridad y eventos.', 'Value': 'Valor', 'View': 'Vista'}, 'zh-CN': {'Basic telemetry is arriving, but this client is not sending detailed system snapshots.': '正在接收基本遥测数据，但此客户端未发送详细的系统快照。', 'Customize navigation': '自定义导航', 'Details follow the client selected above and refresh every five seconds.': '详细信息对应上方所选客户端，每五秒刷新一次。', 'Failed SSH logins (24 h, max 500 records)': 'SSH 登录失败（24 小时，最多 500 条记录）', 'Finish navigation editing': '完成导航编辑', 'Journal access is unavailable. Grant the telemetry service read access to the system journal to enable event summaries.': '无法访问系统日志。请授予遥测服务读取系统日志的权限，以启用事件摘要。', 'Journal errors (1 h, max 500 records)': '日志错误（1 小时，最多 500 条记录）', 'Journal warnings (1 h, max 500 records)': '日志警告（1 小时，最多 500 条记录）', 'Last failed SSH login': '最近一次 SSH 登录失败', 'Last journal entry': '最新日志条目', 'Last sample:': '最近采样时间：', 'Last successful backup run:': '上次成功备份时间：', 'Link status': '链路状态', 'Login history is unavailable.': '登录历史记录不可用。', 'Navigation preferences could not be saved.': '无法保存导航首选项。', 'Navigation preferences saved.': '导航首选项已保存。', 'Navigation sections': '导航分区', 'No login events reported.': '没有登录事件报告。', 'No reboot history reported.': '没有重启历史记录。', 'Not available on this system.': '此系统上不可用。', 'On the Debian client, run these checks without displaying its token:': '在 Debian 客户端上运行这些检查，但不要显示其令牌：', 'Open live monitoring': '打开实时监控', 'Reboot history is unavailable.': '重启历史记录不可用。', 'Restore default navigation': '恢复默认导航', 'SSH event data is unavailable.': 'SSH 事件数据不可用。', 'Threshold crossings and telemetry interruptions for the selected client and period.': '所选客户端和时间段的阈值超限及遥测中断情况。', 'To enable status reporting, add the installed service unit to LUMS_MONITORED_SERVICES on the telemetry agent.': '要启用状态报告，请在遥测代理中将已安装的服务单元添加到 LUMS_MONITORED_SERVICES。', 'To install or update the collector, run this from the LUMS repository checkout on that client:': '要安装或更新采集器，请在该客户端的 LUMS 仓库检出目录中运行以下命令：', 'Update the telemetry agent on the Debian client; the detailed snapshot feature may be missing from its installed copy.': '请更新 Debian 客户端上的遥测代理；当前安装版本可能缺少详细快照功能。', 'Update the telemetry agent to enable security and event summaries.': '请更新遥测代理以启用安全和事件摘要。', 'Value': '值', 'View': '视图'}, 'ja': {'Basic telemetry is arriving, but this client is not sending detailed system snapshots.': '基本テレメトリは受信していますが、このクライアントは詳細なシステムスナップショットを送信していません。', 'Customize navigation': 'ナビゲーションをカスタマイズ', 'Details follow the client selected above and refresh every five seconds.': '詳細情報は上で選択したクライアントのもので、5 秒ごとに更新されます。', 'Failed SSH logins (24 h, max 500 records)': 'SSH ログイン失敗（24 時間、最大 500 件）', 'Finish navigation editing': 'ナビゲーションの編集を終了', 'Journal access is unavailable. Grant the telemetry service read access to the system journal to enable event summaries.': 'システムジャーナルにアクセスできません。イベント概要を有効にするには、テレメトリサービスにシステムジャーナルの読み取り権限を付与してください。', 'Journal errors (1 h, max 500 records)': 'ジャーナルのエラー（1 時間、最大 500 件）', 'Journal warnings (1 h, max 500 records)': 'ジャーナルの警告（1 時間、最大 500 件）', 'Last failed SSH login': '最後に失敗した SSH ログイン', 'Last journal entry': '最新のジャーナル項目', 'Last sample:': '最新サンプル：', 'Last successful backup run:': '最後に成功したバックアップ実行：', 'Link status': 'リンク状態', 'Login history is unavailable.': 'ログイン履歴を利用できません。', 'Navigation preferences could not be saved.': 'ナビゲーション設定を保存できませんでした。', 'Navigation preferences saved.': 'ナビゲーション設定を保存しました。', 'Navigation sections': 'ナビゲーションセクション', 'No login events reported.': 'ログインイベントは報告されていません。', 'No reboot history reported.': '再起動履歴は報告されていません。', 'Not available on this system.': 'このシステムでは利用できません。', 'On the Debian client, run these checks without displaying its token:': 'Debian クライアントで、トークンを表示せずに次の確認を実行してください：', 'Open live monitoring': 'ライブ監視を開く', 'Reboot history is unavailable.': '再起動履歴を利用できません。', 'Restore default navigation': 'ナビゲーションを既定値に戻す', 'SSH event data is unavailable.': 'SSH イベントデータを利用できません。', 'Threshold crossings and telemetry interruptions for the selected client and period.': '選択したクライアントと期間のしきい値超過およびテレメトリ中断。', 'To enable status reporting, add the installed service unit to LUMS_MONITORED_SERVICES on the telemetry agent.': '状態報告を有効にするには、テレメトリエージェントの LUMS_MONITORED_SERVICES にインストール済みのサービスユニットを追加してください。', 'To install or update the collector, run this from the LUMS repository checkout on that client:': 'コレクターをインストールまたは更新するには、そのクライアントの LUMS リポジトリのチェックアウト先で次を実行してください：', 'Update the telemetry agent on the Debian client; the detailed snapshot feature may be missing from its installed copy.': 'Debian クライアントのテレメトリエージェントを更新してください。インストール済みの版には詳細スナップショット機能がない可能性があります。', 'Update the telemetry agent to enable security and event summaries.': 'セキュリティとイベントの概要を有効にするには、テレメトリエージェントを更新してください。', 'Value': '値', 'View': '表示'}, 'pl': {'Basic telemetry is arriving, but this client is not sending detailed system snapshots.': 'Podstawowa telemetria jest odbierana, ale ten klient nie wysyła szczegółowych migawek systemu.', 'Customize navigation': 'Dostosuj nawigację', 'Details follow the client selected above and refresh every five seconds.': 'Szczegóły dotyczą wybranego powyżej klienta i są odświeżane co pięć sekund.', 'Failed SSH logins (24 h, max 500 records)': 'Nieudane logowania SSH (24 godz., maks. 500 wpisów)', 'Finish navigation editing': 'Zakończ edycję nawigacji', 'Journal access is unavailable. Grant the telemetry service read access to the system journal to enable event summaries.': 'Brak dostępu do dziennika systemowego. Nadaj usłudze telemetrii uprawnienia do odczytu dziennika, aby włączyć podsumowania zdarzeń.', 'Journal errors (1 h, max 500 records)': 'Błędy dziennika (1 godz., maks. 500 wpisów)', 'Journal warnings (1 h, max 500 records)': 'Ostrzeżenia dziennika (1 godz., maks. 500 wpisów)', 'Last failed SSH login': 'Ostatnie nieudane logowanie SSH', 'Last journal entry': 'Ostatni wpis dziennika', 'Last sample:': 'Ostatnia próbka:', 'Last successful backup run:': 'Ostatnie udane wykonanie kopii zapasowej:', 'Link status': 'Stan łącza', 'Login history is unavailable.': 'Historia logowań jest niedostępna.', 'Navigation preferences could not be saved.': 'Nie udało się zapisać ustawień nawigacji.', 'Navigation preferences saved.': 'Zapisano ustawienia nawigacji.', 'Navigation sections': 'Sekcje nawigacji', 'No login events reported.': 'Nie zgłoszono zdarzeń logowania.', 'No reboot history reported.': 'Nie zgłoszono historii ponownych uruchomień.', 'Not available on this system.': 'Niedostępne w tym systemie.', 'On the Debian client, run these checks without displaying its token:': 'Na kliencie Debian wykonaj te kontrole bez wyświetlania jego tokenu:', 'Open live monitoring': 'Otwórz monitorowanie na żywo', 'Reboot history is unavailable.': 'Historia ponownych uruchomień jest niedostępna.', 'Restore default navigation': 'Przywróć domyślną nawigację', 'SSH event data is unavailable.': 'Dane zdarzeń SSH są niedostępne.', 'Threshold crossings and telemetry interruptions for the selected client and period.': 'Przekroczenia progów i przerwy w telemetrii dla wybranego klienta i okresu.', 'To enable status reporting, add the installed service unit to LUMS_MONITORED_SERVICES on the telemetry agent.': 'Aby włączyć raportowanie stanu, dodaj zainstalowaną jednostkę usługi do LUMS_MONITORED_SERVICES w agencie telemetrii.', 'To install or update the collector, run this from the LUMS repository checkout on that client:': 'Aby zainstalować lub zaktualizować kolektor, uruchom to polecenie w katalogu roboczym repozytorium LUMS na tym kliencie:', 'Update the telemetry agent on the Debian client; the detailed snapshot feature may be missing from its installed copy.': 'Zaktualizuj agenta telemetrii na kliencie Debian; zainstalowana wersja może nie obsługiwać szczegółowych migawek.', 'Update the telemetry agent to enable security and event summaries.': 'Zaktualizuj agenta telemetrii, aby włączyć podsumowania zabezpieczeń i zdarzeń.', 'Value': 'Wartość', 'View': 'Widok'}, 'sv': {'Basic telemetry is arriving, but this client is not sending detailed system snapshots.': 'Grundläggande telemetri tas emot, men klienten skickar inga detaljerade systemögonblicksbilder.', 'Customize navigation': 'Anpassa navigeringen', 'Details follow the client selected above and refresh every five seconds.': 'Detaljerna gäller den valda klienten ovan och uppdateras var femte sekund.', 'Failed SSH logins (24 h, max 500 records)': 'Misslyckade SSH-inloggningar (24 timmar, högst 500 poster)', 'Finish navigation editing': 'Avsluta redigering av navigeringen', 'Journal access is unavailable. Grant the telemetry service read access to the system journal to enable event summaries.': 'Systemjournalen är inte tillgänglig. Ge telemetritjänsten läsbehörighet till systemjournalen för att aktivera händelsesammanfattningar.', 'Journal errors (1 h, max 500 records)': 'Journalfel (1 timme, högst 500 poster)', 'Journal warnings (1 h, max 500 records)': 'Journalvarningar (1 timme, högst 500 poster)', 'Last failed SSH login': 'Senaste misslyckade SSH-inloggning', 'Last journal entry': 'Senaste journalpost', 'Last sample:': 'Senaste mätvärde:', 'Last successful backup run:': 'Senaste lyckade säkerhetskopiering:', 'Link status': 'Länkstatus', 'Login history is unavailable.': 'Inloggningshistoriken är inte tillgänglig.', 'Navigation preferences could not be saved.': 'Det gick inte att spara navigeringsinställningarna.', 'Navigation preferences saved.': 'Navigeringsinställningarna har sparats.', 'Navigation sections': 'Navigeringsavsnitt', 'No login events reported.': 'Inga inloggningshändelser rapporterades.', 'No reboot history reported.': 'Ingen omstartshistorik rapporterades.', 'Not available on this system.': 'Inte tillgängligt på det här systemet.', 'On the Debian client, run these checks without displaying its token:': 'Kör dessa kontroller på Debian-klienten utan att visa dess token:', 'Open live monitoring': 'Öppna liveövervakning', 'Reboot history is unavailable.': 'Omstartshistoriken är inte tillgänglig.', 'Restore default navigation': 'Återställ standardnavigering', 'SSH event data is unavailable.': 'SSH-händelsedata är inte tillgängliga.', 'Threshold crossings and telemetry interruptions for the selected client and period.': 'Tröskelöverskridanden och telemetriavbrott för vald klient och period.', 'To enable status reporting, add the installed service unit to LUMS_MONITORED_SERVICES on the telemetry agent.': 'Lägg till den installerade tjänsteenheten i LUMS_MONITORED_SERVICES på telemetriagenten för att aktivera statusrapportering.', 'To install or update the collector, run this from the LUMS repository checkout on that client:': 'Kör detta från LUMS-repositoriets arbetskopia på klienten för att installera eller uppdatera insamlaren:', 'Update the telemetry agent on the Debian client; the detailed snapshot feature may be missing from its installed copy.': 'Uppdatera telemetriagenten på Debian-klienten; den installerade versionen kanske saknar stöd för detaljerade ögonblicksbilder.', 'Update the telemetry agent to enable security and event summaries.': 'Uppdatera telemetriagenten för att aktivera säkerhets- och händelsesammanfattningar.', 'Value': 'Värde', 'View': 'Vy'}, 'nb': {'Basic telemetry is arriving, but this client is not sending detailed system snapshots.': 'Grunnleggende telemetri mottas, men denne klienten sender ikke detaljerte systemøyeblikksbilder.', 'Customize navigation': 'Tilpass navigasjonen', 'Details follow the client selected above and refresh every five seconds.': 'Detaljene gjelder klienten som er valgt ovenfor, og oppdateres hvert femte sekund.', 'Failed SSH logins (24 h, max 500 records)': 'Mislykkede SSH-innlogginger (24 timer, maks. 500 oppføringer)', 'Finish navigation editing': 'Avslutt redigering av navigasjonen', 'Journal access is unavailable. Grant the telemetry service read access to the system journal to enable event summaries.': 'Systemjournalen er utilgjengelig. Gi telemetritjenesten lesetilgang til systemjournalen for å aktivere hendelsesoppsummeringer.', 'Journal errors (1 h, max 500 records)': 'Journalfeil (1 time, maks. 500 oppføringer)', 'Journal warnings (1 h, max 500 records)': 'Journaladvarsler (1 time, maks. 500 oppføringer)', 'Last failed SSH login': 'Siste mislykkede SSH-innlogging', 'Last journal entry': 'Siste journaloppføring', 'Last sample:': 'Siste måling:', 'Last successful backup run:': 'Siste vellykkede sikkerhetskopiering:', 'Link status': 'Linkstatus', 'Login history is unavailable.': 'Innloggingshistorikken er utilgjengelig.', 'Navigation preferences could not be saved.': 'Kunne ikke lagre navigasjonsinnstillingene.', 'Navigation preferences saved.': 'Navigasjonsinnstillingene er lagret.', 'Navigation sections': 'Navigasjonsseksjoner', 'No login events reported.': 'Ingen innloggingshendelser rapportert.', 'No reboot history reported.': 'Ingen omstartshistorikk rapportert.', 'Not available on this system.': 'Ikke tilgjengelig på dette systemet.', 'On the Debian client, run these checks without displaying its token:': 'Kjør disse kontrollene på Debian-klienten uten å vise tokenet:', 'Open live monitoring': 'Åpne sanntidsovervåking', 'Reboot history is unavailable.': 'Omstartshistorikken er utilgjengelig.', 'Restore default navigation': 'Gjenopprett standardnavigasjon', 'SSH event data is unavailable.': 'SSH-hendelsesdata er utilgjengelige.', 'Threshold crossings and telemetry interruptions for the selected client and period.': 'Terskeloverskridelser og telemetriavbrudd for valgt klient og periode.', 'To enable status reporting, add the installed service unit to LUMS_MONITORED_SERVICES on the telemetry agent.': 'Legg til den installerte tjenesteenheten i LUMS_MONITORED_SERVICES på telemetriagenten for å aktivere statusrapportering.', 'To install or update the collector, run this from the LUMS repository checkout on that client:': 'Kjør dette fra arbeidskopien av LUMS-repositoriet på klienten for å installere eller oppdatere innsamleren:', 'Update the telemetry agent on the Debian client; the detailed snapshot feature may be missing from its installed copy.': 'Oppdater telemetriagenten på Debian-klienten; den installerte versjonen mangler kanskje støtte for detaljerte øyeblikksbilder.', 'Update the telemetry agent to enable security and event summaries.': 'Oppdater telemetriagenten for å aktivere sikkerhets- og hendelsesoppsummeringer.', 'Value': 'Verdi', 'View': 'Visning'}, 'fi': {'Basic telemetry is arriving, but this client is not sending detailed system snapshots.': 'Perustelemetriaa vastaanotetaan, mutta tämä asiakas ei lähetä yksityiskohtaisia järjestelmätilannekuvia.', 'Customize navigation': 'Mukauta navigointia', 'Details follow the client selected above and refresh every five seconds.': 'Tiedot koskevat yllä valittua asiakasta, ja ne päivittyvät viiden sekunnin välein.', 'Failed SSH logins (24 h, max 500 records)': 'Epäonnistuneet SSH-kirjautumiset (24 h, enintään 500 tietuetta)', 'Finish navigation editing': 'Lopeta navigoinnin muokkaus', 'Journal access is unavailable. Grant the telemetry service read access to the system journal to enable event summaries.': 'Järjestelmäloki ei ole käytettävissä. Anna telemetriapalvelulle lukuoikeus järjestelmälokiin tapahtumayhteenvetojen ottamiseksi käyttöön.', 'Journal errors (1 h, max 500 records)': 'Lokivirheet (1 h, enintään 500 tietuetta)', 'Journal warnings (1 h, max 500 records)': 'Lokivaroitukset (1 h, enintään 500 tietuetta)', 'Last failed SSH login': 'Viimeisin epäonnistunut SSH-kirjautuminen', 'Last journal entry': 'Viimeisin lokimerkintä', 'Last sample:': 'Viimeisin näyte:', 'Last successful backup run:': 'Viimeisin onnistunut varmuuskopiointi:', 'Link status': 'Linkin tila', 'Login history is unavailable.': 'Kirjautumishistoria ei ole käytettävissä.', 'Navigation preferences could not be saved.': 'Navigointiasetusten tallentaminen epäonnistui.', 'Navigation preferences saved.': 'Navigointiasetukset tallennettu.', 'Navigation sections': 'Navigointiosiot', 'No login events reported.': 'Kirjautumistapahtumia ei ole ilmoitettu.', 'No reboot history reported.': 'Uudelleenkäynnistyshistoriaa ei ole ilmoitettu.', 'Not available on this system.': 'Ei käytettävissä tässä järjestelmässä.', 'On the Debian client, run these checks without displaying its token:': 'Suorita nämä tarkistukset Debian-asiakkaalla näyttämättä sen tunnistetta:', 'Open live monitoring': 'Avaa reaaliaikainen valvonta', 'Reboot history is unavailable.': 'Uudelleenkäynnistyshistoria ei ole käytettävissä.', 'Restore default navigation': 'Palauta oletusnavigointi', 'SSH event data is unavailable.': 'SSH-tapahtumatiedot eivät ole käytettävissä.', 'Threshold crossings and telemetry interruptions for the selected client and period.': 'Kynnysarvojen ylitykset ja telemetriakatkokset valitulle asiakkaalle ja ajanjaksolle.', 'To enable status reporting, add the installed service unit to LUMS_MONITORED_SERVICES on the telemetry agent.': 'Ota tilaraportointi käyttöön lisäämällä asennettu palveluyksikkö telemetria-agentin LUMS_MONITORED_SERVICES-asetukseen.', 'To install or update the collector, run this from the LUMS repository checkout on that client:': 'Asenna tai päivitä kerääjä suorittamalla tämä komento kyseisen asiakkaan LUMS-repositorion työhakemistossa:', 'Update the telemetry agent on the Debian client; the detailed snapshot feature may be missing from its installed copy.': 'Päivitä Debian-asiakkaan telemetria-agentti; asennetusta versiosta saattaa puuttua yksityiskohtaisten tilannekuvien tuki.', 'Update the telemetry agent to enable security and event summaries.': 'Päivitä telemetria-agentti, jotta tietoturva- ja tapahtumayhteenvedot voidaan ottaa käyttöön.', 'Value': 'Arvo', 'View': 'Näkymä'}}
+for _help_language, _help_entries in _LIVE_MONITORING_HELP_TRANSLATIONS.items():
+    _health_entries = _HEALTH_DASHBOARD_TRANSLATIONS.get(_help_language, {})
+    for _help_key, _help_value in _help_entries.items():
+        if _health_entries.get(_help_key, _help_key) == _help_key:
+            _health_entries[_help_key] = _help_value
+
+_LIVE_MONITORING_REMAINDER_TRANSLATIONS = {
+    'Client': {
+        'fr': 'Client',
+        'es': 'Cliente',
+        'zh-CN': '客户端',
+        'ja': 'クライアント',
+        'pl': 'Klient',
+        'sv': 'Klient',
+        'nb': 'Klient',
+        'fi': 'Asiakas',
+    },
+    'Clients': {
+        'fr': 'Clients',
+        'es': 'Clientes',
+        'zh-CN': '客户端',
+        'ja': 'クライアント',
+        'pl': 'Klienci',
+        'sv': 'Klienter',
+        'nb': 'Klienter',
+        'fi': 'Asiakkaat',
+    },
+    'Download': {
+        'fr': 'Téléchargement',
+        'es': 'Descarga',
+        'zh-CN': '下载',
+        'ja': 'ダウンロード',
+        'pl': 'Pobieranie',
+        'sv': 'Nedladdning',
+        'nb': 'Nedlasting',
+        'fi': 'Lataus',
+    },
+    'Gateway': {
+        'fr': 'Passerelle',
+        'es': 'Puerta de enlace',
+        'zh-CN': '网关',
+        'ja': 'ゲートウェイ',
+        'pl': 'Brama',
+        'sv': 'Nätverksgateway',
+        'nb': 'Nettverksport',
+        'fi': 'Yhdyskäytävä',
+    },
+    'Interface': {
+        'fr': 'Interface',
+        'es': 'Interfaz',
+        'zh-CN': '接口',
+        'ja': 'インターフェース',
+        'pl': 'Interfejs',
+        'sv': 'Gränssnitt',
+        'nb': 'Grensesnitt',
+        'fi': 'Liitäntä',
+    },
+    'Internet': {
+        'fr': 'Internet',
+        'es': 'Internet',
+        'zh-CN': '互联网',
+        'ja': 'インターネット',
+        'pl': 'Internet',
+        'sv': 'Internet',
+        'nb': 'Internett',
+        'fi': 'Internet',
+    },
+    'Kernel': {
+        'fr': 'Noyau',
+        'es': 'Núcleo',
+        'zh-CN': '内核',
+        'ja': 'カーネル',
+        'pl': 'Jądro',
+        'sv': 'Kärna',
+        'nb': 'Kjerne',
+        'fi': 'Ydin',
+    },
+    'Login': {
+        'fr': 'Connexion',
+        'es': 'Inicio de sesión',
+        'zh-CN': '登录',
+        'ja': 'ログイン',
+        'pl': 'Logowanie',
+        'sv': 'Inloggning',
+        'nb': 'Innlogging',
+        'fi': 'Kirjautuminen',
+    },
+    'Logout': {
+        'fr': 'Déconnexion',
+        'es': 'Cerrar sesión',
+        'zh-CN': '退出登录',
+        'ja': 'ログアウト',
+        'pl': 'Wylogowanie',
+        'sv': 'Utloggning',
+        'nb': 'Utlogging',
+        'fi': 'Uloskirjautuminen',
+    },
+    'Memory': {
+        'fr': 'Mémoire',
+        'es': 'Memoria',
+        'zh-CN': '内存',
+        'ja': 'メモリ',
+        'pl': 'Pamięć',
+        'sv': 'Minne',
+        'nb': 'Minne',
+        'fi': 'Muisti',
+    },
+    'Metric': {
+        'fr': 'Mesure',
+        'es': 'Métrica',
+        'zh-CN': '指标',
+        'ja': '指標',
+        'pl': 'Metryka',
+        'sv': 'Mätvärde',
+        'nb': 'Måleverdi',
+        'fi': 'Mittari',
+    },
+    'Move section down': {
+        'fr': 'Déplacer la section vers le bas',
+        'es': 'Mover la sección hacia abajo',
+        'zh-CN': '下移分区',
+        'ja': 'セクションを下へ移動',
+        'pl': 'Przenieś sekcję w dół',
+        'sv': 'Flytta avsnitt nedåt',
+        'nb': 'Flytt delen ned',
+        'fi': 'Siirrä osiota alaspäin',
+    },
+    'Move section up': {
+        'fr': 'Déplacer la section vers le haut',
+        'es': 'Mover la sección hacia arriba',
+        'zh-CN': '上移分区',
+        'ja': 'セクションを上へ移動',
+        'pl': 'Przenieś sekcję w górę',
+        'sv': 'Flytta avsnitt uppåt',
+        'nb': 'Flytt delen opp',
+        'fi': 'Siirrä osiota ylöspäin',
+    },
+    'Network dashboard': {
+        'fr': 'Tableau de bord réseau',
+        'es': 'Panel de red',
+        'zh-CN': '网络仪表板',
+        'ja': 'ネットワークダッシュボード',
+        'pl': 'Panel sieciowy',
+        'sv': 'Nätverksöversikt',
+        'nb': 'Nettverksoversikt',
+        'fi': 'Verkon koontinäyttö',
+    },
+    'Reachable': {
+        'fr': 'Joignable',
+        'es': 'Accesible',
+        'zh-CN': '可访问',
+        'ja': '到達可能',
+        'pl': 'Osiągalny',
+        'sv': 'Nåbar',
+        'nb': 'Nåbar',
+        'fi': 'Tavoitettavissa',
+    },
+    'Receive': {
+        'fr': 'Réception',
+        'es': 'Recepción',
+        'zh-CN': '接收',
+        'ja': '受信',
+        'pl': 'Odbiór',
+        'sv': 'Mottaget',
+        'nb': 'Mottak',
+        'fi': 'Vastaanotto',
+    },
+    'Restarts': {
+        'fr': 'Redémarrages',
+        'es': 'Reinicios',
+        'zh-CN': '重启次数',
+        'ja': '再起動回数',
+        'pl': 'Ponowne uruchomienia',
+        'sv': 'Omstarter',
+        'nb': 'Omstarter',
+        'fi': 'Uudelleenkäynnistykset',
+    },
+    'Runtime': {
+        'fr': 'Environnement d’exécution',
+        'es': 'Entorno de ejecución',
+        'zh-CN': '运行时',
+        'ja': 'ランタイム',
+        'pl': 'Środowisko uruchomieniowe',
+        'sv': 'Körtid',
+        'nb': 'Kjøretid',
+        'fi': 'Suoritusaika',
+    },
+    'Save navigation': {
+        'fr': 'Enregistrer la navigation',
+        'es': 'Guardar navegación',
+        'zh-CN': '保存导航',
+        'ja': 'ナビゲーションを保存',
+        'pl': 'Zapisz nawigację',
+        'sv': 'Spara navigering',
+        'nb': 'Lagre navigasjon',
+        'fi': 'Tallenna navigointi',
+    },
+    'Search': {
+        'fr': 'Rechercher',
+        'es': 'Buscar',
+        'zh-CN': '搜索',
+        'ja': '検索',
+        'pl': 'Szukaj',
+        'sv': 'Sök',
+        'nb': 'Søk',
+        'fi': 'Haku',
+    },
+    'Send': {
+        'fr': 'Envoi',
+        'es': 'Envío',
+        'zh-CN': '发送',
+        'ja': '送信',
+        'pl': 'Wysyłanie',
+        'sv': 'Skickat',
+        'nb': 'Sending',
+        'fi': 'Lähetys',
+    },
+    'Services': {
+        'fr': 'Services',
+        'es': 'Servicios',
+        'zh-CN': '服务',
+        'ja': 'サービス',
+        'pl': 'Usługi',
+        'sv': 'Tjänster',
+        'nb': 'Tjenester',
+        'fi': 'Palvelut',
+    },
+    'Show': {
+        'fr': 'Afficher',
+        'es': 'Mostrar',
+        'zh-CN': '显示',
+        'ja': '表示',
+        'pl': 'Pokaż',
+        'sv': 'Visa',
+        'nb': 'Vis',
+        'fi': 'Näytä',
+    },
+    'Stale': {
+        'fr': 'Obsolète',
+        'es': 'Desactualizado',
+        'zh-CN': '数据过期',
+        'ja': '古いデータ',
+        'pl': 'Nieaktualny',
+        'sv': 'Inaktuell',
+        'nb': 'Utdatert',
+        'fi': 'Vanhentunut',
+    },
+    'State': {
+        'fr': 'État',
+        'es': 'Estado',
+        'zh-CN': '状态',
+        'ja': '状態',
+        'pl': 'Stan',
+        'sv': 'Tillstånd',
+        'nb': 'Tilstand',
+        'fi': 'Tila',
+    },
+    'Unreachable': {
+        'fr': 'Injoignable',
+        'es': 'Inaccesible',
+        'zh-CN': '无法访问',
+        'ja': '到達不能',
+        'pl': 'Nieosiągalny',
+        'sv': 'Onåbar',
+        'nb': 'Utilgjengelig',
+        'fi': 'Ei tavoitettavissa',
+    },
+    'Update system': {
+        'fr': 'Mettre à jour le système',
+        'es': 'Actualizar sistema',
+        'zh-CN': '更新系统',
+        'ja': 'システムを更新',
+        'pl': 'Aktualizuj system',
+        'sv': 'Uppdatera systemet',
+        'nb': 'Oppdater systemet',
+        'fi': 'Päivitä järjestelmä',
+    },
+    'Upload': {
+        'fr': 'Téléversement',
+        'es': 'Subida',
+        'zh-CN': '上传',
+        'ja': 'アップロード',
+        'pl': 'Przesyłanie',
+        'sv': 'Uppladdning',
+        'nb': 'Opplasting',
+        'fi': 'Lataus palvelimelle',
+    },
+}
+
+for _key, _values in _LIVE_MONITORING_REMAINDER_TRANSLATIONS.items():
+    for _language, _value in _values.items():
+        if _HEALTH_DASHBOARD_TRANSLATIONS[_language].get(_key, _key) == _key:
+            _HEALTH_DASHBOARD_TRANSLATIONS[_language][_key] = _value
+
+
+
+# Localized agent-configuration safety hint.
+_LIVE_MONITORING_AGENT_HINT_TRANSLATIONS = {'fr': 'Vérifiez que /etc/default/lums-agent contient LUMS_BASE et LUMS_TOKEN. Ne copiez pas et ne '
+       'partagez pas le jeton.',
+ 'es': 'Compruebe que /etc/default/lums-agent contiene LUMS_BASE y LUMS_TOKEN. No copie ni '
+       'comparta el token.',
+ 'zh-CN': '请确认 /etc/default/lums-agent 中包含 LUMS_BASE 和 LUMS_TOKEN。请勿粘贴或分享令牌。',
+ 'ja': '/etc/default/lums-agent に LUMS_BASE と LUMS_TOKEN '
+       'が設定されていることを確認してください。トークンを貼り付けたり共有したりしないでください。',
+ 'pl': 'Sprawdź, czy plik /etc/default/lums-agent zawiera LUMS_BASE i LUMS_TOKEN. Nie wklejaj '
+       'tokenu ani go nie udostępniaj.',
+ 'sv': 'Kontrollera att /etc/default/lums-agent innehåller LUMS_BASE och LUMS_TOKEN. Klistra inte '
+       'in eller dela tokenen.',
+ 'nb': 'Kontroller at /etc/default/lums-agent inneholder LUMS_BASE og LUMS_TOKEN. Ikke lim inn '
+       'eller del tokenet.',
+ 'fi': 'Varmista, että tiedosto /etc/default/lums-agent sisältää LUMS_BASE- ja '
+       'LUMS_TOKEN-asetukset. Älä liitä tunnistetta viestiin tai jaa sitä.'}
+
+for _hint_language, _hint_value in _LIVE_MONITORING_AGENT_HINT_TRANSLATIONS.items():
+    _hint_entries = _HEALTH_DASHBOARD_TRANSLATIONS[_hint_language]
+    _hint_entries['Confirm that /etc/default/lums-agent contains LUMS_BASE and LUMS_TOKEN. Do not paste or share the token.'] = _hint_value
+
+
+# SOC dashboard and laboratory interface translations.
+_SOC_DASHBOARD_TRANSLATIONS = {'en-US': {'SOC dashboard': 'SOC dashboard',
+           'Security posture, stored events and logs.': 'Security posture, stored events and logs.',
+           'Workspace': 'Workspace',
+           'Alerts, rules, SOC lab and stored logs.': 'Alerts, rules, SOC lab and stored logs.',
+           'Log data is loading.': 'Log data is loading.',
+           'SOC Lab': 'SOC Lab',
+           'Python-based detection, correlation and incident creation using synthetic test events.': 'Python-based '
+                                                                                                     'detection, '
+                                                                                                     'correlation '
+                                                                                                     'and '
+                                                                                                     'incident '
+                                                                                                     'creation '
+                                                                                                     'using '
+                                                                                                     'synthetic '
+                                                                                                     'test '
+                                                                                                     'events.',
+           'Isolated simulation': 'Isolated simulation',
+           'Authentication failures': 'Authentication failures',
+           'Three failed logins and correlation': 'Three failed logins and correlation',
+           'Duplicate detection': 'Duplicate detection',
+           'Repeated event in the same batch': 'Repeated event in the same batch',
+           'Privileged activity': 'Privileged activity',
+           'Synthetic administrator permission change': 'Synthetic administrator permission change',
+           'Choose a scenario to run the Python pipeline.': 'Choose a scenario to run the Python '
+                                                            'pipeline.',
+           'SOC result metrics': 'SOC result metrics',
+           'Events': 'Events',
+           'Detections': 'Detections',
+           'Correlations': 'Correlations',
+           'Duplicates': 'Duplicates',
+           'Incidents': 'Incidents',
+           'SOC visualizations': 'SOC visualizations',
+           'Event timeline': 'Event timeline',
+           'Temporal distribution of synthetic events.': 'Temporal distribution of synthetic '
+                                                         'events.',
+           'Run a scenario to display the timeline.': 'Run a scenario to display the timeline.',
+           'Severity and incident status': 'Severity and incident status',
+           'Distribution of detections and incidents.': 'Distribution of detections and incidents.',
+           'Severity distribution': 'Severity distribution',
+           'Run a scenario to display the distribution.': 'Run a scenario to display the '
+                                                          'distribution.',
+           'Detection and incident pipeline': 'Detection and incident pipeline',
+           'Results of processing in the current scenario.': 'Results of processing in the current '
+                                                             'scenario.',
+           'SOC pipeline': 'SOC pipeline',
+           'Run a scenario to display the pipeline.': 'Run a scenario to display the pipeline.',
+           'Pipeline result': 'Pipeline result',
+           'No scenario has been run yet.': 'No scenario has been run yet.',
+           'No events are stored, no external systems are contacted, and no automated countermeasures are executed.': 'No '
+                                                                                                                      'events '
+                                                                                                                      'are '
+                                                                                                                      'stored, '
+                                                                                                                      'no '
+                                                                                                                      'external '
+                                                                                                                      'systems '
+                                                                                                                      'are '
+                                                                                                                      'contacted, '
+                                                                                                                      'and '
+                                                                                                                      'no '
+                                                                                                                      'automated '
+                                                                                                                      'countermeasures '
+                                                                                                                      'are '
+                                                                                                                      'executed.',
+           'Log data is loading…': 'Log data is loading…',
+           'No matching log entries found.': 'No matching log entries found.',
+           'SOC event': 'SOC event',
+           'Audit': 'Audit',
+           'entries': 'entries',
+           'Logs could not be loaded.': 'Logs could not be loaded.',
+           'Error loading logs.': 'Error loading logs.',
+           'Event timeline distribution': 'Event timeline distribution',
+           'No events in this scenario.': 'No events in this scenario.',
+           'No valid timestamps are available.': 'No valid timestamps are available.',
+           'Entry': 'Entry',
+           'Severity and incident distribution': 'Severity and incident distribution',
+           'Detections by severity': 'Detections by severity',
+           'Incidents by status': 'Incidents by status',
+           'Open': 'Open',
+           'In progress': 'In progress',
+           'Resolved': 'Resolved',
+           'SOC pipeline results': 'SOC pipeline results',
+           'Duplicates removed': 'Duplicates removed',
+           'Python SOC pipeline is running…': 'Python SOC pipeline is running…',
+           'CSRF validation failed. Please reload the page.': 'CSRF validation failed. Please '
+                                                              'reload the page.',
+           'Unknown SOC scenario.': 'Unknown SOC scenario.',
+           'The Python SOC pipeline could not execute the scenario.': 'The Python SOC pipeline '
+                                                                      'could not execute the '
+                                                                      'scenario.',
+           'SOC request failed (HTTP {status}).': 'SOC request failed (HTTP {status}).',
+           'SOC request failed.': 'SOC request failed.',
+           'Scenario completed: {scenario}. Result provided by the Python pipeline.': 'Scenario '
+                                                                                      'completed: '
+                                                                                      '{scenario}. '
+                                                                                      'Result '
+                                                                                      'provided by '
+                                                                                      'the Python '
+                                                                                      'pipeline.',
+           'Total': 'Total',
+           'events': 'events',
+           'Display limited; export contains up to 5000 entries.': 'Display limited; export '
+                                                                   'contains up to 5000 entries.',
+           'Persisted SOC events and audit logs.': 'Persisted SOC events and audit logs.',
+           'Log export': 'Log export',
+           'All sources': 'All sources',
+           'SOC events': 'SOC events',
+           'Audit log': 'Audit log',
+           'All statuses': 'All statuses',
+           'Search': 'Search',
+           'Agent, action or content': 'Agent, action or content',
+           'Filter': 'Filter',
+           'Time': 'Time',
+           'Actor / Agent': 'Actor / Agent',
+           'Event / Action': 'Event / Action',
+           'Details': 'Details',
+           'SOC navigation': 'SOC navigation',
+           'SOC lab scenarios': 'SOC lab scenarios',
+           'Log': 'Log',
+           'Webhooks': 'Webhooks',
+           'Integrations': 'Integrations',
+           'Connected security and notification services will be managed here in the future.': 'Connected '
+                                                                                               'security '
+                                                                                               'and '
+                                                                                               'notification '
+                                                                                               'services '
+                                                                                               'will '
+                                                                                               'be '
+                                                                                               'managed '
+                                                                                               'here '
+                                                                                               'in '
+                                                                                               'the '
+                                                                                               'future.',
+           'Configuration not yet available': 'Configuration not yet available',
+           'Integrations remain disabled until secure persistent configuration and secret management are implemented.': 'Integrations '
+                                                                                                                        'remain '
+                                                                                                                        'disabled '
+                                                                                                                        'until '
+                                                                                                                        'secure '
+                                                                                                                        'persistent '
+                                                                                                                        'configuration '
+                                                                                                                        'and '
+                                                                                                                        'secret '
+                                                                                                                        'management '
+                                                                                                                        'are '
+                                                                                                                        'implemented.',
+           'Planned area for controlled delivery of alert events to external systems.': 'Planned '
+                                                                                        'area for '
+                                                                                        'controlled '
+                                                                                        'delivery '
+                                                                                        'of alert '
+                                                                                        'events to '
+                                                                                        'external '
+                                                                                        'systems.',
+           'Webhooks are disabled': 'Webhooks are disabled',
+           'No external destinations are contacted. URL validation, SSRF protection, secret storage, permissions and delivery logs must be implemented before activation.': 'No '
+                                                                                                                                                                            'external '
+                                                                                                                                                                            'destinations '
+                                                                                                                                                                            'are '
+                                                                                                                                                                            'contacted. '
+                                                                                                                                                                            'URL '
+                                                                                                                                                                            'validation, '
+                                                                                                                                                                            'SSRF '
+                                                                                                                                                                            'protection, '
+                                                                                                                                                                            'secret '
+                                                                                                                                                                            'storage, '
+                                                                                                                                                                            'permissions '
+                                                                                                                                                                            'and '
+                                                                                                                                                                            'delivery '
+                                                                                                                                                                            'logs '
+                                                                                                                                                                            'must '
+                                                                                                                                                                            'be '
+                                                                                                                                                                            'implemented '
+                                                                                                                                                                            'before '
+                                                                                                                                                                            'activation.'},
+ 'en-GB': {'Logs could not be loaded.': 'Logs could not be loaded.',
+           'No matching log entries found.': 'No matching log entries found.',
+           'Total': 'Total',
+           'events': 'events',
+           'Display limited; export contains up to 5000 entries.': 'Display limited; export '
+                                                                   'contains up to 5000 entries.',
+           'Persisted SOC events and audit logs.': 'Persisted SOC events and audit logs.',
+           'Log export': 'Log export',
+           'All sources': 'All sources',
+           'SOC events': 'SOC events',
+           'Audit log': 'Audit log',
+           'All statuses': 'All statuses',
+           'Search': 'Search',
+           'Agent, action or content': 'Agent, action or content',
+           'Filter': 'Filter',
+           'Time': 'Time',
+           'Actor / Agent': 'Actor / Agent',
+           'Event / Action': 'Event / Action',
+           'Details': 'Details',
+           'SOC navigation': 'SOC navigation',
+           'SOC lab scenarios': 'SOC lab scenarios',
+           'Log': 'Log',
+           'Webhooks': 'Webhooks',
+           'Integrations': 'Integrations',
+           'Connected security and notification services will be managed here in the future.': 'Connected '
+                                                                                               'security '
+                                                                                               'and '
+                                                                                               'notification '
+                                                                                               'services '
+                                                                                               'will '
+                                                                                               'be '
+                                                                                               'managed '
+                                                                                               'here '
+                                                                                               'in '
+                                                                                               'the '
+                                                                                               'future.',
+           'Configuration not yet available': 'Configuration not yet available',
+           'Integrations remain disabled until secure persistent configuration and secret management are implemented.': 'Integrations '
+                                                                                                                        'remain '
+                                                                                                                        'disabled '
+                                                                                                                        'until '
+                                                                                                                        'secure '
+                                                                                                                        'persistent '
+                                                                                                                        'configuration '
+                                                                                                                        'and '
+                                                                                                                        'secret '
+                                                                                                                        'management '
+                                                                                                                        'are '
+                                                                                                                        'implemented.',
+           'Planned area for controlled delivery of alert events to external systems.': 'Planned '
+                                                                                        'area for '
+                                                                                        'controlled '
+                                                                                        'delivery '
+                                                                                        'of alert '
+                                                                                        'events to '
+                                                                                        'external '
+                                                                                        'systems.',
+           'Webhooks are disabled': 'Webhooks are disabled',
+           'No external destinations are contacted. URL validation, SSRF protection, secret storage, permissions and delivery logs must be implemented before activation.': 'No '
+                                                                                                                                                                            'external '
+                                                                                                                                                                            'destinations '
+                                                                                                                                                                            'are '
+                                                                                                                                                                            'contacted. '
+                                                                                                                                                                            'URL '
+                                                                                                                                                                            'validation, '
+                                                                                                                                                                            'SSRF '
+                                                                                                                                                                            'protection, '
+                                                                                                                                                                            'secret '
+                                                                                                                                                                            'storage, '
+                                                                                                                                                                            'permissions '
+                                                                                                                                                                            'and '
+                                                                                                                                                                            'delivery '
+                                                                                                                                                                            'logs '
+                                                                                                                                                                            'must '
+                                                                                                                                                                            'be '
+                                                                                                                                                                            'implemented '
+                                                                                                                                                                            'before '
+                                                                                                                                                                            'activation.'},
+ 'de': {'SOC dashboard': 'SOC-Dashboard',
+        'Security posture, stored events and logs.': 'Sicherheitslage, gespeicherte Ereignisse und '
+                                                     'Protokolle.',
+        'Workspace': 'Arbeitsbereich',
+        'Alerts, rules, SOC lab and stored logs.': 'Warnungen, Regeln, SOC-Labor und gespeicherte '
+                                                   'Protokolle.',
+        'Log data is loading.': 'Log-Daten werden geladen.',
+        'SOC Lab': 'SOC-Labor',
+        'Python-based detection, correlation and incident creation using synthetic test events.': 'Python-basierte '
+                                                                                                  'Erkennung, '
+                                                                                                  'Korrelation '
+                                                                                                  'und '
+                                                                                                  'Incident-Erstellung '
+                                                                                                  'mit '
+                                                                                                  'synthetischen '
+                                                                                                  'Testereignissen.',
+        'Isolated simulation': 'Isolierte Simulation',
+        'Authentication failures': 'Authentifizierungsfehler',
+        'Three failed logins and correlation': 'Drei fehlgeschlagene Anmeldungen und Korrelation',
+        'Duplicate detection': 'Duplikaterkennung',
+        'Repeated event in the same batch': 'Wiederholtes Ereignis im selben Batch',
+        'Privileged activity': 'Privilegierte Aktivität',
+        'Synthetic administrator permission change': 'Synthetische '
+                                                     'Administrator-Berechtigungsänderung',
+        'Choose a scenario to run the Python pipeline.': 'Wähle ein Szenario, um die '
+                                                         'Python-Pipeline auszuführen.',
+        'SOC result metrics': 'SOC-Ergebniskennzahlen',
+        'Events': 'Ereignisse',
+        'Detections': 'Erkennungen',
+        'Correlations': 'Korrelationen',
+        'Duplicates': 'Duplikate',
+        'Incidents': 'Incidents',
+        'SOC visualizations': 'SOC-Visualisierungen',
+        'Event timeline': 'Ereignis-Zeitachse',
+        'Temporal distribution of synthetic events.': 'Zeitliche Verteilung der synthetischen '
+                                                      'Ereignisse.',
+        'Run a scenario to display the timeline.': 'Szenario ausführen, um die Zeitachse '
+                                                   'anzuzeigen.',
+        'Severity and incident status': 'Schweregrad und Incident-Status',
+        'Distribution of detections and incidents.': 'Verteilung der Erkennungen und Incidents.',
+        'Severity distribution': 'Schweregrad-Verteilung',
+        'Run a scenario to display the distribution.': 'Szenario ausführen, um die Verteilung '
+                                                       'anzuzeigen.',
+        'Detection and incident pipeline': 'Detection- und Incident-Pipeline',
+        'Results of processing in the current scenario.': 'Ergebnisse der Verarbeitung im '
+                                                          'aktuellen Szenario.',
+        'SOC pipeline': 'SOC-Pipeline',
+        'Run a scenario to display the pipeline.': 'Szenario ausführen, um die Pipeline '
+                                                   'anzuzeigen.',
+        'Pipeline result': 'Ergebnis der Pipeline',
+        'No scenario has been run yet.': 'Noch kein Szenario ausgeführt.',
+        'No events are stored, no external systems are contacted, and no automated countermeasures are executed.': 'Es '
+                                                                                                                   'werden '
+                                                                                                                   'keine '
+                                                                                                                   'Ereignisse '
+                                                                                                                   'gespeichert, '
+                                                                                                                   'keine '
+                                                                                                                   'externen '
+                                                                                                                   'Systeme '
+                                                                                                                   'angesprochen '
+                                                                                                                   'und '
+                                                                                                                   'keine '
+                                                                                                                   'automatischen '
+                                                                                                                   'Gegenmaßnahmen '
+                                                                                                                   'ausgeführt.',
+        'Log data is loading…': 'Log-Daten werden geladen …',
+        'No matching log entries found.': 'Keine passenden Protokolleinträge gefunden.',
+        'SOC event': 'SOC-Ereignis',
+        'Audit': 'Audit',
+        'entries': 'Einträge',
+        'Logs could not be loaded.': 'Logs konnten nicht geladen werden.',
+        'Error loading logs.': 'Fehler beim Laden der Protokolle.',
+        'Event timeline distribution': 'Zeitliche Verteilung der Ereignisse',
+        'No events in this scenario.': 'Keine Ereignisse in diesem Szenario.',
+        'No valid timestamps are available.': 'Keine gültigen Zeitstempel verfügbar.',
+        'Entry': 'Eintrag',
+        'Severity and incident distribution': 'Schweregrad- und Incident-Verteilung',
+        'Detections by severity': 'Erkennungen nach Schweregrad',
+        'Incidents by status': 'Incidents nach Status',
+        'Open': 'Offen',
+        'In progress': 'In Bearbeitung',
+        'Resolved': 'Gelöst',
+        'SOC pipeline results': 'SOC-Pipeline-Ergebnisse',
+        'Duplicates removed': 'Duplikate entfernt',
+        'Python SOC pipeline is running…': 'Python-SOC-Pipeline wird ausgeführt …',
+        'CSRF validation failed. Please reload the page.': 'CSRF-Prüfung fehlgeschlagen. Bitte '
+                                                           'Seite neu laden.',
+        'Unknown SOC scenario.': 'Unbekanntes SOC-Szenario.',
+        'The Python SOC pipeline could not execute the scenario.': 'Die Python-SOC-Pipeline konnte '
+                                                                   'das Szenario nicht ausführen.',
+        'SOC request failed (HTTP {status}).': 'SOC-Anfrage fehlgeschlagen (HTTP {status}).',
+        'SOC request failed.': 'SOC-Anfrage fehlgeschlagen.',
+        'Scenario completed: {scenario}. Result provided by the Python pipeline.': 'Szenario '
+                                                                                   'abgeschlossen: '
+                                                                                   '{scenario}. '
+                                                                                   'Ergebnis '
+                                                                                   'stammt aus der '
+                                                                                   'Python-Pipeline.',
+        'Total': 'Gesamt',
+        'events': 'Ereignisse',
+        'Display limited; export contains up to 5000 entries.': 'Anzeige begrenzt; der Export '
+                                                                'enthält bis zu 5000 Einträge.',
+        'Persisted SOC events and audit logs.': 'Persistierte SOC-Ereignisse und Audit-Protokolle.',
+        'Log export': 'Log-Export',
+        'All sources': 'Alle Quellen',
+        'SOC events': 'SOC-Ereignisse',
+        'Audit log': 'Audit-Protokoll',
+        'All statuses': 'Alle Status',
+        'Search': 'Suche',
+        'Agent, action or content': 'Agent, Aktion oder Inhalt',
+        'Filter': 'Filtern',
+        'Time': 'Zeit',
+        'Actor / Agent': 'Akteur / Agent',
+        'Event / Action': 'Ereignis / Aktion',
+        'Details': 'Details',
+        'SOC navigation': 'SOC-Navigation',
+        'SOC lab scenarios': 'SOC-Lab-Szenarien',
+        'Log': 'Log',
+        'Webhooks': 'Webhooks',
+        'Integrations': 'Integrationen',
+        'Connected security and notification services will be managed here in the future.': 'Hier '
+                                                                                            'werden '
+                                                                                            'künftig '
+                                                                                            'angebundene '
+                                                                                            'Sicherheits- '
+                                                                                            'und '
+                                                                                            'Benachrichtigungsdienste '
+                                                                                            'verwaltet.',
+        'Configuration not yet available': 'Konfiguration noch nicht verfügbar',
+        'Integrations remain disabled until secure persistent configuration and secret management are implemented.': 'Integrationen '
+                                                                                                                     'bleiben '
+                                                                                                                     'deaktiviert, '
+                                                                                                                     'bis '
+                                                                                                                     'sichere, '
+                                                                                                                     'persistente '
+                                                                                                                     'Konfiguration '
+                                                                                                                     'und '
+                                                                                                                     'Geheimnisverwaltung '
+                                                                                                                     'implementiert '
+                                                                                                                     'sind.',
+        'Planned area for controlled delivery of alert events to external systems.': 'Geplanter '
+                                                                                     'Bereich für '
+                                                                                     'die '
+                                                                                     'kontrollierte '
+                                                                                     'Zustellung '
+                                                                                     'von '
+                                                                                     'Warnungsereignissen '
+                                                                                     'an externe '
+                                                                                     'Systeme.',
+        'Webhooks are disabled': 'Webhooks sind deaktiviert',
+        'No external destinations are contacted. URL validation, SSRF protection, secret storage, permissions and delivery logs must be implemented before activation.': 'Es '
+                                                                                                                                                                         'werden '
+                                                                                                                                                                         'keine '
+                                                                                                                                                                         'externen '
+                                                                                                                                                                         'Ziele '
+                                                                                                                                                                         'kontaktiert. '
+                                                                                                                                                                         'URL-Prüfung, '
+                                                                                                                                                                         'SSRF-Schutz, '
+                                                                                                                                                                         'Geheimnisspeicherung, '
+                                                                                                                                                                         'Berechtigungen '
+                                                                                                                                                                         'und '
+                                                                                                                                                                         'Zustellprotokolle '
+                                                                                                                                                                         'müssen '
+                                                                                                                                                                         'vor '
+                                                                                                                                                                         'einer '
+                                                                                                                                                                         'Aktivierung '
+                                                                                                                                                                         'umgesetzt '
+                                                                                                                                                                         'werden.'},
+ 'fr': {'SOC dashboard': 'Tableau de bord SOC',
+        'Security posture, stored events and logs.': 'État de sécurité, événements enregistrés et '
+                                                     'journaux.',
+        'Workspace': 'Espace de travail',
+        'Alerts, rules, SOC lab and stored logs.': 'Alertes, règles, laboratoire SOC et journaux '
+                                                   'enregistrés.',
+        'Log data is loading.': 'Chargement des journaux…',
+        'SOC Lab': 'Laboratoire SOC',
+        'Python-based detection, correlation and incident creation using synthetic test events.': 'Détection, '
+                                                                                                  'corrélation '
+                                                                                                  'et '
+                                                                                                  'création '
+                                                                                                  'd’incidents '
+                                                                                                  'en '
+                                                                                                  'Python '
+                                                                                                  'à '
+                                                                                                  'partir '
+                                                                                                  'd’événements '
+                                                                                                  'de '
+                                                                                                  'test '
+                                                                                                  'synthétiques.',
+        'Isolated simulation': 'Simulation isolée',
+        'Authentication failures': 'Échecs d’authentification',
+        'Three failed logins and correlation': 'Trois échecs de connexion et corrélation',
+        'Duplicate detection': 'Détection des doublons',
+        'Repeated event in the same batch': 'Événement répété dans le même lot',
+        'Privileged activity': 'Activité privilégiée',
+        'Synthetic administrator permission change': 'Modification synthétique des droits '
+                                                     'administrateur',
+        'Choose a scenario to run the Python pipeline.': 'Choisissez un scénario pour exécuter le '
+                                                         'pipeline Python.',
+        'SOC result metrics': 'Indicateurs de résultats SOC',
+        'Events': 'Événements',
+        'Detections': 'Détections',
+        'Correlations': 'Corrélations',
+        'Duplicates': 'Doublons',
+        'Incidents': 'Incidents',
+        'SOC visualizations': 'Visualisations SOC',
+        'Event timeline': 'Chronologie des événements',
+        'Temporal distribution of synthetic events.': 'Répartition temporelle des événements '
+                                                      'synthétiques.',
+        'Run a scenario to display the timeline.': 'Exécutez un scénario pour afficher la '
+                                                   'chronologie.',
+        'Severity and incident status': 'Gravité et état des incidents',
+        'Distribution of detections and incidents.': 'Répartition des détections et des incidents.',
+        'Severity distribution': 'Répartition des niveaux de gravité',
+        'Run a scenario to display the distribution.': 'Exécutez un scénario pour afficher la '
+                                                       'répartition.',
+        'Detection and incident pipeline': 'Pipeline de détection et d’incidents',
+        'Results of processing in the current scenario.': 'Résultats du traitement du scénario '
+                                                          'actuel.',
+        'SOC pipeline': 'Pipeline SOC',
+        'Run a scenario to display the pipeline.': 'Exécutez un scénario pour afficher le '
+                                                   'pipeline.',
+        'Pipeline result': 'Résultat du pipeline',
+        'No scenario has been run yet.': 'Aucun scénario n’a encore été exécuté.',
+        'No events are stored, no external systems are contacted, and no automated countermeasures are executed.': 'Aucun '
+                                                                                                                   'événement '
+                                                                                                                   'n’est '
+                                                                                                                   'enregistré, '
+                                                                                                                   'aucun '
+                                                                                                                   'système '
+                                                                                                                   'externe '
+                                                                                                                   'n’est '
+                                                                                                                   'contacté '
+                                                                                                                   'et '
+                                                                                                                   'aucune '
+                                                                                                                   'contre-mesure '
+                                                                                                                   'automatique '
+                                                                                                                   'n’est '
+                                                                                                                   'exécutée.',
+        'Log data is loading…': 'Chargement des journaux…',
+        'No matching log entries found.': 'Aucune entrée de journal correspondante.',
+        'SOC event': 'Événement SOC',
+        'Audit': 'Audit',
+        'entries': 'entrées',
+        'Logs could not be loaded.': 'Impossible de charger les journaux.',
+        'Error loading logs.': 'Erreur lors du chargement des journaux.',
+        'Event timeline distribution': 'Répartition temporelle des événements',
+        'No events in this scenario.': 'Aucun événement dans ce scénario.',
+        'No valid timestamps are available.': 'Aucun horodatage valide disponible.',
+        'Entry': 'Entrée',
+        'Severity and incident distribution': 'Répartition de la gravité et des incidents',
+        'Detections by severity': 'Détections par niveau de gravité',
+        'Incidents by status': 'Incidents par état',
+        'Open': 'Ouvert',
+        'In progress': 'En cours',
+        'Resolved': 'Résolu',
+        'SOC pipeline results': 'Résultats du pipeline SOC',
+        'Duplicates removed': 'Doublons supprimés',
+        'Python SOC pipeline is running…': 'Exécution du pipeline SOC Python…',
+        'CSRF validation failed. Please reload the page.': 'Échec de la validation CSRF. Rechargez '
+                                                           'la page.',
+        'Unknown SOC scenario.': 'Scénario SOC inconnu.',
+        'The Python SOC pipeline could not execute the scenario.': 'Le pipeline SOC Python n’a pas '
+                                                                   'pu exécuter le scénario.',
+        'SOC request failed (HTTP {status}).': 'Échec de la requête SOC (HTTP {status}).',
+        'SOC request failed.': 'Échec de la requête SOC.',
+        'Scenario completed: {scenario}. Result provided by the Python pipeline.': 'Scénario '
+                                                                                   'terminé : '
+                                                                                   '{scenario}. '
+                                                                                   'Résultat '
+                                                                                   'fourni par le '
+                                                                                   'pipeline '
+                                                                                   'Python.',
+        'Total': 'Total',
+        'events': 'événements',
+        'Display limited; export contains up to 5000 entries.': 'Affichage limité ; l’export '
+                                                                'contient jusqu’à 5000 entrées.',
+        'Persisted SOC events and audit logs.': 'Événements SOC enregistrés et journaux d’audit.',
+        'Log export': 'Exportation des journaux',
+        'All sources': 'Toutes les sources',
+        'SOC events': 'Événements SOC',
+        'Audit log': 'Journal d’audit',
+        'All statuses': 'Tous les statuts',
+        'Search': 'Rechercher',
+        'Agent, action or content': 'Agent, action ou contenu',
+        'Filter': 'Filtrer',
+        'Time': 'Heure',
+        'Actor / Agent': 'Acteur / agent',
+        'Event / Action': 'Événement / action',
+        'Details': 'Détails',
+        'SOC navigation': 'Navigation SOC',
+        'SOC lab scenarios': 'Scénarios du laboratoire SOC',
+        'Log': 'Journal',
+        'Webhooks': 'Webhooks',
+        'Integrations': 'Intégrations',
+        'Connected security and notification services will be managed here in the future.': 'Les '
+                                                                                            'services '
+                                                                                            'de '
+                                                                                            'sécurité '
+                                                                                            'et de '
+                                                                                            'notification '
+                                                                                            'connectés '
+                                                                                            'seront '
+                                                                                            'gérés '
+                                                                                            'ici '
+                                                                                            'ultérieurement.',
+        'Configuration not yet available': 'Configuration pas encore disponible',
+        'Integrations remain disabled until secure persistent configuration and secret management are implemented.': 'Les '
+                                                                                                                     'intégrations '
+                                                                                                                     'restent '
+                                                                                                                     'désactivées '
+                                                                                                                     'jusqu’à '
+                                                                                                                     'la '
+                                                                                                                     'mise '
+                                                                                                                     'en '
+                                                                                                                     'place '
+                                                                                                                     'd’une '
+                                                                                                                     'configuration '
+                                                                                                                     'persistante '
+                                                                                                                     'sécurisée '
+                                                                                                                     'et '
+                                                                                                                     'd’une '
+                                                                                                                     'gestion '
+                                                                                                                     'des '
+                                                                                                                     'secrets.',
+        'Planned area for controlled delivery of alert events to external systems.': 'Espace prévu '
+                                                                                     'pour l’envoi '
+                                                                                     'contrôlé des '
+                                                                                     'événements '
+                                                                                     'd’alerte '
+                                                                                     'vers des '
+                                                                                     'systèmes '
+                                                                                     'externes.',
+        'Webhooks are disabled': 'Les webhooks sont désactivés',
+        'No external destinations are contacted. URL validation, SSRF protection, secret storage, permissions and delivery logs must be implemented before activation.': 'Aucune '
+                                                                                                                                                                         'destination '
+                                                                                                                                                                         'externe '
+                                                                                                                                                                         'n’est '
+                                                                                                                                                                         'contactée. '
+                                                                                                                                                                         'La '
+                                                                                                                                                                         'validation '
+                                                                                                                                                                         'des '
+                                                                                                                                                                         'URL, '
+                                                                                                                                                                         'la '
+                                                                                                                                                                         'protection '
+                                                                                                                                                                         'contre '
+                                                                                                                                                                         'les '
+                                                                                                                                                                         'SSRF, '
+                                                                                                                                                                         'le '
+                                                                                                                                                                         'stockage '
+                                                                                                                                                                         'des '
+                                                                                                                                                                         'secrets, '
+                                                                                                                                                                         'les '
+                                                                                                                                                                         'autorisations '
+                                                                                                                                                                         'et '
+                                                                                                                                                                         'les '
+                                                                                                                                                                         'journaux '
+                                                                                                                                                                         'de '
+                                                                                                                                                                         'livraison '
+                                                                                                                                                                         'doivent '
+                                                                                                                                                                         'être '
+                                                                                                                                                                         'mis '
+                                                                                                                                                                         'en '
+                                                                                                                                                                         'œuvre '
+                                                                                                                                                                         'avant '
+                                                                                                                                                                         'l’activation.'},
+ 'es': {'SOC dashboard': 'Panel SOC',
+        'Security posture, stored events and logs.': 'Estado de seguridad, eventos almacenados y '
+                                                     'registros.',
+        'Workspace': 'Área de trabajo',
+        'Alerts, rules, SOC lab and stored logs.': 'Alertas, reglas, laboratorio SOC y registros '
+                                                   'almacenados.',
+        'Log data is loading.': 'Cargando datos de registros…',
+        'SOC Lab': 'Laboratorio SOC',
+        'Python-based detection, correlation and incident creation using synthetic test events.': 'Detección, '
+                                                                                                  'correlación '
+                                                                                                  'y '
+                                                                                                  'creación '
+                                                                                                  'de '
+                                                                                                  'incidentes '
+                                                                                                  'en '
+                                                                                                  'Python '
+                                                                                                  'con '
+                                                                                                  'eventos '
+                                                                                                  'de '
+                                                                                                  'prueba '
+                                                                                                  'sintéticos.',
+        'Isolated simulation': 'Simulación aislada',
+        'Authentication failures': 'Fallos de autenticación',
+        'Three failed logins and correlation': 'Tres inicios de sesión fallidos y correlación',
+        'Duplicate detection': 'Detección de duplicados',
+        'Repeated event in the same batch': 'Evento repetido en el mismo lote',
+        'Privileged activity': 'Actividad privilegiada',
+        'Synthetic administrator permission change': 'Cambio sintético de permisos de '
+                                                     'administrador',
+        'Choose a scenario to run the Python pipeline.': 'Elige un escenario para ejecutar la '
+                                                         'canalización de Python.',
+        'SOC result metrics': 'Métricas de resultados SOC',
+        'Events': 'Eventos',
+        'Detections': 'Detecciones',
+        'Correlations': 'Correlaciones',
+        'Duplicates': 'Duplicados',
+        'Incidents': 'Incidentes',
+        'SOC visualizations': 'Visualizaciones SOC',
+        'Event timeline': 'Cronología de eventos',
+        'Temporal distribution of synthetic events.': 'Distribución temporal de eventos '
+                                                      'sintéticos.',
+        'Run a scenario to display the timeline.': 'Ejecuta un escenario para mostrar la '
+                                                   'cronología.',
+        'Severity and incident status': 'Gravedad y estado de incidentes',
+        'Distribution of detections and incidents.': 'Distribución de detecciones e incidentes.',
+        'Severity distribution': 'Distribución por gravedad',
+        'Run a scenario to display the distribution.': 'Ejecuta un escenario para mostrar la '
+                                                       'distribución.',
+        'Detection and incident pipeline': 'Canalización de detección e incidentes',
+        'Results of processing in the current scenario.': 'Resultados del procesamiento del '
+                                                          'escenario actual.',
+        'SOC pipeline': 'Canalización SOC',
+        'Run a scenario to display the pipeline.': 'Ejecuta un escenario para mostrar la '
+                                                   'canalización.',
+        'Pipeline result': 'Resultado de la canalización',
+        'No scenario has been run yet.': 'Todavía no se ha ejecutado ningún escenario.',
+        'No events are stored, no external systems are contacted, and no automated countermeasures are executed.': 'No '
+                                                                                                                   'se '
+                                                                                                                   'almacenan '
+                                                                                                                   'eventos, '
+                                                                                                                   'no '
+                                                                                                                   'se '
+                                                                                                                   'contacta '
+                                                                                                                   'con '
+                                                                                                                   'sistemas '
+                                                                                                                   'externos '
+                                                                                                                   'ni '
+                                                                                                                   'se '
+                                                                                                                   'ejecutan '
+                                                                                                                   'contramedidas '
+                                                                                                                   'automáticas.',
+        'Log data is loading…': 'Cargando datos de registros…',
+        'No matching log entries found.': 'No se encontraron registros coincidentes.',
+        'SOC event': 'Evento SOC',
+        'Audit': 'Auditoría',
+        'entries': 'entradas',
+        'Logs could not be loaded.': 'No se pudieron cargar los registros.',
+        'Error loading logs.': 'Error al cargar los registros.',
+        'Event timeline distribution': 'Distribución temporal de eventos',
+        'No events in this scenario.': 'No hay eventos en este escenario.',
+        'No valid timestamps are available.': 'No hay marcas de tiempo válidas.',
+        'Entry': 'Entrada',
+        'Severity and incident distribution': 'Distribución de gravedad e incidentes',
+        'Detections by severity': 'Detecciones por gravedad',
+        'Incidents by status': 'Incidentes por estado',
+        'Open': 'Abierto',
+        'In progress': 'En curso',
+        'Resolved': 'Resuelto',
+        'SOC pipeline results': 'Resultados de la canalización SOC',
+        'Duplicates removed': 'Duplicados eliminados',
+        'Python SOC pipeline is running…': 'Ejecutando la canalización SOC de Python…',
+        'CSRF validation failed. Please reload the page.': 'Falló la validación CSRF. Recarga la '
+                                                           'página.',
+        'Unknown SOC scenario.': 'Escenario SOC desconocido.',
+        'The Python SOC pipeline could not execute the scenario.': 'La canalización SOC de Python '
+                                                                   'no pudo ejecutar el escenario.',
+        'SOC request failed (HTTP {status}).': 'Falló la solicitud SOC (HTTP {status}).',
+        'SOC request failed.': 'Falló la solicitud SOC.',
+        'Scenario completed: {scenario}. Result provided by the Python pipeline.': 'Escenario '
+                                                                                   'completado: '
+                                                                                   '{scenario}. '
+                                                                                   'Resultado '
+                                                                                   'proporcionado '
+                                                                                   'por la '
+                                                                                   'canalización '
+                                                                                   'de Python.',
+        'Total': 'Total',
+        'events': 'eventos',
+        'Display limited; export contains up to 5000 entries.': 'Visualización limitada; la '
+                                                                'exportación contiene hasta 5000 '
+                                                                'entradas.',
+        'Persisted SOC events and audit logs.': 'Eventos SOC almacenados y registros de auditoría.',
+        'Log export': 'Exportación de registros',
+        'All sources': 'Todas las fuentes',
+        'SOC events': 'Eventos SOC',
+        'Audit log': 'Registro de auditoría',
+        'All statuses': 'Todos los estados',
+        'Search': 'Buscar',
+        'Agent, action or content': 'Agente, acción o contenido',
+        'Filter': 'Filtrar',
+        'Time': 'Hora',
+        'Actor / Agent': 'Actor / agente',
+        'Event / Action': 'Evento / acción',
+        'Details': 'Detalles',
+        'SOC navigation': 'Navegación SOC',
+        'SOC lab scenarios': 'Escenarios del laboratorio SOC',
+        'Log': 'Registro',
+        'Webhooks': 'Webhooks',
+        'Integrations': 'Integraciones',
+        'Connected security and notification services will be managed here in the future.': 'Aquí '
+                                                                                            'se '
+                                                                                            'gestionarán '
+                                                                                            'en el '
+                                                                                            'futuro '
+                                                                                            'los '
+                                                                                            'servicios '
+                                                                                            'conectados '
+                                                                                            'de '
+                                                                                            'seguridad '
+                                                                                            'y '
+                                                                                            'notificación.',
+        'Configuration not yet available': 'Configuración aún no disponible',
+        'Integrations remain disabled until secure persistent configuration and secret management are implemented.': 'Las '
+                                                                                                                     'integraciones '
+                                                                                                                     'permanecerán '
+                                                                                                                     'desactivadas '
+                                                                                                                     'hasta '
+                                                                                                                     'que '
+                                                                                                                     'se '
+                                                                                                                     'implementen '
+                                                                                                                     'una '
+                                                                                                                     'configuración '
+                                                                                                                     'persistente '
+                                                                                                                     'segura '
+                                                                                                                     'y '
+                                                                                                                     'la '
+                                                                                                                     'gestión '
+                                                                                                                     'de '
+                                                                                                                     'secretos.',
+        'Planned area for controlled delivery of alert events to external systems.': 'Área '
+                                                                                     'prevista '
+                                                                                     'para el '
+                                                                                     'envío '
+                                                                                     'controlado '
+                                                                                     'de eventos '
+                                                                                     'de alerta a '
+                                                                                     'sistemas '
+                                                                                     'externos.',
+        'Webhooks are disabled': 'Los webhooks están desactivados',
+        'No external destinations are contacted. URL validation, SSRF protection, secret storage, permissions and delivery logs must be implemented before activation.': 'No '
+                                                                                                                                                                         'se '
+                                                                                                                                                                         'contacta '
+                                                                                                                                                                         'con '
+                                                                                                                                                                         'destinos '
+                                                                                                                                                                         'externos. '
+                                                                                                                                                                         'Antes '
+                                                                                                                                                                         'de '
+                                                                                                                                                                         'activar '
+                                                                                                                                                                         'la '
+                                                                                                                                                                         'función, '
+                                                                                                                                                                         'deben '
+                                                                                                                                                                         'implementarse '
+                                                                                                                                                                         'la '
+                                                                                                                                                                         'validación '
+                                                                                                                                                                         'de '
+                                                                                                                                                                         'URL, '
+                                                                                                                                                                         'la '
+                                                                                                                                                                         'protección '
+                                                                                                                                                                         'contra '
+                                                                                                                                                                         'SSRF, '
+                                                                                                                                                                         'el '
+                                                                                                                                                                         'almacenamiento '
+                                                                                                                                                                         'de '
+                                                                                                                                                                         'secretos, '
+                                                                                                                                                                         'los '
+                                                                                                                                                                         'permisos '
+                                                                                                                                                                         'y '
+                                                                                                                                                                         'los '
+                                                                                                                                                                         'registros '
+                                                                                                                                                                         'de '
+                                                                                                                                                                         'entrega.'},
+ 'zh-CN': {'SOC dashboard': 'SOC 安全运营面板',
+           'Security posture, stored events and logs.': '安全态势、已存储事件和日志。',
+           'Workspace': '工作区',
+           'Alerts, rules, SOC lab and stored logs.': '告警、规则、SOC 实验室和已存储日志。',
+           'Log data is loading.': '正在加载日志数据…',
+           'SOC Lab': 'SOC 实验室',
+           'Python-based detection, correlation and incident creation using synthetic test events.': '使用合成测试事件进行 '
+                                                                                                     'Python '
+                                                                                                     '检测、关联和事件创建。',
+           'Isolated simulation': '隔离模拟',
+           'Authentication failures': '身份验证失败',
+           'Three failed logins and correlation': '三次登录失败及关联分析',
+           'Duplicate detection': '重复事件检测',
+           'Repeated event in the same batch': '同一批次中的重复事件',
+           'Privileged activity': '特权活动',
+           'Synthetic administrator permission change': '模拟管理员权限变更',
+           'Choose a scenario to run the Python pipeline.': '选择一个场景以运行 Python 流水线。',
+           'SOC result metrics': 'SOC 结果指标',
+           'Events': '事件',
+           'Detections': '检测',
+           'Correlations': '关联',
+           'Duplicates': '重复项',
+           'Incidents': '安全事件',
+           'SOC visualizations': 'SOC 可视化',
+           'Event timeline': '事件时间线',
+           'Temporal distribution of synthetic events.': '合成事件的时间分布。',
+           'Run a scenario to display the timeline.': '运行场景以显示时间线。',
+           'Severity and incident status': '严重程度与事件状态',
+           'Distribution of detections and incidents.': '检测和安全事件的分布。',
+           'Severity distribution': '严重程度分布',
+           'Run a scenario to display the distribution.': '运行场景以显示分布。',
+           'Detection and incident pipeline': '检测与事件处理流水线',
+           'Results of processing in the current scenario.': '当前场景的处理结果。',
+           'SOC pipeline': 'SOC 流水线',
+           'Run a scenario to display the pipeline.': '运行场景以显示流水线。',
+           'Pipeline result': '流水线结果',
+           'No scenario has been run yet.': '尚未运行场景。',
+           'No events are stored, no external systems are contacted, and no automated countermeasures are executed.': '不会存储事件、联系外部系统或执行自动对抗措施。',
+           'Log data is loading…': '正在加载日志数据…',
+           'No matching log entries found.': '未找到匹配的日志条目。',
+           'SOC event': 'SOC 事件',
+           'Audit': '审计',
+           'entries': '条',
+           'Logs could not be loaded.': '无法加载日志。',
+           'Error loading logs.': '加载日志时出错。',
+           'Event timeline distribution': '事件时间分布',
+           'No events in this scenario.': '此场景中没有事件。',
+           'No valid timestamps are available.': '没有可用的有效时间戳。',
+           'Entry': '条目',
+           'Severity and incident distribution': '严重程度和事件分布',
+           'Detections by severity': '按严重程度统计检测',
+           'Incidents by status': '按状态统计事件',
+           'Open': '未处理',
+           'In progress': '处理中',
+           'Resolved': '已解决',
+           'SOC pipeline results': 'SOC 流水线结果',
+           'Duplicates removed': '已移除重复项',
+           'Python SOC pipeline is running…': '正在运行 Python SOC 流水线…',
+           'CSRF validation failed. Please reload the page.': 'CSRF 验证失败，请重新加载页面。',
+           'Unknown SOC scenario.': '未知 SOC 场景。',
+           'The Python SOC pipeline could not execute the scenario.': 'Python SOC 流水线无法执行该场景。',
+           'SOC request failed (HTTP {status}).': 'SOC 请求失败（HTTP {status}）。',
+           'SOC request failed.': 'SOC 请求失败。',
+           'Scenario completed: {scenario}. Result provided by the Python pipeline.': '场景已完成：{scenario}。结果由 '
+                                                                                      'Python '
+                                                                                      '流水线提供。',
+           'Total': '总计',
+           'events': '事件',
+           'Display limited; export contains up to 5000 entries.': '显示数量有限；导出最多包含 5000 条记录。',
+           'Persisted SOC events and audit logs.': '已保存的 SOC 事件和审计日志。',
+           'Log export': '日志导出',
+           'All sources': '所有来源',
+           'SOC events': 'SOC 事件',
+           'Audit log': '审计日志',
+           'All statuses': '所有状态',
+           'Search': '搜索',
+           'Agent, action or content': '代理、操作或内容',
+           'Filter': '筛选',
+           'Time': '时间',
+           'Actor / Agent': '主体 / 代理',
+           'Event / Action': '事件 / 操作',
+           'Details': '详情',
+           'SOC navigation': 'SOC 导航',
+           'SOC lab scenarios': 'SOC 实验室场景',
+           'Log': '日志',
+           'Webhooks': 'Webhooks',
+           'Integrations': '集成',
+           'Connected security and notification services will be managed here in the future.': '此处将来用于管理已连接的安全和通知服务。',
+           'Configuration not yet available': '配置尚不可用',
+           'Integrations remain disabled until secure persistent configuration and secret management are implemented.': '在实现安全的持久化配置和机密管理之前，集成功能将保持禁用。',
+           'Planned area for controlled delivery of alert events to external systems.': '用于将告警事件受控发送到外部系统的规划区域。',
+           'Webhooks are disabled': 'Webhook 已禁用',
+           'No external destinations are contacted. URL validation, SSRF protection, secret storage, permissions and delivery logs must be implemented before activation.': '不会联系任何外部目标。启用前必须实现 '
+                                                                                                                                                                            'URL '
+                                                                                                                                                                            '验证、SSRF '
+                                                                                                                                                                            '防护、机密存储、权限控制和投递日志。'},
+ 'ja': {'SOC dashboard': 'SOC ダッシュボード',
+        'Security posture, stored events and logs.': 'セキュリティ状況、保存済みイベント、ログ。',
+        'Workspace': 'ワークスペース',
+        'Alerts, rules, SOC lab and stored logs.': 'アラート、ルール、SOC ラボ、保存済みログ。',
+        'Log data is loading.': 'ログを読み込み中…',
+        'SOC Lab': 'SOC ラボ',
+        'Python-based detection, correlation and incident creation using synthetic test events.': '合成テストイベントを使用した '
+                                                                                                  'Python '
+                                                                                                  'による検知、相関分析、インシデント作成。',
+        'Isolated simulation': '隔離シミュレーション',
+        'Authentication failures': '認証失敗',
+        'Three failed logins and correlation': '3 回のログイン失敗と相関分析',
+        'Duplicate detection': '重複検知',
+        'Repeated event in the same batch': '同じバッチ内の重複イベント',
+        'Privileged activity': '特権操作',
+        'Synthetic administrator permission change': '合成管理者権限の変更',
+        'Choose a scenario to run the Python pipeline.': 'シナリオを選択して Python パイプラインを実行してください。',
+        'SOC result metrics': 'SOC 結果指標',
+        'Events': 'イベント',
+        'Detections': '検知',
+        'Correlations': '相関',
+        'Duplicates': '重複',
+        'Incidents': 'インシデント',
+        'SOC visualizations': 'SOC 可視化',
+        'Event timeline': 'イベントタイムライン',
+        'Temporal distribution of synthetic events.': '合成イベントの時間分布。',
+        'Run a scenario to display the timeline.': 'シナリオを実行するとタイムラインが表示されます。',
+        'Severity and incident status': '重大度とインシデントの状態',
+        'Distribution of detections and incidents.': '検知とインシデントの分布。',
+        'Severity distribution': '重大度の分布',
+        'Run a scenario to display the distribution.': 'シナリオを実行すると分布が表示されます。',
+        'Detection and incident pipeline': '検知・インシデントパイプライン',
+        'Results of processing in the current scenario.': '現在のシナリオの処理結果。',
+        'SOC pipeline': 'SOC パイプライン',
+        'Run a scenario to display the pipeline.': 'シナリオを実行するとパイプラインが表示されます。',
+        'Pipeline result': 'パイプラインの結果',
+        'No scenario has been run yet.': 'まだシナリオは実行されていません。',
+        'No events are stored, no external systems are contacted, and no automated countermeasures are executed.': 'イベントは保存されず、外部システムへの接続や自動対策も実行されません。',
+        'Log data is loading…': 'ログを読み込み中…',
+        'No matching log entries found.': '一致するログ項目はありません。',
+        'SOC event': 'SOC イベント',
+        'Audit': '監査',
+        'entries': '件',
+        'Logs could not be loaded.': 'ログを読み込めませんでした。',
+        'Error loading logs.': 'ログの読み込み中にエラーが発生しました。',
+        'Event timeline distribution': 'イベントの時間分布',
+        'No events in this scenario.': 'このシナリオにイベントはありません。',
+        'No valid timestamps are available.': '有効なタイムスタンプがありません。',
+        'Entry': '項目',
+        'Severity and incident distribution': '重大度とインシデントの分布',
+        'Detections by severity': '重大度別の検知',
+        'Incidents by status': '状態別のインシデント',
+        'Open': '未対応',
+        'In progress': '対応中',
+        'Resolved': '解決済み',
+        'SOC pipeline results': 'SOC パイプラインの結果',
+        'Duplicates removed': '重複を削除しました',
+        'Python SOC pipeline is running…': 'Python SOC パイプラインを実行中…',
+        'CSRF validation failed. Please reload the page.': 'CSRF 検証に失敗しました。ページを再読み込みしてください。',
+        'Unknown SOC scenario.': '不明な SOC シナリオです。',
+        'The Python SOC pipeline could not execute the scenario.': 'Python SOC '
+                                                                   'パイプラインでシナリオを実行できませんでした。',
+        'SOC request failed (HTTP {status}).': 'SOC リクエストに失敗しました（HTTP {status}）。',
+        'SOC request failed.': 'SOC リクエストに失敗しました。',
+        'Scenario completed: {scenario}. Result provided by the Python pipeline.': 'シナリオが完了しました：{scenario}。結果は '
+                                                                                   'Python '
+                                                                                   'パイプラインから提供されました。',
+        'Total': '合計',
+        'events': 'イベント',
+        'Display limited; export contains up to 5000 entries.': '表示件数に制限があります。エクスポートには最大5000件が含まれます。',
+        'Persisted SOC events and audit logs.': '保存された SOC イベントと監査ログ。',
+        'Log export': 'ログのエクスポート',
+        'All sources': 'すべてのソース',
+        'SOC events': 'SOC イベント',
+        'Audit log': '監査ログ',
+        'All statuses': 'すべてのステータス',
+        'Search': '検索',
+        'Agent, action or content': 'エージェント、操作、または内容',
+        'Filter': 'フィルター',
+        'Time': '時刻',
+        'Actor / Agent': 'アクター / エージェント',
+        'Event / Action': 'イベント / 操作',
+        'Details': '詳細',
+        'SOC navigation': 'SOC ナビゲーション',
+        'SOC lab scenarios': 'SOC ラボのシナリオ',
+        'Log': 'ログ',
+        'Webhooks': 'Webhook',
+        'Integrations': 'インテグレーション',
+        'Connected security and notification services will be managed here in the future.': '接続されたセキュリティサービスと通知サービスは、今後ここで管理します。',
+        'Configuration not yet available': '設定はまだ利用できません',
+        'Integrations remain disabled until secure persistent configuration and secret management are implemented.': '安全な永続的設定とシークレット管理が実装されるまで、インテグレーションは無効のままです。',
+        'Planned area for controlled delivery of alert events to external systems.': 'アラートイベントを外部システムへ制御された形で配信するための予定領域です。',
+        'Webhooks are disabled': 'Webhook は無効です',
+        'No external destinations are contacted. URL validation, SSRF protection, secret storage, permissions and delivery logs must be implemented before activation.': '外部の宛先には接続しません。有効化する前に、URL '
+                                                                                                                                                                         '検証、SSRF '
+                                                                                                                                                                         '対策、シークレット保存、権限管理、配信ログを実装する必要があります。'},
+ 'pl': {'SOC dashboard': 'Panel SOC',
+        'Security posture, stored events and logs.': 'Stan bezpieczeństwa, zapisane zdarzenia i '
+                                                     'dzienniki.',
+        'Workspace': 'Obszar roboczy',
+        'Alerts, rules, SOC lab and stored logs.': 'Alerty, reguły, laboratorium SOC i zapisane '
+                                                   'dzienniki.',
+        'Log data is loading.': 'Wczytywanie danych dziennika.',
+        'SOC Lab': 'Laboratorium SOC',
+        'Python-based detection, correlation and incident creation using synthetic test events.': 'Wykrywanie, '
+                                                                                                  'korelacja '
+                                                                                                  'i '
+                                                                                                  'tworzenie '
+                                                                                                  'incydentów '
+                                                                                                  'w '
+                                                                                                  'Pythonie '
+                                                                                                  'na '
+                                                                                                  'podstawie '
+                                                                                                  'syntetycznych '
+                                                                                                  'zdarzeń '
+                                                                                                  'testowych.',
+        'Isolated simulation': 'Odizolowana symulacja',
+        'Authentication failures': 'Błędy uwierzytelniania',
+        'Three failed logins and correlation': 'Trzy nieudane logowania i korelacja',
+        'Duplicate detection': 'Wykrywanie duplikatów',
+        'Repeated event in the same batch': 'Powtórzone zdarzenie w tej samej partii',
+        'Privileged activity': 'Aktywność uprzywilejowana',
+        'Synthetic administrator permission change': 'Symulowana zmiana uprawnień administratora',
+        'Choose a scenario to run the Python pipeline.': 'Wybierz scenariusz, aby uruchomić potok '
+                                                         'Pythona.',
+        'SOC result metrics': 'Wskaźniki wyników SOC',
+        'Events': 'Zdarzenia',
+        'Detections': 'Wykrycia',
+        'Correlations': 'Korelacje',
+        'Duplicates': 'Duplikaty',
+        'Incidents': 'Incydenty',
+        'SOC visualizations': 'Wizualizacje SOC',
+        'Event timeline': 'Oś czasu zdarzeń',
+        'Temporal distribution of synthetic events.': 'Rozkład czasowy zdarzeń syntetycznych.',
+        'Run a scenario to display the timeline.': 'Uruchom scenariusz, aby wyświetlić oś czasu.',
+        'Severity and incident status': 'Poziom ważności i status incydentu',
+        'Distribution of detections and incidents.': 'Rozkład wykryć i incydentów.',
+        'Severity distribution': 'Rozkład poziomów ważności',
+        'Run a scenario to display the distribution.': 'Uruchom scenariusz, aby wyświetlić '
+                                                       'rozkład.',
+        'Detection and incident pipeline': 'Potok wykrywania i obsługi incydentów',
+        'Results of processing in the current scenario.': 'Wyniki przetwarzania bieżącego '
+                                                          'scenariusza.',
+        'SOC pipeline': 'Potok SOC',
+        'Run a scenario to display the pipeline.': 'Uruchom scenariusz, aby wyświetlić potok.',
+        'Pipeline result': 'Wynik potoku',
+        'No scenario has been run yet.': 'Nie uruchomiono jeszcze żadnego scenariusza.',
+        'No events are stored, no external systems are contacted, and no automated countermeasures are executed.': 'Zdarzenia '
+                                                                                                                   'nie '
+                                                                                                                   'są '
+                                                                                                                   'zapisywane, '
+                                                                                                                   'systemy '
+                                                                                                                   'zewnętrzne '
+                                                                                                                   'nie '
+                                                                                                                   'są '
+                                                                                                                   'kontaktowane '
+                                                                                                                   'i '
+                                                                                                                   'nie '
+                                                                                                                   'są '
+                                                                                                                   'wykonywane '
+                                                                                                                   'automatyczne '
+                                                                                                                   'działania '
+                                                                                                                   'zaradcze.',
+        'Log data is loading…': 'Wczytywanie danych dziennika…',
+        'No matching log entries found.': 'Nie znaleziono pasujących wpisów dziennika.',
+        'SOC event': 'Zdarzenie SOC',
+        'Audit': 'Audyt',
+        'entries': 'wpisów',
+        'Logs could not be loaded.': 'Nie udało się wczytać dzienników.',
+        'Error loading logs.': 'Błąd podczas wczytywania dzienników.',
+        'Event timeline distribution': 'Rozkład zdarzeń w czasie',
+        'No events in this scenario.': 'Brak zdarzeń w tym scenariuszu.',
+        'No valid timestamps are available.': 'Brak prawidłowych znaczników czasu.',
+        'Entry': 'Wpis',
+        'Severity and incident distribution': 'Rozkład ważności i incydentów',
+        'Detections by severity': 'Wykrycia według poziomu ważności',
+        'Incidents by status': 'Incydenty według statusu',
+        'Open': 'Otwarte',
+        'In progress': 'W toku',
+        'Resolved': 'Rozwiązane',
+        'SOC pipeline results': 'Wyniki potoku SOC',
+        'Duplicates removed': 'Usunięto duplikaty',
+        'Python SOC pipeline is running…': 'Uruchamianie potoku SOC w Pythonie…',
+        'CSRF validation failed. Please reload the page.': 'Weryfikacja CSRF nie powiodła się. '
+                                                           'Odśwież stronę.',
+        'Unknown SOC scenario.': 'Nieznany scenariusz SOC.',
+        'The Python SOC pipeline could not execute the scenario.': 'Potok SOC w Pythonie nie mógł '
+                                                                   'wykonać scenariusza.',
+        'SOC request failed (HTTP {status}).': 'Żądanie SOC nie powiodło się (HTTP {status}).',
+        'SOC request failed.': 'Żądanie SOC nie powiodło się.',
+        'Scenario completed: {scenario}. Result provided by the Python pipeline.': 'Scenariusz '
+                                                                                   'zakończony: '
+                                                                                   '{scenario}. '
+                                                                                   'Wynik pochodzi '
+                                                                                   'z potoku '
+                                                                                   'Pythona.',
+        'Total': 'Łącznie',
+        'events': 'zdarzenia',
+        'Display limited; export contains up to 5000 entries.': 'Wyświetlanie ograniczone; eksport '
+                                                                'zawiera do 5000 wpisów.',
+        'Persisted SOC events and audit logs.': 'Zapisane zdarzenia SOC i dzienniki audytu.',
+        'Log export': 'Eksport dziennika',
+        'All sources': 'Wszystkie źródła',
+        'SOC events': 'Zdarzenia SOC',
+        'Audit log': 'Dziennik audytu',
+        'All statuses': 'Wszystkie statusy',
+        'Search': 'Szukaj',
+        'Agent, action or content': 'Agent, działanie lub treść',
+        'Filter': 'Filtruj',
+        'Time': 'Czas',
+        'Actor / Agent': 'Aktor / agent',
+        'Event / Action': 'Zdarzenie / działanie',
+        'Details': 'Szczegóły',
+        'SOC navigation': 'Nawigacja SOC',
+        'SOC lab scenarios': 'Scenariusze laboratorium SOC',
+        'Log': 'Dziennik',
+        'Webhooks': 'Webhooki',
+        'Integrations': 'Integracje',
+        'Connected security and notification services will be managed here in the future.': 'W tym '
+                                                                                            'miejscu '
+                                                                                            'będą '
+                                                                                            'w '
+                                                                                            'przyszłości '
+                                                                                            'zarządzane '
+                                                                                            'podłączone '
+                                                                                            'usługi '
+                                                                                            'bezpieczeństwa '
+                                                                                            'i '
+                                                                                            'powiadomień.',
+        'Configuration not yet available': 'Konfiguracja nie jest jeszcze dostępna',
+        'Integrations remain disabled until secure persistent configuration and secret management are implemented.': 'Integracje '
+                                                                                                                     'pozostaną '
+                                                                                                                     'wyłączone '
+                                                                                                                     'do '
+                                                                                                                     'czasu '
+                                                                                                                     'wdrożenia '
+                                                                                                                     'bezpiecznej '
+                                                                                                                     'trwałej '
+                                                                                                                     'konfiguracji '
+                                                                                                                     'i '
+                                                                                                                     'zarządzania '
+                                                                                                                     'sekretami.',
+        'Planned area for controlled delivery of alert events to external systems.': 'Planowany '
+                                                                                     'obszar '
+                                                                                     'kontrolowanego '
+                                                                                     'dostarczania '
+                                                                                     'zdarzeń '
+                                                                                     'alertów do '
+                                                                                     'systemów '
+                                                                                     'zewnętrznych.',
+        'Webhooks are disabled': 'Webhooki są wyłączone',
+        'No external destinations are contacted. URL validation, SSRF protection, secret storage, permissions and delivery logs must be implemented before activation.': 'Nie '
+                                                                                                                                                                         'są '
+                                                                                                                                                                         'kontaktowane '
+                                                                                                                                                                         'żadne '
+                                                                                                                                                                         'zewnętrzne '
+                                                                                                                                                                         'miejsca '
+                                                                                                                                                                         'docelowe. '
+                                                                                                                                                                         'Przed '
+                                                                                                                                                                         'aktywacją '
+                                                                                                                                                                         'należy '
+                                                                                                                                                                         'wdrożyć '
+                                                                                                                                                                         'walidację '
+                                                                                                                                                                         'URL, '
+                                                                                                                                                                         'ochronę '
+                                                                                                                                                                         'przed '
+                                                                                                                                                                         'SSRF, '
+                                                                                                                                                                         'przechowywanie '
+                                                                                                                                                                         'sekretów, '
+                                                                                                                                                                         'uprawnienia '
+                                                                                                                                                                         'i '
+                                                                                                                                                                         'dzienniki '
+                                                                                                                                                                         'dostarczania.'},
+ 'sv': {'SOC dashboard': 'SOC-instrumentpanel',
+        'Security posture, stored events and logs.': 'Säkerhetsläge, lagrade händelser och loggar.',
+        'Workspace': 'Arbetsyta',
+        'Alerts, rules, SOC lab and stored logs.': 'Aviseringar, regler, SOC-labb och lagrade '
+                                                   'loggar.',
+        'Log data is loading.': 'Loggdata läses in.',
+        'SOC Lab': 'SOC-labb',
+        'Python-based detection, correlation and incident creation using synthetic test events.': 'Pythonbaserad '
+                                                                                                  'detektering, '
+                                                                                                  'korrelation '
+                                                                                                  'och '
+                                                                                                  'incidenthantering '
+                                                                                                  'med '
+                                                                                                  'syntetiska '
+                                                                                                  'testhändelser.',
+        'Isolated simulation': 'Isolerad simulering',
+        'Authentication failures': 'Autentiseringsfel',
+        'Three failed logins and correlation': 'Tre misslyckade inloggningar och korrelation',
+        'Duplicate detection': 'Dubblettdetektering',
+        'Repeated event in the same batch': 'Upprepad händelse i samma batch',
+        'Privileged activity': 'Privilegierad aktivitet',
+        'Synthetic administrator permission change': 'Simulerad ändring av '
+                                                     'administratörsbehörighet',
+        'Choose a scenario to run the Python pipeline.': 'Välj ett scenario för att köra '
+                                                         'Python-pipelinen.',
+        'SOC result metrics': 'SOC-resultatmått',
+        'Events': 'Händelser',
+        'Detections': 'Detekteringar',
+        'Correlations': 'Korrelationer',
+        'Duplicates': 'Dubbletter',
+        'Incidents': 'Incidenter',
+        'SOC visualizations': 'SOC-visualiseringar',
+        'Event timeline': 'Händelsetidslinje',
+        'Temporal distribution of synthetic events.': 'Tidsfördelning för syntetiska händelser.',
+        'Run a scenario to display the timeline.': 'Kör ett scenario för att visa tidslinjen.',
+        'Severity and incident status': 'Allvarlighetsgrad och incidentstatus',
+        'Distribution of detections and incidents.': 'Fördelning av detekteringar och incidenter.',
+        'Severity distribution': 'Fördelning efter allvarlighetsgrad',
+        'Run a scenario to display the distribution.': 'Kör ett scenario för att visa '
+                                                       'fördelningen.',
+        'Detection and incident pipeline': 'Pipeline för detektering och incidenter',
+        'Results of processing in the current scenario.': 'Bearbetningsresultat för det aktuella '
+                                                          'scenariot.',
+        'SOC pipeline': 'SOC-pipeline',
+        'Run a scenario to display the pipeline.': 'Kör ett scenario för att visa pipelinen.',
+        'Pipeline result': 'Pipelineresultat',
+        'No scenario has been run yet.': 'Inget scenario har körts ännu.',
+        'No events are stored, no external systems are contacted, and no automated countermeasures are executed.': 'Inga '
+                                                                                                                   'händelser '
+                                                                                                                   'lagras, '
+                                                                                                                   'inga '
+                                                                                                                   'externa '
+                                                                                                                   'system '
+                                                                                                                   'kontaktas '
+                                                                                                                   'och '
+                                                                                                                   'inga '
+                                                                                                                   'automatiska '
+                                                                                                                   'motåtgärder '
+                                                                                                                   'utförs.',
+        'Log data is loading…': 'Loggdata läses in…',
+        'No matching log entries found.': 'Inga matchande loggposter hittades.',
+        'SOC event': 'SOC-händelse',
+        'Audit': 'Granskning',
+        'entries': 'poster',
+        'Logs could not be loaded.': 'Det gick inte att läsa in loggarna.',
+        'Error loading logs.': 'Fel vid inläsning av loggar.',
+        'Event timeline distribution': 'Tidsfördelning av händelser',
+        'No events in this scenario.': 'Inga händelser i det här scenariot.',
+        'No valid timestamps are available.': 'Inga giltiga tidsstämplar finns tillgängliga.',
+        'Entry': 'Post',
+        'Severity and incident distribution': 'Fördelning av allvarlighetsgrad och incidenter',
+        'Detections by severity': 'Detekteringar efter allvarlighetsgrad',
+        'Incidents by status': 'Incidenter efter status',
+        'Open': 'Öppen',
+        'In progress': 'Pågår',
+        'Resolved': 'Löst',
+        'SOC pipeline results': 'SOC-pipeline-resultat',
+        'Duplicates removed': 'Dubbletter borttagna',
+        'Python SOC pipeline is running…': 'Python-baserade SOC-pipelinen körs…',
+        'CSRF validation failed. Please reload the page.': 'CSRF-kontrollen misslyckades. Läs in '
+                                                           'sidan igen.',
+        'Unknown SOC scenario.': 'Okänt SOC-scenario.',
+        'The Python SOC pipeline could not execute the scenario.': 'Python-baserade SOC-pipelinen '
+                                                                   'kunde inte köra scenariot.',
+        'SOC request failed (HTTP {status}).': 'SOC-begäran misslyckades (HTTP {status}).',
+        'SOC request failed.': 'SOC-begäran misslyckades.',
+        'Scenario completed: {scenario}. Result provided by the Python pipeline.': 'Scenariot '
+                                                                                   'slutfördes: '
+                                                                                   '{scenario}. '
+                                                                                   'Resultatet '
+                                                                                   'kommer från '
+                                                                                   'Python-pipelinen.',
+        'Total': 'Totalt',
+        'events': 'händelser',
+        'Display limited; export contains up to 5000 entries.': 'Visningen är begränsad; exporten '
+                                                                'innehåller upp till 5000 poster.',
+        'Persisted SOC events and audit logs.': 'Sparade SOC-händelser och granskningsloggar.',
+        'Log export': 'Loggexport',
+        'All sources': 'Alla källor',
+        'SOC events': 'SOC-händelser',
+        'Audit log': 'Granskningslogg',
+        'All statuses': 'Alla statusar',
+        'Search': 'Sök',
+        'Agent, action or content': 'Agent, åtgärd eller innehåll',
+        'Filter': 'Filtrera',
+        'Time': 'Tid',
+        'Actor / Agent': 'Aktör / agent',
+        'Event / Action': 'Händelse / åtgärd',
+        'Details': 'Detaljer',
+        'SOC navigation': 'SOC-navigering',
+        'SOC lab scenarios': 'SOC-labscenarier',
+        'Log': 'Logg',
+        'Webhooks': 'Webhooks',
+        'Integrations': 'Integrationer',
+        'Connected security and notification services will be managed here in the future.': 'Anslutna '
+                                                                                            'säkerhets- '
+                                                                                            'och '
+                                                                                            'aviseringstjänster '
+                                                                                            'kommer '
+                                                                                            'att '
+                                                                                            'hanteras '
+                                                                                            'här i '
+                                                                                            'framtiden.',
+        'Configuration not yet available': 'Konfigurationen är inte tillgänglig ännu',
+        'Integrations remain disabled until secure persistent configuration and secret management are implemented.': 'Integrationer '
+                                                                                                                     'förblir '
+                                                                                                                     'inaktiverade '
+                                                                                                                     'tills '
+                                                                                                                     'säker, '
+                                                                                                                     'beständig '
+                                                                                                                     'konfiguration '
+                                                                                                                     'och '
+                                                                                                                     'hantering '
+                                                                                                                     'av '
+                                                                                                                     'hemligheter '
+                                                                                                                     'har '
+                                                                                                                     'implementerats.',
+        'Planned area for controlled delivery of alert events to external systems.': 'Planerat '
+                                                                                     'område för '
+                                                                                     'kontrollerad '
+                                                                                     'leverans av '
+                                                                                     'varningshändelser '
+                                                                                     'till externa '
+                                                                                     'system.',
+        'Webhooks are disabled': 'Webhooks är inaktiverade',
+        'No external destinations are contacted. URL validation, SSRF protection, secret storage, permissions and delivery logs must be implemented before activation.': 'Inga '
+                                                                                                                                                                         'externa '
+                                                                                                                                                                         'mål '
+                                                                                                                                                                         'kontaktas. '
+                                                                                                                                                                         'URL-validering, '
+                                                                                                                                                                         'SSRF-skydd, '
+                                                                                                                                                                         'lagring '
+                                                                                                                                                                         'av '
+                                                                                                                                                                         'hemligheter, '
+                                                                                                                                                                         'behörigheter '
+                                                                                                                                                                         'och '
+                                                                                                                                                                         'leveransloggar '
+                                                                                                                                                                         'måste '
+                                                                                                                                                                         'införas '
+                                                                                                                                                                         'innan '
+                                                                                                                                                                         'funktionen '
+                                                                                                                                                                         'aktiveras.'},
+ 'nb': {'SOC dashboard': 'SOC-dashbord',
+        'Security posture, stored events and logs.': 'Sikkerhetstilstand, lagrede hendelser og '
+                                                     'logger.',
+        'Workspace': 'Arbeidsområde',
+        'Alerts, rules, SOC lab and stored logs.': 'Varsler, regler, SOC-laboratorium og lagrede '
+                                                   'logger.',
+        'Log data is loading.': 'Laster loggdata.',
+        'SOC Lab': 'SOC-laboratorium',
+        'Python-based detection, correlation and incident creation using synthetic test events.': 'Python-basert '
+                                                                                                  'deteksjon, '
+                                                                                                  'korrelasjon '
+                                                                                                  'og '
+                                                                                                  'opprettelse '
+                                                                                                  'av '
+                                                                                                  'hendelser '
+                                                                                                  'med '
+                                                                                                  'syntetiske '
+                                                                                                  'testhendelser.',
+        'Isolated simulation': 'Isolert simulering',
+        'Authentication failures': 'Autentiseringsfeil',
+        'Three failed logins and correlation': 'Tre mislykkede pålogginger og korrelasjon',
+        'Duplicate detection': 'Duplikatdeteksjon',
+        'Repeated event in the same batch': 'Gjentatt hendelse i samme batch',
+        'Privileged activity': 'Privilegert aktivitet',
+        'Synthetic administrator permission change': 'Syntetisk endring av '
+                                                     'administratorrettigheter',
+        'Choose a scenario to run the Python pipeline.': 'Velg et scenario for å kjøre '
+                                                         'Python-pipelinen.',
+        'SOC result metrics': 'SOC-resultatmålinger',
+        'Events': 'Hendelser',
+        'Detections': 'Deteksjoner',
+        'Correlations': 'Korrelasjoner',
+        'Duplicates': 'Duplikater',
+        'Incidents': 'Hendelser',
+        'SOC visualizations': 'SOC-visualiseringer',
+        'Event timeline': 'Hendelsestidslinje',
+        'Temporal distribution of synthetic events.': 'Tidsfordeling av syntetiske hendelser.',
+        'Run a scenario to display the timeline.': 'Kjør et scenario for å vise tidslinjen.',
+        'Severity and incident status': 'Alvorlighetsgrad og hendelsesstatus',
+        'Distribution of detections and incidents.': 'Fordeling av deteksjoner og hendelser.',
+        'Severity distribution': 'Fordeling etter alvorlighetsgrad',
+        'Run a scenario to display the distribution.': 'Kjør et scenario for å vise fordelingen.',
+        'Detection and incident pipeline': 'Pipeline for deteksjon og hendelser',
+        'Results of processing in the current scenario.': 'Behandlingsresultater for gjeldende '
+                                                          'scenario.',
+        'SOC pipeline': 'SOC-pipeline',
+        'Run a scenario to display the pipeline.': 'Kjør et scenario for å vise pipelinen.',
+        'Pipeline result': 'Pipelineresultat',
+        'No scenario has been run yet.': 'Ingen scenarioer er kjørt ennå.',
+        'No events are stored, no external systems are contacted, and no automated countermeasures are executed.': 'Ingen '
+                                                                                                                   'hendelser '
+                                                                                                                   'lagres, '
+                                                                                                                   'ingen '
+                                                                                                                   'eksterne '
+                                                                                                                   'systemer '
+                                                                                                                   'kontaktes, '
+                                                                                                                   'og '
+                                                                                                                   'ingen '
+                                                                                                                   'automatiske '
+                                                                                                                   'mottiltak '
+                                                                                                                   'utføres.',
+        'Log data is loading…': 'Laster loggdata…',
+        'No matching log entries found.': 'Fant ingen samsvarende loggoppføringer.',
+        'SOC event': 'SOC-hendelse',
+        'Audit': 'Revisjon',
+        'entries': 'oppføringer',
+        'Logs could not be loaded.': 'Kunne ikke laste loggene.',
+        'Error loading logs.': 'Feil ved lasting av logger.',
+        'Event timeline distribution': 'Tidsfordeling av hendelser',
+        'No events in this scenario.': 'Ingen hendelser i dette scenarioet.',
+        'No valid timestamps are available.': 'Ingen gyldige tidsstempler er tilgjengelige.',
+        'Entry': 'Oppføring',
+        'Severity and incident distribution': 'Fordeling av alvorlighetsgrad og hendelser',
+        'Detections by severity': 'Deteksjoner etter alvorlighetsgrad',
+        'Incidents by status': 'Hendelser etter status',
+        'Open': 'Åpen',
+        'In progress': 'Pågår',
+        'Resolved': 'Løst',
+        'SOC pipeline results': 'SOC-pipeline-resultater',
+        'Duplicates removed': 'Duplikater fjernet',
+        'Python SOC pipeline is running…': 'Python SOC-pipeline kjører…',
+        'CSRF validation failed. Please reload the page.': 'CSRF-validering mislyktes. Last inn '
+                                                           'siden på nytt.',
+        'Unknown SOC scenario.': 'Ukjent SOC-scenario.',
+        'The Python SOC pipeline could not execute the scenario.': 'Python SOC-pipeline kunne ikke '
+                                                                   'kjøre scenarioet.',
+        'SOC request failed (HTTP {status}).': 'SOC-forespørselen mislyktes (HTTP {status}).',
+        'SOC request failed.': 'SOC-forespørselen mislyktes.',
+        'Scenario completed: {scenario}. Result provided by the Python pipeline.': 'Scenario '
+                                                                                   'fullført: '
+                                                                                   '{scenario}. '
+                                                                                   'Resultatet '
+                                                                                   'kommer fra '
+                                                                                   'Python-pipelinen.',
+        'Total': 'Totalt',
+        'events': 'hendelser',
+        'Display limited; export contains up to 5000 entries.': 'Visningen er begrenset; eksporten '
+                                                                'inneholder opptil 5000 '
+                                                                'oppføringer.',
+        'Persisted SOC events and audit logs.': 'Lagrede SOC-hendelser og revisjonslogger.',
+        'Log export': 'Loggeksport',
+        'All sources': 'Alle kilder',
+        'SOC events': 'SOC-hendelser',
+        'Audit log': 'Revisjonslogg',
+        'All statuses': 'Alle statuser',
+        'Search': 'Søk',
+        'Agent, action or content': 'Agent, handling eller innhold',
+        'Filter': 'Filtrer',
+        'Time': 'Tid',
+        'Actor / Agent': 'Aktør / agent',
+        'Event / Action': 'Hendelse / handling',
+        'Details': 'Detaljer',
+        'SOC navigation': 'SOC-navigering',
+        'SOC lab scenarios': 'SOC-labscenarioer',
+        'Log': 'Logg',
+        'Webhooks': 'Webhooks',
+        'Integrations': 'Integrasjoner',
+        'Connected security and notification services will be managed here in the future.': 'Tilkoblede '
+                                                                                            'sikkerhets- '
+                                                                                            'og '
+                                                                                            'varslingstjenester '
+                                                                                            'vil '
+                                                                                            'bli '
+                                                                                            'administrert '
+                                                                                            'her i '
+                                                                                            'fremtiden.',
+        'Configuration not yet available': 'Konfigurasjon er ikke tilgjengelig ennå',
+        'Integrations remain disabled until secure persistent configuration and secret management are implemented.': 'Integrasjoner '
+                                                                                                                     'forblir '
+                                                                                                                     'deaktivert '
+                                                                                                                     'til '
+                                                                                                                     'sikker, '
+                                                                                                                     'vedvarende '
+                                                                                                                     'konfigurasjon '
+                                                                                                                     'og '
+                                                                                                                     'hemmelighetshåndtering '
+                                                                                                                     'er '
+                                                                                                                     'implementert.',
+        'Planned area for controlled delivery of alert events to external systems.': 'Planlagt '
+                                                                                     'område for '
+                                                                                     'kontrollert '
+                                                                                     'levering av '
+                                                                                     'varslingshendelser '
+                                                                                     'til eksterne '
+                                                                                     'systemer.',
+        'Webhooks are disabled': 'Webhooks er deaktivert',
+        'No external destinations are contacted. URL validation, SSRF protection, secret storage, permissions and delivery logs must be implemented before activation.': 'Ingen '
+                                                                                                                                                                         'eksterne '
+                                                                                                                                                                         'mål '
+                                                                                                                                                                         'kontaktes. '
+                                                                                                                                                                         'URL-validering, '
+                                                                                                                                                                         'SSRF-beskyttelse, '
+                                                                                                                                                                         'lagring '
+                                                                                                                                                                         'av '
+                                                                                                                                                                         'hemmeligheter, '
+                                                                                                                                                                         'tillatelser '
+                                                                                                                                                                         'og '
+                                                                                                                                                                         'leveringslogger '
+                                                                                                                                                                         'må '
+                                                                                                                                                                         'implementeres '
+                                                                                                                                                                         'før '
+                                                                                                                                                                         'aktivering.'},
+ 'fi': {'SOC dashboard': 'SOC-koontinäyttö',
+        'Security posture, stored events and logs.': 'Tietoturvatilanne, tallennetut tapahtumat ja '
+                                                     'lokit.',
+        'Workspace': 'Työtila',
+        'Alerts, rules, SOC lab and stored logs.': 'Hälytykset, säännöt, SOC-laboratorio ja '
+                                                   'tallennetut lokit.',
+        'Log data is loading.': 'Lokeja ladataan.',
+        'SOC Lab': 'SOC-laboratorio',
+        'Python-based detection, correlation and incident creation using synthetic test events.': 'Python-pohjainen '
+                                                                                                  'tunnistus, '
+                                                                                                  'korrelaatio '
+                                                                                                  'ja '
+                                                                                                  'poikkeamien '
+                                                                                                  'luonti '
+                                                                                                  'synteettisillä '
+                                                                                                  'testitapahtumilla.',
+        'Isolated simulation': 'Eristetty simulointi',
+        'Authentication failures': 'Todennusvirheet',
+        'Three failed logins and correlation': 'Kolme epäonnistunutta kirjautumista ja korrelaatio',
+        'Duplicate detection': 'Kaksoiskappaleiden tunnistus',
+        'Repeated event in the same batch': 'Sama tapahtuma toistuu erässä',
+        'Privileged activity': 'Etuoikeutettu toiminta',
+        'Synthetic administrator permission change': 'Synteettinen järjestelmänvalvojan '
+                                                     'käyttöoikeuden muutos',
+        'Choose a scenario to run the Python pipeline.': 'Valitse skenaario Python-putken '
+                                                         'suorittamiseksi.',
+        'SOC result metrics': 'SOC-tulosmittarit',
+        'Events': 'Tapahtumat',
+        'Detections': 'Havainnot',
+        'Correlations': 'Korrelaatiot',
+        'Duplicates': 'Kaksoiskappaleet',
+        'Incidents': 'Poikkeamat',
+        'SOC visualizations': 'SOC-visualisoinnit',
+        'Event timeline': 'Tapahtumien aikajana',
+        'Temporal distribution of synthetic events.': 'Synteettisten tapahtumien ajallinen '
+                                                      'jakauma.',
+        'Run a scenario to display the timeline.': 'Suorita skenaario aikajanan näyttämiseksi.',
+        'Severity and incident status': 'Vakavuus ja poikkeaman tila',
+        'Distribution of detections and incidents.': 'Havaintojen ja poikkeamien jakauma.',
+        'Severity distribution': 'Vakavuusjakauma',
+        'Run a scenario to display the distribution.': 'Suorita skenaario jakauman näyttämiseksi.',
+        'Detection and incident pipeline': 'Havainto- ja poikkeamaputki',
+        'Results of processing in the current scenario.': 'Nykyisen skenaarion käsittelytulokset.',
+        'SOC pipeline': 'SOC-putki',
+        'Run a scenario to display the pipeline.': 'Suorita skenaario putken näyttämiseksi.',
+        'Pipeline result': 'Putken tulos',
+        'No scenario has been run yet.': 'Skenaariota ei ole vielä suoritettu.',
+        'No events are stored, no external systems are contacted, and no automated countermeasures are executed.': 'Tapahtumia '
+                                                                                                                   'ei '
+                                                                                                                   'tallenneta, '
+                                                                                                                   'ulkoisiin '
+                                                                                                                   'järjestelmiin '
+                                                                                                                   'ei '
+                                                                                                                   'oteta '
+                                                                                                                   'yhteyttä '
+                                                                                                                   'eikä '
+                                                                                                                   'automaattisia '
+                                                                                                                   'vastatoimia '
+                                                                                                                   'suoriteta.',
+        'Log data is loading…': 'Lokeja ladataan…',
+        'No matching log entries found.': 'Vastaavia lokimerkintöjä ei löytynyt.',
+        'SOC event': 'SOC-tapahtuma',
+        'Audit': 'Tarkastusloki',
+        'entries': 'merkintää',
+        'Logs could not be loaded.': 'Lokien lataaminen epäonnistui.',
+        'Error loading logs.': 'Virhe lokien lataamisessa.',
+        'Event timeline distribution': 'Tapahtumien ajallinen jakauma',
+        'No events in this scenario.': 'Tässä skenaariossa ei ole tapahtumia.',
+        'No valid timestamps are available.': 'Kelvollisia aikaleimoja ei ole saatavilla.',
+        'Entry': 'Merkintä',
+        'Severity and incident distribution': 'Vakavuuden ja poikkeamien jakauma',
+        'Detections by severity': 'Havainnot vakavuuden mukaan',
+        'Incidents by status': 'Poikkeamat tilan mukaan',
+        'Open': 'Avoin',
+        'In progress': 'Käsittelyssä',
+        'Resolved': 'Ratkaistu',
+        'SOC pipeline results': 'SOC-putken tulokset',
+        'Duplicates removed': 'Kaksoiskappaleet poistettu',
+        'Python SOC pipeline is running…': 'Python-SOC-putki suoritetaan…',
+        'CSRF validation failed. Please reload the page.': 'CSRF-tarkistus epäonnistui. Lataa sivu '
+                                                           'uudelleen.',
+        'Unknown SOC scenario.': 'Tuntematon SOC-skenaario.',
+        'The Python SOC pipeline could not execute the scenario.': 'Python-SOC-putki ei voinut '
+                                                                   'suorittaa skenaariota.',
+        'SOC request failed (HTTP {status}).': 'SOC-pyyntö epäonnistui (HTTP {status}).',
+        'SOC request failed.': 'SOC-pyyntö epäonnistui.',
+        'Scenario completed: {scenario}. Result provided by the Python pipeline.': 'Skenaario '
+                                                                                   'valmis: '
+                                                                                   '{scenario}. '
+                                                                                   'Tulos saatiin '
+                                                                                   'Python-putkesta.',
+        'Total': 'Yhteensä',
+        'events': 'tapahtumat',
+        'Display limited; export contains up to 5000 entries.': 'Näytettävien tietueiden määrää on '
+                                                                'rajoitettu; vienti sisältää '
+                                                                'enintään 5000 tietuetta.',
+        'Persisted SOC events and audit logs.': 'Tallennetut SOC-tapahtumat ja tarkastuslokit.',
+        'Log export': 'Lokien vienti',
+        'All sources': 'Kaikki lähteet',
+        'SOC events': 'SOC-tapahtumat',
+        'Audit log': 'Tarkastusloki',
+        'All statuses': 'Kaikki tilat',
+        'Search': 'Haku',
+        'Agent, action or content': 'Agentti, toiminto tai sisältö',
+        'Filter': 'Suodata',
+        'Time': 'Aika',
+        'Actor / Agent': 'Toimija / agentti',
+        'Event / Action': 'Tapahtuma / toiminto',
+        'Details': 'Tiedot',
+        'SOC navigation': 'SOC-navigointi',
+        'SOC lab scenarios': 'SOC-laboratorion skenaariot',
+        'Log': 'Loki',
+        'Webhooks': 'Webhookit',
+        'Integrations': 'Integraatiot',
+        'Connected security and notification services will be managed here in the future.': 'Yhdistettyjä '
+                                                                                            'tietoturva- '
+                                                                                            'ja '
+                                                                                            'ilmoituspalveluja '
+                                                                                            'hallitaan '
+                                                                                            'täällä '
+                                                                                            'myöhemmin.',
+        'Configuration not yet available': 'Määritys ei ole vielä käytettävissä',
+        'Integrations remain disabled until secure persistent configuration and secret management are implemented.': 'Integraatiot '
+                                                                                                                     'pysyvät '
+                                                                                                                     'poissa '
+                                                                                                                     'käytöstä, '
+                                                                                                                     'kunnes '
+                                                                                                                     'turvallinen '
+                                                                                                                     'pysyvä '
+                                                                                                                     'määritys '
+                                                                                                                     'ja '
+                                                                                                                     'salaisuuksien '
+                                                                                                                     'hallinta '
+                                                                                                                     'on '
+                                                                                                                     'toteutettu.',
+        'Planned area for controlled delivery of alert events to external systems.': 'Suunniteltu '
+                                                                                     'alue '
+                                                                                     'hälytystapahtumien '
+                                                                                     'hallittuun '
+                                                                                     'toimittamiseen '
+                                                                                     'ulkoisiin '
+                                                                                     'järjestelmiin.',
+        'Webhooks are disabled': 'Webhookit eivät ole käytössä',
+        'No external destinations are contacted. URL validation, SSRF protection, secret storage, permissions and delivery logs must be implemented before activation.': 'Ulkoisiin '
+                                                                                                                                                                         'kohteisiin '
+                                                                                                                                                                         'ei '
+                                                                                                                                                                         'oteta '
+                                                                                                                                                                         'yhteyttä. '
+                                                                                                                                                                         'Ennen '
+                                                                                                                                                                         'käyttöönottoa '
+                                                                                                                                                                         'on '
+                                                                                                                                                                         'toteutettava '
+                                                                                                                                                                         'URL-validointi, '
+                                                                                                                                                                         'SSRF-suojaus, '
+                                                                                                                                                                         'salaisuuksien '
+                                                                                                                                                                         'tallennus, '
+                                                                                                                                                                         'käyttöoikeudet '
+                                                                                                                                                                         'ja '
+                                                                                                                                                                         'toimituslokit.'}}
+
+
+# SOC navigation and development workspace labels.
+_SOC_DASHBOARD_TRANSLATIONS["en-US"].update({
+    "Alerts": "Alerts",
+    "Alerts navigation": "Alerts navigation",
+    "Detection Rules": "Detection Rules",
+    "Development workspace": "Development workspace",
+    "Event Explorer": "Event Explorer",
+    "Export History": "Export History",
+    "In development": "In development",
+    "Network Analyzer": "Network Analyzer",
+    "Network Monitoring": "Network Monitoring",
+    "Network Statistics": "Network Statistics",
+    "Overview": "Overview",
+    "PCAP Investigation": "PCAP Investigation",
+    "Planned": "Planned",
+    "Reports": "Reports",
+    "SOC": "SOC",
+    "SOC Dashboard": "SOC Dashboard",
+    "Security Reports": "Security Reports",
+    "Sensor Management": "Sensor Management",
+    "This page is part of the SOC interface foundation. Its live data sources and operational functions are not connected yet.": "This page is part of the SOC interface foundation. Its live data sources and operational functions are not connected yet.",
+    "Toggle alerts navigation": "Toggle alerts navigation",
+})
+
+_SOC_DASHBOARD_TRANSLATIONS["de"].update({
+    "Alerts": "Warnungen",
+    "Alerts navigation": "Warnungsnavigation",
+    "Detection Rules": "Erkennungsregeln",
+    "Development workspace": "Entwicklungsarbeitsbereich",
+    "Event Explorer": "Ereignis-Explorer",
+    "Export History": "Exportverlauf",
+    "In development": "In Entwicklung",
+    "Network Analyzer": "Netzwerkanalyse",
+    "Network Monitoring": "Netzwerküberwachung",
+    "Network Statistics": "Netzwerkstatistiken",
+    "Overview": "Übersicht",
+    "PCAP Investigation": "PCAP-Untersuchung",
+    "Planned": "Geplant",
+    "Reports": "Berichte",
+    "SOC": "SOC",
+    "SOC Dashboard": "SOC-Dashboard",
+    "Security Reports": "Sicherheitsberichte",
+    "Sensor Management": "Sensorverwaltung",
+    "This page is part of the SOC interface foundation. Its live data sources and operational functions are not connected yet.": "Diese Seite gehört zur Grundlage der SOC-Oberfläche. Ihre Live-Datenquellen und operativen Funktionen sind noch nicht angebunden.",
+    "Toggle alerts navigation": "Warnungsnavigation umschalten",
+})
+
+_POSTGRES_ALERTS_UI = {
+    "de": {"Escalate": "Eskalieren"},
+    "en-US": {"Escalate": "Escalate"},
+    "en-GB": {"Escalate": "Escalate"},
+    "fr": {"Escalate": "Escalader"},
+    "es": {"Escalate": "Escalar"},
+    "zh-CN": {"Escalate": "升级"},
+    "ja": {"Escalate": "エスカレート"},
+    "pl": {"Escalate": "Eskaluj"},
+    "sv": {"Escalate": "Eskalera"},
+    "nb": {"Escalate": "Eskaler"},
+    "fi": {"Escalate": "Eskaloi"},
+}
+
+
+_POSTGRES_ALERTS_UI["de"]["Escalations"] = "Eskalationen"
+_POSTGRES_ALERTS_UI["en-US"]["Escalations"] = "Escalations"
+_POSTGRES_ALERTS_UI["en-GB"]["Escalations"] = "Escalations"
+_POSTGRES_ALERTS_UI["fr"]["Escalations"] = "Escalades"
+_POSTGRES_ALERTS_UI["es"]["Escalations"] = "Escalaciones"
+_POSTGRES_ALERTS_UI["zh-CN"]["Escalations"] = "升级次数"
+_POSTGRES_ALERTS_UI["ja"]["Escalations"] = "エスカレーション回数"
+_POSTGRES_ALERTS_UI["pl"]["Escalations"] = "Eskalacje"
+_POSTGRES_ALERTS_UI["sv"]["Escalations"] = "Eskaleringar"
+_POSTGRES_ALERTS_UI["nb"]["Escalations"] = "Eskaleringer"
+_POSTGRES_ALERTS_UI["fi"]["Escalations"] = "Eskaloinnit"
+
+_POSTGRES_ALERTS_SUCCESS = {
+    "de": ("Regel erfolgreich erstellt", "Regel erfolgreich aktualisiert", "Regel erfolgreich gelöscht"),
+    "en-US": ("Rule created successfully", "Rule updated successfully", "Rule deleted successfully"),
+    "en-GB": ("Rule created successfully", "Rule updated successfully", "Rule deleted successfully"),
+    "fr": ("Règle créée avec succès", "Règle mise à jour avec succès", "Règle supprimée avec succès"),
+    "es": ("Regla creada correctamente", "Regla actualizada correctamente", "Regla eliminada correctamente"),
+    "zh-CN": ("规则已成功创建", "规则已成功更新", "规则已成功删除"),
+    "ja": ("ルールを作成しました", "ルールを更新しました", "ルールを削除しました"),
+    "pl": ("Reguła została utworzona pomyślnie", "Reguła została zaktualizowana pomyślnie", "Reguła została usunięta pomyślnie"),
+    "sv": ("Regeln har skapats", "Regeln har uppdaterats", "Regeln har tagits bort"),
+    "nb": ("Regelen ble opprettet", "Regelen ble oppdatert", "Regelen ble slettet"),
+    "fi": ("Sääntö luotiin onnistuneesti", "Sääntö päivitettiin onnistuneesti", "Sääntö poistettiin onnistuneesti"),
+}
+
+for _language, _messages in _POSTGRES_ALERTS_SUCCESS.items():
+    _POSTGRES_ALERTS_UI[_language].update({
+        "Rule created successfully": _messages[0],
+        "Rule updated successfully": _messages[1],
+        "Rule deleted successfully": _messages[2],
+    })
+
+del _POSTGRES_ALERTS_SUCCESS
+
+
 def translations_for(language):
+    def merge_layers(*layers):
+        merged = {}
+        for layer in layers:
+            for key, value in layer.items():
+                if value == key and merged.get(key, key) != key:
+                    continue
+                merged[key] = value
+        return merged
+
     if language == "en-GB":
-        return {
-            **_COMMON.get("en-US", {}),
-            **_PERMISSIONS.get("en-US", {}),
-            **_SURFACE_ADDITIONS.get("en-US", {}),
-            **_CLIENT_UI_TRANSLATIONS.get("en-US", {}),
-            **_COMMON.get("en-GB", {}),
-            **_PERMISSIONS.get("en-GB", {}),
-            **_SURFACE_ADDITIONS.get("en-GB", {}),
-            **_CLIENT_UI_TRANSLATIONS.get("en-GB", {}),
-            **_USER_PROFILE_UI.get("en-US", {}),
-            **_USER_PROFILE_UI.get("en-GB", {}),
-            **_HEALTH_DASHBOARD_TRANSLATIONS.get("en-US", {}),
-            **_HEALTH_DASHBOARD_TRANSLATIONS.get("en-GB", {}),
-        }
-    return {
-        **_COMMON.get(language, {}),
-        **_PERMISSIONS.get(language, {}),
-        **_DYNAMIC.get(language, {}),
-        **_SURFACE_ADDITIONS.get(language, {}),
-        **_CLIENT_UI_TRANSLATIONS.get(language, {}),
-        **_USER_PROFILE_UI.get("en-US", {}),
-        **_USER_PROFILE_UI.get(language, {}),
-        **_HEALTH_DASHBOARD_TRANSLATIONS.get(language, {}),
-    }
+        return merge_layers(
+            _SYSTEM_UPDATE_UI.get("en-US", {}),
+            _SYSTEM_UPDATE_UI.get("en-GB", {}),
+            _COMMON.get("en-US", {}),
+            _PERMISSIONS.get("en-US", {}),
+            _PERMISSION_EDITOR_UI.get("en-US", {}),
+            _BACKUP_UI_TRANSLATIONS.get("en-US", {}),
+            _SURFACE_ADDITIONS.get("en-US", {}),
+            _CLIENT_UI_TRANSLATIONS.get("en-US", {}),
+            _COMMON.get("en-GB", {}),
+            _PERMISSIONS.get("en-GB", {}),
+            _PERMISSION_EDITOR_UI.get("en-GB", {}),
+            _BACKUP_UI_TRANSLATIONS.get("en-GB", {}),
+            _SURFACE_ADDITIONS.get("en-GB", {}),
+            _CLIENT_UI_TRANSLATIONS.get("en-GB", {}),
+            _USER_PROFILE_UI.get("en-US", {}),
+            _USER_PROFILE_UI.get("en-GB", {}),
+            _BACKUP_UI_TRANSLATIONS.get("en-US", {}),
+            _BACKUP_UI_TRANSLATIONS.get("en-GB", {}),
+            _HEALTH_DASHBOARD_TRANSLATIONS.get("en-US", {}),
+            _HEALTH_DASHBOARD_TRANSLATIONS.get("en-GB", {}),
+            _SOC_DASHBOARD_TRANSLATIONS.get("en-US", {}),
+            _SOC_DASHBOARD_TRANSLATIONS.get("en-GB", {}),
+            _POSTGRES_ALERTS_UI.get("en-US", {}),
+            _POSTGRES_ALERTS_UI.get("en-GB", {}),
+        )
+    return merge_layers(
+        _SYSTEM_UPDATE_UI.get(language, {}),
+        _COMMON.get(language, {}),
+        _PERMISSIONS.get(language, {}),
+        _PERMISSION_EDITOR_UI.get(language, {}),
+        _DYNAMIC.get(language, {}),
+        _BACKUP_UI_TRANSLATIONS.get(language, {}),
+        _SURFACE_ADDITIONS.get(language, {}),
+        _CLIENT_UI_TRANSLATIONS.get(language, {}),
+        _USER_PROFILE_UI.get("en-US", {}),
+        _USER_PROFILE_UI.get(language, {}),
+        _HEALTH_DASHBOARD_TRANSLATIONS.get(language, {}),
+        _SOC_DASHBOARD_TRANSLATIONS.get("en-US", {}),
+        _SOC_DASHBOARD_TRANSLATIONS.get(language, {}),
+        _POSTGRES_ALERTS_UI.get("en-US", {}),
+        _POSTGRES_ALERTS_UI.get(language, {}),
+    )
 
 
 def locale_for(language):

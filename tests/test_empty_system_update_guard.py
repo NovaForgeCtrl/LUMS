@@ -12,6 +12,11 @@ def guard_test_context(monkeypatch, tmp_path):
     connection.row_factory = sqlite3.Row
 
     connection.executescript("""
+        CREATE TABLE schema_migrations (
+            version TEXT PRIMARY KEY,
+            applied_at TEXT NOT NULL
+        );
+
         CREATE TABLE users (
             id INTEGER PRIMARY KEY,
             username TEXT NOT NULL,
@@ -68,10 +73,17 @@ def guard_test_context(monkeypatch, tmp_path):
         ) VALUES (1, 'guard-admin', 'not-used', '2026-01-01T00:00:00+00:00',
                   1, 'administrator')
     """)
-    connection.execute("""
+    connection.executemany(
+        """
         INSERT INTO user_permissions (user_id, permission)
-        VALUES (1, 'jobs.manage')
-    """)
+        VALUES (1, ?)
+        """,
+        [
+            ("clients.view",),
+            ("updates.view",),
+            ("jobs.manage",),
+        ],
+    )
     connection.execute("""
         INSERT INTO clients (id, hostname, enabled)
         VALUES (1, 'guard-test-client', 1)

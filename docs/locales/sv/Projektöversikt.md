@@ -21,6 +21,12 @@ help; do not share accounts or use a client token as a web password.
 are maintained in English; translated guides are listed in
 [`docs/README.md`](docs/README.md). Translation coverage can vary, so use the
 English source when a localized procedure is incomplete or differs.
+**Installerar eller driftar du LUMS?** Börja med
+[installationsguiden](<Installation och uppgraderingar.md>), läs sedan
+[administrationsguiden](<Administration och säkerhetskopior.md>). Om något går fel, använd
+[felsökningsguiden](Felsökning.md). Översatta guider finns också, men deras
+omfattning kan skilja sig från de engelska tekniska originalen. I
+[dokumentationsindexet](../../README.md) listas tillgängliga språkversioner.
 
 A test run or a successfully built Docker image is **not** a production
 installation. A production deployment also needs HTTPS, a protected application
@@ -327,6 +333,19 @@ client reporting status, backup-storage visibility, and CPU/memory telemetry
 when telemetry is configured. It is a quick operational view, not a substitute
 for checking container, reverse-proxy, host, and backup logs or for performing
 a restore test. See [LUMS_Health_Dashboard.md](LUMS_Health_Dashboard.md).
+
+
+---
+
+### Hälsopanel
+
+Den autentiserade panelen på `/health` sammanfattar databasstatus, klienternas rapporteringsstatus, synlighet för säkerhetskopieringslagring samt CPU-/minnestelemetri om den har konfigurerats. Det är en snabb driftöversikt, inte en ersättning för att granska container-, proxy-, värd- och säkerhetskopieringsloggar eller att testa en återställning. Se [guiden till LUMS-hälsopanelen](LUMS-hälsopanel.md).
+
+---
+
+### Larm
+
+LUMS har ett API för larmhantering och en grundläggande panel för lagrade larmposter. Administratörer kan hantera regler, utlösa larm manuellt samt kvittera, lösa eller manuellt eskalera ett aktivt larm. Villkor och tröskelvärden lagras som konfiguration, men servern utvärderar dem inte automatiskt mot telemetri. E-post-, Slack-, PagerDuty- och generiska webhookintegrationer är inte tillgängliga via API:t, och massradering är avstängd för att bevara historiken. Se [implementationens gränser för larmhantering](Larmhantering.md).
 
 ---
 
@@ -1067,6 +1086,10 @@ Administrators with `backups.manage` can create validated `.db` or `.db.gz`
 database backups in a server-configured directory and choose a safe subfolder
 within that mounted location. See [`administration.md`](administration.md) and
 the in-app Markdown restore guide for Docker storage setup and recovery.
+Administratörer med `backups.manage` kan skapa validerade `.db`- eller `.db.gz`-
+databassäkerhetskopior i en serverkonfigurerad katalog och välja en säker undermapp
+inom den monterade platsen. Se [`administration.md`](<Administration och säkerhetskopior.md>) och
+den inbyggda Markdown-återställningsguiden för Docker-lagringsinställning och återställning.
 
 User passwords are stored using Argon2 password hashing rather than plaintext or reversible encryption.
 
@@ -2102,6 +2125,36 @@ The current implementation includes:
 * continuous integration
 
 The project is currently in the final documentation and release-readiness phase.
+LUMS är en Linux-plattform för uppdateringshantering under aktiv utveckling.
+
+Den nuvarande implementationen omfattar:
+
+* centraliserad klienthantering
+* programvaruinventering
+* uppdateringsdetektering
+* paketsökning
+* paketinstallation och borttagning
+* paketspecifika uppdateringar
+* systemuppdateringar
+* beständiga uppdateringsjobb
+* jobbtillstånd på paketnivå
+* jobbåterställning
+* omstartsdetektering
+* inaktivitetsmedveten körning
+* klienttokenautentisering och tokenrotation
+* administrativ autentisering
+* roll- och behörighetsbaserad åtkomstkontroll
+* användarhantering
+* granskningsloggning
+* containerhärdning och HTTPS-transport
+* automatiserad testning och kontinuerlig integration
+* valfri CPU-, minnes-, disk-, nätverks-, värd- och händelsetelemetri
+* infrastrukturstopologi från registrerade klienter och manuellt underhållet inventarium
+* beständiga larmuppgifter och gränssnitt för regelhantering, med de begränsningar som dokumenteras för implementationen
+
+Listan är en översikt, inte ett påstående om fullständiga funktioner eller utgivningsberedskap. Valfria komponenter kan behöva installeras och konfigureras separat, och enskilda funktioner har dokumenterade begränsningar. Kontrollera källrevisionen och dess tester för beteendet i en viss utgåva.
+
+Larmregler och deras villkor och tröskelvärden lagras, men servern utvärderar dem inte automatiskt mot telemetri. Larm utlöses manuellt. Leverantörer som anges i eskaleringsvägen kan anropas vid manuell utlösning, men webbappen skapar hanteraren med en tom leverantörskarta och integrationsgränssnitten kan inte konfigurera leverantörer. Gruppering och deduplicering lagras men tillämpas inte. Se de implementerade gränserna i `docs/LUMS_REALTIME_ALERTING_IMPLEMENTATION.md`.
 
 ---
 
@@ -2164,6 +2217,7 @@ There is currently:
 * no GitHub Release
 
 The project deliberately follows the release sequence:
+Projektet följer avsiktligt utgivningssekvensen:
 
 ```text id="f3c4y9"
 Implementation
@@ -2184,6 +2238,7 @@ GitHub Release
 ```
 
 The first official release should only be created after the current implementation, security review, documentation, and regression testing are considered complete.
+Tillgängligheten för utgåvor och taggar kan ändras oberoende av dokumentationen. Kontrollera den aktuella statusen på repositoryts [utgivningssida](https://github.com/NovaForgeCtrl/LUMS/releases) och bland [taggarna](https://github.com/NovaForgeCtrl/LUMS/tags). En utgåva bör publiceras först när implementationen, säkerhetsgranskningen, dokumentationen och regressionstesterna för den revisionen är färdiga.
 
 ---
 
@@ -2203,6 +2258,7 @@ The roadmap is intentionally focused on stability and maintainability rather tha
 * publish the first GitHub Release
 
 ### Future Development
+### Framtida utveckling
 
 Potential future work may include:
 

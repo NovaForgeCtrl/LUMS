@@ -17,10 +17,10 @@ help; do not share accounts or use a client token as a web password.
 **Installing or operating LUMS?** Start with the
 [installation guide](install.md), then read the
 [administration guide](administration.md). If something goes wrong, use the
-[troubleshooting guide](troubleshooting.md). These detailed technical guides
-are maintained in English; translated guides are listed in
-[`docs/README.md`](docs/README.md). Translation coverage can vary, so use the
-English source when a localized procedure is incomplete or differs.
+[troubleshooting guide](troubleshooting.md). Localized user and administrator
+guides are listed in [`docs/README.md`](docs/README.md). English root guides
+remain the technical source of truth; if a translated procedure appears
+incomplete or differs, follow the English source.
 
 A test run or a successfully built Docker image is **not** a production
 installation. A production deployment also needs HTTPS, a protected application
@@ -37,7 +37,8 @@ choose one, LUMS tries to use the browser language; after sign-in, a language
 saved to your account takes precedence. Some technical or dynamic text may
 remain in its original language when a translation is not available. Markdown
 guides are separate from the web interface and are not translated
-automatically.
+automatically. Translated Markdown guides are maintained separately; use the
+documentation index to find the available coverage by language.
 
 ---
 
@@ -327,6 +328,20 @@ client reporting status, backup-storage visibility, and CPU/memory telemetry
 when telemetry is configured. It is a quick operational view, not a substitute
 for checking container, reverse-proxy, host, and backup logs or for performing
 a restore test. See [LUMS_Health_Dashboard.md](LUMS_Health_Dashboard.md).
+
+---
+
+### Alerts
+
+LUMS includes an alert-management API and a basic dashboard for stored alert
+records. Administrators can create and manage rules, trigger an alert manually,
+and acknowledge, resolve, or manually escalate an active alert. Rule conditions
+and thresholds are stored as configuration; the current server does not
+evaluate them automatically against telemetry. Notification integrations
+(email, Slack, PagerDuty, and generic webhooks) are not available through the
+API, and bulk clearing is disabled to preserve alert history. See
+[`docs/LUMS_REALTIME_ALERTING_IMPLEMENTATION.md`](docs/LUMS_REALTIME_ALERTING_IMPLEMENTATION.md)
+for the implemented boundaries.
 
 ---
 
@@ -1267,7 +1282,7 @@ A validated package name is passed to the package-manager abstraction for remova
 
 A specific package can be updated when the client reports it as an available update.
 
-### System Update
+### Client System Update
 
 The system update operation delegates the update process to the native package manager.
 
@@ -1426,7 +1441,7 @@ The LUMS security review has covered the following areas:
 * network exposure
 * repository artifact hygiene
 
-The remaining documentation review is handled separately as part of the final release-readiness process.
+Keeping documentation aligned with the implementation is ongoing maintenance, not a separate release gate.
 
 ---
 
@@ -2033,11 +2048,26 @@ Security architecture, security controls, audit findings, hardening, and release
 
 ### `telemetry.md`
 
-Optional CPU and memory telemetry, agent configuration, data retention, security, and troubleshooting.
+Optional CPU, memory, disk, network, host and operational telemetry, agent
+configuration, data retention, security, and troubleshooting.
 
 ### `LUMS_Health_Dashboard.md`
 
 What the authenticated health dashboard reports, how client status is classified, telemetry limits, backup-storage interpretation, and operational checks.
+
+### `LUMS_Infrastructure_Topology.md`
+
+How LUMS imports registered clients, manages infrastructure and dependencies, protects topology edits, and identifies potential shared failure points.
+
+### `server/static/backup-restore.md`
+
+Careful Docker-based recovery of a verified SQLite backup, including integrity
+checks and a fallback copy of the active database.
+
+### `docs/update-tools-package.md`
+
+What the downloadable updater-tools artifact contains, how CI publishes it,
+and the checks required before production use.
 
 ### `troubleshooting.md`
 
@@ -2100,14 +2130,24 @@ The current implementation includes:
 * HTTPS transport
 * automated testing
 * continuous integration
+* optional CPU, memory, disk, network, host and event telemetry
+* infrastructure topology from registered clients and manually maintained inventory
+* persistent alert records and rule-management endpoints, with the limitations
+  documented in `docs/LUMS_REALTIME_ALERTING_IMPLEMENTATION.md`
 
-The project is currently in the final documentation and release-readiness phase.
+This list is a high-level inventory, not a feature-completeness or release
+readiness claim. Optional components may need separate installation and
+configuration, and individual features have documented limits. Check the
+source revision and its tests for the behavior of a specific release.
 
 ---
 
-## Security Status
+## Security Baseline
 
-The major security-review areas have been implemented and reviewed.
+The security model is implemented in the application and documented in
+[`security.md`](security.md). Its controls and verification status are
+revision-specific; consult the tests and deployment checks for the exact
+source revision being used. This document is not a security certification.
 
 The current security baseline includes:
 
@@ -2153,17 +2193,7 @@ Security is treated as an ongoing engineering responsibility rather than a one-t
 
 ---
 
-## Release Status
-
-LUMS does not currently claim a stable production release version.
-
-There is currently:
-
-* no final semantic version
-* no stable release tag
-* no GitHub Release
-
-The project deliberately follows the release sequence:
+## Release Process
 
 ```text id="f3c4y9"
 Implementation
@@ -2183,28 +2213,18 @@ Git Tag
 GitHub Release
 ```
 
-The first official release should only be created after the current implementation, security review, documentation, and regression testing are considered complete.
+Release and tag availability can change independently of this documentation;
+check the repository's [Releases](https://github.com/NovaForgeCtrl/LUMS/releases)
+and [tags](https://github.com/NovaForgeCtrl/LUMS/tags) for the current state.
+A release should only be published after the implementation, security review,
+documentation, and regression tests for that revision are complete.
 
 ---
 
 ## Roadmap
 
-The roadmap is intentionally focused on stability and maintainability rather than adding features without completing the existing foundation.
-
-### Current Phase
-
-* complete documentation review
-* remove remaining documentation inconsistencies
-* close documentation audit work
-* perform final full test run
-* verify CI
-* prepare release version
-* create the first official Git tag
-* publish the first GitHub Release
-
-### Future Development
-
-Potential future work may include:
+This guide does not track a branch-specific or time-based project phase.
+Potential future work, when selected and verified, may include:
 
 * additional Linux distributions
 * additional package-manager backends
@@ -2325,7 +2345,14 @@ administration.md
 security.md
 troubleshooting.md
 telemetry.md
+LUMS_Health_Dashboard.md
+LUMS_Infrastructure_Topology.md
+server/static/backup-restore.md
+docs/update-tools-package.md
 LUMS_Optional_Theme_System.md
+PRODUCT.md
+docs/LUMS_REALTIME_ALERTING_IMPLEMENTATION.md
+docs/README.md
 ```
 
 Each document has a defined purpose.
@@ -2340,7 +2367,11 @@ The security guide documents the security architecture and audit state.
 
 The troubleshooting guide provides diagnostic procedures.
 
-The optional theme document covers frontend theme architecture.
+The telemetry, health-dashboard, topology, backup-restore and updater-package
+guides document those operational features. The optional theme reference and
+`PRODUCT.md` are internal design/context documents; the alert-management
+document records the current implementation and its unavailable features.
+[`docs/README.md`](docs/README.md) indexes the documentation by language.
 
 ---
 

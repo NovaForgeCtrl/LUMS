@@ -219,6 +219,27 @@ The telemetry endpoint validates:
 * Sample freshness (rejects samples with excessively old or future timestamps)
 
 Invalid payloads are rejected with appropriate HTTP status codes.
+| Audyt | Obszar                                   | Status                    |
+| ----- | ---------------------------------------- | ------------------------- |
+| #01   | Klucze obce SQLite                       | PASS                      |
+| #02   | Konfiguracja runtime SQLite              | PASS                      |
+| #03   | Obsługa limitów czasu aktualizacji       | PASS                      |
+| #04   | Ograniczanie szybkości logowania         | PASS                      |
+| #05   | Walidacja danych wejściowych API         | PASS                      |
+| #06   | Unieważnianie sesji                      | PASS                      |
+| #07   | Rotacja tokenów klientów                 | PASS                      |
+| #08   | Obsługa adresów IP / sieci offline       | PASS                      |
+| #09   | Odzyskiwanie zadań / punkty kontrolne    | PASS                      |
+| #10   | Odporność APT                            | PASS                      |
+| #11   | Wykrywanie ponownego uruchomienia Arch   | PASS                      |
+| #12   | Testy jednostkowe / walidacja wyników API | PASS                     |
+| #13   | Testy symulacyjne                        | PASS                      |
+| #14   | Ciągła integracja                        | PASS                      |
+| #15   | Logowanie aplikacji / audytu             | PASS                      |
+| #16   | Wersjonowanie / wydania                  | Sprawdź [Releases](https://github.com/NovaForgeCtrl/LUMS/releases) i [tagi](https://github.com/NovaForgeCtrl/LUMS/tags) |
+| #17   | Kontrola dostępu oparta na rolach        | PASS                      |
+
+Tabela rejestruje zakres i wyniki wcześniejszych weryfikacji; nie jest certyfikacją ani gwarancją dla późniejszych rewizji. Odpowiednie kontrole należy ponownie wykonać na dokładnym kodzie przeznaczonym do wdrożenia. Dostępność wydań jest dynamiczna: sprawdź [Releases](https://github.com/NovaForgeCtrl/LUMS/releases) i [tagi](https://github.com/NovaForgeCtrl/LUMS/tags) repozytorium, zamiast wnioskować o stanie na podstawie tego dokumentu.
 
 The client token is not included in the JSON payload and is not logged in agent output.
 
@@ -491,6 +512,7 @@ The following audit areas are documented in the subsequent sections:
 Audit #18 — Documentation Review — remains open until the complete documentation set has been reviewed and synchronized with the current implementation.
 
 # Audyt Bezpieczeństwa #05
+# Audyt bezpieczeństwa #05
 
 ## API Input Validation
 
@@ -954,6 +976,7 @@ The current repository state therefore intentionally has:
 * no official stable release version
 * no release tag
 * no GitHub Release
+Wersjonowanie i zarządzanie wydaniami są częścią przeglądu bezpieczeństwa, ponieważ operatorzy muszą móc zidentyfikować dokładny wdrażany kod i artefakty. Dostępność wydań i wersje komponentów zmieniają się niezależnie od tego przewodnika. Sprawdź aktualne [tagi](https://github.com/NovaForgeCtrl/LUMS/tags) i stronę [Releases](https://github.com/NovaForgeCtrl/LUMS/releases) repozytorium oraz metadane wersji w dokładnej rewizji wdrażanego kodu źródłowego. Nie traktuj tego dokumentu jako aktualnego katalogu wydań.
 
 The current component versions include:
 
@@ -965,6 +988,7 @@ There is currently no single formal version number representing the complete LUM
 This is an intentional project-state decision rather than an accidental omission.
 
 The planned release process is:
+Planowany proces wydania to:
 
 1. Complete implementation work.
 2. Complete the security review.
@@ -981,6 +1005,7 @@ No official release is created solely because the security audit reaches a parti
 Release creation will take place only after the remaining implementation and documentation work has been completed.
 
 **Status: REVIEWED — OPEN BY DESIGN**
+Wydanie należy opublikować dopiero po ukończeniu implementacji, przeglądu bezpieczeństwa, dokumentacji i testów regresji dla danej rewizji.
 
 ---
 
@@ -1006,6 +1031,24 @@ The following security audit areas are complete:
 | #14   | Continuous Integration                 | PASS                      |
 | #15   | Application / Audit Logging            | PASS                      |
 | #16   | Versioning / Releases                  | REVIEWED — OPEN BY DESIGN |
+| Audyt | Obszar                                   | Status                    |
+| ----- | ---------------------------------------- | ------------------------- |
+| #01   | Klucze obce SQLite                       | PASS                      |
+| #02   | Konfiguracja runtime SQLite              | PASS                      |
+| #03   | Limit czasu aktualizacji / obsługa procesów | PASS                   |
+| #04   | Ograniczanie szybkości logowania         | PASS                      |
+| #05   | Walidacja danych wejściowych API         | PASS                      |
+| #06   | Unieważnianie sesji                      | PASS                      |
+| #07   | Rotacja tokenów klientów                 | PASS                      |
+| #08   | Obsługa adresów IP / sieci offline       | PASS                      |
+| #09   | Odzyskiwanie zadań / punkty kontrolne    | PASS                      |
+| #10   | Odporność APT                            | PASS                      |
+| #11   | Wykrywanie ponownego uruchomienia Arch   | PASS                      |
+| #12   | Testy jednostkowe / walidacja wyników API | PASS                     |
+| #13   | Testy symulacyjne                        | PASS                      |
+| #14   | Ciągła integracja                        | PASS                      |
+| #15   | Logowanie aplikacji / audytu             | PASS                      |
+| #16   | Wersjonowanie / wydania                  | Sprawdź [Releases](https://github.com/NovaForgeCtrl/LUMS/releases) i [tagi](https://github.com/NovaForgeCtrl/LUMS/tags) |
 
 The remaining numbered technical audit area is:
 
@@ -1016,6 +1059,7 @@ The documentation review is tracked separately as:
 * #18 Documentation Review — IN PROGRESS
 
 # Audyt Bezpieczeństwa #17
+# Audyt bezpieczeństwa #17
 
 ## Kontrola Dostępu Oparta na Rolach
 
@@ -1212,6 +1256,7 @@ The server remains the authoritative security boundary.
 **Status: PASS**
 
 # Audyt Bezpieczeństwa #18
+# Zasady przeglądu dokumentacji
 
 ## Documentation Review
 
@@ -1277,7 +1322,7 @@ Viewer users do not have access to:
 
 The documentation review also removes or replaces outdated references to earlier test counts, migration states, deployment configurations, and development-only behavior.
 
-**Status: IN PROGRESS**
+Ten przewodnik należy weryfikować względem odpowiedniej implementacji po każdej zmianie funkcji lub mechanizmów bezpieczeństwa. Historycznych twierdzeń nie należy przedstawiać jako aktualnego stanu bez ich sprawdzenia.
 
 ---
 
@@ -1528,6 +1573,89 @@ The baseline includes:
 * automated security testing
 
 Future changes should preserve these properties unless a deliberate architectural change replaces them with an equivalent or stronger control.
+* bezpieczeństwo sesji
+* ochronę CSRF
+* ograniczanie szybkości logowania
+* bezpieczeństwo tokenów klientów
+* walidację API
+* odporność na wstrzykiwanie SQL
+* integralność SQLite
+* wykonywanie aktualizacji
+* obsługę limitów czasu
+* odzyskiwanie zadań
+* odporność zarządzania pakietami
+* walidację wyników
+* symulację
+* ciągłą integrację
+* logowanie audytowe
+* utwardzanie kontenera
+* ekspozycję sieciową
+* bezpieczeństwo transportu
+* obsługę sekretów
+* uprawnienia systemu plików
+* bezpieczeństwo zależności i kompilacji
+
+Numerowane wyniki audytu to:
+
+| Audyt | Obszar                                   | Status                    |
+| ----- | ---------------------------------------- | ------------------------- |
+| #01   | Klucze obce SQLite                       | PASS                      |
+| #02   | Konfiguracja runtime SQLite              | PASS                      |
+| #03   | Limit czasu aktualizacji / obsługa procesów | PASS                   |
+| #04   | Ograniczanie szybkości logowania         | PASS                      |
+| #05   | Walidacja danych wejściowych API         | PASS                      |
+| #06   | Unieważnianie sesji                      | PASS                      |
+| #07   | Rotacja tokenów klientów                 | PASS                      |
+| #08   | Obsługa adresów IP / sieci offline       | PASS                      |
+| #09   | Odzyskiwanie zadań / punkty kontrolne    | PASS                      |
+| #10   | Odporność APT                            | PASS                      |
+| #11   | Wykrywanie ponownego uruchomienia Arch   | PASS                      |
+| #12   | Testy jednostkowe / walidacja wyników API | PASS                     |
+| #13   | Testy symulacyjne                        | PASS                      |
+| #14   | Ciągła integracja                        | PASS                      |
+| #15   | Logowanie aplikacji / audytu             | PASS                      |
+| #16   | Wersjonowanie / wydania                  | Sprawdź bieżące wydania i tagi |
+| #17   | Kontrola dostępu oparta na rolach        | PASS                      |
+
+Mechanizmy bezpieczeństwa technicznego przejrzane w audytach #01–#15 i #17 zostały zaliczone.
+
+Dostępność wydań i tagów może się zmieniać niezależnie od tego przewodnika. Aktualny stan sprawdź w [Releases](https://github.com/NovaForgeCtrl/LUMS/releases) i na liście [tagów](https://github.com/NovaForgeCtrl/LUMS/tags) repozytorium.
+
+Żadnego wyniku audytu bezpieczeństwa nie należy interpretować jako gwarancji, że LUMS jest wolny od podatności.
+
+Bezpieczeństwo jest procesem ciągłym.
+
+Zmiany w aplikacji, Agencie, zależnościach, konfiguracji kontenera, ekspozycji sieciowej, modelu uwierzytelniania lub architekturze wdrożenia powinny wywołać kolejny przegląd bezpieczeństwa dotkniętych mechanizmów.
+
+---
+
+# Podstawa bezpieczeństwa
+
+Ta podstawa opisuje mechanizmy skonfigurowane w kodzie źródłowym i wytycznych wdrożeniowych. Nie dowodzi, że stosuje je konkretna instalacja; zweryfikuj efektywne ustawienia w środowisku docelowym.
+
+Podstawa obejmuje:
+
+* uwierzytelnianie po stronie serwera
+* RBAC po stronie serwera
+* hashowanie haseł Argon2
+* skróty SHA-256 tokenów klientów
+* ochronę CSRF
+* ograniczanie szybkości logowania
+* parametryzowany SQL
+* walidowane dane wejściowe API
+* kontrolowane wykonywanie menedżera pakietów
+* odzyskiwanie zadań aktualizacji
+* logowanie audytowe
+* utwardzony runtime Docker
+* HTTPS przez Nginx
+* ekspozycję portu aplikacji tylko na loopback
+* ograniczenia firewalla
+* chronione sekrety produkcyjne
+* przypięte zależności produkcyjne
+* ograniczone uprawnienia systemu plików
+* automatyczne testy bezpieczeństwa
+
+Przyszłe zmiany powinny zachować te właściwości, chyba że celowa zmiana architektury zastąpi je równoważnym lub silniejszym mechanizmem.
 
 ---
 
@@ -1585,10 +1713,10 @@ Instead, authentication, authorization, validation, controlled execution, persis
 The project deliberately favors explicit server-side enforcement over security-by-interface.
 
 The current security baseline is documented according to the verified implementation state rather than historical development behavior.
+Podstawa bezpieczeństwa dokumentuje zweryfikowany stan implementacji, a nie historyczne zachowanie w trakcie rozwoju. Sama w sobie nie dowodzi, że konkretna instalacja stosuje opisane mechanizmy; zweryfikuj efektywne ustawienia w środowisku docelowym.
 
 ---
 
 **LUMS — Linux Update Management without the noise.**
 
 `segfault // override`
-

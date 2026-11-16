@@ -5,6 +5,8 @@ from werkzeug.datastructures import LanguageAccept
 
 from server.i18n import (
     LANGUAGES,
+    _SYSTEM_UPDATE_KEYS,
+    _USER_PROFILE_UI,
     browser_language,
     normalize_language,
     translate,
@@ -69,8 +71,165 @@ def test_current_template_and_script_keys_are_translated():
     for language in LANGUAGES:
         if language in {"en-US", "en-GB"}:
             continue
-        missing = keys - translations_for(language).keys()
+        entries = translations_for(language)
+        missing = keys - entries.keys()
         assert not missing, f"{language} is missing translations: {missing}"
+
+        placeholder_pattern = re.compile(r"\{([A-Za-z_][A-Za-z0-9_]*)\}")
+        placeholder_mismatches = {
+            key: entries[key]
+            for key in keys
+            if set(placeholder_pattern.findall(key))
+            != set(placeholder_pattern.findall(entries[key]))
+        }
+        assert not placeholder_mismatches, (
+            f"{language} has translations with mismatched placeholders: "
+            f"{placeholder_mismatches}"
+        )
+
+
+def test_update_page_and_user_profile_are_fully_translated():
+    profile_keys = _USER_PROFILE_UI["en-US"].keys()
+
+    for language in LANGUAGES:
+        if language.startswith("en-"):
+            continue
+
+        entries = translations_for(language)
+        untranslated_update = {
+            key for key in _SYSTEM_UPDATE_KEYS
+            if entries.get(key, key) == key
+        }
+        assert not untranslated_update, (
+            f"{language} has untranslated update-page text: "
+            f"{untranslated_update}"
+        )
+
+        untranslated_profile = {
+            key for key in profile_keys
+            if entries.get(key, key) == key
+        }
+        assert not untranslated_profile, (
+            f"{language} has untranslated profile text: "
+            f"{untranslated_profile}"
+        )
+
+
+def test_permission_and_backup_form_messages_are_translated():
+    keys = {
+        "Permissions for {username}",
+        "Edit permissions for {username}",
+        "Enter a relative subfolder without '..' or backslashes.",
+        "SQLite (.db)",
+    }
+
+    for language in LANGUAGES:
+        if language.startswith("en-"):
+            continue
+        entries = translations_for(language)
+        untranslated = {
+            key for key in keys if entries.get(key, key) == key
+        }
+        assert not untranslated, (
+            f"{language} has untranslated form text: {untranslated}"
+        )
+
+
+def test_later_english_fallbacks_do_not_override_translated_messages():
+    messages = {
+        "Error creating update job:\n{error}",
+        "Error creating system update job:\n{error}",
+        "No alerts or outages in this period.",
+    }
+
+    for language in LANGUAGES:
+        if language.startswith("en-"):
+            continue
+        entries = translations_for(language)
+        untranslated = {
+            message for message in messages
+            if entries.get(message, message) == message
+        }
+        assert not untranslated, (
+            f"{language} has English fallback overrides: {untranslated}"
+        )
+
+
+
+def test_dynamic_topology_and_telemetry_messages_are_localized():
+    project_root = Path(__file__).resolve().parents[1]
+    infrastructure = (
+        project_root / "server" / "static" / "infrastructure.js"
+    ).read_text(encoding="utf-8")
+    telemetry = (
+        project_root / "server" / "static" / "telemetry.js"
+    ).read_text(encoding="utf-8")
+
+    infrastructure_block = re.search(
+        r"const messages = \{(.*?)\n    \};",
+        infrastructure,
+        re.DOTALL,
+    )
+    telemetry_block = re.search(
+        r"const dashboardMessages = \{(.*?)\n    \};",
+        telemetry,
+        re.DOTALL,
+    )
+    assert infrastructure_block, "Infrastructure messages block not found"
+    assert telemetry_block, "Telemetry dashboardMessages block not found"
+
+    dynamic_keys = set(
+        re.findall(r':\s*"([^"]+)"', infrastructure_block.group(1))
+    )
+    dynamic_keys.update(
+        re.findall(r':\s*"([^"]+)"', telemetry_block.group(1))
+    )
+
+    representative = {
+        "Loading infrastructure data…",
+        "Infrastructure data could not be loaded.",
+        "No infrastructure items are registered yet.",
+        "Delete this infrastructure item and its relationships?",
+        "Request failed (HTTP {status}).",
+        "No alerts or outages in this period.",
+        "CPU threshold exceeded",
+        "Disk returned below the threshold",
+        "Telemetry interrupted",
+        "Not monitored on this client",
+    }
+
+    for language in LANGUAGES:
+        if language in {"en-US", "en-GB"}:
+            continue
+        entries = translations_for(language)
+        missing = dynamic_keys - entries.keys()
+        assert not missing, (
+            f"{language} is missing dynamic JS translation keys: {missing}"
+        )
+        untranslated = {
+            key: entries[key]
+            for key in representative
+            if entries[key] == key
+        }
+        assert not untranslated, (
+            f"{language} still has untranslated dynamic messages: "
+            f"{untranslated}"
+        )
+
+
+def test_telemetry_fleet_handles_missing_client_hostname():
+    project_root = Path(__file__).resolve().parents[1]
+    telemetry = (
+        project_root / "server" / "static" / "telemetry.js"
+    ).read_text(encoding="utf-8")
+
+    assert "function clientHostname(entry)" in telemetry
+    assert 'typeof entry.hostname === "string"' in telemetry
+    assert "return hostname || labels.unknown;" in telemetry
+    assert "hostname: clientHostname(entry).toLowerCase()," in telemetry
+    assert "select.textContent = clientHostname(entry);" in telemetry
+    assert "option.textContent = clientHostname(entry);" in telemetry
+    assert "entry.hostname.toLowerCase()" not in telemetry
 
 
 def test_user_language_migration_preserves_users_and_is_idempotent():
@@ -159,3 +318,61 @@ def test_language_preference_is_saved_for_authenticated_user(
         "SELECT language FROM users WHERE id = 4"
     ).fetchone() == ("en-GB",)
     connection.close()
+
+
+def test_static_infrastructure_texts_are_localized():
+    infrastructure_keys = {
+        "Infrastructure topology",
+        "See registered LUMS clients, infrastructure and their dependencies in one place.",
+        "Infrastructure map",
+        "LUMS clients are imported automatically. Other systems and links are maintained here.",
+        "Topology summary",
+        "Registered clients",
+        "Infrastructure items",
+        "Relationships",
+        "Shared dependencies",
+        "Registered clients and manually managed infrastructure connected by their relationships.",
+        "Relationship",
+        "Inventory",
+        "Hostname, IP address, role and location for each system.",
+        "Notes",
+        "Hostname / IP address",
+        "Role / location",
+        "Source",
+        "Relationships and dependencies",
+        "Record what depends on, hosts, connects to or runs on another system.",
+        "From",
+        "To",
+        "Depends on",
+        "Hosts",
+        "Connects to",
+        "Runs on",
+        "Virtual machine",
+        "Network device",
+        "Service",
+        "Storage",
+    }
+
+    for language in LANGUAGES:
+        if language in {"en-US", "en-GB"}:
+            continue
+
+        entries = translations_for(language)
+        untranslated = {
+            key: entries.get(key, key)
+            for key in infrastructure_keys
+            if entries.get(key, key) == key
+        }
+
+        assert not untranslated, (
+            f"{language} has untranslated static infrastructure text: "
+            f"{untranslated}"
+        )
+
+
+def test_alert_escalated_is_translated_in_all_languages():
+    for language in LANGUAGES:
+        text = translate("Alert escalated", language)
+        assert text != "Alert escalated" or language in {"en-US", "en-GB"}, (
+            f"{language} is missing the Alert escalated translation"
+        )

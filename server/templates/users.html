@@ -19,7 +19,11 @@
 </head>
 
 <body class="lums-sidebar-layout">
+{% if request.endpoint == "postgres_users_page" %}
+{% include "_postgres_sidebar.html" %}
+{% else %}
 {% include "_sidebar.html" %}
+{% endif %}
 
 <header class="lums-pagebar">
     <button
@@ -60,33 +64,6 @@
                 </div>
             </div>
 
-            <form
-                action="/language"
-                method="POST"
-                class="user-management-language"
-            >
-                <input
-                    type="hidden"
-                    name="csrf_token"
-                    value="{{ csrf_token }}"
-                >
-                <label for="user-management-language">
-                    {{ tr("Language") }}
-                </label>
-                <select
-                    id="user-management-language"
-                    name="language"
-                    aria-label="{{ tr('Language') }}"
-                >
-                    {% for code, name in languages.items() %}
-                    <option
-                        value="{{ code }}"
-                        {% if code == language %}selected{% endif %}
-                    >{{ name }}</option>
-                    {% endfor %}
-                </select>
-                <button type="submit">{{ tr("Save") }}</button>
-            </form>
 
         </div>
 

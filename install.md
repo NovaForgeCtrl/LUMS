@@ -1381,6 +1381,21 @@ Migration errors must be investigated before creating users or connecting client
 
 Do not manually modify the production SQLite schema unless the project documentation explicitly requires it.
 
+The host updater currently supports repository and deployment checks only.
+It does not update the checkout, build an image, back up the production database,
+replace the container, or perform automatic rollback. Production replacement
+remains deliberately disabled until backup, migration safety, and restoration
+have been tested against the actual deployment configuration.
+
+Check whether the checkout matches `origin/main`:
+
+```bash
+bash scripts/update-lums.sh --check-repository
+```
+
+For the current deployment-validation behavior and limitations, see
+[administration.md](administration.md#91-docker-image-maintenance).
+
 ---
 
 # 33. Local Application Validation
@@ -5196,6 +5211,11 @@ Validate
 
 Do not upgrade the production installation solely because a new Git revision exists.
 
+After the `Tests` workflow passes on `main`, a downloadable updater-tools
+archive is available from that workflow run's **Artifacts**. Published GitHub
+Releases also receive a versioned archive after the release revision passes
+the test suite. See [the package guide](docs/update-tools-package.md).
+
 Review the changes first:
 
 ```bash
@@ -6165,7 +6185,22 @@ Review these repository files before installing:
 - `agent/telemetry.py`
 - `agent/lums-telemetry.service`
 - `agent/lums-telemetry.timer`
+- `scripts/install-telemetry-agent.sh`
 - `tests/test_telemetry_agent.py`
+
+After configuring `/etc/default/lums-agent` as described below, update the
+repository checkout on the Debian client and run this from its root:
+
+```sh
+sudo bash scripts/install-telemetry-agent.sh
+```
+
+The installer verifies that `LUMS_BASE` and `LUMS_TOKEN` are present without
+printing their values. It installs or updates the collector and systemd units,
+enables the five-second timer, and runs one immediate sample to verify the
+connection. If the service fails, it prints recent telemetry-service logs.
+The token remains in the existing client configuration and is not copied to
+another file.
 
 Install the telemetry script at
 `/usr/local/lib/lums-telemetry/telemetry.py`, owned by root and not writable
@@ -6173,9 +6208,17 @@ by the service account. Install the service and timer as
 `/etc/systemd/system/lums-telemetry.service` and
 `/etc/systemd/system/lums-telemetry.timer`.
 
-The service uses `DynamicUser=yes` and runs with restricted privileges.
+The service uses `DynamicUser=yes`, runs with restricted privileges, and is
+added to the `systemd-journal` group for read-only access to system event
+logs. This enables the dashboard's bounded security and login summaries; raw
+log messages are not sent to the server.
 It is a one-shot service scheduled by a separate timer; it does not replace
 the existing LUMS Agent or Watcher.
+
+An online normal LUMS client does not imply that this separate telemetry timer
+is installed or enabled. The `/monitoring` page explains whether the selected
+client has sent no samples, is sending only basic metrics, or has stale
+detailed data.
 
 ### Configuration and TLS
 
@@ -6192,6 +6235,19 @@ Replace the example URL and token with the actual values for the environment.
 Protect the configuration file so only root can read it, for example with
 mode `0600`. Never commit a real token to source control or share it between
 clients.
+
+Optionally, select systemd service units to report with a comma-separated
+allowlist:
+
+```sh
+LUMS_MONITORED_SERVICES=lums-agent.service,lums-telemetry.service,ssh.service,wazuh-agent.service,suricata.service
+```
+
+If unset, the agent uses its built-in list of LUMS, Docker, and SSH services.
+Wazuh and Suricata are optional: add only service units installed on the
+client, then enable their status rows in the `/health` dashboard. This reports
+systemd state only; it does not require or store API credentials or retrieve
+security alert feeds.
 
 If a private certificate authority is required, install its certificate at
 a path readable by the service process, such as

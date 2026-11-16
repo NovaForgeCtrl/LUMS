@@ -20,6 +20,8 @@ Der PostgreSQL-Kandidat ist noch kein vollständiger Produktionsersatz. Der SOC-
 
 Das Vorhandensein von PostgreSQL-Code oder einem laufenden Kandidaten-Container darf nicht als Beweis dafür interpretiert werden, dass die entsprechende Funktion vollständig integriert oder produktionsreif ist.
 
+**Du installierst oder betreibst LUMS?** Beginne mit der [Installationsanleitung](<Installation und Upgrade.md>) und lies anschließend die [Administrationsanleitung](<Administration und Backups.md>). Wenn etwas nicht funktioniert, verwende die [Anleitung zur Fehlerbehebung](Fehlersuche.md). Übersetzte Anleitungen sind ebenfalls verfügbar; ihr Umfang kann von den englischen technischen Originalen abweichen. Das [Dokumentationsverzeichnis](../../README.md) enthält alle verfügbaren Sprachfassungen.
+
 <!-- /LUMS-POSTGRES-STATUS-2026-11-15 -->
 
 ## Erste Schritte
@@ -345,6 +347,18 @@ Client-Berichterstatus, Backup-Speichersichtbarkeit und CPU-/Speichertelemetrie 
 wenn Telemetrie konfiguriert ist. Es ist eine schnelle operative Ansicht, kein Ersatz
 für die Überprüfung von Container-, Reverse-Proxy-, Host- und Backup-Protokollen oder für die Durchführung
 eines Restore-Tests. Siehe [LUMS_Health_Dashboard.md](LUMS_Health_Dashboard.md).
+
+---
+
+### Systemstatus-Dashboard
+
+Das authentifizierte Systemstatus-Dashboard unter `/health` fasst den Datenbankstatus, den Meldestatus der Clients, die Sichtbarkeit des Backup-Speichers und – sofern Telemetrie konfiguriert ist – CPU-/Speichertelemetrie zusammen. Es ist eine schnelle Betriebsübersicht und kein Ersatz für die Prüfung von Container-, Reverse-Proxy-, Host- und Backup-Protokollen oder für einen Wiederherstellungstest. Siehe [LUMS_Health_Dashboard.md](systemstatus-dashboard.md).
+
+---
+
+### Alarme
+
+LUMS enthält eine API zur Alarmverwaltung und ein einfaches Dashboard für gespeicherte Alarmeinträge. Administratoren können Regeln anlegen und verwalten, einen Alarm manuell auslösen und einen aktiven Alarm bestätigen, auflösen oder manuell eskalieren. Regelbedingungen und Schwellenwerte werden als Konfiguration gespeichert; der aktuelle Server wertet sie nicht automatisch gegen Telemetrie aus. Benachrichtigungsintegrationen (E-Mail, Slack, PagerDuty und generische Webhooks) sind über die API nicht verfügbar, und das Massenlöschen ist deaktiviert, um die Alarmhistorie zu erhalten. Die implementierten Grenzen beschreibt [`docs/LUMS_REALTIME_ALERTING_IMPLEMENTATION.md`](../../LUMS_REALTIME_ALERTING_IMPLEMENTATION.md).
 
 ---
 
@@ -1086,6 +1100,8 @@ database backups in a server-configured directory and choose a safe subfolder
 within that mounted location. See [`administration.md`](administration.md) and
 the in-app Markdown restore guide for Docker storage setup and recovery.
 
+Administratoren mit `backups.manage` können validierte Datenbank-Backups im Format `.db` oder `.db.gz` in einem serverseitig konfigurierten Verzeichnis erstellen und einen sicheren Unterordner innerhalb dieses eingebundenen Speicherorts auswählen. Hinweise zur Docker-Speicherkonfiguration und Wiederherstellung stehen in [`administration.md`](<Administration und Backups.md>) und in der integrierten Markdown-Anleitung zur Wiederherstellung.
+
 User passwords are stored using Argon2 password hashing rather than plaintext or reversible encryption.
 
 User-management operations are protected by:
@@ -1445,6 +1461,8 @@ The LUMS security review has covered the following areas:
 * repository artifact hygiene
 
 The remaining documentation review is handled separately as part of the final release-readiness process.
+
+Die Dokumentation muss bei Änderungen am Code oder am Bereitstellungsverhalten mit der Implementierung abgeglichen werden, damit sie das tatsächlich vorhandene System beschreibt.
 
 ---
 
@@ -2057,6 +2075,26 @@ Optional CPU and memory telemetry, agent configuration, data retention, security
 
 What the authenticated health dashboard reports, how client status is classified, telemetry limits, backup-storage interpretation, and operational checks.
 
+### `telemetry.md`
+
+Optionale CPU-, Speicher-, Datenträger-, Netzwerk-, Host- und Betriebstelemetrie, Agent-Konfiguration, Datenaufbewahrung, Sicherheit und Fehlersuche.
+
+### `LUMS_Health_Dashboard.md`
+
+Was das authentifizierte Systemstatus-Dashboard meldet, wie der Clientstatus klassifiziert wird, Telemetriegrenzen, Interpretation des Backup-Speichers und betriebliche Prüfungen.
+
+### `LUMS_Infrastructure_Topology.md`
+
+Wie LUMS registrierte Clients importiert, Infrastruktur und Abhängigkeiten verwaltet, Topologieänderungen schützt und mögliche gemeinsame Ausfallpunkte erkennt.
+
+### `server/static/backup-restore.md`
+
+Sorgfältige Docker-basierte Wiederherstellung eines geprüften SQLite-Backups, einschließlich Integritätsprüfungen und einer Ausweichkopie der aktiven Datenbank.
+
+### `docs/update-tools-package.md`
+
+Was das herunterladbare Updater-Tools-Artefakt enthält, wie die CI es veröffentlicht und welche Prüfungen vor dem Produktionseinsatz nötig sind.
+
 ### `troubleshooting.md`
 
 Diagnostic procedures for server, client, jobs, package management, authentication, database, container, and network problems.
@@ -2121,6 +2159,34 @@ The current implementation includes:
 
 The project is currently in the final documentation and release-readiness phase.
 
+- zentrale Clientverwaltung
+- Softwareinventar
+- Update-Erkennung
+- Paketsuche
+- Paketinstallation und -entfernung
+- paketbezogene Aktualisierungen
+- Systemaktualisierungen
+- persistente Update-Aufträge
+- Auftragsstatus auf Paketebene
+- Auftragswiederherstellung
+- Neustarterkennung
+- leerlaufabhängige Ausführung
+- Client-Token-Authentifizierung
+- Erneuerung von Token
+- administrative Authentifizierung
+- rollenbasierte Zugriffskontrolle
+- Benutzerverwaltung
+- Audit-Protokollierung
+- Container-Härtung
+- HTTPS-Transport
+- automatisierte Tests
+- kontinuierliche Integration
+- optionale Telemetrie zu CPU, Arbeitsspeicher, Datenträgern, Netzwerk, Host und Ereignissen
+- Infrastruktur-Topologie aus registrierten Clients und manuell gepflegtem Inventar
+- persistente Alert-Datensätze und Endpunkte zur Regelverwaltung mit den in `docs/LUMS_REALTIME_ALERTING_IMPLEMENTATION.md` dokumentierten Einschränkungen
+
+Diese Liste ist eine Übersicht auf hoher Ebene und keine Aussage über vollständige Funktionen oder Release-Bereitschaft. Optionale Komponenten können eine separate Installation und Konfiguration erfordern; für einzelne Funktionen gelten dokumentierte Einschränkungen. Prüfe für das Verhalten eines bestimmten Releases die jeweilige Quellrevision und deren Tests.
+
 ---
 
 ## Security Status
@@ -2183,6 +2249,8 @@ There is currently:
 
 The project deliberately follows the release sequence:
 
+## Release-Prozess
+
 ```text id="f3c4y9"
 Implementation
       ↓
@@ -2203,6 +2271,8 @@ GitHub Release
 
 The first official release should only be created after the current implementation, security review, documentation, and regression testing are considered complete.
 
+Die Verfügbarkeit von Releases und Tags kann sich unabhängig von dieser Dokumentation ändern. Prüfe den aktuellen Stand auf der Releases-Seite und bei den Tags des Repositorys. Ein Release sollte erst veröffentlicht werden, wenn Implementierung, Sicherheitsüberprüfung, Dokumentation und Regressionstests für die betreffende Revision abgeschlossen sind.
+
 ---
 
 ## Roadmap
@@ -2220,7 +2290,7 @@ The roadmap is intentionally focused on stability and maintainability rather tha
 * create the first official Git tag
 * publish the first GitHub Release
 
-### Future Development
+### Zukünftige Entwicklung
 
 Potential future work may include:
 

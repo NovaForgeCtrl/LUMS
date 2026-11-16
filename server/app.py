@@ -6,13 +6,19 @@ from flask import (
     url_for,
     redirect,
     session,
+    Response,
+    g,
 )
+import csv
+import io
+import hmac
 import os
 import logging
 from pathlib import Path
 import sqlite3
 import json
 import math
+import ipaddress
 from datetime import datetime, timedelta, timezone
 from urllib.parse import urlsplit
 
@@ -61,6 +67,8 @@ if __package__:
         current_username,
         current_user_role,
         current_user_permissions,
+        resolve_user_permissions,
+        store_user_permissions,
         get_csrf_token,
         audit_log,
         current_user_id,
@@ -94,6 +102,7 @@ if __package__:
         delete_database_backup,
         list_database_backups,
     )
+    from .system_updates import ReleaseLookupError, latest_release
 else:
     from security import (
         configure_session,
@@ -107,6 +116,8 @@ else:
         current_username,
         current_user_role,
         current_user_permissions,
+        resolve_user_permissions,
+        store_user_permissions,
         get_csrf_token,
         audit_log,
         current_user_id,
@@ -140,6 +151,7 @@ else:
         delete_database_backup,
         list_database_backups,
     )
+    from system_updates import ReleaseLookupError, latest_release
 
 
 app = Flask(__name__)
@@ -247,16 +259,63 @@ def get_connection():
     return connection
 
 
-def get_user_permissions(connection, user_id, role):
-    permissions_table = connection.execute(
+
+# Alerting routes use request-local SQLite connections.
+if __package__:
+    from .alerts_routes import alerts_bp
+else:
+    from alerts_routes import alerts_bp
+
+app.register_blueprint(alerts_bp)
+
+# SOC pages use a dedicated blueprint and the existing clients.view permission.
+if __package__:
+    from .soc.routes import soc_bp
+else:
+    from soc.routes import soc_bp
+
+app.register_blueprint(soc_bp)
+
+
+@app.teardown_appcontext
+def close_alert_database_connection(exception=None):
+    connection = getattr(g, "lums_alert_connection", None)
+    if connection is not None:
+        connection.close()
+        g.lums_alert_connection = None
+
+
+def _app_table_exists(connection, table_name):
+    return connection.execute(
         """
         SELECT 1
         FROM sqlite_master
-        WHERE type = 'table' AND name = 'user_permissions'
-        """
-    ).fetchone()
+        WHERE type = 'table' AND name = ?
+        """,
+        (table_name,),
+    ).fetchone() is not None
 
-    if permissions_table is None:
+
+def get_user_permissions(connection, user_id, role):
+    if _app_table_exists(connection, "schema_migrations"):
+        return sorted(
+            resolve_user_permissions(
+                connection,
+                user_id,
+                user_role=role,
+            )
+        )
+
+    permissions_table = _app_table_exists(
+        connection,
+        "user_permissions",
+    )
+
+    if not permissions_table:
+        if role not in ROLE_DEFAULT_PERMISSIONS:
+            raise RuntimeError(
+                f"Invalid legacy user role: {role!r}"
+            )
         return sorted(ROLE_DEFAULT_PERMISSIONS[role])
 
     return [
@@ -295,56 +354,51 @@ def validate_permission_selection(permissions):
 
 
 def count_active_user_managers(connection):
-    permissions_table = connection.execute(
+    users = connection.execute(
         """
-        SELECT 1
-        FROM sqlite_master
-        WHERE type = 'table' AND name = 'user_permissions'
-        """
-    ).fetchone()
-
-    if permissions_table is None:
-        return connection.execute(
-            "SELECT COUNT(*) FROM users WHERE enabled = 1 AND role = ?",
-            (ROLE_ADMINISTRATOR,),
-        ).fetchone()[0]
-
-    return connection.execute(
-        """
-        SELECT COUNT(DISTINCT users.id)
+        SELECT id, role
         FROM users
-        JOIN user_permissions
-            ON user_permissions.user_id = users.id
-        WHERE users.enabled = 1
-          AND user_permissions.permission = 'users.manage'
+        WHERE enabled = 1
         """
-    ).fetchone()[0]
+    ).fetchall()
+
+    return sum(
+        "users.manage" in get_user_permissions(
+            connection,
+            user["id"],
+            user["role"],
+        )
+        for user in users
+    )
 
 
 def count_active_permission_managers(connection):
-    return connection.execute("""
-        SELECT COUNT(DISTINCT users.id)
+    required = {
+        "permissions.manage",
+        "users.manage",
+        "clients.view",
+    }
+
+    users = connection.execute(
+        """
+        SELECT id, role
         FROM users
-        WHERE users.enabled = 1
-          AND EXISTS (
-              SELECT 1
-              FROM user_permissions
-              WHERE user_permissions.user_id = users.id
-                AND user_permissions.permission = 'permissions.manage'
-          )
-          AND EXISTS (
-              SELECT 1
-              FROM user_permissions
-              WHERE user_permissions.user_id = users.id
-                AND user_permissions.permission = 'users.manage'
-          )
-          AND EXISTS (
-              SELECT 1
-              FROM user_permissions
-              WHERE user_permissions.user_id = users.id
-                AND user_permissions.permission = 'clients.view'
-          )
-    """).fetchone()[0]
+        WHERE enabled = 1
+        """
+    ).fetchall()
+
+    return sum(
+        required.issubset(
+            set(
+                get_user_permissions(
+                    connection,
+                    user["id"],
+                    user["role"],
+                )
+            )
+        )
+        for user in users
+    )
 
 def permission_ui_context():
     language = normalize_language(
@@ -867,6 +921,410 @@ def index():
     )
 
 
+INFRASTRUCTURE_NODE_TYPES = {
+    "server", "vm", "container", "network_device", "service", "storage",
+}
+INFRASTRUCTURE_RELATION_TYPES = {
+    "depends_on", "hosts", "connects_to", "runs_on",
+}
+TOPOLOGY_FIELD_LIMITS = {
+    "name": 120,
+    "hostname": 253,
+    "ip_address": 45,
+    "role": 120,
+    "location": 120,
+    "notes": 1000,
+    "details": 500,
+}
+
+
+def topology_node_input(payload):
+    if not isinstance(payload, dict):
+        return None, "invalid_node"
+
+    values = {}
+    for key, maximum in TOPOLOGY_FIELD_LIMITS.items():
+        if key == "details":
+            continue
+        value = payload.get(key, "")
+        if not isinstance(value, str):
+            return None, "invalid_node"
+        value = value.strip()
+        if len(value) > maximum:
+            return None, "field_too_long"
+        values[key] = value
+
+    node_type = payload.get("node_type")
+    if (
+        not isinstance(node_type, str)
+        or node_type not in INFRASTRUCTURE_NODE_TYPES
+    ):
+        return None, "invalid_node_type"
+    if not values["name"]:
+        return None, "name_required"
+    if values["ip_address"]:
+        try:
+            ipaddress.ip_address(values["ip_address"])
+        except ValueError:
+            return None, "invalid_ip_address"
+
+    values["node_type"] = node_type
+    return values, None
+
+
+def topology_endpoint_input(payload, prefix):
+    kind = payload.get(f"{prefix}_type")
+    raw_id = payload.get(f"{prefix}_id")
+    if not isinstance(kind, str) or kind not in {"client", "node"}:
+        return None
+    try:
+        entity_id = int(raw_id)
+    except (TypeError, ValueError):
+        return None
+    if entity_id < 1:
+        return None
+    return kind, entity_id
+
+
+@app.route("/infrastructure")
+@login_required
+@role_required(
+    ROLE_ADMINISTRATOR,
+    ROLE_OPERATOR,
+    ROLE_VIEWER,
+    permission="clients.view",
+)
+def infrastructure_page():
+    return render_template(
+        "infrastructure.html",
+        csrf_token=get_csrf_token(),
+        user_role=current_user_role(),
+        can_manage=(
+            current_user_role() == ROLE_ADMINISTRATOR
+            and "infrastructure.manage" in current_user_permissions()
+        ),
+        **permission_ui_context(),
+    )
+
+
+@app.route("/api/infrastructure/topology")
+@login_required
+@role_required(
+    ROLE_ADMINISTRATOR,
+    ROLE_OPERATOR,
+    ROLE_VIEWER,
+    permission="clients.view",
+)
+def infrastructure_topology():
+    connection = get_connection()
+    try:
+        clients = connection.execute(
+            """
+            SELECT id, hostname, ip, os, last_seen, enabled
+            FROM clients
+            ORDER BY hostname COLLATE NOCASE
+            """
+        ).fetchall()
+        manual_nodes = connection.execute(
+            """
+            SELECT id, name, node_type, hostname, ip_address, role,
+                   location, notes, created_at, updated_at
+            FROM infrastructure_nodes
+            ORDER BY name COLLATE NOCASE
+            """
+        ).fetchall()
+        relation_rows = connection.execute(
+            """
+            SELECT id, source_node_id, source_client_id,
+                   target_node_id, target_client_id, relation_type, details
+            FROM infrastructure_relations
+            ORDER BY id
+            """
+        ).fetchall()
+
+        nodes = [
+            {
+                "id": f"client:{row['id']}",
+                "entity_type": "client",
+                "entity_id": row["id"],
+                "name": row["hostname"],
+                "node_type": "client",
+                "hostname": row["hostname"],
+                "ip_address": row["ip"] or "",
+                "role": row["os"] or "",
+                "location": "",
+                "status": (
+                    classify_health_client(row["last_seen"])
+                    if row["enabled"] else "disabled"
+                ),
+                "editable": False,
+            }
+            for row in clients
+        ]
+        nodes.extend(
+            {
+                "id": f"node:{row['id']}",
+                "entity_type": "node",
+                "entity_id": row["id"],
+                "name": row["name"],
+                "node_type": row["node_type"],
+                "hostname": row["hostname"],
+                "ip_address": row["ip_address"],
+                "role": row["role"],
+                "location": row["location"],
+                "notes": row["notes"],
+                "updated_at": row["updated_at"],
+                "status": "unknown",
+                "editable": True,
+            }
+            for row in manual_nodes
+        )
+        relations = [
+            {
+                "id": row["id"],
+                "source": {
+                    "type": "node" if row["source_node_id"] else "client",
+                    "id": row["source_node_id"] or row["source_client_id"],
+                },
+                "target": {
+                    "type": "node" if row["target_node_id"] else "client",
+                    "id": row["target_node_id"] or row["target_client_id"],
+                },
+                "relation_type": row["relation_type"],
+                "details": row["details"],
+            }
+            for row in relation_rows
+        ]
+        return jsonify({"nodes": nodes, "relations": relations})
+    except sqlite3.Error:
+        logger.exception("Unable to load infrastructure topology.")
+        return jsonify({"error": "topology_load_failed"}), 500
+    finally:
+        connection.close()
+
+
+@app.route("/api/infrastructure/nodes", methods=["POST"])
+@login_required
+@role_required(ROLE_ADMINISTRATOR)
+@role_required(permission="infrastructure.manage")
+@csrf_required
+def create_infrastructure_node():
+    values, error = topology_node_input(request.get_json(silent=True))
+    if error:
+        return jsonify({"error": error}), 400
+
+    now = datetime.now(timezone.utc).isoformat()
+    connection = get_connection()
+    try:
+        cursor = connection.execute(
+            """
+            INSERT INTO infrastructure_nodes (
+                name, node_type, hostname, ip_address, role, location,
+                notes, created_at, updated_at, created_by
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                values["name"], values["node_type"], values["hostname"],
+                values["ip_address"], values["role"], values["location"],
+                values["notes"], now, now, current_user_id(),
+            ),
+        )
+        node_id = cursor.lastrowid
+        audit_log(
+            connection, "user", current_user_id(),
+            "infrastructure.node.create", str(node_id),
+        )
+        connection.commit()
+        return jsonify({"id": node_id}), 201
+    except sqlite3.Error:
+        connection.rollback()
+        logger.exception("Unable to create infrastructure node.")
+        return jsonify({"error": "topology_save_failed"}), 500
+    finally:
+        connection.close()
+
+
+@app.route("/api/infrastructure/nodes/<int:node_id>", methods=["PUT", "DELETE"])
+@login_required
+@role_required(ROLE_ADMINISTRATOR)
+@role_required(permission="infrastructure.manage")
+@csrf_required
+def update_or_delete_infrastructure_node(node_id):
+    connection = get_connection()
+    try:
+        existing = connection.execute(
+            "SELECT id FROM infrastructure_nodes WHERE id = ?",
+            (node_id,),
+        ).fetchone()
+        if existing is None:
+            return jsonify({"error": "node_not_found"}), 404
+
+        if request.method == "DELETE":
+            connection.execute(
+                """
+                DELETE FROM infrastructure_relations
+                WHERE source_node_id = ? OR target_node_id = ?
+                """,
+                (node_id, node_id),
+            )
+            connection.execute(
+                "DELETE FROM infrastructure_nodes WHERE id = ?",
+                (node_id,),
+            )
+            audit_log(
+                connection, "user", current_user_id(),
+                "infrastructure.node.delete", str(node_id),
+            )
+        else:
+            values, error = topology_node_input(request.get_json(silent=True))
+            if error:
+                return jsonify({"error": error}), 400
+            connection.execute(
+                """
+                UPDATE infrastructure_nodes
+                SET name = ?, node_type = ?, hostname = ?, ip_address = ?,
+                    role = ?, location = ?, notes = ?, updated_at = ?
+                WHERE id = ?
+                """,
+                (
+                    values["name"], values["node_type"], values["hostname"],
+                    values["ip_address"], values["role"], values["location"],
+                    values["notes"], datetime.now(timezone.utc).isoformat(),
+                    node_id,
+                ),
+            )
+            audit_log(
+                connection, "user", current_user_id(),
+                "infrastructure.node.update", str(node_id),
+            )
+        connection.commit()
+        return jsonify({"status": "saved"})
+    except sqlite3.Error:
+        connection.rollback()
+        logger.exception(
+            "Unable to change infrastructure node %s.", node_id
+        )
+        return jsonify({"error": "topology_save_failed"}), 500
+    finally:
+        connection.close()
+
+
+@app.route("/api/infrastructure/relations", methods=["POST"])
+@login_required
+@role_required(ROLE_ADMINISTRATOR)
+@role_required(permission="infrastructure.manage")
+@csrf_required
+def create_infrastructure_relation():
+    payload = request.get_json(silent=True)
+    if not isinstance(payload, dict):
+        return jsonify({"error": "invalid_relation"}), 400
+    source = topology_endpoint_input(payload, "source")
+    target = topology_endpoint_input(payload, "target")
+    relation_type = payload.get("relation_type")
+    details = payload.get("details", "")
+    if (
+        source is None
+        or target is None
+        or source == target
+        or not isinstance(relation_type, str)
+        or relation_type not in INFRASTRUCTURE_RELATION_TYPES
+        or not isinstance(details, str)
+        or len(details.strip()) > TOPOLOGY_FIELD_LIMITS["details"]
+    ):
+        return jsonify({"error": "invalid_relation"}), 400
+
+    connection = get_connection()
+    try:
+        for kind, entity_id in (source, target):
+            table = "clients" if kind == "client" else "infrastructure_nodes"
+            exists = connection.execute(
+                f"SELECT id FROM {table} WHERE id = ?",
+                (entity_id,),
+            ).fetchone()
+            if exists is None:
+                return jsonify({"error": "topology_endpoint_not_found"}), 404
+
+        source_node_id = source[1] if source[0] == "node" else None
+        source_client_id = source[1] if source[0] == "client" else None
+        target_node_id = target[1] if target[0] == "node" else None
+        target_client_id = target[1] if target[0] == "client" else None
+        duplicate = connection.execute(
+            """
+            SELECT id FROM infrastructure_relations
+            WHERE COALESCE(source_node_id, 0) = ?
+              AND COALESCE(source_client_id, 0) = ?
+              AND COALESCE(target_node_id, 0) = ?
+              AND COALESCE(target_client_id, 0) = ?
+              AND relation_type = ?
+            """,
+            (
+                source_node_id or 0, source_client_id or 0,
+                target_node_id or 0, target_client_id or 0,
+                relation_type,
+            ),
+        ).fetchone()
+        if duplicate is not None:
+            return jsonify({"error": "relation_exists"}), 409
+
+        cursor = connection.execute(
+            """
+            INSERT INTO infrastructure_relations (
+                source_node_id, source_client_id, target_node_id,
+                target_client_id, relation_type, details, created_at,
+                created_by
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                source_node_id, source_client_id, target_node_id,
+                target_client_id, relation_type, details.strip(),
+                datetime.now(timezone.utc).isoformat(), current_user_id(),
+            ),
+        )
+        audit_log(
+            connection, "user", current_user_id(),
+            "infrastructure.relation.create", str(cursor.lastrowid),
+        )
+        connection.commit()
+        return jsonify({"id": cursor.lastrowid}), 201
+    except sqlite3.Error:
+        connection.rollback()
+        logger.exception("Unable to create infrastructure relation.")
+        return jsonify({"error": "topology_save_failed"}), 500
+    finally:
+        connection.close()
+
+
+@app.route("/api/infrastructure/relations/<int:relation_id>", methods=["DELETE"])
+@login_required
+@role_required(ROLE_ADMINISTRATOR)
+@role_required(permission="infrastructure.manage")
+@csrf_required
+def delete_infrastructure_relation(relation_id):
+    connection = get_connection()
+    try:
+        cursor = connection.execute(
+            "DELETE FROM infrastructure_relations WHERE id = ?",
+            (relation_id,),
+        )
+        if cursor.rowcount != 1:
+            connection.rollback()
+            return jsonify({"error": "relation_not_found"}), 404
+        audit_log(
+            connection, "user", current_user_id(),
+            "infrastructure.relation.delete", str(relation_id),
+        )
+        connection.commit()
+        return jsonify({"status": "saved"})
+    except sqlite3.Error:
+        connection.rollback()
+        logger.exception(
+            "Unable to delete infrastructure relation %s.", relation_id
+        )
+        return jsonify({"error": "topology_save_failed"}), 500
+    finally:
+        connection.close()
+
+
 @app.route("/health")
 @login_required
 @role_required(
@@ -876,8 +1334,25 @@ def index():
     permission="clients.view",
 )
 def health_page():
+    return render_health_page(monitoring_only=False)
+
+
+@app.route("/monitoring")
+@login_required
+@role_required(
+    ROLE_ADMINISTRATOR,
+    ROLE_OPERATOR,
+    ROLE_VIEWER,
+    permission="clients.view",
+)
+def monitoring_page():
+    return render_health_page(monitoring_only=True)
+
+
+def render_health_page(monitoring_only):
     database_status = "unavailable"
     client_counts = {"total": 0, "online": 0, "unknown": 0, "offline": 0}
+    latest_backup_run = None
 
     connection = None
     try:
@@ -889,6 +1364,24 @@ def health_page():
             status = classify_health_client(row["last_seen"])
             client_counts["total"] += 1
             client_counts[status] += 1
+
+        try:
+            backup_run = connection.execute(
+                """
+                SELECT timestamp
+                FROM audit_log
+                WHERE action = 'database.backup.create'
+                    AND result = 'success'
+                ORDER BY timestamp DESC
+                LIMIT 1
+                """
+            ).fetchone()
+            if backup_run is not None:
+                latest_backup_run = backup_run["timestamp"]
+        except sqlite3.Error:
+            logger.warning(
+                "Health dashboard could not query successful backup history."
+            )
 
         database_status = "ok"
     except (sqlite3.Error, OSError, RuntimeError):
@@ -919,10 +1412,12 @@ def health_page():
         "health.html",
         csrf_token=get_csrf_token(),
         user_role=current_user_role(),
+        monitoring_only=monitoring_only,
         database_status=database_status,
         client_counts=client_counts,
         backup_status=backup_status,
         latest_backup=latest_backup,
+        latest_backup_run=latest_backup_run,
         **permission_ui_context(),
     )
 
@@ -938,6 +1433,769 @@ def users_page():
         **permission_ui_context(),
     )
 
+
+@app.route("/updates")
+@login_required
+@role_required(ROLE_ADMINISTRATOR)
+@role_required(permission="system.update")
+def system_updates_page():
+    return render_template(
+        "updates.html",
+        csrf_token=get_csrf_token(),
+        user_role=current_user_role(),
+        **permission_ui_context(),
+    )
+
+
+
+@app.route("/api/host-updater/heartbeat", methods=["POST"])
+def host_updater_heartbeat():
+    """Authenticate the dedicated host updater and record its heartbeat."""
+    token_file = os.environ.get(
+        "LUMS_HOST_UPDATER_TOKEN_FILE",
+        "/run/secrets/lums_host_updater_token",
+    )
+
+    try:
+        configured_token = Path(token_file).read_text(
+            encoding="utf-8"
+        ).strip()
+    except OSError:
+        logger.error("Host-updater token file is unavailable")
+        return jsonify({"error": "host_updater_not_configured"}), 503
+
+    if len(configured_token) < 32:
+        logger.error("Host-updater token configuration is invalid")
+        return jsonify({"error": "host_updater_not_configured"}), 503
+
+    authorization = request.headers.get("Authorization", "")
+    scheme, separator, supplied_token = authorization.partition(" ")
+    supplied_token = supplied_token.strip()
+
+    if (
+        not separator
+        or scheme.lower() != "bearer"
+        or not supplied_token
+        or not hmac.compare_digest(
+            hash_client_token(supplied_token),
+            hash_client_token(configured_token),
+        )
+    ):
+        return jsonify({"error": "host_updater_authentication_required"}), 401
+
+    payload = request.get_json(silent=True)
+    if not isinstance(payload, dict):
+        return jsonify({"error": "invalid_json"}), 400
+
+    version = payload.get("version")
+    deployment = payload.get("deployment")
+    status_message = payload.get("status_message", "Heartbeat received")
+
+    for field, value, limit in (
+        ("version", version, 80),
+        ("deployment", deployment, 80),
+        ("status_message", status_message, 500),
+    ):
+        if value is not None and (
+            not isinstance(value, str) or len(value) > limit
+        ):
+            return jsonify({"error": "invalid_" + field}), 400
+
+    if not isinstance(status_message, str) or not status_message.strip():
+        return jsonify({"error": "invalid_status_message"}), 400
+
+    now = datetime.now(timezone.utc).isoformat()
+    connection = None
+
+    try:
+        connection = app.config["LUMS_GET_CONNECTION"]()
+        connection.execute(
+            """
+            INSERT INTO system_update_agent
+                (id, last_seen, current_version, deployment, status_message)
+            VALUES (1, ?, ?, ?, ?)
+            ON CONFLICT(id) DO UPDATE SET
+                last_seen = excluded.last_seen,
+                current_version = excluded.current_version,
+                deployment = excluded.deployment,
+                status_message = excluded.status_message
+            """,
+            (now, version, deployment, status_message.strip()),
+        )
+        connection.commit()
+    except sqlite3.Error:
+        if connection is not None:
+            connection.rollback()
+        logger.exception("Could not record host-updater heartbeat")
+        return jsonify({"error": "heartbeat_storage_failed"}), 500
+    finally:
+        if connection is not None:
+            connection.close()
+
+    return jsonify({
+        "status": "ok",
+        "last_seen": now,
+        "update_execution_enabled": False,
+    }), 200
+
+
+
+_HOST_UPDATE_STEPS = {
+    "preflight", "backup", "prepare", "switch", "verify", "result",
+    "rollback",
+}
+_HOST_UPDATE_FINAL_STATUSES = {
+    "failed", "rolled_back", "rollback_failed"
+}
+
+
+def _host_updater_auth_error():
+    """Return an API error response unless the dedicated token is valid."""
+    token_file = os.environ.get(
+        "LUMS_HOST_UPDATER_TOKEN_FILE",
+        "/run/secrets/lums_host_updater_token",
+    )
+    try:
+        configured_token = Path(token_file).read_text(
+            encoding="utf-8"
+        ).strip()
+    except OSError:
+        logger.error("Host-updater token file is unavailable")
+        return jsonify({"error": "host_updater_not_configured"}), 503
+
+    if len(configured_token) < 32:
+        logger.error("Host-updater token configuration is invalid")
+        return jsonify({"error": "host_updater_not_configured"}), 503
+
+    authorization = request.headers.get("Authorization", "")
+    scheme, separator, supplied_token = authorization.partition(" ")
+    supplied_token = supplied_token.strip()
+
+    if (
+        not separator
+        or scheme.lower() != "bearer"
+        or not supplied_token
+        or not hmac.compare_digest(
+            hash_client_token(supplied_token),
+            hash_client_token(configured_token),
+        )
+    ):
+        return jsonify({
+            "error": "host_updater_authentication_required"
+        }), 401
+
+    return None
+
+
+def _valid_update_worker_id(value):
+    return (
+        isinstance(value, str)
+        and 1 <= len(value) <= 80
+        and all(char.isalnum() or char in "._-" for char in value)
+    )
+
+
+def _update_job_owned_by(connection, job_id, worker_id):
+    row = connection.execute(
+        """
+        SELECT status, step, details_json
+        FROM system_update_jobs WHERE id = ?
+        """,
+        (job_id,),
+    ).fetchone()
+
+    if row is None:
+        return None, "not_found"
+
+    try:
+        details = json.loads(row["details_json"] or "{}")
+    except (TypeError, ValueError):
+        return None, "invalid_details"
+
+    if not isinstance(details, dict):
+        return None, "invalid_details"
+
+    if details.get("worker_id") != worker_id:
+        return None, "not_owner"
+
+    return (row, details), None
+
+
+@app.route("/api/host-updater/jobs/claim", methods=["POST"])
+def host_updater_claim_job():
+    """Atomically claim one queued job; never execute it in the web process."""
+    auth_error = _host_updater_auth_error()
+    if auth_error:
+        return auth_error
+
+    payload = request.get_json(silent=True)
+    if not isinstance(payload, dict):
+        return jsonify({"error": "invalid_json"}), 400
+
+    worker_id = payload.get("worker_id")
+    if not _valid_update_worker_id(worker_id):
+        return jsonify({"error": "invalid_worker_id"}), 400
+
+    connection = get_connection()
+    try:
+        connection.execute("BEGIN IMMEDIATE")
+
+        existing = connection.execute(
+            """
+            SELECT id FROM system_update_jobs
+            WHERE status IN ('running', 'rolling_back')
+            LIMIT 1
+            """
+        ).fetchone()
+        if existing is not None:
+            connection.rollback()
+            return jsonify({"error": "update_already_active"}), 409
+
+        job = connection.execute(
+            """
+            SELECT id, target_tag, target_commit, details_json
+            FROM system_update_jobs
+            WHERE status = 'queued'
+            ORDER BY id ASC
+            LIMIT 1
+            """
+        ).fetchone()
+
+        if job is None:
+            connection.commit()
+            return "", 204
+
+        try:
+            details = json.loads(job["details_json"] or "{}")
+        except (TypeError, ValueError):
+            details = {}
+
+        if not isinstance(details, dict):
+            connection.rollback()
+            return jsonify({"error": "job_not_approved"}), 409
+
+        approval = details.get("approval")
+        if not isinstance(approval, dict):
+            connection.rollback()
+            return jsonify({"error": "job_not_approved"}), 409
+
+        if (
+            approval.get("confirmed") is not True
+            or not approval.get("approved_by")
+            or not isinstance(approval.get("approved_username"), str)
+            or not approval.get("approved_username")
+            or not isinstance(approval.get("approved_at"), str)
+            or approval.get("target_tag") != job["target_tag"]
+            or approval.get("target_commit") != job["target_commit"]
+        ):
+            connection.rollback()
+            return jsonify({"error": "job_not_approved"}), 409
+
+        now = datetime.now(timezone.utc).isoformat()
+        details.update({
+            "worker_id": worker_id,
+            "claimed_at": now,
+        })
+        progress = [{
+            "at": now,
+            "step": "preflight",
+            "message": "Auftrag atomar übernommen.",
+        }]
+
+        cursor = connection.execute(
+            """
+            UPDATE system_update_jobs
+            SET status = 'running',
+                step = 'preflight',
+                details_json = ?,
+                progress_json = ?,
+                updated_at = ?
+            WHERE id = ? AND status = 'queued'
+            """,
+            (
+                json.dumps(details),
+                json.dumps(progress),
+                now,
+                job["id"],
+            ),
+        )
+
+        if cursor.rowcount != 1:
+            connection.rollback()
+            return jsonify({"error": "claim_conflict"}), 409
+
+        connection.commit()
+        return jsonify({
+            "job_id": job["id"],
+            "target_tag": job["target_tag"],
+            "target_commit": job["target_commit"],
+            "status": "running",
+            "step": "preflight",
+        }), 200
+
+    except sqlite3.Error:
+        connection.rollback()
+        logger.exception("Host-updater could not claim a job")
+        return jsonify({"error": "job_storage_failed"}), 500
+    finally:
+        connection.close()
+
+
+@app.route(
+    "/api/host-updater/jobs/<int:job_id>/progress",
+    methods=["POST"],
+)
+def host_updater_job_progress(job_id):
+    auth_error = _host_updater_auth_error()
+    if auth_error:
+        return auth_error
+
+    payload = request.get_json(silent=True)
+    if not isinstance(payload, dict):
+        return jsonify({"error": "invalid_json"}), 400
+
+    worker_id = payload.get("worker_id")
+    step = payload.get("step")
+    message = payload.get("message", "")
+
+    if not _valid_update_worker_id(worker_id):
+        return jsonify({"error": "invalid_worker_id"}), 400
+    if not isinstance(step, str) or step not in _HOST_UPDATE_STEPS:
+        return jsonify({"error": "invalid_step"}), 400
+    if not isinstance(message, str) or len(message) > 500:
+        return jsonify({"error": "invalid_message"}), 400
+
+    connection = get_connection()
+    try:
+        connection.execute("BEGIN IMMEDIATE")
+        owned, error = _update_job_owned_by(
+            connection, job_id, worker_id
+        )
+        if error == "not_found":
+            connection.rollback()
+            return jsonify({"error": "job_not_found"}), 404
+        if error:
+            connection.rollback()
+            return jsonify({"error": "job_not_owned"}), 409
+
+        row, _details = owned
+        if row["status"] not in {"running", "rolling_back"}:
+            connection.rollback()
+            return jsonify({"error": "invalid_job_state"}), 409
+        if row["status"] == "rolling_back" and step != "rollback":
+            connection.rollback()
+            return jsonify({"error": "rollback_step_required"}), 409
+        if row["status"] == "running" and step == "rollback":
+            connection.rollback()
+            return jsonify({"error": "rollback_must_be_started"}), 409
+
+        # The server enforces the normal update sequence. Repeating the
+        # current step is allowed for progress messages; skipping ahead,
+        # moving backwards, or reporting "result" is not.
+        if row["status"] == "running":
+            next_step = {
+                "preflight": "backup",
+                "backup": "prepare",
+                "prepare": "switch",
+                "switch": "verify",
+                "verify": None,
+            }
+            current_step = row["step"]
+            allowed_steps = {current_step}
+            expected_next = next_step.get(current_step)
+            if expected_next is not None:
+                allowed_steps.add(expected_next)
+
+            if step == "result" or step not in allowed_steps:
+                connection.rollback()
+                return jsonify({"error": "invalid_step_transition"}), 409
+
+        now = datetime.now(timezone.utc).isoformat()
+        try:
+            history = json.loads(
+                connection.execute(
+                    "SELECT progress_json FROM system_update_jobs WHERE id = ?",
+                    (job_id,),
+                ).fetchone()["progress_json"] or "[]"
+            )
+        except (TypeError, ValueError):
+            connection.rollback()
+            return jsonify({"error": "invalid_progress_history"}), 409
+
+        if not isinstance(history, list):
+            connection.rollback()
+            return jsonify({"error": "invalid_progress_history"}), 409
+
+        history.append({
+            "at": now,
+            "step": step,
+            "message": message,
+        })
+
+        cursor = connection.execute(
+            """
+            UPDATE system_update_jobs
+            SET step = ?, progress_json = ?, updated_at = ?
+            WHERE id = ? AND status = ?
+            """,
+            (step, json.dumps(history[-100:]), now, job_id, row["status"]),
+        )
+        if cursor.rowcount != 1:
+            connection.rollback()
+            return jsonify({"error": "job_state_conflict"}), 409
+
+        connection.commit()
+        return jsonify({"status": "ok", "step": step}), 200
+
+    except sqlite3.Error:
+        connection.rollback()
+        logger.exception("Could not record update progress")
+        return jsonify({"error": "job_storage_failed"}), 500
+    finally:
+        connection.close()
+
+
+
+@app.route(
+    "/api/host-updater/jobs/<int:job_id>/rollback",
+    methods=["POST"],
+)
+def host_updater_job_start_rollback(job_id):
+    """Explicitly enter rollback state; this endpoint performs no restore."""
+    auth_error = _host_updater_auth_error()
+    if auth_error:
+        return auth_error
+
+    payload = request.get_json(silent=True)
+    if not isinstance(payload, dict):
+        return jsonify({"error": "invalid_json"}), 400
+
+    worker_id = payload.get("worker_id")
+    if not _valid_update_worker_id(worker_id):
+        return jsonify({"error": "invalid_worker_id"}), 400
+
+    connection = get_connection()
+    try:
+        connection.execute("BEGIN IMMEDIATE")
+        owned, error = _update_job_owned_by(
+            connection, job_id, worker_id
+        )
+        if error == "not_found":
+            connection.rollback()
+            return jsonify({"error": "job_not_found"}), 404
+        if error:
+            connection.rollback()
+            return jsonify({"error": "job_not_owned"}), 409
+
+        row, _details = owned
+        if row["status"] != "running":
+            connection.rollback()
+            return jsonify({"error": "invalid_job_state"}), 409
+
+        now = datetime.now(timezone.utc).isoformat()
+        try:
+            history = json.loads(
+                connection.execute(
+                    "SELECT progress_json FROM system_update_jobs WHERE id = ?",
+                    (job_id,),
+                ).fetchone()["progress_json"] or "[]"
+            )
+        except (TypeError, ValueError):
+            connection.rollback()
+            return jsonify({"error": "invalid_progress_history"}), 409
+
+        if not isinstance(history, list):
+            connection.rollback()
+            return jsonify({"error": "invalid_progress_history"}), 409
+
+        history.append({
+            "at": now,
+            "step": "rollback",
+            "message": "Rollback ausdrücklich gestartet.",
+        })
+        cursor = connection.execute(
+            """
+            UPDATE system_update_jobs
+            SET status = 'rolling_back', step = 'rollback',
+                progress_json = ?, updated_at = ?
+            WHERE id = ? AND status = 'running'
+            """,
+            (json.dumps(history[-100:]), now, job_id),
+        )
+        if cursor.rowcount != 1:
+            connection.rollback()
+            return jsonify({"error": "job_state_conflict"}), 409
+
+        connection.commit()
+        return jsonify({"status": "rolling_back", "step": "rollback"}), 200
+
+    except sqlite3.Error:
+        connection.rollback()
+        logger.exception("Could not start rollback state")
+        return jsonify({"error": "job_storage_failed"}), 500
+    finally:
+        connection.close()
+
+
+@app.route(
+    "/api/host-updater/jobs/<int:job_id>/complete",
+    methods=["POST"],
+)
+def host_updater_job_complete(job_id):
+    auth_error = _host_updater_auth_error()
+    if auth_error:
+        return auth_error
+
+    payload = request.get_json(silent=True)
+    if not isinstance(payload, dict):
+        return jsonify({"error": "invalid_json"}), 400
+
+    worker_id = payload.get("worker_id")
+    if not _valid_update_worker_id(worker_id):
+        return jsonify({"error": "invalid_worker_id"}), 400
+
+    connection = get_connection()
+    try:
+        connection.execute("BEGIN IMMEDIATE")
+        owned, error = _update_job_owned_by(
+            connection, job_id, worker_id
+        )
+        if error == "not_found":
+            connection.rollback()
+            return jsonify({"error": "job_not_found"}), 404
+        if error:
+            connection.rollback()
+            return jsonify({"error": "job_not_owned"}), 409
+
+        row, _details = owned
+        if row["status"] != "running" or row["step"] != "verify":
+            connection.rollback()
+            return jsonify({"error": "verification_not_completed"}), 409
+
+        now = datetime.now(timezone.utc).isoformat()
+        cursor = connection.execute(
+            """
+            UPDATE system_update_jobs
+            SET status = 'completed', step = 'result',
+                updated_at = ?, finished_at = ?
+            WHERE id = ? AND status = 'running' AND step = 'verify'
+            """,
+            (now, now, job_id),
+        )
+        if cursor.rowcount != 1:
+            connection.rollback()
+            return jsonify({"error": "job_state_conflict"}), 409
+
+        connection.commit()
+        return jsonify({"status": "completed"}), 200
+
+    except sqlite3.Error:
+        connection.rollback()
+        logger.exception("Could not complete update job")
+        return jsonify({"error": "job_storage_failed"}), 500
+    finally:
+        connection.close()
+
+
+@app.route(
+    "/api/host-updater/jobs/<int:job_id>/fail",
+    methods=["POST"],
+)
+def host_updater_job_fail(job_id):
+    auth_error = _host_updater_auth_error()
+    if auth_error:
+        return auth_error
+
+    payload = request.get_json(silent=True)
+    if not isinstance(payload, dict):
+        return jsonify({"error": "invalid_json"}), 400
+
+    worker_id = payload.get("worker_id")
+    final_status = payload.get("final_status", "failed")
+    error_message = payload.get("error", "")
+    rollback_status = payload.get("rollback_status", "not_started")
+
+    if not _valid_update_worker_id(worker_id):
+        return jsonify({"error": "invalid_worker_id"}), 400
+    if (
+        not isinstance(final_status, str)
+        or final_status not in _HOST_UPDATE_FINAL_STATUSES
+    ):
+        return jsonify({"error": "invalid_final_status"}), 400
+    if not isinstance(error_message, str) or len(error_message) > 2000:
+        return jsonify({"error": "invalid_error"}), 400
+    if (
+        not isinstance(rollback_status, str)
+        or rollback_status not in {
+            "not_started", "succeeded", "failed", "not_required"
+        }
+    ):
+        return jsonify({"error": "invalid_rollback_status"}), 400
+
+    # A normal failure must not claim a rollback outcome that was
+    # never reached through the explicit rolling_back transition.
+    if final_status == "failed" and rollback_status in {
+        "succeeded", "failed"
+    }:
+        return jsonify({"error": "invalid_rollback_status"}), 400
+
+    connection = get_connection()
+    try:
+        connection.execute("BEGIN IMMEDIATE")
+        owned, error = _update_job_owned_by(
+            connection, job_id, worker_id
+        )
+        if error == "not_found":
+            connection.rollback()
+            return jsonify({"error": "job_not_found"}), 404
+        if error:
+            connection.rollback()
+            return jsonify({"error": "job_not_owned"}), 409
+
+        row, _details = owned
+        if row["status"] not in {"running", "rolling_back"}:
+            connection.rollback()
+            return jsonify({"error": "invalid_job_state"}), 409
+
+        if final_status in {"rolled_back", "rollback_failed"}:
+            if row["status"] != "rolling_back":
+                connection.rollback()
+                return jsonify({"error": "rollback_not_started"}), 409
+
+        if final_status == "rolled_back" and rollback_status != "succeeded":
+            connection.rollback()
+            return jsonify({"error": "rollback_not_verified"}), 400
+        if final_status == "rollback_failed" and rollback_status != "failed":
+            connection.rollback()
+            return jsonify({"error": "rollback_not_verified"}), 400
+        if final_status == "failed" and row["status"] == "rolling_back":
+            connection.rollback()
+            return jsonify({"error": "use_rollback_failed_status"}), 409
+
+        now = datetime.now(timezone.utc).isoformat()
+        cursor = connection.execute(
+            """
+            UPDATE system_update_jobs
+            SET status = ?, step = 'result', error = ?,
+                rollback_status = ?, updated_at = ?, finished_at = ?
+            WHERE id = ? AND status IN ('running', 'rolling_back')
+            """,
+            (
+                final_status, error_message[:2000], rollback_status,
+                now, now, job_id,
+            ),
+        )
+        if cursor.rowcount != 1:
+            connection.rollback()
+            return jsonify({"error": "job_state_conflict"}), 409
+
+        connection.commit()
+        return jsonify({"status": final_status}), 200
+
+    except sqlite3.Error:
+        connection.rollback()
+        logger.exception("Could not record update failure")
+        return jsonify({"error": "job_storage_failed"}), 500
+    finally:
+        connection.close()
+
+
+
+@app.route("/api/system-updates", methods=["GET"])
+@login_required
+@role_required(ROLE_ADMINISTRATOR)
+@role_required(permission="system.update")
+def system_updates_status():
+    release = None
+    release_error = None
+    try:
+        release = latest_release()
+    except ReleaseLookupError as error:
+        release_error = str(error)
+
+    connection = get_connection()
+    try:
+        agent = connection.execute(
+            """
+            SELECT last_seen, current_version, deployment, status_message
+            FROM system_update_agent
+            WHERE id = 1
+            """
+        ).fetchone()
+        jobs = connection.execute(
+            """
+            SELECT id, requested_at, requested_by, target_tag, target_commit,
+                   status, step,
+                   progress_json, details_json, error, rollback_status,
+                   updated_at, finished_at
+            FROM system_update_jobs
+            ORDER BY id DESC
+            LIMIT 20
+            """
+        ).fetchall()
+    finally:
+        connection.close()
+
+    agent_data = dict(agent) if agent else None
+    if agent_data:
+        try:
+            heartbeat = datetime.fromisoformat(agent_data["last_seen"])
+            if heartbeat.tzinfo is None:
+                heartbeat = heartbeat.replace(tzinfo=timezone.utc)
+            agent_data["online"] = (
+                datetime.now(timezone.utc) - heartbeat
+            ).total_seconds() <= 60
+        except (TypeError, ValueError):
+            agent_data["online"] = False
+    else:
+        agent_data = {"online": False}
+
+    history = []
+    for row in jobs:
+        item = dict(row)
+        item["progress"] = json.loads(item.pop("progress_json") or "[]")
+        item["details"] = json.loads(item.pop("details_json") or "{}")
+        history.append(item)
+
+    return jsonify({
+        "release": release,
+        "release_error": release_error,
+        "agent": agent_data,
+        "history": history,
+    })
+
+
+@app.route("/api/system-updates", methods=["POST"])
+@login_required
+@role_required(ROLE_ADMINISTRATOR)
+@role_required(permission="system.update")
+@csrf_required
+def request_system_update():
+    payload = request.get_json(silent=True)
+    if not isinstance(payload, dict):
+        return jsonify({"error": "invalid_json"}), 400
+    if payload.get("confirmed") is not True:
+        return jsonify({"error": "explicit_confirmation_required"}), 400
+
+    requested_tag = payload.get("target_tag")
+    requested_commit = payload.get("target_commit")
+    if (
+        not isinstance(requested_tag, str)
+        or not requested_tag
+        or not isinstance(requested_commit, str)
+        or not requested_commit
+    ):
+        return jsonify({"error": "invalid_release_target"}), 400
+
+    # Fail closed: the installed host updater currently reports
+    # update_execution_enabled=False and does not execute update jobs.
+    return jsonify({
+        "error": "update_execution_disabled",
+        "message": (
+            "Die Update-Ausführung ist deaktiviert. "
+            "Es wurde kein Updateauftrag angelegt."
+        ),
+    }), 503
 
 @app.route("/backups")
 @login_required
@@ -1420,7 +2678,6 @@ def update_user_profile(user_id):
 @role_required(ROLE_ADMINISTRATOR, permission="users.manage")
 @csrf_required
 def create_user():
-
     data = request.get_json(silent=True) or {}
 
     username = str(data.get("username", "")).strip()
@@ -1432,37 +2689,23 @@ def create_user():
     )
 
     if not username:
-        return jsonify({
-            "error": "username_required"
-        }), 400
+        return jsonify({"error": "username_required"}), 400
 
     if len(username) > 64:
-        return jsonify({
-            "error": "username_too_long"
-        }), 400
+        return jsonify({"error": "username_too_long"}), 400
 
     if not password:
-        return jsonify({
-            "error": "password_required"
-        }), 400
+        return jsonify({"error": "password_required"}), 400
 
     if len(password) < 12:
-        return jsonify({
-            "error": "password_too_short"
-        }), 400
+        return jsonify({"error": "password_too_short"}), 400
 
     if role not in VALID_ROLES:
-        return jsonify({
-            "error": "invalid_user_role"
-        }), 400
+        return jsonify({"error": "invalid_user_role"}), 400
 
     if not validate_permission_selection(permissions):
-        return jsonify({
-            "error": "invalid_user_permissions"
-        }), 400
+        return jsonify({"error": "invalid_user_permissions"}), 400
 
-    # Creating an account with no permissions is allowed for users.manage.
-    # Assigning any permissions requires the separate delegation permission.
     if permissions and "permissions.manage" not in current_user_permissions():
         return jsonify({
             "error": "permission_delegation_required"
@@ -1471,6 +2714,8 @@ def create_user():
     connection = get_connection()
 
     try:
+        connection.execute("BEGIN IMMEDIATE")
+
         existing = connection.execute(
             """
             SELECT id
@@ -1481,10 +2726,13 @@ def create_user():
         ).fetchone()
 
         if existing is not None:
+            connection.rollback()
             return jsonify({
                 "error": "user_already_exists"
             }), 409
 
+        timestamp = datetime.now(timezone.utc).isoformat()
+        actor_id = current_user_id()
         password_hash = hash_password(password)
 
         cursor = connection.execute(
@@ -1498,30 +2746,24 @@ def create_user():
             )
             VALUES (?, ?, ?, 1, ?)
             """,
-            (
-                username,
-                password_hash,
-                datetime.now(timezone.utc).isoformat(),
-                role,
-            ),
+            (username, password_hash, timestamp, role),
         )
 
         user_id = cursor.lastrowid
-        connection.executemany(
-            """
-            INSERT INTO user_permissions (user_id, permission)
-            VALUES (?, ?)
-            """,
-            [
-                (user_id, permission)
-                for permission in permissions
-            ],
+
+        store_user_permissions(
+            connection,
+            user_id,
+            role,
+            permissions,
+            actor_id=actor_id,
+            timestamp=timestamp,
         )
 
         audit_log(
             connection,
             actor_type="user",
-            actor_id=current_user_id(),
+            actor_id=actor_id,
             action="user.create",
             target=f"user:{user_id}",
             result="success",
@@ -1546,7 +2788,6 @@ def create_user():
 
     except sqlite3.IntegrityError:
         connection.rollback()
-
         return jsonify({
             "error": "user_already_exists"
         }), 409
@@ -1588,44 +2829,61 @@ def update_user_permissions(user_id):
 
     try:
         connection.execute("BEGIN IMMEDIATE")
+
         target = connection.execute(
-            "SELECT id, username, role, enabled FROM users WHERE id = ?",
+            """
+            SELECT id, username, role, enabled
+            FROM users
+            WHERE id = ?
+            """,
             (user_id,),
         ).fetchone()
 
         if target is None:
+            connection.rollback()
             return jsonify({"error": "user_not_found"}), 404
 
-        had_user_management = "users.manage" in get_user_permissions(
-            connection,
-            user_id,
-            target["role"],
-        )
-
-        if (
-            target["enabled"]
-            and had_user_management
-            and "users.manage" not in permissions
-            and count_active_user_managers(connection) <= 1
-        ):
-            return jsonify({
-                "error": "last_enabled_administrator"
-            }), 409
-
-        had_permission_management = (
-            "permissions.manage" in get_user_permissions(
+        old_permissions = set(
+            get_user_permissions(
                 connection,
                 user_id,
                 target["role"],
             )
         )
+        selected_permissions = set(permissions)
+
+        had_user_management = "users.manage" in old_permissions
+
+        if (
+            target["enabled"]
+            and had_user_management
+            and "users.manage" not in selected_permissions
+            and count_active_user_managers(connection) <= 1
+        ):
+            connection.rollback()
+            return jsonify({
+                "error": "last_enabled_administrator"
+            }), 409
+
+        permission_manager_set = {
+            "permissions.manage",
+            "users.manage",
+            "clients.view",
+        }
+        had_permission_management = permission_manager_set.issubset(
+            old_permissions
+        )
+        retains_permission_management = permission_manager_set.issubset(
+            selected_permissions
+        )
 
         if (
             target["enabled"]
             and had_permission_management
-            and "permissions.manage" not in permissions
+            and not retains_permission_management
             and count_active_permission_managers(connection) <= 1
         ):
+            connection.rollback()
             return jsonify({
                 "error": "last_enabled_permission_manager"
             }), 409
@@ -1634,25 +2892,23 @@ def update_user_permissions(user_id):
             "UPDATE users SET role = ? WHERE id = ?",
             (role, user_id),
         )
-        connection.execute(
-            "DELETE FROM user_permissions WHERE user_id = ?",
-            (user_id,),
-        )
-        connection.executemany(
-            """
-            INSERT INTO user_permissions (user_id, permission)
-            VALUES (?, ?)
-            """,
-            [
-                (user_id, permission)
-                for permission in permissions
-            ],
+
+        timestamp = datetime.now(timezone.utc).isoformat()
+        actor_id = current_user_id()
+
+        store_user_permissions(
+            connection,
+            user_id,
+            role,
+            permissions,
+            actor_id=actor_id,
+            timestamp=timestamp,
         )
 
         audit_log(
             connection,
             actor_type="user",
-            actor_id=current_user_id(),
+            actor_id=actor_id,
             action="user.permissions.update",
             target=f"user:{user_id}",
             result="success",
@@ -1661,6 +2917,7 @@ def update_user_permissions(user_id):
                 f"permissions={','.join(sorted(permissions))}"
             ),
         )
+
         connection.commit()
 
         return jsonify({
@@ -1672,9 +2929,11 @@ def update_user_permissions(user_id):
                 "permissions": sorted(permissions),
             },
         })
+
     except Exception:
         connection.rollback()
         raise
+
     finally:
         connection.close()
 
@@ -1761,12 +3020,15 @@ def delete_user(user_id):
         ).fetchone()
 
         if target is None:
+            connection.rollback()
             return jsonify({"error": "user_not_found"}), 404
 
-        target_permissions = get_user_permissions(
-            connection,
-            user_id,
-            target["role"],
+        target_permissions = set(
+            get_user_permissions(
+                connection,
+                user_id,
+                target["role"],
+            )
         )
 
         if (
@@ -1774,19 +3036,23 @@ def delete_user(user_id):
             and "users.manage" in target_permissions
             and count_active_user_managers(connection) <= 1
         ):
+            connection.rollback()
             return jsonify({
                 "error": "last_enabled_administrator"
             }), 409
 
+        permission_manager_set = {
+            "permissions.manage",
+            "users.manage",
+            "clients.view",
+        }
+
         if (
             target["enabled"]
-            and {
-                "permissions.manage",
-                "users.manage",
-                "clients.view",
-            }.issubset(target_permissions)
+            and permission_manager_set.issubset(target_permissions)
             and count_active_permission_managers(connection) <= 1
         ):
+            connection.rollback()
             return jsonify({
                 "error": "last_enabled_permission_manager"
             }), 409
@@ -2115,6 +3381,85 @@ TELEMETRY_MAX_COUNTER_VALUE = 2**63 - 1
 # Counter deltas across longer gaps would hide real traffic peaks.
 TELEMETRY_MAX_RATE_GAP_SECONDS = 300
 TELEMETRY_STALE_SECONDS = 120
+TELEMETRY_WIDGET_WIDTHS = (4, 6, 8, 12)
+TELEMETRY_WIDGET_IDS = (
+    "summary", "clients", "history", "events", "backup",
+)
+TELEMETRY_INTEGRATIONS = ("wazuh", "suricata")
+
+
+def default_telemetry_dashboard_settings():
+    return {
+        "layout": [
+            {"id": "summary", "width": 12, "visible": True},
+            {"id": "clients", "width": 4, "visible": True},
+            {"id": "history", "width": 8, "visible": True},
+            {"id": "events", "width": 12, "visible": True},
+            {"id": "backup", "width": 6, "visible": True},
+        ],
+        "thresholds": {"cpu": 90, "memory": 90, "disk": 90},
+        "integrations": {"wazuh": False, "suricata": False},
+    }
+
+
+def validate_telemetry_dashboard_settings(settings):
+    if not isinstance(settings, dict) or set(settings) != {
+        "layout", "thresholds", "integrations",
+    }:
+        return False
+    layout = settings["layout"]
+    if not isinstance(layout, list) or len(layout) != len(TELEMETRY_WIDGET_IDS):
+        return False
+    seen = set()
+    for widget in layout:
+        if (
+            not isinstance(widget, dict)
+            or set(widget) != {"id", "width", "visible"}
+            or widget["id"] not in TELEMETRY_WIDGET_IDS
+            or widget["id"] in seen
+            or isinstance(widget["width"], bool)
+            or widget["width"] not in TELEMETRY_WIDGET_WIDTHS
+            or not isinstance(widget["visible"], bool)
+        ):
+            return False
+        seen.add(widget["id"])
+    thresholds = settings["thresholds"]
+    if (
+        not isinstance(thresholds, dict)
+        or set(thresholds) != {"cpu", "memory", "disk"}
+        or any(
+            isinstance(value, bool)
+            or not isinstance(value, int)
+            or not 50 <= value <= 99
+            for value in thresholds.values()
+        )
+    ):
+        return False
+    integrations = settings["integrations"]
+    return (
+        isinstance(integrations, dict)
+        and set(integrations) == set(TELEMETRY_INTEGRATIONS)
+        and all(isinstance(value, bool) for value in integrations.values())
+    )
+
+
+def migrate_telemetry_dashboard_settings(settings):
+    if (
+        not isinstance(settings, dict)
+        or not isinstance(settings.get("layout"), list)
+        or not any(
+            isinstance(widget, dict) and widget.get("id") == "system"
+            for widget in settings["layout"]
+        )
+    ):
+        return settings
+
+    migrated = dict(settings)
+    migrated["layout"] = [
+        widget for widget in settings["layout"]
+        if not (isinstance(widget, dict) and widget.get("id") == "system")
+    ]
+    return migrated
 
 
 def parse_telemetry_time(value):
@@ -2171,6 +3516,342 @@ def add_network_rates(rows):
     return samples
 
 
+def validate_system_snapshot(system):
+    def is_counter(value):
+        return (
+            isinstance(value, int)
+            and not isinstance(value, bool)
+            and 0 <= value <= TELEMETRY_MAX_COUNTER_VALUE
+        )
+
+    def is_text(value, maximum):
+        return isinstance(value, str) and bool(value.strip()) and len(value) <= maximum
+
+    def is_optional_bool(value):
+        return value is None or isinstance(value, bool)
+
+    required = {
+        "load_average", "uptime_seconds", "os", "kernel", "disk",
+        "interfaces", "dns_servers", "gateway", "gateway_reachable",
+        "dns_reachable", "internet_reachable", "temperatures", "fans",
+        "services", "containers",
+    }
+    if not isinstance(system, dict) or set(system) not in (
+        required, required | {"security_events"}
+    ):
+        return False
+
+    loads = system["load_average"]
+    if loads is not None and (
+        not isinstance(loads, list)
+        or len(loads) != 3
+        or any(
+            not isinstance(value, (int, float))
+            or isinstance(value, bool)
+            or value < 0
+            or value > 1_000_000
+            or not math.isfinite(value)
+            for value in loads
+        )
+    ):
+        return False
+
+    uptime = system["uptime_seconds"]
+    if uptime is not None and not is_counter(uptime):
+        return False
+    if not is_text(system["os"], 128) or not is_text(system["kernel"], 128):
+        return False
+
+    disk = system["disk"]
+    if disk is not None and (
+        not isinstance(disk, dict)
+        or set(disk) != {"total_bytes", "used_bytes", "free_bytes"}
+        or not all(is_counter(disk[key]) for key in disk)
+        or disk["total_bytes"] <= 0
+        or disk["used_bytes"] > disk["total_bytes"]
+        or disk["free_bytes"] > disk["total_bytes"]
+    ):
+        return False
+
+    interfaces = system["interfaces"]
+    if not isinstance(interfaces, list) or len(interfaces) > 32:
+        return False
+    interface_names = set()
+    for interface in interfaces:
+        if (
+            not isinstance(interface, dict)
+            or set(interface) != {
+                "name", "state", "rx_bytes", "tx_bytes", "rx_errors",
+                "tx_errors", "rx_dropped", "tx_dropped",
+            }
+            or not is_text(interface["name"], 32)
+            or interface["name"] in interface_names
+            or interface["state"] not in (
+                "up", "down", "unknown", "dormant", "lowerlayerdown"
+            )
+            or not all(
+                is_counter(interface[key])
+                for key in (
+                    "rx_bytes", "tx_bytes", "rx_errors", "tx_errors",
+                    "rx_dropped", "tx_dropped",
+                )
+            )
+        ):
+            return False
+        interface_names.add(interface["name"])
+
+    dns_servers = system["dns_servers"]
+    if not isinstance(dns_servers, list) or len(dns_servers) > 8:
+        return False
+    try:
+        if any(
+            not isinstance(server, str)
+            or str(ipaddress.ip_address(server)) != server
+            for server in dns_servers
+        ):
+            return False
+        if system["gateway"] is not None:
+            if not isinstance(system["gateway"], str):
+                return False
+            ipaddress.IPv4Address(system["gateway"])
+    except (ipaddress.AddressValueError, TypeError):
+        return False
+
+    if not all(
+        is_optional_bool(system[key])
+        for key in (
+            "gateway_reachable", "dns_reachable", "internet_reachable"
+        )
+    ):
+        return False
+
+    temperatures = system["temperatures"]
+    if not isinstance(temperatures, list) or len(temperatures) > 16:
+        return False
+    for sensor in temperatures:
+        value = sensor.get("celsius") if isinstance(sensor, dict) else None
+        if (
+            not isinstance(sensor, dict)
+            or set(sensor) != {"name", "celsius"}
+            or not is_text(sensor["name"], 64)
+            or not isinstance(value, (int, float))
+            or isinstance(value, bool)
+            or not -50 <= value <= 250
+            or not math.isfinite(value)
+        ):
+            return False
+
+    fans = system["fans"]
+    if not isinstance(fans, list) or len(fans) > 16:
+        return False
+    for fan in fans:
+        if (
+            not isinstance(fan, dict)
+            or set(fan) != {"name", "rpm"}
+            or not is_text(fan["name"], 64)
+            or not is_counter(fan["rpm"])
+            or fan["rpm"] > 100_000
+        ):
+            return False
+
+    legacy_snapshot = "security_events" not in system
+    for key, max_items in (
+        ("services", 60 if legacy_snapshot else 20),
+        ("containers", 60),
+    ):
+        collection = system[key]
+        if (
+            not isinstance(collection, dict)
+            or set(collection) != {"available", "items"}
+            or not isinstance(collection["available"], bool)
+            or not isinstance(collection["items"], list)
+            or len(collection["items"]) > max_items
+        ):
+            return False
+        for item in collection["items"]:
+            if key == "services":
+                if not isinstance(item, dict) or not is_text(item.get("name"), 128):
+                    return False
+                if set(item) == {"name", "state"}:
+                    if item["state"] not in ("active", "failed", "inactive"):
+                        return False
+                elif (
+                    set(item) != {
+                        "name", "state", "substate", "restarts",
+                        "runtime_seconds",
+                    }
+                    or item["state"] not in (
+                        "active", "failed", "inactive", "unknown"
+                    )
+                    or not is_text(item["substate"], 64)
+                    or (
+                        item["restarts"] is not None
+                        and not is_counter(item["restarts"])
+                    )
+                    or (
+                        item["runtime_seconds"] is not None
+                        and not is_counter(item["runtime_seconds"])
+                    )
+                ):
+                    return False
+            elif (
+                not isinstance(item, dict)
+                or set(item) != {"runtime", "name", "state"}
+                or item["runtime"] not in ("docker", "podman")
+                or not is_text(item["name"], 128)
+                or not is_text(item["state"], 64)
+                or (
+                    not legacy_snapshot
+                    and item["state"] not in (
+                        "up", "stopped", "unhealthy", "unknown"
+                    )
+                )
+            ):
+                return False
+
+    if legacy_snapshot:
+        try:
+            return len(json.dumps(system, allow_nan=False).encode("utf-8")) <= 32768
+        except (TypeError, ValueError):
+            return False
+
+    events = system["security_events"]
+    if not isinstance(events, dict) or set(events) != {
+        "ssh_available", "ssh_failed_24h", "ssh_last_failed_at",
+        "journal_available", "journal_errors_1h", "journal_warnings_1h",
+        "login_history_available", "login_events",
+        "boot_history_available", "boot_history",
+    }:
+        return False
+    for key in (
+        "ssh_available", "journal_available",
+        "login_history_available", "boot_history_available",
+    ):
+        if not isinstance(events[key], bool):
+            return False
+    for key in (
+        "ssh_failed_24h", "journal_errors_1h", "journal_warnings_1h",
+    ):
+        if not is_counter(events[key]):
+            return False
+    last_ssh = events["ssh_last_failed_at"]
+    if last_ssh is not None and (
+        not is_text(last_ssh, 64) or parse_telemetry_time(last_ssh) is None
+    ):
+        return False
+    login_events = events["login_events"]
+    if not isinstance(login_events, list) or len(login_events) > 20:
+        return False
+    for event in login_events:
+        if (
+            not isinstance(event, dict)
+            or set(event) != {"timestamp", "action"}
+            or not is_text(event["timestamp"], 64)
+            or parse_telemetry_time(event["timestamp"]) is None
+            or event["action"] not in ("login", "logout")
+        ):
+            return False
+    boot_history = events["boot_history"]
+    if not isinstance(boot_history, list) or len(boot_history) > 10:
+        return False
+    for boot in boot_history:
+        if (
+            not isinstance(boot, dict)
+            or set(boot) != {"started_at", "ended_at"}
+            or not is_text(boot["started_at"], 64)
+            or not is_text(boot["ended_at"], 64)
+        ):
+            return False
+
+    try:
+        return len(json.dumps(system, allow_nan=False).encode("utf-8")) <= 32768
+    except (TypeError, ValueError):
+        return False
+
+
+def add_system_interface_rates(system, previous, seconds):
+    result = dict(system)
+    previous_interfaces = {
+        interface["name"]: interface
+        for interface in (previous or {}).get("interfaces", [])
+    }
+    interfaces = []
+    for interface in system["interfaces"]:
+        current = dict(interface)
+        old = previous_interfaces.get(current["name"])
+        rx_rate = None
+        tx_rate = None
+        if old and 0 < seconds <= TELEMETRY_MAX_RATE_GAP_SECONDS:
+            if current["rx_bytes"] >= old["rx_bytes"]:
+                rx_rate = round(
+                    (current["rx_bytes"] - old["rx_bytes"]) / seconds, 2
+                )
+            if current["tx_bytes"] >= old["tx_bytes"]:
+                tx_rate = round(
+                    (current["tx_bytes"] - old["tx_bytes"]) / seconds, 2
+                )
+        current["rx_bytes_per_second"] = rx_rate
+        current["tx_bytes_per_second"] = tx_rate
+        interfaces.append(current)
+    result["interfaces"] = interfaces
+    return result
+
+
+def record_telemetry_system_events(
+    connection, client_id, recorded_at, previous, current
+):
+    previous_services = {
+        item["name"]: item["state"]
+        for item in (previous or {}).get("services", {}).get("items", [])
+    }
+    for service in current.get("services", {}).get("items", []):
+        name = service["name"]
+        old_state = previous_services.get(name)
+        state = service["state"]
+        if state == "failed" and old_state != "failed":
+            event_type = "service_failed"
+        elif state in ("active", "inactive") and old_state == "failed":
+            event_type = "service_recovered"
+        else:
+            continue
+        connection.execute(
+            """
+            INSERT INTO client_telemetry_events (
+                client_id, recorded_at, event_type, metric, value
+            ) VALUES (?, ?, ?, ?, NULL)
+            """,
+            (client_id, recorded_at, event_type, name),
+        )
+
+    security = current.get("security_events", {})
+    old_security = (previous or {}).get("security_events", {})
+    last_failed = parse_telemetry_time(
+        security.get("ssh_last_failed_at")
+    )
+    previous_failed = parse_telemetry_time(
+        old_security.get("ssh_last_failed_at")
+    )
+    recorded_time = parse_telemetry_time(recorded_at)
+    if (
+        last_failed is not None
+        and (previous_failed is None or last_failed > previous_failed)
+        and recorded_time is not None
+        and last_failed <= recorded_time + timedelta(minutes=5)
+    ):
+        connection.execute(
+            """
+            INSERT INTO client_telemetry_events (
+                client_id, recorded_at, event_type, metric, value
+            ) VALUES (?, ?, 'ssh_failure', 'ssh', ?)
+            """,
+            (
+                client_id,
+                last_failed.isoformat(),
+                security.get("ssh_failed_24h"),
+            ),
+        )
+
+
 @app.route("/api/telemetry", methods=["POST"])
 @client_auth_required
 def ingest_telemetry():
@@ -2184,11 +3865,12 @@ def ingest_telemetry():
         "memory_available_bytes",
     }
     network_fields = {"network_rx_bytes", "network_tx_bytes"}
+    optional_fields = network_fields | {"system"}
 
     if (
         not isinstance(data, dict)
         or not required_fields <= set(data)
-        or not set(data) <= required_fields | network_fields
+        or not set(data) <= required_fields | optional_fields
         or len(set(data) & network_fields) == 1
     ):
         return jsonify({
@@ -2232,6 +3914,7 @@ def ingest_telemetry():
             "network_rx_bytes" in data
             and not (valid_counter(network_rx) and valid_counter(network_tx))
         )
+        or ("system" in data and not validate_system_snapshot(data["system"]))
     ):
         return jsonify({
             "status": "error",
@@ -2246,25 +3929,89 @@ def ingest_telemetry():
 
     connection = get_connection()
     try:
+        if "system" in data:
+            previous_row = connection.execute(
+                """
+                SELECT recorded_at, payload_json
+                FROM client_system_status
+                WHERE client_id = ?
+                """,
+                (client["id"],),
+            ).fetchone()
+            previous = None
+            elapsed = 0
+            if previous_row is not None:
+                previous = json.loads(previous_row["payload_json"])
+                previous_time = parse_telemetry_time(
+                    previous_row["recorded_at"]
+                )
+                current_time = parse_telemetry_time(recorded_at)
+                if previous_time is not None and current_time is not None:
+                    elapsed = (
+                        current_time - previous_time
+                    ).total_seconds()
+
+            record_telemetry_system_events(
+                connection,
+                client["id"],
+                recorded_at,
+                previous,
+                data["system"],
+            )
+            system = add_system_interface_rates(
+                data["system"], previous, elapsed
+            )
+            connection.execute(
+                """
+                INSERT INTO client_system_status (
+                    client_id, recorded_at, payload_json
+                ) VALUES (?, ?, ?)
+                ON CONFLICT(client_id) DO UPDATE SET
+                    recorded_at = excluded.recorded_at,
+                    payload_json = excluded.payload_json
+                """,
+                (
+                    client["id"],
+                    recorded_at,
+                    json.dumps(system, allow_nan=False),
+                ),
+            )
+
         connection.execute(
             """
             INSERT INTO client_telemetry (
                 client_id, recorded_at, cpu_percent, memory_percent,
                 memory_total_bytes, memory_available_bytes,
-                network_rx_bytes, network_tx_bytes
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                network_rx_bytes, network_tx_bytes, disk_percent
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 client["id"], recorded_at, float(cpu), float(memory),
                 memory_total, memory_available, network_rx, network_tx,
+                (
+                    round(
+                        100 * data["system"]["disk"]["used_bytes"]
+                        / data["system"]["disk"]["total_bytes"],
+                        2,
+                    )
+                    if (
+                        data.get("system")
+                        and data["system"].get("disk")
+                    )
+                    else None
+                ),
             ),
         )
         connection.execute(
             "DELETE FROM client_telemetry WHERE recorded_at < ?",
             (cutoff,),
         )
+        connection.execute(
+            "DELETE FROM client_telemetry_events WHERE recorded_at < ?",
+            (cutoff,),
+        )
         connection.commit()
-    except sqlite3.Error:
+    except (sqlite3.Error, json.JSONDecodeError):
         connection.rollback()
         logger.exception(
             "Failed to save telemetry from client %s", client["id"]
@@ -2313,32 +4060,7 @@ def client_telemetry(client_id):
         if client is None:
             return jsonify({"error": "client_not_found"}), 404
 
-        cutoff = (
-            datetime.now(timezone.utc) - timedelta(hours=hours)
-        ).isoformat()
-
-        rows = connection.execute(
-            """
-            SELECT recorded_at, cpu_percent, memory_percent,
-                   memory_total_bytes, memory_available_bytes,
-                   network_rx_bytes, network_tx_bytes
-            FROM client_telemetry
-            WHERE client_id = ? AND recorded_at >= ?
-            ORDER BY recorded_at ASC
-            """,
-            (client_id, cutoff),
-        ).fetchall()
-        rows = add_network_rates(rows)
-
-        # Keep the complete history in storage, but bound dashboard responses.
-        # Evenly spaced indices preserve the oldest and newest samples.
-        if len(rows) > TELEMETRY_MAX_RESPONSE_POINTS:
-            last_index = len(rows) - 1
-            denominator = TELEMETRY_MAX_RESPONSE_POINTS - 1
-            rows = [
-                rows[(index * last_index + denominator // 2) // denominator]
-                for index in range(TELEMETRY_MAX_RESPONSE_POINTS)
-            ]
+        rows = telemetry_history_rows(connection, client_id, hours)
 
         return jsonify({
             "client_id": client_id,
@@ -2351,6 +4073,405 @@ def client_telemetry(client_id):
             "Failed to load telemetry for client %s", client_id
         )
         return jsonify({"error": "telemetry_query_failed"}), 500
+    finally:
+        connection.close()
+
+
+@app.route("/api/telemetry/dashboard-settings", methods=["GET", "PUT"])
+@login_required
+@role_required(
+    ROLE_ADMINISTRATOR,
+    ROLE_OPERATOR,
+    ROLE_VIEWER,
+    permission="clients.view",
+)
+@csrf_required
+def telemetry_dashboard_settings():
+    connection = get_connection()
+    user_id = current_user_id()
+    try:
+        if request.method == "GET":
+            row = connection.execute(
+                """
+                SELECT settings_json
+                FROM user_dashboard_settings
+                WHERE user_id = ?
+                """,
+                (user_id,),
+            ).fetchone()
+            if row is None:
+                return jsonify(default_telemetry_dashboard_settings())
+            settings = json.loads(row["settings_json"])
+            migrated = migrate_telemetry_dashboard_settings(settings)
+            if migrated != settings and validate_telemetry_dashboard_settings(
+                migrated
+            ):
+                settings = migrated
+                connection.execute(
+                    """
+                    UPDATE user_dashboard_settings
+                    SET settings_json = ?, updated_at = ?
+                    WHERE user_id = ?
+                    """,
+                    (
+                        json.dumps(
+                            settings, separators=(",", ":"), allow_nan=False
+                        ),
+                        datetime.now(timezone.utc).isoformat(),
+                        user_id,
+                    ),
+                )
+                connection.commit()
+            if not validate_telemetry_dashboard_settings(settings):
+                logger.error(
+                    "Invalid telemetry dashboard settings for user %s",
+                    user_id,
+                )
+                return jsonify({"error": "dashboard_settings_invalid"}), 500
+            return jsonify(settings)
+
+        settings = request.get_json(silent=True)
+        if not validate_telemetry_dashboard_settings(settings):
+            return jsonify({"error": "invalid_dashboard_settings"}), 400
+        connection.execute(
+            """
+            INSERT INTO user_dashboard_settings (
+                user_id, settings_json, updated_at
+            ) VALUES (?, ?, ?)
+            ON CONFLICT(user_id) DO UPDATE SET
+                settings_json = excluded.settings_json,
+                updated_at = excluded.updated_at
+            """,
+            (
+                user_id,
+                json.dumps(settings, separators=(",", ":"), allow_nan=False),
+                datetime.now(timezone.utc).isoformat(),
+            ),
+        )
+        connection.commit()
+        return jsonify({"status": "saved"})
+    except (sqlite3.Error, json.JSONDecodeError):
+        connection.rollback()
+        logger.exception(
+            "Unable to load or save telemetry dashboard settings for user %s",
+            user_id,
+        )
+        return jsonify({"error": "dashboard_settings_failed"}), 500
+    finally:
+        connection.close()
+
+
+def telemetry_history_rows(connection, client_id, hours, downsample=True):
+    cutoff = (
+        datetime.now(timezone.utc) - timedelta(hours=hours)
+    ).isoformat()
+    rows = connection.execute(
+        """
+        SELECT recorded_at, cpu_percent, memory_percent,
+               memory_total_bytes, memory_available_bytes,
+               network_rx_bytes, network_tx_bytes, disk_percent
+        FROM client_telemetry
+        WHERE client_id = ? AND recorded_at >= ?
+        ORDER BY recorded_at ASC
+        """,
+        (client_id, cutoff),
+    ).fetchall()
+    rows = add_network_rates(rows)
+    if downsample and len(rows) > TELEMETRY_MAX_RESPONSE_POINTS:
+        last_index = len(rows) - 1
+        denominator = TELEMETRY_MAX_RESPONSE_POINTS - 1
+        rows = [
+            rows[(index * last_index + denominator // 2) // denominator]
+            for index in range(TELEMETRY_MAX_RESPONSE_POINTS)
+        ]
+    return rows
+
+
+def telemetry_events_from_rows(rows, thresholds, now=None):
+    now = now or datetime.now(timezone.utc)
+    events = []
+    active = {"cpu": False, "memory": False, "disk": False}
+    previous_time = None
+    metric_keys = (
+        ("cpu", "cpu_percent"),
+        ("memory", "memory_percent"),
+        ("disk", "disk_percent"),
+    )
+    for row in rows:
+        recorded = parse_telemetry_time(row["recorded_at"])
+        if recorded is None:
+            continue
+        if previous_time is not None:
+            gap = (recorded - previous_time).total_seconds()
+            if gap > TELEMETRY_STALE_SECONDS:
+                events.append({
+                    "timestamp": (
+                        previous_time
+                        + timedelta(seconds=TELEMETRY_STALE_SECONDS)
+                    ).isoformat(),
+                    "kind": "telemetry_lost",
+                    "metric": None,
+                    "value": None,
+                    "threshold": None,
+                })
+                events.append({
+                    "timestamp": recorded.isoformat(),
+                    "kind": "telemetry_restored",
+                    "metric": None,
+                    "value": None,
+                    "threshold": None,
+                })
+        for metric, key in metric_keys:
+            value = row[key]
+            exceeded = value is not None and value >= thresholds[metric]
+            if exceeded and not active[metric]:
+                events.append({
+                    "timestamp": recorded.isoformat(),
+                    "kind": "threshold_exceeded",
+                    "metric": metric,
+                    "value": value,
+                    "threshold": thresholds[metric],
+                })
+            elif not exceeded and active[metric]:
+                events.append({
+                    "timestamp": recorded.isoformat(),
+                    "kind": "threshold_recovered",
+                    "metric": metric,
+                    "value": value,
+                    "threshold": thresholds[metric],
+                })
+            active[metric] = exceeded
+        previous_time = recorded
+
+    if previous_time is not None:
+        if (now - previous_time).total_seconds() > TELEMETRY_STALE_SECONDS:
+            events.append({
+                "timestamp": (
+                    previous_time
+                    + timedelta(seconds=TELEMETRY_STALE_SECONDS)
+                ).isoformat(),
+                "kind": "telemetry_lost",
+                "metric": None,
+                "value": None,
+                "threshold": None,
+            })
+    return sorted(events, key=lambda event: event["timestamp"], reverse=True)[:500]
+
+
+def parse_telemetry_hours():
+    try:
+        hours = int(request.args.get("hours", "24"))
+    except (TypeError, ValueError):
+        return None
+    return hours if 1 <= hours <= TELEMETRY_MAX_HISTORY_HOURS else None
+
+
+def csv_response(filename, fieldnames, rows):
+    output = io.StringIO(newline="")
+    writer = csv.DictWriter(output, fieldnames=fieldnames, extrasaction="ignore")
+    writer.writeheader()
+    writer.writerows(rows)
+    return Response(
+        output.getvalue(),
+        content_type="text/csv; charset=utf-8",
+        headers={
+            "Content-Disposition": f'attachment; filename="{filename}"',
+            "Cache-Control": "no-store",
+        },
+    )
+
+
+@app.route(
+    "/api/clients/<int:client_id>/telemetry/events",
+    methods=["GET"],
+)
+@login_required
+@role_required(
+    ROLE_ADMINISTRATOR,
+    ROLE_OPERATOR,
+    ROLE_VIEWER,
+    permission="clients.view",
+)
+def client_telemetry_events(client_id):
+    hours = parse_telemetry_hours()
+    if hours is None:
+        return jsonify({"error": "invalid_hours"}), 400
+    connection = get_connection()
+    try:
+        client = connection.execute(
+            "SELECT id, hostname FROM clients WHERE id = ? AND enabled = 1",
+            (client_id,),
+        ).fetchone()
+        if client is None:
+            return jsonify({"error": "client_not_found"}), 404
+        settings_row = connection.execute(
+            """
+            SELECT settings_json FROM user_dashboard_settings WHERE user_id = ?
+            """,
+            (current_user_id(),),
+        ).fetchone()
+        settings = (
+            json.loads(settings_row["settings_json"])
+            if settings_row else default_telemetry_dashboard_settings()
+        )
+        settings = migrate_telemetry_dashboard_settings(settings)
+        if not validate_telemetry_dashboard_settings(settings):
+            return jsonify({"error": "dashboard_settings_invalid"}), 500
+        rows = telemetry_history_rows(
+            connection, client_id, hours, downsample=False
+        )
+        events = telemetry_events_from_rows(
+            rows, settings["thresholds"]
+        )
+        cutoff = datetime.now(timezone.utc) - timedelta(hours=hours)
+        persisted_rows = connection.execute(
+            """
+            SELECT recorded_at, event_type, metric, value
+            FROM client_telemetry_events
+            WHERE client_id = ? AND recorded_at >= ?
+            ORDER BY recorded_at DESC
+            LIMIT 500
+            """,
+            (client_id, cutoff.isoformat()),
+        ).fetchall()
+        events.extend({
+            "timestamp": row["recorded_at"],
+            "kind": row["event_type"],
+            "metric": row["metric"],
+            "value": row["value"],
+            "threshold": None,
+        } for row in persisted_rows)
+        system_row = connection.execute(
+            """
+            SELECT recorded_at, payload_json
+            FROM client_system_status
+            WHERE client_id = ?
+            """,
+            (client_id,),
+        ).fetchone()
+        if system_row is not None:
+            system_time = parse_telemetry_time(system_row["recorded_at"])
+            system = json.loads(system_row["payload_json"])
+            security = system.get("security_events", {})
+            failed_at = parse_telemetry_time(
+                security.get("ssh_last_failed_at")
+            )
+            if failed_at is not None and failed_at >= cutoff:
+                if not any(
+                    event["kind"] == "ssh_failure"
+                    and event["metric"] == "ssh"
+                    for event in events
+                ):
+                    events.append({
+                        "timestamp": failed_at.isoformat(),
+                        "kind": "ssh_failure",
+                        "metric": "ssh",
+                        "value": security.get("ssh_failed_24h"),
+                        "threshold": None,
+                    })
+            services = system.get("services", {}).get("items", [])
+            if system_time is not None and system_time >= cutoff:
+                for service in services:
+                    if service.get("state") == "failed":
+                        name = service.get("name", "service")
+                        if not any(
+                            event["kind"] == "service_failed"
+                            and event["metric"] == name
+                            for event in events
+                        ):
+                            events.append({
+                                "timestamp": system_time.isoformat(),
+                                "kind": "service_failed",
+                                "metric": name,
+                                "value": None,
+                                "threshold": None,
+                            })
+        events = sorted(
+            events,
+            key=lambda event: event["timestamp"],
+            reverse=True,
+        )[:500]
+        export_format = request.args.get("format", "json").lower()
+        if export_format == "csv":
+            return csv_response(
+                f"telemetry-events-client-{client_id}.csv",
+                ("timestamp", "kind", "metric", "value", "threshold"),
+                events,
+            )
+        if export_format != "json":
+            return jsonify({"error": "invalid_format"}), 400
+        return jsonify({
+            "client_id": client_id,
+            "hostname": client["hostname"],
+            "hours": hours,
+            "events": events,
+        })
+    except (sqlite3.Error, json.JSONDecodeError):
+        logger.exception(
+            "Failed to load telemetry events for client %s", client_id
+        )
+        return jsonify({"error": "telemetry_events_query_failed"}), 500
+    finally:
+        connection.close()
+
+
+@app.route(
+    "/api/clients/<int:client_id>/telemetry/export",
+    methods=["GET"],
+)
+@login_required
+@role_required(
+    ROLE_ADMINISTRATOR,
+    ROLE_OPERATOR,
+    ROLE_VIEWER,
+    permission="clients.view",
+)
+def export_client_telemetry(client_id):
+    hours = parse_telemetry_hours()
+    if hours is None:
+        return jsonify({"error": "invalid_hours"}), 400
+    export_format = request.args.get("format", "csv").lower()
+    if export_format not in ("csv", "json"):
+        return jsonify({"error": "invalid_format"}), 400
+    connection = get_connection()
+    try:
+        client = connection.execute(
+            "SELECT id, hostname FROM clients WHERE id = ? AND enabled = 1",
+            (client_id,),
+        ).fetchone()
+        if client is None:
+            return jsonify({"error": "client_not_found"}), 404
+        rows = telemetry_history_rows(
+            connection, client_id, hours, downsample=False
+        )
+        fields = (
+            "recorded_at", "cpu_percent", "memory_percent",
+            "memory_total_bytes", "memory_available_bytes", "disk_percent",
+            "network_rx_bytes_per_second", "network_tx_bytes_per_second",
+        )
+        samples = [{key: row.get(key) for key in fields} for row in rows]
+        if export_format == "csv":
+            return csv_response(
+                f"telemetry-client-{client_id}-{hours}h.csv",
+                fields,
+                samples,
+            )
+        response = jsonify({
+            "client_id": client_id,
+            "hostname": client["hostname"],
+            "hours": hours,
+            "samples": samples,
+        })
+        response.headers["Content-Disposition"] = (
+            f'attachment; filename="telemetry-client-{client_id}-{hours}h.json"'
+        )
+        response.headers["Cache-Control"] = "no-store"
+        return response
+    except sqlite3.Error:
+        logger.exception(
+            "Failed to export telemetry for client %s", client_id
+        )
+        return jsonify({"error": "telemetry_export_failed"}), 500
     finally:
         connection.close()
 
@@ -2399,6 +4520,26 @@ def telemetry_overview():
                 if recorded is not None:
                     age = max(0, int((now - recorded).total_seconds()))
 
+            system_row = connection.execute(
+                """
+                SELECT recorded_at, payload_json
+                FROM client_system_status
+                WHERE client_id = ?
+                """,
+                (client["id"],),
+            ).fetchone()
+            system_age = None
+            system = None
+            if system_row is not None:
+                system_recorded = parse_telemetry_time(
+                    system_row["recorded_at"]
+                )
+                if system_recorded is not None:
+                    system_age = max(
+                        0, int((now - system_recorded).total_seconds())
+                    )
+                system = json.loads(system_row["payload_json"])
+
             result.append({
                 "client_id": client["id"],
                 "hostname": client["hostname"],
@@ -2408,11 +4549,13 @@ def telemetry_overview():
                 "telemetry_stale": (
                     age is None or age > TELEMETRY_STALE_SECONDS
                 ),
+                "system_age_seconds": system_age,
+                "system": system,
                 "latest": latest,
             })
 
         return jsonify({"clients": result})
-    except sqlite3.Error:
+    except (sqlite3.Error, json.JSONDecodeError):
         logger.exception("Failed to load telemetry overview")
         return jsonify({"error": "telemetry_query_failed"}), 500
     finally:

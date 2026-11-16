@@ -21,6 +21,7 @@ help; do not share accounts or use a client token as a web password.
 are maintained in English; translated guides are listed in
 [`docs/README.md`](docs/README.md). Translation coverage can vary, so use the
 English source when a localized procedure is incomplete or differs.
+**Instalujesz LUMS lub nim zarządzasz?** Zacznij od [przewodnika instalacji](<Instalacja i aktualizacje.md>), następnie przeczytaj [przewodnik administracji](<Administracja i kopie zapasowe.md>). Jeśli coś pójdzie nie tak, skorzystaj z [przewodnika rozwiązywania problemów](<Rozwiązywanie problemów.md>). Dostępne są również tłumaczenia, ale ich zakres może różnić się od angielskich oryginałów technicznych. [Indeks dokumentacji](../../README.md) wymienia dostępne wersje językowe.
 
 A test run or a successfully built Docker image is **not** a production
 installation. A production deployment also needs HTTPS, a protected application
@@ -331,6 +332,19 @@ a restore test. See [LUMS_Health_Dashboard.md](LUMS_Health_Dashboard.md).
 ---
 
 ### Auditability
+### Panel zdrowia
+
+Uwierzytelniony panel zdrowia pod adresem `/health` podsumowuje stan bazy danych, status raportowania klient?w, dost?pno?? informacji o magazynie kopii zapasowych oraz telemetri? procesora i pami?ci, je?li zosta?a skonfigurowana. Jest to szybki widok operacyjny, a nie zamiennik sprawdzania log?w kontenera, odwrotnego proxy, hosta i kopii zapasowych ani testu przywracania. Zob. [panel-zdrowia-lums.md](panel-zdrowia-lums.md).
+
+---
+
+### Alerty
+
+LUMS zawiera API zarz?dzania alertami i podstawowy panel przechowywanych rekord?w alert?w. Administratorzy mog? tworzy? regu?y i zarz?dza? nimi, r?cznie wyzwala? alert oraz potwierdza?, rozwi?zywa? lub r?cznie eskalowa? aktywny alert. Warunki i progi regu? s? przechowywane jako konfiguracja; obecny serwer nie ocenia ich automatycznie na podstawie telemetrii. Integracje powiadomie? (e-mail, Slack, PagerDuty i og?lne webhooki) nie s? dost?pne przez API, a zbiorcze czyszczenie jest wy??czone, aby zachowa? histori? alert?w. Opis zaimplementowanych ogranicze? znajduje si? w [Zarz?dzanie alertami](Zarz%C4%85dzanie%20alertami.md).
+
+---
+
+### Audytowalność
 
 Administrative and security-relevant actions are recorded through the LUMS audit-log system.
 
@@ -1067,6 +1081,7 @@ Administrators with `backups.manage` can create validated `.db` or `.db.gz`
 database backups in a server-configured directory and choose a safe subfolder
 within that mounted location. See [`administration.md`](administration.md) and
 the in-app Markdown restore guide for Docker storage setup and recovery.
+Administratorzy z `backups.manage` mogą tworzyć zwalidowane kopie zapasowe bazy danych `.db` lub `.db.gz` w katalogu skonfigurowanym na serwerze i wybierać bezpieczny podfolder w tej zamontowanej lokalizacji. Zobacz [`administration.md`](<Administracja i kopie zapasowe.md>) oraz wbudowany w aplikację przewodnik przywracania w formacie Markdown dla konfiguracji przechowywania w Dockerze i odzyskiwania.
 
 User passwords are stored using Argon2 password hashing rather than plaintext or reversible encryption.
 
@@ -1427,6 +1442,7 @@ The LUMS security review has covered the following areas:
 * repository artifact hygiene
 
 The remaining documentation review is handled separately as part of the final release-readiness process.
+Przegląd dokumentacji jest częścią bieżącego utrzymania; ten przewodnik nie śledzi fazy projektu przypisanej do gałęzi ani aktualnego statusu wydania.
 
 ---
 
@@ -2039,6 +2055,26 @@ Optional CPU and memory telemetry, agent configuration, data retention, security
 
 What the authenticated health dashboard reports, how client status is classified, telemetry limits, backup-storage interpretation, and operational checks.
 
+### `telemetry.md`
+
+Opcjonalna telemetria procesora, pami?ci, dysku, sieci, hosta i operacji; konfiguracja agenta, przechowywanie danych, bezpiecze?stwo i rozwi?zywanie problem?w.
+
+### `LUMS_Health_Dashboard.md`
+
+Zakres informacji uwierzytelnionego panelu zdrowia, klasyfikacja stanu klient?w, limity telemetrii, interpretacja widoczno?ci magazynu kopii zapasowych i kontrole operacyjne.
+
+### `LUMS_Infrastructure_Topology.md`
+
+Spos?b importowania zarejestrowanych klient?w przez LUMS, zarz?dzania infrastruktur? i zale?no?ciami, ochrony edycji topologii oraz identyfikowania potencjalnych wsp?lnych punkt?w awarii.
+
+### `server/static/backup-restore.md`
+
+Ostro?ne odzyskiwanie zweryfikowanej kopii zapasowej SQLite za pomoc? Docker, w tym kontrole integralno?ci i zapasowa kopia aktywnej bazy danych.
+
+### `docs/update-tools-package.md`
+
+Zawarto?? pobieranego artefaktu narz?dzi aktualizacyjnych, spos?b publikowania go przez CI oraz kontrole wymagane przed u?yciem w ?rodowisku produkcyjnym.
+
 ### `troubleshooting.md`
 
 Diagnostic procedures for server, client, jobs, package management, authentication, database, container, and network problems.
@@ -2102,6 +2138,33 @@ The current implementation includes:
 * continuous integration
 
 The project is currently in the final documentation and release-readiness phase.
+* scentralizowane zarządzanie klientami
+* inwentarz oprogramowania
+* wykrywanie aktualizacji
+* wyszukiwanie pakietów
+* instalację i usuwanie pakietów
+* aktualizacje konkretnych pakietów
+* aktualizacje systemu
+* trwałe zadania aktualizacji
+* stan zadań na poziomie pakietów
+* wznawianie zadań
+* wykrywanie restartu
+* wykonanie uwzględniające bezczynność
+* uwierzytelnianie tokenem klienta
+* rotację tokenów
+* uwierzytelnianie administracyjne
+* kontrolę dostępu opartą na rolach
+* zarządzanie użytkownikami
+* rejestrowanie audytu
+* utwardzanie kontenera
+* transport HTTPS
+* testy automatyczne
+* ciągłą integrację
+* opcjonalną telemetrię procesora, pamięci, dysku, sieci, hosta i zdarzeń
+* topologię infrastruktury opartą na zarejestrowanych klientach i ręcznie utrzymywanym inwentarzu
+* trwałe rekordy alertów i endpointy zarządzania regułami, z ograniczeniami opisanymi w `docs/LUMS_REALTIME_ALERTING_IMPLEMENTATION.md`
+
+Ta lista jest ogólnym wykazem, a nie deklaracją kompletności funkcji ani gotowości do wydania. Opcjonalne komponenty mogą wymagać osobnej instalacji i konfiguracji, a poszczególne funkcje mają udokumentowane ograniczenia. Aby poznać zachowanie konkretnego wydania, sprawdź odpowiednią rewizję kodu źródłowego i jej testy.
 
 ---
 
@@ -2164,6 +2227,7 @@ There is currently:
 * no GitHub Release
 
 The project deliberately follows the release sequence:
+## Proces wydania
 
 ```text id="f3c4y9"
 Implementation
@@ -2184,6 +2248,7 @@ GitHub Release
 ```
 
 The first official release should only be created after the current implementation, security review, documentation, and regression testing are considered complete.
+Dostępność wydań i tagów może się zmieniać niezależnie od tej dokumentacji; aktualny stan sprawdź na stronie Releases repozytorium i na liście tagów. Wydanie należy opublikować dopiero po ukończeniu implementacji, przeglądu bezpieczeństwa, dokumentacji i testów regresji dla danej rewizji.
 
 ---
 
@@ -2203,8 +2268,7 @@ The roadmap is intentionally focused on stability and maintainability rather tha
 * publish the first GitHub Release
 
 ### Future Development
-
-Potential future work may include:
+Ten przewodnik nie śledzi fazy projektu przypisanej do konkretnej gałęzi ani harmonogramu. Potencjalne przyszłe prace, po ich wybraniu i zweryfikowaniu, mogą obejmować:
 
 * additional Linux distributions
 * additional package-manager backends

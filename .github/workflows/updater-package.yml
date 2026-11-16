@@ -1,0 +1,121 @@
+name: Updater package
+
+on:
+  workflow_run:
+    workflows:
+      - Tests
+    types:
+      - completed
+    branches:
+      - main
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: Existing version tag to build, e.g. v1.0.0
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  package-after-tests:
+    if: >-
+      github.event_name == 'workflow_run' &&
+      github.event.workflow_run.event == 'push' &&
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.head_branch == 'main'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out tested revision
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+          persist-credentials: false
+
+      - name: Build updater archive
+        run: |
+          commit="$(git rev-parse HEAD)"
+          bash scripts/package-update-tools.sh "${commit:0:12}" "$commit"
+
+      - name: Upload downloadable build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: lums-update-tools-${{ github.event.workflow_run.head_sha }}
+          path: dist/*
+          if-no-files-found: error
+          retention-days: 90
+
+  release-build:
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Validate requested tag
+        env:
+          RELEASE_TAG: ${{ inputs.release_tag }}
+        run: |
+          if [[ ! "$RELEASE_TAG" =~ ^v[A-Za-z0-9][A-Za-z0-9._-]{0,98}$ ]]; then
+            echo "Invalid release tag." >&2
+            exit 2
+          fi
+
+      - name: Check out tagged revision
+        uses: actions/checkout@v4
+        with:
+          ref: refs/tags/${{ inputs.release_tag }}
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+          cache-dependency-path: requirements-dev.txt
+
+      - name: Install test dependencies
+        run: python -m pip install -r requirements-dev.txt
+
+      - name: Run tests before release
+        run: python -m pytest -q
+
+      - name: Build release archives
+        env:
+          RELEASE_TAG: ${{ inputs.release_tag }}
+        run: |
+          commit="$(git rev-parse HEAD)"
+          bash scripts/package-release-source.sh "$RELEASE_TAG"
+          bash scripts/package-update-tools.sh "$RELEASE_TAG" "$commit"
+
+      - name: Upload build outputs
+        uses: actions/upload-artifact@v4
+        with:
+          name: lums-release-${{ inputs.release_tag }}
+          path: dist/*
+          if-no-files-found: error
+          retention-days: 7
+
+  create-draft-release:
+    needs: release-build
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download build outputs
+        uses: actions/download-artifact@v4
+        with:
+          name: lums-release-${{ inputs.release_tag }}
+          path: dist
+
+      - name: Create draft release with build outputs
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ inputs.release_tag }}
+        run: |
+          gh release create "$RELEASE_TAG" dist/* \
+            --verify-tag \
+            --draft \
+            --title "$RELEASE_TAG" \
+            --notes "LUMS release $RELEASE_TAG. See the repository documentation."

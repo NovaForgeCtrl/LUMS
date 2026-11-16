@@ -317,6 +317,37 @@ Granskning #18 förblir öppen tills hela dokumentationssetet har granskats och 
 # Säkerhetsgranskning #01
 
 ## SQLite främmande nycklar
+Varje granskningsområde granskas mot den faktiska implementeringen, följt av automatiserade tester, isolerad verifiering eller produktionsverifiering där det är tillämpligt.
+
+Aktuella granskningsområden:
+
+| Granskning | Område                                   | Status                    |
+| ---------- | ---------------------------------------- | ------------------------- |
+| #01        | SQLite Foreign Keys                      | PASS                      |
+| #02        | SQLite Runtime Configuration             | PASS                      |
+| #03        | Update Timeout Handling                  | PASS                      |
+| #04        | Login Rate Limiting                      | PASS                      |
+| #05        | API Input Validation                     | PASS                      |
+| #06        | Session Revocation                       | PASS                      |
+| #07        | Client Token Rotation                    | PASS                      |
+| #08        | IP Address Handling / Offline Networks   | PASS                      |
+| #09        | Job Recovery / Checkpointing             | PASS                      |
+| #10        | APT Robustness                           | PASS                      |
+| #11        | Arch Reboot Detection                    | PASS                      |
+| #12        | Unit Tests / API Result Validation       | PASS                      |
+| #13        | Simulation Tests                         | PASS                      |
+| #14        | Continuous Integration                   | PASS                      |
+| #15        | Application / Audit Logging              | PASS                      |
+| #16        | Versioning / Releases                    | Kontrollera aktuella utgåvor och taggar i repositoryt |
+| #17        | Role-Based Access Control                | PASS                      |
+
+Den här granskningen behandlar versionshantering och utgåvor separat från de tekniska säkerhetskontrollerna. Tillgängligheten för utgåvor och Git-taggar kan ändras oberoende av den här dokumentationen. Kontrollera aktuell status på repositoryts [utgivningssida](https://github.com/NovaForgeCtrl/LUMS/releases) och bland [taggarna](https://github.com/NovaForgeCtrl/LUMS/tags).
+
+Dokumentationens överensstämmelse med implementationen är ett löpande underhållsarbete, inte en separat numrerad säkerhetskontroll. Indexet över översatta guider finns i [`docs/README.md`](../../README.md).
+
+# Säkerhetsgranskning #01
+
+## SQLite-främmande nycklar
 
 SQLite foreign-key enforcement is enabled for application database connections.
 
@@ -339,13 +370,14 @@ Client state is handled conservatively.
 
 Where appropriate, clients are disabled rather than removed in a way that would destroy historical operational information.
 
-**Status: PASS**
+**Status: Godkänd**
 
 ---
 
 # Säkerhetsgranskning #02
 
 ## SQLite Runtime Configuration
+## SQLite-körningskonfiguration
 
 The production SQLite database was reviewed for its runtime configuration.
 
@@ -369,7 +401,7 @@ The application-level foreign-key setting ensures referential integrity for each
 
 The audit included production verification of the active SQLite configuration.
 
-**Status: PASS**
+**Status: Godkänd**
 
 ---
 
@@ -418,7 +450,7 @@ The current documented LUMS Agent version is:
 
 `1.7.0`
 
-**Status: PASS**
+**Status: Godkänd**
 
 ---
 
@@ -457,7 +489,7 @@ The audit covered:
 
 The rate limiter therefore provides a server-side control against repeated authentication attempts rather than relying on client-side behavior.
 
-**Status: PASS**
+**Status: Godkänd**
 
 ---
 
@@ -489,6 +521,7 @@ The following audit areas are documented in the subsequent sections:
 * #17 Rollbaserad Åtkomstkontroll
 
 Audit #18 — Documentation Review — remains open until the complete documentation set has been reviewed and synchronized with the current implementation.
+Dokumentationens överensstämmelse med implementationen är ett löpande underhållsarbete, inte en separat numrerad säkerhetskontroll. Indexet över översatta guider finns i [`docs/README.md`](../../README.md).
 
 # Säkerhetsgranskning #05
 
@@ -534,7 +567,7 @@ The audit included negative input testing and SQL-injection-oriented test cases.
 
 The validation controls were also verified through the automated test suite.
 
-**Status: PASS**
+**Status: Godkänd**
 
 ---
 
@@ -569,7 +602,7 @@ The audit verified that:
 * a previously authenticated session cannot continue using protected functionality after revocation
 * role information is evaluated server-side
 
-**Status: PASS**
+**Status: Godkänd**
 
 ---
 
@@ -619,7 +652,7 @@ Client token rotation is restricted to administratörs.
 
 Operators and visares cannot rotate client tokens.
 
-**Status: PASS**
+**Status: Godkänd**
 
 ---
 
@@ -660,7 +693,7 @@ This is particularly important for laboratory environments and infrastructure wh
 
 The audit verified client authentication without relying on a fixed source IP address.
 
-**Status: PASS**
+**Status: Godkänd**
 
 ---
 
@@ -689,6 +722,7 @@ The next section covers:
 # Säkerhetsgranskning #09
 
 ## Job Recovery and Checkpointing
+## Jobbåterställning och kontrollpunkter
 
 LUMS update jobs are designed to recover safely from interrupted execution.
 
@@ -719,7 +753,7 @@ Recovery was tested with jobs containing multiple package operations and with pr
 
 The audit confirmed that completed work is preserved and remaining work can continue without unnecessarily repeating successful operations.
 
-**Status: PASS**
+**Status: Godkänd**
 
 ---
 
@@ -751,7 +785,7 @@ The corresponding hardening was committed as:
 
 The objective is to ensure that LUMS does not incorrectly report package-management state based solely on incomplete or ambiguous command output.
 
-**Status: PASS**
+**Status: Godkänd**
 
 ---
 
@@ -777,7 +811,7 @@ The audit verified Arch Linux reboot detection using the actual package-manageme
 
 The implementation was tested against reboot-required conditions and normal completion conditions.
 
-**Status: PASS**
+**Status: Godkänd**
 
 ---
 
@@ -805,7 +839,7 @@ result of the current run rather than a fixed count in this document.
 
 The relevant security controls were additionally verified through focused test runs during the audit.
 
-**Status: PASS**
+**Status: Godkänd**
 
 ---
 
@@ -862,7 +896,7 @@ The simulation mechanism was used during the security audit to verify job creati
 
 Simulation mode is a testing mechanism and does not replace the authorization controls of normal update operations.
 
-**Status: PASS**
+**Status: Godkänd**
 
 ---
 
@@ -895,7 +929,7 @@ The final verified test suite completed successfully.
 The test count changes as the project evolves. CI provides an automated
 regression barrier for security-relevant application changes.
 
-**Status: PASS**
+**Status: Godkänd**
 
 ---
 
@@ -937,7 +971,7 @@ The audit logging implementation was reviewed for:
 
 The logging system is intended to support both operational troubleshooting and security investigation.
 
-**Status: PASS**
+**Status: Godkänd**
 
 ---
 
@@ -956,9 +990,9 @@ The current repository state therefore intentionally has:
 * no GitHub Release
 
 The current component versions include:
+## Versionshantering och utgåvor
 
-* LUMS Agent: `1.7.0`
-* LUMS Watcher: `1.2.1`
+Versionshantering och utgåvor ingår i säkerhetsgranskningen eftersom operatörer måste kunna identifiera exakt vilken kod och vilka artefakter de distribuerar. Tillgängligheten för utgåvor och komponentversioner ändras oberoende av den här guiden. Kontrollera repositoryts [aktuella taggar](https://github.com/NovaForgeCtrl/LUMS/tags) och [utgivningssida](https://github.com/NovaForgeCtrl/LUMS/releases), och granska versionsmetadata i den exakta källrevision som ska distribueras. Behandla inte det här dokumentet som en aktuell katalog över utgåvor.
 
 There is currently no single formal version number representing the complete LUMS application.
 
@@ -979,8 +1013,21 @@ The planned release process is:
 No official release is created solely because the security audit reaches a particular audit number.
 
 Release creation will take place only after the remaining implementation and documentation work has been completed.
+De komponentversioner som dokumenteras här är LUMS Agent `1.7.0` och LUMS Watcher `1.2.1`.
 
-**Status: REVIEWED — OPEN BY DESIGN**
+Den planerade utgivningsprocessen är:
+
+1. Slutför implementeringsarbetet.
+2. Slutför säkerhetsgranskningen.
+3. Granska och synkronisera dokumentationen.
+4. Slutför hela den automatiserade testsviten.
+5. Verifiera CI.
+6. Fastställ utgåvans version.
+7. Skapa motsvarande Git-tagg.
+8. Publicera GitHub-utgåvan.
+9. Bevara utgåvan som dokumenterad baslinje.
+
+En officiell utgåva skapas inte enbart för att säkerhetsgranskningen når ett visst granskningsnummer.
 
 ---
 
@@ -1006,6 +1053,24 @@ The following security audit areas are complete:
 | #14   | Continuous Integration                 | PASS                      |
 | #15   | Application / Audit Logging            | PASS                      |
 | #16   | Versioning / Releases                  | REVIEWED — OPEN BY DESIGN |
+| Granskning | Område                                   | Status                    |
+| ---------- | ---------------------------------------- | ------------------------- |
+| #01        | SQLite Foreign Keys                      | PASS                      |
+| #02        | SQLite Runtime Configuration             | PASS                      |
+| #03        | Update Timeout / Process Handling        | PASS                      |
+| #04        | Login Rate Limiting                      | PASS                      |
+| #05        | API Input Validation                     | PASS                      |
+| #06        | Session Revocation                       | PASS                      |
+| #07        | Client Token Rotation                    | PASS                      |
+| #08        | IP Address Handling / Offline Networks   | PASS                      |
+| #09        | Job Recovery / Checkpointing             | PASS                      |
+| #10        | APT Robustness                           | PASS                      |
+| #11        | Arch Reboot Detection                    | PASS                      |
+| #12        | Unit Tests / API Result Validation       | PASS                      |
+| #13        | Simulation Tests                         | PASS                      |
+| #14        | Continuous Integration                   | PASS                      |
+| #15        | Application / Audit Logging              | PASS                      |
+| #16        | Versioning / Releases                    | Kontrollera aktuella utgåvor och taggar i repositoryt |
 
 The remaining numbered technical audit area is:
 
@@ -1014,6 +1079,7 @@ The remaining numbered technical audit area is:
 The documentation review is tracked separately as:
 
 * #18 Documentation Review — IN PROGRESS
+Dokumentationens överensstämmelse med implementationen är ett löpande underhållsarbete, inte en separat numrerad säkerhetskontroll. Indexet över översatta guider finns i [`docs/README.md`](../../README.md).
 
 # Säkerhetsgranskning #17
 
@@ -1209,9 +1275,7 @@ The interface therefore does not provide the authorization mechanism by itself.
 
 The server remains the authoritative security boundary.
 
-**Status: PASS**
-
-# Säkerhetsgranskning #18
+**Status: Godkänd**
 
 ## Documentation Review
 
@@ -1277,7 +1341,6 @@ Viewer users do not have access to:
 
 The documentation review also removes or replaces outdated references to earlier test counts, migration states, deployment configurations, and development-only behavior.
 
-**Status: IN PROGRESS**
 
 ---
 
@@ -1420,6 +1483,7 @@ This provides a reproducible baseline for the production image while keeping the
 ---
 
 ## Filesystem and Runtime Permissions
+## Filsystems- och körningsbehörigheter
 
 The production application runs as the dedicated `lums` user rather than root.
 
@@ -1498,6 +1562,59 @@ No security audit result should be interpreted as a guarantee that LUMS is free 
 Security is an ongoing process.
 
 Changes to the application, Agent, dependencies, container configuration, network exposure, authentication model, or deployment architecture should trigger another security review of the affected controls.
+* sessionssäkerhet
+* CSRF-skydd
+* inloggningshastighetsbegränsning
+* klienttokensäkerhet
+* API-validering
+* SQL-injektionsmotstånd
+* SQLite-integritet
+* uppdateringsexekvering
+* timeout-hantering
+* jobbåterställning
+* pakethanterarens robusthet
+* resultatvalidering
+* simulering
+* kontinuerlig integration
+* granskningsloggning
+* containerhärdning
+* nätverksexponering
+* transportskydd
+* hemlighetshantering
+* filsystemsbehörigheter
+* beroende- och byggsäkerhet
+
+De numrerade granskningsresultaten är:
+
+| Granskning | Område                                   | Status                    |
+| ---------- | ---------------------------------------- | ------------------------- |
+| #01        | SQLite Foreign Keys                      | PASS                      |
+| #02        | SQLite Runtime Configuration             | PASS                      |
+| #03        | Update Timeout / Process Handling        | PASS                      |
+| #04        | Login Rate Limiting                      | PASS                      |
+| #05        | API Input Validation                     | PASS                      |
+| #06        | Session Revocation                       | PASS                      |
+| #07        | Client Token Rotation                    | PASS                      |
+| #08        | IP Address Handling / Offline Networks   | PASS                      |
+| #09        | Job Recovery / Checkpointing             | PASS                      |
+| #10        | APT Robustness                           | PASS                      |
+| #11        | Arch Reboot Detection                    | PASS                      |
+| #12        | Unit Tests / API Result Validation       | PASS                      |
+| #13        | Simulation Tests                         | PASS                      |
+| #14        | Continuous Integration                   | PASS                      |
+| #15        | Application / Audit Logging              | PASS                      |
+| #16        | Versioning / Releases                    | Kontrollera aktuella utgåvor och taggar i repositoryt |
+| #17        | Role-Based Access Control                | PASS                      |
+
+De tekniska säkerhetskontrollerna som granskades i granskningarna #01–#15 och #17 klarade de dokumenterade kontrollerna. Resultaten är ingen certifiering och ingen garanti för senare revisioner.
+
+Tillgängligheten för utgåvor och taggar kan ändras; kontrollera repositoryts aktuella [utgivningssida](https://github.com/NovaForgeCtrl/LUMS/releases) och [taggar](https://github.com/NovaForgeCtrl/LUMS/tags).
+
+Inget resultat av säkerhetsgranskningen bör tolkas som en garanti för att LUMS är fritt från sårbarheter.
+
+Säkerhet är en pågående process.
+
+Ändringar i applikationen, Agenten, beroenden, containerkonfiguration, nätverksexponering, autentiseringsmodell eller distributionsarkitektur bör utlösa ytterligare en säkerhetsgranskning av de påverkade kontrollerna.
 
 ---
 
@@ -1528,6 +1645,31 @@ The baseline includes:
 * automated security testing
 
 Future changes should preserve these properties unless a deliberate architectural change replaces them with an equivalent or stronger control.
+Den här baslinjen beskriver kontroller som konfigurerats i källkoden och distributionsvägledningen. Den bevisar inte att en viss installation tillämpar dem; verifiera de faktiska inställningarna i målmiljön.
+
+Baslinjen inkluderar:
+
+* autentisering på serversidan
+* RBAC på serversidan
+* Argon2-lösenordshashning
+* SHA-256 klienttoken-digester
+* CSRF-skydd
+* inloggningshastighetsbegränsning
+* parametriserad SQL
+* validerad API-indata
+* kontrollerad pakethanterarexekvering
+* uppdateringsjobbåterställning
+* granskningsloggning
+* härdad Docker-runtime
+* HTTPS via Nginx
+* loopback-endast applikationsportexponering
+* brandväggsbegränsningar
+* skyddade produktionshemligheter
+* fästa produktionsberoenden
+* begränsade filsystemsbehörigheter
+* automatiserad säkerhetstestning
+
+Framtida ändringar bör bevara dessa egenskaper om inte en avsiktlig arkitektonisk ändring ersätter dem med en likvärdig eller starkare kontroll.
 
 ---
 
@@ -1591,4 +1733,3 @@ The current security baseline is documented according to the verified implementa
 **LUMS — Linux Update Management without the noise.**
 
 `segfault // override`
-

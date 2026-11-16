@@ -1,8 +1,11 @@
 # Démarrage rapide de LUMS — Français
 
-Ce guide concis s’adresse aux personnes qui découvrent LUMS ou Linux. Il ne
-traduit pas intégralement tous les manuels techniques, maintenus en anglais.
-[Index des langues](../../README.md).
+Ce guide concis s’adresse aux personnes qui découvrent LUMS ou Linux. De
+nombreux documents destinés aux utilisateurs et aux administrateurs sont
+également traduits ; consultez la
+[documentation classée par langue](../../README.md) pour connaître l’ensemble
+des traductions disponibles. Les originaux anglais restent la référence et
+peuvent être plus complets ou plus à jour que les traductions.
 
 ## Qu’est-ce que LUMS ?
 

@@ -1,4 +1,25 @@
 ﻿# LUMS Installation Guide
+# LUMS Installation Guide
+
+<!-- LUMS-POSTGRES-STATUS-2026-11-15 -->
+## PostgreSQL successor: installation status
+
+**Status date: 15 November 2026**
+
+The installation and upgrade procedures in this guide describe the existing SQLite-based LUMS deployment. They are not installation instructions for the PostgreSQL successor.
+
+The PostgreSQL-based successor is currently running as an isolated candidate for implementation and operational validation. Its Compose project separates the database, provisioning, migrations, database grants, application and SOC worker.
+
+The candidate is not yet the productive LUMS installation. In particular:
+
+- Do not point the production reverse proxy at the candidate.
+- Do not stop or replace the existing productive container as part of routine candidate testing.
+- Do not reuse SQLite volume or restore commands for PostgreSQL.
+- Do not assume that a successful candidate startup proves that every production capability is ready.
+
+A production transition requires a verified backup and rollback path, validated application and worker operation, database permissions, operational recovery checks and a controlled cutover.
+
+<!-- /LUMS-POSTGRES-STATUS-2026-11-15 -->
 
 ## Linux Update Management Server
 
@@ -65,6 +86,11 @@ save the complete error and read the
 For a real installation, continue with the numbered sections and read the
 security and backup instructions first. If LUMS is already running, use the
 upgrade procedure in [`administration.md`](administration.md), not the
+[troubleshooting guide](../../../troubleshooting.md); do not delete production data.
+
+For a real installation, continue with the numbered sections and read the
+security and backup instructions first. If LUMS is already running, use the
+upgrade procedure in [`administration.md`](../../../administration.md), not the
 first-install procedure.
 
 ---
@@ -111,6 +137,10 @@ Debian / Ubuntu
 
 Arch Linux
     â””â”€â”€ pacman
+    └── APT / dpkg
+
+Arch Linux
+    └── pacman
 ```
 
 ---
@@ -146,6 +176,31 @@ The production architecture is:
                          lums-data
                               â”‚
                               â–¼
+                              │
+                              │ HTTPS :443
+                              ▼
+                       ┌──────────────┐
+                       │    Nginx     │
+                       │  TLS / Proxy │
+                       └──────┬───────┘
+                              │
+                              │ HTTP
+                              ▼
+                       127.0.0.1:5050
+                              │
+                              ▼
+                    ┌───────────────────┐
+                    │   Docker: lums    │
+                    │                   │
+                    │   Gunicorn        │
+                    │   Flask :5000     │
+                    │   SQLite          │
+                    └─────────┬─────────┘
+                              │
+                              ▼
+                         lums-data
+                              │
+                              ▼
                    /var/lib/lums/lums.db
 
 
@@ -159,6 +214,15 @@ The production architecture is:
               â”œâ”€â”€ Package Search
               â”œâ”€â”€ Job Retrieval
               â””â”€â”€ Job Result
+              │
+              │ HTTPS + Bearer Token
+              ▼
+         LUMS API
+              │
+              ├── Report
+              ├── Package Search
+              ├── Job Retrieval
+              └── Job Result
 ```
 
 The LUMS application is **not intended to be directly exposed to the network**.
@@ -167,6 +231,7 @@ The application container is bound to:
 
 ```text
 127.0.0.1:5050 â†’ container:5000
+127.0.0.1:5050 → container:5000
 ```
 
 Nginx is the external HTTPS entry point.
@@ -220,6 +285,7 @@ Nginx provides:
 HTTPS termination
 TLS certificate handling
 HTTP â†’ HTTPS redirect
+HTTP → HTTPS redirect
 Reverse proxy
 External network entry point
 ```
@@ -238,6 +304,16 @@ Nginx
 127.0.0.1:5050
    â”‚
    â–¼
+   │
+   │ HTTPS
+   ▼
+Nginx
+   │
+   │ localhost HTTP
+   ▼
+127.0.0.1:5050
+   │
+   ▼
 LUMS
 ```
 
@@ -500,6 +576,12 @@ A typical installation uses:
     â”œâ”€â”€ Dockerfile
     â”œâ”€â”€ requirements.txt
     â””â”€â”€ requirements-dev.txt
+    ├── agent/
+    ├── server/
+    ├── tests/
+    ├── Dockerfile
+    ├── requirements.txt
+    └── requirements-dev.txt
 ```
 
 Host-side configuration is kept outside the repository:
@@ -511,6 +593,11 @@ Host-side configuration is kept outside the repository:
     â””â”€â”€ tls/
         â”œâ”€â”€ lums.crt
         â””â”€â”€ lums.key
+    ├── secrets/
+    │   └── lums_secret
+    └── tls/
+        ├── lums.crt
+        └── lums.key
 ```
 
 Persistent application data is stored in:
@@ -745,6 +832,25 @@ Administrator
     â†“
 Server validation
     â†“
+    ↓
+Host configuration
+    ↓
+Application secret
+    ↓
+TLS material
+    ↓
+Docker image
+    ↓
+Persistent volume
+    ↓
+Hardened container
+    ↓
+Nginx / HTTPS
+    ↓
+Administrator
+    ↓
+Server validation
+    ↓
 Linux clients
 ```
 
@@ -858,6 +964,9 @@ lums-data
     â†“
 /var/lib/lums
     â†“
+    ↓
+/var/lib/lums
+    ↓
 /var/lib/lums/lums.db
 ```
 
@@ -915,6 +1024,7 @@ The application port is published only to localhost:
 
 ```text
 127.0.0.1:5050 â†’ container:5000
+127.0.0.1:5050 → container:5000
 ```
 
 The external HTTPS endpoint is provided by Nginx.
@@ -1132,6 +1242,7 @@ The expected relationship is:
 ```text
 lums-data
     â†“
+    ↓
 /var/lib/lums
 ```
 
@@ -1381,6 +1492,21 @@ Migration errors must be investigated before creating users or connecting client
 
 Do not manually modify the production SQLite schema unless the project documentation explicitly requires it.
 
+The host updater currently supports repository and deployment checks only.
+It does not update the checkout, build an image, back up the production database,
+replace the container, or perform automatic rollback. Production replacement
+remains deliberately disabled until backup, migration safety, and restoration
+have been tested against the actual deployment configuration.
+
+Check whether the checkout matches `origin/main`:
+
+```bash
+bash scripts/update-lums.sh --check-repository
+```
+
+For the current deployment-validation behavior and limitations, see
+[administration.md](../../../administration.md#91-docker-image-maintenance).
+
 ---
 
 # 33. Local Application Validation
@@ -1476,6 +1602,16 @@ Nginx :443
 127.0.0.1:5050
    â”‚
    â–¼
+   │
+   │ HTTPS
+   ▼
+Nginx :443
+   │
+   │ HTTP localhost
+   ▼
+127.0.0.1:5050
+   │
+   ▼
 LUMS container :5000
 ```
 
@@ -1691,6 +1827,18 @@ The intended architecture is:
 127.0.0.1:5050
         â”‚
         â–¼
+ │
+ └── HTTP redirect
+        │
+        ▼
+443
+ │
+ └── Nginx
+        │
+        ▼
+127.0.0.1:5050
+        │
+        ▼
 Docker :5000
 ```
 
@@ -2062,6 +2210,10 @@ The configured progression is:
 6 attempts  â†’ 60 seconds
 7 attempts  â†’ 120 seconds
 8+ attempts â†’ 300 seconds
+5 attempts  → 30 seconds
+6 attempts  → 60 seconds
+7 attempts  → 120 seconds
+8+ attempts → 300 seconds
 ```
 
 Successful authentication clears the applicable failure state.
@@ -2120,6 +2272,17 @@ TLS trust
     â†“
 systemd service
     â†“
+    ↓
+LUMS Agent
+    ↓
+Client configuration
+    ↓
+Client token
+    ↓
+TLS trust
+    ↓
+systemd service
+    ↓
 Reporting timer
 ```
 
@@ -2150,6 +2313,11 @@ APT / dpkg
 
 Arch Linux
     â†“
+    ↓
+APT / dpkg
+
+Arch Linux
+    ↓
 pacman
 ```
 
@@ -2514,6 +2682,15 @@ Token B
 
 Client C
     â†“
+    ↓
+Token A
+
+Client B
+    ↓
+Token B
+
+Client C
+    ↓
 Token C
 ```
 
@@ -2536,6 +2713,13 @@ Old token invalidated
      â†“
 New token issued
      â†“
+     ↓
+Administrator rotates token
+     ↓
+Old token invalidated
+     ↓
+New token issued
+     ↓
 Client configuration updated
 ```
 
@@ -2798,6 +2982,17 @@ Bearer authentication
    â†“
 Client lookup
    â†“
+   ↓
+HTTPS
+   ↓
+Nginx
+   ↓
+LUMS API
+   ↓
+Bearer authentication
+   ↓
+Client lookup
+   ↓
 Report accepted
 ```
 
@@ -2921,6 +3116,17 @@ Update detection
   â†“
 HTTPS report
   â†“
+  ↓
+Agent service
+  ↓
+System inventory
+  ↓
+Package inventory
+  ↓
+Update detection
+  ↓
+HTTPS report
+  ↓
 LUMS database
 ```
 
@@ -2972,6 +3178,18 @@ Execution
 lums-agent-watcher.service
     â”‚
     â””â”€â”€ pending update jobs
+    │
+    ▼
+lums-agent.service
+    │
+    └── system inventory / update detection
+
+Execution
+    │
+    ▼
+lums-agent-watcher.service
+    │
+    └── pending update jobs
 ```
 
 This separation allows regular client reporting to continue independently from update execution.
@@ -3102,6 +3320,24 @@ Idle detection
     â””â”€â”€ idle state unavailable
             â”‚
             â–¼
+    │
+    ▼
+Watcher
+    │
+    ▼
+Idle detection
+    │
+    ├── idle state available
+    │       │
+    │       ▼
+    │   idle threshold
+    │       │
+    │       ▼
+    │   execute when allowed
+    │
+    └── idle state unavailable
+            │
+            ▼
         use configured
         fallback behavior
 ```
@@ -3401,6 +3637,7 @@ If telemetry is not needed, proceed directly to section 94.
 ---
 
 # 94. Create a Controlled Test Update Job
+# 86. Create a Controlled Test Update Job
 
 Do not begin installation testing with a large system update.
 
@@ -3458,6 +3695,19 @@ Package Search Result
    â†“
 LUMS API
    â†“
+   ↓
+LUMS API
+   ↓
+Package Search Request
+   ↓
+Client
+   ↓
+APT / pacman
+   ↓
+Package Search Result
+   ↓
+LUMS API
+   ↓
 Browser
 ```
 
@@ -3530,6 +3780,15 @@ RUNNING
    â†“
 Package manager
    â†“
+   ↓
+PENDING
+   ↓
+Watcher detects job
+   ↓
+RUNNING
+   ↓
+Package manager
+   ↓
 SUCCESS
 ```
 
@@ -3603,6 +3862,9 @@ PENDING
    â†“
 RUNNING
    â†“
+   ↓
+RUNNING
+   ↓
 SUCCESS
 ```
 
@@ -3645,6 +3907,15 @@ Update job created
        â†“
 Watcher executes
        â†“
+       ↓
+User selects package
+       ↓
+Server validates package
+       ↓
+Update job created
+       ↓
+Watcher executes
+       ↓
 Result reported
 ```
 
@@ -3727,6 +3998,25 @@ Package manager
    â”œâ”€â”€ APT / pacman failure
    â”‚
    â–¼
+   │
+   ├── Job creation failure
+   │
+   ▼
+LUMS database
+   │
+   ├── State / persistence problem
+   │
+   ▼
+Watcher
+   │
+   ├── Execution problem
+   │
+   ▼
+Package manager
+   │
+   ├── APT / pacman failure
+   │
+   ▼
 Operating system
 ```
 
@@ -3774,6 +4064,20 @@ Package C â†’ RUNNING
 Package A â†’ not repeated
 Package B â†’ not repeated
 Package C â†’ resumed / handled
+Package A → SUCCESS
+Package B → SUCCESS
+Package C → RUNNING
+             │
+             ▼
+          interruption
+             │
+             ▼
+          recovery
+             │
+             ▼
+Package A → not repeated
+Package B → not repeated
+Package C → resumed / handled
 ```
 
 This prevents completed package operations from unnecessarily being repeated after an interruption.
@@ -3835,6 +4139,11 @@ Reboot requirement detected
       â†“
 Result reported
       â†“
+      ↓
+Reboot requirement detected
+      ↓
+Result reported
+      ↓
 LUMS records reboot state
 ```
 
@@ -3855,6 +4164,11 @@ LUMS Agent timer
    â†“
 Agent report
    â†“
+   ↓
+LUMS Agent timer
+   ↓
+Agent report
+   ↓
 LUMS server
 ```
 
@@ -3963,6 +4277,11 @@ Searches the package inventory already reported by the client
 
 Package Management Search
     â†“
+    ↓
+Searches the package inventory already reported by the client
+
+Package Management Search
+    ↓
 Requests package information from the client's package manager
 ```
 
@@ -4106,6 +4425,29 @@ Update Result
 SQLite
    â”‚
    â–¼
+   │
+   ▼
+Nginx / HTTPS
+   │
+   ▼
+LUMS API
+   │
+   ▼
+SQLite
+   │
+   ▼
+Client Agent
+   │
+   ▼
+Package Manager
+   │
+   ▼
+Update Result
+   │
+   ▼
+SQLite
+   │
+   ▼
 Web Interface
 ```
 
@@ -4445,6 +4787,9 @@ The expected model is:
 Client A â†’ Token A
 Client B â†’ Token B
 Client C â†’ Token C
+Client A → Token A
+Client B → Token B
+Client C → Token C
 ```
 
 Do not share tokens between clients.
@@ -4496,6 +4841,9 @@ PENDING
    â†“
 RUNNING
    â†“
+   ↓
+RUNNING
+   ↓
 SUCCESS
 ```
 
@@ -4506,6 +4854,9 @@ PENDING
    â†“
 RUNNING
    â†“
+   ↓
+RUNNING
+   ↓
 FAILED
 ```
 
@@ -4576,6 +4927,15 @@ Job
                     recovery
                        â”‚
                        â–¼
+ │
+ ├── package item A → SUCCESS
+ ├── package item B → SUCCESS
+ └── package item C → interrupted
+                       │
+                       ▼
+                    recovery
+                       │
+                       ▼
                   resume safely
 ```
 
@@ -4743,6 +5103,17 @@ Nginx
 127.0.0.1:5050
  â”‚
  â–¼
+ │
+ ▼
+443
+ │
+ ▼
+Nginx
+ │
+ ▼
+127.0.0.1:5050
+ │
+ ▼
 LUMS
 ```
 
@@ -4846,6 +5217,21 @@ Start LUMS
   â†“
 Run integrity checks
   â†“
+  ↓
+Verify backup integrity
+  ↓
+Prepare clean LUMS host
+  ↓
+Restore secret/configuration
+  ↓
+Restore database
+  ↓
+Restore TLS material
+  ↓
+Start LUMS
+  ↓
+Run integrity checks
+  ↓
 Validate users/clients/jobs
 ```
 
@@ -4905,6 +5291,11 @@ Back up
    â†“
 Change
    â†“
+   ↓
+Back up
+   ↓
+Change
+   ↓
 Verify
 ```
 
@@ -5011,6 +5402,29 @@ Validate runtime
 Validate HTTPS
        â”‚
        â–¼
+       │
+       ▼
+Backup / checkpoint
+       │
+       ▼
+Build new image
+       │
+       ▼
+Validate image
+       │
+       ▼
+Stop old container
+       │
+       ▼
+Start new container
+       │
+       ▼
+Validate runtime
+       │
+       ▼
+Validate HTTPS
+       │
+       ▼
 Validate application
 ```
 
@@ -5167,6 +5581,44 @@ A correctly installed LUMS environment now consists of:
                â”‚                             â”‚
                â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”¬â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜
                               â–¼
+                    ┌──────────────────────┐
+                    │       Browser        │
+                    └──────────┬───────────┘
+                               │ HTTPS
+                               ▼
+                    ┌──────────────────────┐
+                    │        Nginx         │
+                    └──────────┬───────────┘
+                               │
+                               ▼
+                    ┌──────────────────────┐
+                    │    LUMS Container    │
+                    │                      │
+                    │ Flask / Gunicorn     │
+                    │ RBAC                 │
+                    │ CSRF                 │
+                    │ Audit Logging        │
+                    └──────────┬───────────┘
+                               │
+                               ▼
+                    ┌──────────────────────┐
+                    │       SQLite         │
+                    │     lums-data        │
+                    └──────────┬───────────┘
+                               │
+                ┌──────────────┴──────────────┐
+                │                             │
+                ▼                             ▼
+        ┌──────────────┐              ┌──────────────┐
+        │ LUMS Agent   │              │ LUMS Watcher │
+        │ 1.7.0        │              │ 1.2.1        │
+        └──────┬───────┘              └──────┬───────┘
+               │                             │
+               ▼                             ▼
+        Inventory / Report             Update Jobs
+               │                             │
+               └──────────────┬──────────────┘
+                              ▼
                        APT / pacman
 ```
 
@@ -5191,10 +5643,24 @@ Build
    â†“
 Deploy
    â†“
+   ↓
+Backup
+   ↓
+Test
+   ↓
+Build
+   ↓
+Deploy
+   ↓
 Validate
 ```
 
 Do not upgrade the production installation solely because a new Git revision exists.
+
+After the `Tests` workflow passes on `main`, a downloadable updater-tools
+archive is available from that workflow run's **Artifacts**. Published GitHub
+Releases also receive a versioned archive after the release revision passes
+the test suite. See [the package guide](../../update-tools-package.md).
 
 Review the changes first:
 
@@ -5555,6 +6021,9 @@ PENDING
    â†“
 RUNNING
    â†“
+   ↓
+RUNNING
+   ↓
 SUCCESS
 ```
 
@@ -6004,6 +6473,7 @@ docs/README.md
 The root-level technical guides are maintained in English and are the source of
 truth. Localized manuals and quick starts are listed in
 [`docs/README.md`](docs/README.md); translation coverage can vary, so use the
+[`docs/README.md`](../../README.md); translation coverage can vary, so use the
 English source when a localized procedure is incomplete or differs.
 
 The documentation must not contain:
@@ -6121,6 +6591,31 @@ Operations
   â”œâ”€â”€ Restore is understood
   â”œâ”€â”€ Troubleshooting documentation is available
   â””â”€â”€ Security baseline is maintained
+  │
+  ├── HTTPS works
+  ├── Authentication works
+  ├── RBAC works
+  ├── Database is healthy
+  ├── Container is hardened
+  └── Persistent storage is verified
+       │
+       ▼
+Client
+  │
+  ├── Agent reports
+  ├── Watcher executes
+  ├── Package manager works
+  ├── Jobs complete
+  ├── Results are validated
+  └── Recovery works
+       │
+       ▼
+Operations
+  │
+  ├── Backup exists
+  ├── Restore is understood
+  ├── Troubleshooting documentation is available
+  └── Security baseline is maintained
 ```
 
 The fundamental LUMS operational principle is:
@@ -6141,6 +6636,11 @@ Change
    â†“
 Verify
    â†“
+   ↓
+Change
+   ↓
+Verify
+   ↓
 Document
 ```
 
@@ -6152,6 +6652,7 @@ A LUMS installation should always remain reproducible, auditable and recoverable
 ## Optional CPU and memory telemetry agent
 
 For an overview of telemetry measurements, security, data retention, and troubleshooting, see [telemetry.md](telemetry.md).
+For an overview of telemetry measurements, security, data retention, and troubleshooting, see [telemetry.md](../../../telemetry.md).
 
 The telemetry agent is separate from the existing reporting Agent and Watcher.
 It sends CPU and memory measurements to the authenticated
@@ -6167,6 +6668,23 @@ Review these repository files before installing:
 - `agent/lums-telemetry.timer`
 - `tests/test_telemetry_agent.py`
 
+- `scripts/install-telemetry-agent.sh`
+- `tests/test_telemetry_agent.py`
+
+After configuring `/etc/default/lums-agent` as described below, update the
+repository checkout on the Debian client and run this from its root:
+
+```sh
+sudo bash scripts/install-telemetry-agent.sh
+```
+
+The installer verifies that `LUMS_BASE` and `LUMS_TOKEN` are present without
+printing their values. It installs or updates the collector and systemd units,
+enables the five-second timer, and runs one immediate sample to verify the
+connection. If the service fails, it prints recent telemetry-service logs.
+The token remains in the existing client configuration and is not copied to
+another file.
+
 Install the telemetry script at
 `/usr/local/lib/lums-telemetry/telemetry.py`, owned by root and not writable
 by the service account. Install the service and timer as
@@ -6176,6 +6694,18 @@ by the service account. Install the service and timer as
 The service uses `DynamicUser=yes` and runs with restricted privileges.
 It is a one-shot service scheduled by a separate timer; it does not replace
 the existing LUMS Agent or Watcher.
+
+The service uses `DynamicUser=yes`, runs with restricted privileges, and is
+added to the `systemd-journal` group for read-only access to system event
+logs. This enables the dashboard's bounded security and login summaries; raw
+log messages are not sent to the server.
+It is a one-shot service scheduled by a separate timer; it does not replace
+the existing LUMS Agent or Watcher.
+
+An online normal LUMS client does not imply that this separate telemetry timer
+is installed or enabled. The `/monitoring` page explains whether the selected
+client has sent no samples, is sending only basic metrics, or has stale
+detailed data.
 
 ### Configuration and TLS
 
@@ -6192,6 +6722,19 @@ Replace the example URL and token with the actual values for the environment.
 Protect the configuration file so only root can read it, for example with
 mode `0600`. Never commit a real token to source control or share it between
 clients.
+
+Optionally, select systemd service units to report with a comma-separated
+allowlist:
+
+```sh
+LUMS_MONITORED_SERVICES=lums-agent.service,lums-telemetry.service,ssh.service,wazuh-agent.service,suricata.service
+```
+
+If unset, the agent uses its built-in list of LUMS, Docker, and SSH services.
+Wazuh and Suricata are optional: add only service units installed on the
+client, then enable their status rows in the `/health` dashboard. This reports
+systemd state only; it does not require or store API credentials or retrieve
+security alert feeds.
 
 If a private certificate authority is required, install its certificate at
 a path readable by the service process, such as

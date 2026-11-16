@@ -317,6 +317,31 @@ Revisjon #18 forblir åpen til hele dokumentasjonssettet er gjennomgått og synk
 # Sikkerhetsrevisjon #01
 
 ## SQLite fremmednøkler
+| Revisjon | Område                                   | Status                    |
+| -------- | ---------------------------------------- | ------------------------- |
+| #01      | SQLite-fremmednøkler                      | BESTÅTT |
+| #02      | SQLite-kjøretidskonfigurasjon             | BESTÅTT |
+| #03      | Håndtering av tidsavbrudd for oppdateringer                  | BESTÅTT |
+| #04      | Hastighetsbegrensning for innlogging                      | BESTÅTT |
+| #05      | Validering av API-inndata                     | BESTÅTT |
+| #06      | Tilbakekalling av økter                       | BESTÅTT |
+| #07      | Rotasjon av klienttokener                    | BESTÅTT |
+| #08      | Håndtering av IP-adresser / frakoblede nettverk   | BESTÅTT |
+| #09      | Jobbgjenoppretting / sjekkpunkter             | BESTÅTT |
+| #10      | APT-robusthet                           | BESTÅTT |
+| #11      | Oppdagelse av omstart på Arch                    | BESTÅTT |
+| #12      | Enhetstester / validering av API-resultater       | BESTÅTT |
+| #13      | Simuleringstester                         | BESTÅTT |
+| #14      | Kontinuerlig integrasjon                   | BESTÅTT |
+| #15      | Applikasjons- og revisjonslogging              | BESTÅTT |
+| #16      | Versjonering / utgivelser             | Slå opp gjeldende utgivelser og tagger |
+| #17      | Rollebasert tilgangskontroll                | BESTÅTT |
+
+Utgivelsesinformasjon er tidsavhengig. Kontroller gjeldende GitHub-utgivelser og Git-tagger i repositoriet i stedet for å utlede status fra denne veiledningen. Sikkerhetsdokumentasjonen skal kontrolleres mot den faktiske implementasjonen og gjeldende konfigurasjon. Skill mellom implementerte kontroller, verifisert produksjonsatferd og planlagte forbedringer, og kontroller relevante tester mot revisjonen som skal distribueres.
+
+# Sikkerhetsrevisjon #01
+
+## SQLite-fremmednøkler
 
 SQLite foreign-key enforcement is enabled for application database connections.
 
@@ -339,13 +364,13 @@ Client state is handled conservatively.
 
 Where appropriate, clients are disabled rather than removed in a way that would destroy historical operational information.
 
-**Status: PASS**
+**Status: BESTÅTT**
 
 ---
 
 # Sikkerhetsrevisjon #02
 
-## SQLite Runtime Configuration
+## SQLite-kjøretidskonfigurasjon
 
 The production SQLite database was reviewed for its runtime configuration.
 
@@ -369,13 +394,13 @@ The application-level foreign-key setting ensures referential integrity for each
 
 The audit included production verification of the active SQLite configuration.
 
-**Status: PASS**
+**Status: BESTÅTT**
 
 ---
 
 # Sikkerhetsrevisjon #03
 
-## Update Timeout and Process Handling
+## Tidsavbrudd for oppdateringer og prosesshåndtering
 
 Update execution is protected against indefinitely blocking package-manager processes.
 
@@ -418,13 +443,13 @@ The current documented LUMS Agent version is:
 
 `1.7.0`
 
-**Status: PASS**
+**Status: BESTÅTT**
 
 ---
 
 # Sikkerhetsrevisjon #04
 
-## Login Rate Limiting
+## Hastighetsbegrensning for innlogging
 
 Administrative login attempts are rate limited.
 
@@ -457,7 +482,7 @@ The audit covered:
 
 The rate limiter therefore provides a server-side control against repeated authentication attempts rather than relying on client-side behavior.
 
-**Status: PASS**
+**Status: BESTÅTT**
 
 ---
 
@@ -471,6 +496,12 @@ The first four security audit areas are complete:
 | #02   | SQLite Runtime Configuration      | PASS   |
 | #03   | Update Timeout / Process Handling | PASS   |
 | #04   | Login Rate Limiting               | PASS   |
+| Revisjon | Område                            | Status |
+| -------- | --------------------------------- | ------ |
+| #01      | SQLite-fremmednøkler               | BESTÅTT |
+| #02      | SQLite-kjøretidskonfigurasjon      | BESTÅTT |
+| #03      | Tidsavbrudd / prosesshåndtering for oppdateringer | BESTÅTT |
+| #04      | Hastighetsbegrensning for innlogging               | BESTÅTT |
 
 The following audit areas are documented in the subsequent sections:
 
@@ -489,10 +520,25 @@ The following audit areas are documented in the subsequent sections:
 * #17 Rollebasert Tilgangskontroll
 
 Audit #18 — Documentation Review — remains open until the complete documentation set has been reviewed and synchronized with the current implementation.
+* #05 Validering av API-inndata
+* #06 Tilbakekalling av økter
+* #07 Rotasjon av klienttokener
+* #08 Håndtering av IP-adresser / frakoblede nettverk
+* #09 Jobbgjenoppretting / sjekkpunkter
+* #10 APT-robusthet
+* #11 Oppdagelse av omstart på Arch
+* #12 Enhetstester / validering av API-resultater
+* #13 Simuleringstester
+* #14 Kontinuerlig integrasjon
+* #15 Applikasjons- og revisjonslogging
+* #16 Versjonering / utgivelser
+* #17 Rollebasert tilgangskontroll
+
+Dokumentasjonen vedlikeholdes løpende mot faktisk implementasjon og konfigurasjon. Opplysninger om utgivelser og tagger må slås opp i repositoriet.
 
 # Sikkerhetsrevisjon #05
 
-## API Input Validation
+## Validering av API-inndata
 
 LUMS validates security-sensitive API input on the server side.
 
@@ -534,13 +580,13 @@ The audit included negative input testing and SQL-injection-oriented test cases.
 
 The validation controls were also verified through the automated test suite.
 
-**Status: PASS**
+**Status: BESTÅTT**
 
 ---
 
 # Sikkerhetsrevisjon #06
 
-## Session Revocation
+## Tilbakekalling av økter
 
 LUMS protects authenticated administrative sessions against continued use after logout.
 
@@ -569,13 +615,13 @@ The audit verified that:
 * a previously authenticated session cannot continue using protected functionality after revocation
 * role information is evaluated server-side
 
-**Status: PASS**
+**Status: BESTÅTT**
 
 ---
 
 # Sikkerhetsrevisjon #07
 
-## Client Token Rotation
+## Rotasjon av klienttokener
 
 Each managed LUMS client uses an individual authentication token.
 
@@ -619,13 +665,13 @@ Client token rotation is restricted to administrators.
 
 Operators and seers cannot rotate client tokens.
 
-**Status: PASS**
+**Status: BESTÅTT**
 
 ---
 
 # Sikkerhetsrevisjon #08
 
-## IP Address Handling and Offline Networks
+## Håndtering av IP-adresser og frakoblede nettverk
 
 LUMS does not use a client's source IP address as the sole proof of client identity.
 
@@ -660,7 +706,7 @@ This is particularly important for laboratory environments and infrastructure wh
 
 The audit verified client authentication without relying on a fixed source IP address.
 
-**Status: PASS**
+**Status: BESTÅTT**
 
 ---
 
@@ -678,17 +724,27 @@ The following security audit areas are complete:
 | #06   | Session Revocation                     | PASS   |
 | #07   | Client Token Rotation                  | PASS   |
 | #08   | IP Address Handling / Offline Networks | PASS   |
+| Revisjon | Område                                 | Status |
+| -------- | -------------------------------------- | ------ |
+| #01      | SQLite-fremmednøkler                    | BESTÅTT |
+| #02      | SQLite-kjøretidskonfigurasjon           | BESTÅTT |
+| #03      | Tidsavbrudd / prosesshåndtering for oppdateringer      | BESTÅTT |
+| #04      | Hastighetsbegrensning for innlogging                    | BESTÅTT |
+| #05      | Validering av API-inndata                   | BESTÅTT |
+| #06      | Tilbakekalling av økter                     | BESTÅTT |
+| #07      | Rotasjon av klienttokener                  | BESTÅTT |
+| #08      | Håndtering av IP-adresser / frakoblede nettverk | BESTÅTT |
 
 The next section covers:
 
-* #09 Job Recovery / Checkpointing
-* #10 APT Robustness
-* #11 Arch Reboot Detection
-* #12 Unit Tests / API Result Validation
+* #09 Jobbgjenoppretting / sjekkpunkter
+* #10 APT-robusthet
+* #11 Oppdagelse av omstart på Arch
+* #12 Enhetstester / validering av API-resultater
 
 # Sikkerhetsrevisjon #09
 
-## Job Recovery and Checkpointing
+## Jobbgjenoppretting og sjekkpunkter
 
 LUMS update jobs are designed to recover safely from interrupted execution.
 
@@ -719,13 +775,13 @@ Recovery was tested with jobs containing multiple package operations and with pr
 
 The audit confirmed that completed work is preserved and remaining work can continue without unnecessarily repeating successful operations.
 
-**Status: PASS**
+**Status: BESTÅTT**
 
 ---
 
 # Sikkerhetsrevisjon #10
 
-## APT Robustness
+## APT-robusthet
 
 Debian-based package operations are executed through the LUMS package-management layer.
 
@@ -751,13 +807,13 @@ The corresponding hardening was committed as:
 
 The objective is to ensure that LUMS does not incorrectly report package-management state based solely on incomplete or ambiguous command output.
 
-**Status: PASS**
+**Status: BESTÅTT**
 
 ---
 
 # Sikkerhetsrevisjon #11
 
-## Arch Linux Reboot Detection
+## Oppdagelse av omstart på Arch Linux
 
 Arch Linux package operations can result in a system state where a reboot is required or recommended.
 
@@ -777,13 +833,13 @@ The audit verified Arch Linux reboot detection using the actual package-manageme
 
 The implementation was tested against reboot-required conditions and normal completion conditions.
 
-**Status: PASS**
+**Status: BESTÅTT**
 
 ---
 
 # Sikkerhetsrevisjon #12
 
-## Unit Tests and API Result Validation
+## Enhetstester og validering av API-resultater
 
 Security-sensitive behavior is covered by automated tests.
 
@@ -805,7 +861,7 @@ result of the current run rather than a fixed count in this document.
 
 The relevant security controls were additionally verified through focused test runs during the audit.
 
-**Status: PASS**
+**Status: BESTÅTT**
 
 ---
 
@@ -827,17 +883,31 @@ The following security audit areas are complete:
 | #10   | APT Robustness                         | PASS   |
 | #11   | Arch Reboot Detection                  | PASS   |
 | #12   | Unit Tests / API Result Validation     | PASS   |
+| Revisjon | Område                                 | Status |
+| -------- | -------------------------------------- | ------ |
+| #01      | SQLite-fremmednøkler                    | BESTÅTT |
+| #02      | SQLite-kjøretidskonfigurasjon           | BESTÅTT |
+| #03      | Tidsavbrudd / prosesshåndtering for oppdateringer      | BESTÅTT |
+| #04      | Hastighetsbegrensning for innlogging                    | BESTÅTT |
+| #05      | Validering av API-inndata                   | BESTÅTT |
+| #06      | Tilbakekalling av økter                     | BESTÅTT |
+| #07      | Rotasjon av klienttokener                  | BESTÅTT |
+| #08      | Håndtering av IP-adresser / frakoblede nettverk | BESTÅTT |
+| #09      | Jobbgjenoppretting / sjekkpunkter           | BESTÅTT |
+| #10      | APT-robusthet                         | BESTÅTT |
+| #11      | Oppdagelse av omstart på Arch                  | BESTÅTT |
+| #12      | Enhetstester / validering av API-resultater     | BESTÅTT |
 
 The next section covers:
 
-* #13 Simulation Tests
-* #14 Continuous Integration
-* #15 Application / Audit Logging
-* #16 Versioning / Releases
+* #13 Simuleringstester
+* #14 Kontinuerlig integrasjon
+* #15 Applikasjons- og revisjonslogging
+* #16 Versjonering / utgivelser
 
 # Sikkerhetsrevisjon #13
 
-## Simulation Tests
+## Simuleringstester
 
 LUMS provides a simulation mechanism for testing update-management workflows without performing the corresponding package-management operation on the managed system.
 
@@ -862,13 +932,13 @@ The simulation mechanism was used during the security audit to verify job creati
 
 Simulation mode is a testing mechanism and does not replace the authorization controls of normal update operations.
 
-**Status: PASS**
+**Status: BESTÅTT**
 
 ---
 
 # Sikkerhetsrevisjon #14
 
-## Continuous Integration
+## Kontinuerlig integrasjon
 
 LUMS uses automated testing to detect security and functional regressions before changes are considered complete.
 
@@ -895,13 +965,13 @@ The final verified test suite completed successfully.
 The test count changes as the project evolves. CI provides an automated
 regression barrier for security-relevant application changes.
 
-**Status: PASS**
+**Status: BESTÅTT**
 
 ---
 
 # Sikkerhetsrevisjon #15
 
-## Application and Audit Logging
+## Applikasjons- og revisjonslogging
 
 LUMS records security-sensitive administrative and operational events through application-level audit logging.
 
@@ -937,13 +1007,13 @@ The audit logging implementation was reviewed for:
 
 The logging system is intended to support both operational troubleshooting and security investigation.
 
-**Status: PASS**
+**Status: BESTÅTT**
 
 ---
 
 # Sikkerhetsrevisjon #16
 
-## Versioning and Releases
+## Versjonering og utgivelser
 
 Versioning and release management were reviewed as part of the security audit.
 
@@ -954,6 +1024,7 @@ The current repository state therefore intentionally has:
 * no official stable release version
 * no release tag
 * no GitHub Release
+Versjonering og utgivelseshåndtering er gjennomgått som en del av sikkerhetsarbeidet. Utgivelsesstatus er tidsavhengig; slå opp gjeldende GitHub-utgivelser og Git-tagger i repositoriet i stedet for å utlede status fra denne veiledningen.
 
 The current component versions include:
 
@@ -981,6 +1052,7 @@ No official release is created solely because the security audit reaches a parti
 Release creation will take place only after the remaining implementation and documentation work has been completed.
 
 **Status: REVIEWED — OPEN BY DESIGN**
+Ikke anta at versjoner som er oppført her, eller sikkerhetsbaselinen ellers i dokumentet, beviser at en bestemt distribusjon har aktivert kontrollene. Operatører må verifisere sitt eget miljø.
 
 ---
 
@@ -1006,6 +1078,24 @@ The following security audit areas are complete:
 | #14   | Continuous Integration                 | PASS                      |
 | #15   | Application / Audit Logging            | PASS                      |
 | #16   | Versioning / Releases                  | REVIEWED — OPEN BY DESIGN |
+| Revisjon | Område                                 | Status                    |
+| -------- | -------------------------------------- | ------------------------- |
+| #01      | SQLite-fremmednøkler                    | BESTÅTT |
+| #02      | SQLite-kjøretidskonfigurasjon           | BESTÅTT |
+| #03      | Tidsavbrudd / prosesshåndtering for oppdateringer      | BESTÅTT |
+| #04      | Hastighetsbegrensning for innlogging                    | BESTÅTT |
+| #05      | Validering av API-inndata                   | BESTÅTT |
+| #06      | Tilbakekalling av økter                     | BESTÅTT |
+| #07      | Rotasjon av klienttokener                  | BESTÅTT |
+| #08      | Håndtering av IP-adresser / frakoblede nettverk | BESTÅTT |
+| #09      | Jobbgjenoppretting / sjekkpunkter           | BESTÅTT |
+| #10      | APT-robusthet                         | BESTÅTT |
+| #11      | Oppdagelse av omstart på Arch                  | BESTÅTT |
+| #12      | Enhetstester / validering av API-resultater     | BESTÅTT |
+| #13      | Simuleringstester                       | BESTÅTT |
+| #14      | Kontinuerlig integrasjon                 | BESTÅTT |
+| #15      | Applikasjons- og revisjonslogging            | BESTÅTT |
+| #16      | Versjonering / utgivelser             | Slå opp gjeldende utgivelser og tagger |
 
 The remaining numbered technical audit area is:
 
@@ -1018,6 +1108,11 @@ The documentation review is tracked separately as:
 # Sikkerhetsrevisjon #17
 
 ## Rollebasert Tilgangskontroll
+De nummererte tekniske revisjonsområdene dekker kontrollene som er oppført i tabellen. Dokumentasjon vedlikeholdes løpende mot faktisk implementasjon og konfigurasjon. Opplysninger om utgivelser kontrolleres i repositoriets gjeldende utgivelser og tagger.
+
+# Sikkerhetsrevisjon #17
+
+## Rollebasert tilgangskontroll
 
 LUMS combines role templates with individually assigned permissions. The
 supported templates are `administrator`, `operatør`, and `seer`; choosing a
@@ -1031,7 +1126,7 @@ boundary.
 
 ---
 
-## RBAC Permission Model
+## RBAC-tillatelsesmodell
 
 | Permission        | Access granted |
 | ----------------- | -------------- |
@@ -1058,7 +1153,7 @@ the same grants.
 
 ---
 
-## Authorization Enforcement
+## Håndheving av autorisasjon
 
 Protected operations use server-side authentication and permission checks.
 
@@ -1094,7 +1189,7 @@ This prevents bypassing the RBAC model by directly calling an API endpoint that 
 
 ---
 
-## Viewer Restrictions
+## Begrensninger for Viewer
 
 The Viewer template is intentionally restricted by its default permission set.
 
@@ -1118,7 +1213,7 @@ Installed software remains available to Viewer accounts as a read-only informati
 
 ---
 
-## Administrative User Management
+## Administrativ brukeradministrasjon
 
 User management requires the `users.manage` permission.
 
@@ -1151,7 +1246,7 @@ Passwords are never stored in plaintext.
 
 ---
 
-## RBAC Database Migration
+## RBAC-databasemigrering
 
 Role-template information remains in the user database record. Individual
 grants are stored in the `user_permissions` table with a foreign key to the
@@ -1170,7 +1265,7 @@ permissions and are integrity-checked before publication.
 
 ---
 
-## RBAC Security Testing
+## RBAC-sikkerhetstesting
 
 RBAC behavior is covered by automated tests.
 
@@ -1194,7 +1289,7 @@ Administrator, Operator, and Viewer templates.
 
 ---
 
-## RBAC Security Result
+## RBAC-sikkerhetsresultat
 
 The RBAC implementation provides layered authorization:
 
@@ -1280,6 +1375,13 @@ The documentation review also removes or replaces outdated references to earlier
 **Status: IN PROGRESS**
 
 ---
+**Status: BESTÅTT**
+
+## Dokumentasjonsgjennomgang
+
+Sikkerhets- og driftsdokumentasjonen skal kontrolleres mot den faktiske implementasjonen og gjeldende konfigurasjon. Skill tydelig mellom implementerte kontroller, verifisert produksjonsatferd og planlagte forbedringer. Kontroller relevante tester mot revisjonen som skal distribueres.
+
+Opplysninger om versjoner og utgivelser er tidsavhengige. Kontroller gjeldende GitHub-utgivelser og Git-tagger i repositoriet i stedet for å utlede status fra denne veiledningen.
 
 # Additional Security Hardening
 
@@ -1498,6 +1600,59 @@ No security audit result should be interpreted as a guarantee that LUMS is free 
 Security is an ongoing process.
 
 Changes to the application, Agent, dependencies, container configuration, network exposure, authentication model, or deployment architecture should trigger another security review of the affected controls.
+* øktsikkerhet
+* CSRF-beskyttelse
+* hastighetsbegrensning for innlogging
+* klienttokensikkerhet
+* API-validering
+* SQL-injeksjonsmotstand
+* SQLite-integritet
+* oppdateringskjøring
+* tidsavbruddshåndtering
+* jobbgjenoppretting
+* pakkeadministrasjonsrobusthet
+* resultatvalidering
+* simulering
+* kontinuerlig integrasjon
+* revisjonslogging
+* containerherding
+* netteksponering
+* transportssikkerhet
+* håndtering av hemmeligheter
+* filsystemtillatelser
+* avhengighets- og byggesikkerhet
+
+De nummererte revisjonsresultatene er:
+
+| Revisjon | Område                                 | Status                    |
+| -------- | -------------------------------------- | ------------------------- |
+| #01      | SQLite-fremmednøkler                    | BESTÅTT |
+| #02      | SQLite-kjøretidskonfigurasjon           | BESTÅTT |
+| #03      | Tidsavbrudd / prosesshåndtering for oppdateringer      | BESTÅTT |
+| #04      | Hastighetsbegrensning for innlogging                    | BESTÅTT |
+| #05      | Validering av API-inndata                   | BESTÅTT |
+| #06      | Tilbakekalling av økter                     | BESTÅTT |
+| #07      | Rotasjon av klienttokener                  | BESTÅTT |
+| #08      | Håndtering av IP-adresser / frakoblede nettverk | BESTÅTT |
+| #09      | Jobbgjenoppretting / sjekkpunkter           | BESTÅTT |
+| #10      | APT-robusthet                         | BESTÅTT |
+| #11      | Oppdagelse av omstart på Arch                  | BESTÅTT |
+| #12      | Enhetstester / validering av API-resultater     | BESTÅTT |
+| #13      | Simuleringstester                       | BESTÅTT |
+| #14      | Kontinuerlig integrasjon                 | BESTÅTT |
+| #15      | Applikasjons- og revisjonslogging            | BESTÅTT |
+| #16      | Versjonering / utgivelser             | Slå opp gjeldende utgivelser og tagger |
+| #17      | Rollebasert tilgangskontroll              | BESTÅTT |
+
+De tekniske sikkerhetskontrollene gjennomgått i revisjonene #01–#15 og #17 har bestått.
+
+Resultater for tekniske sikkerhetskontroller gjelder den verifiserte revisjonen og er ikke en garanti for senere versjoner eller for en bestemt distribusjon. Operatører må kontrollere at sikkerhetskontrollene faktisk er aktivert i sitt eget miljø, og verifisere relevante tester og konfigurasjon ved distribusjon. Opplysninger om utgivelser og tagger må slås opp i repositoriet.
+
+Ingen sikkerhetsrevisjonsresultat bør tolkes som en garanti for at LUMS er fri for sårbarheter.
+
+Sikkerhet er en pågående prosess.
+
+Endringer i applikasjonen, agenten, avhengigheter, containerkonfigurasjon, netteksponering, autentiseringsmodell eller distribusjonsarkitektur bør utløse en ny sikkerhetsgjennomgang av de berørte kontrollene.
 
 ---
 
@@ -1571,6 +1726,9 @@ The first official LUMS release will be created only after:
 8. the GitHub Release is published
 
 Until then, LUMS remains an actively developed project.
+# Oppslag av utgivelsesstatus
+
+Utgivelsesstatus er tidsavhengig. Kontroller gjeldende GitHub-utgivelser og Git-tagger i repositoriet i stedet for å utlede status fra denne veiledningen. Sikkerhetsbaselinen dokumenterer implementasjonen som ble gjennomgått, men beviser ikke at kontrollene er aktivert i en bestemt distribusjon. Operatører må verifisere sitt eget miljø.
 
 ---
 
@@ -1585,10 +1743,10 @@ Instead, authentication, authorization, validation, controlled execution, persis
 The project deliberately favors explicit server-side enforcement over security-by-interface.
 
 The current security baseline is documented according to the verified implementation state rather than historical development behavior.
+Gjeldende sikkerhetsbaseline er dokumentert i henhold til den verifiserte implementasjonstilstanden i stedet for historisk utviklingsatferd. Den er ikke en garanti for en bestemt distribusjon; operatører må verifisere miljøet sitt.
 
 ---
 
 **LUMS — Linux Update Management without the noise.**
 
 `segfault // override`
-

@@ -1,8 +1,10 @@
 # LUMS Quick Start — English (US)
 
-This concise guide is for people who are new to LUMS or Linux. It is not a
-complete translation of every technical manual. The detailed project
-documentation is maintained in English. [Language index](../../README.md).
+This concise guide is for people who are new to LUMS or Linux. Localized user
+and administrator guides are listed in the
+[documentation index by language](../../README.md). The English source
+documents remain the technical source of truth; follow them before changing a
+production system if a translation is incomplete or differs.
 
 ## What is LUMS?
 

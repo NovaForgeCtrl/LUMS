@@ -21,6 +21,12 @@ help; do not share accounts or use a client token as a web password.
 are maintained in English; translated guides are listed in
 [`docs/README.md`](docs/README.md). Translation coverage can vary, so use the
 English source when a localized procedure is incomplete or differs.
+[installation guide](../../../install.md), then read the
+[administration guide](../../../administration.md). If something goes wrong, use the
+[troubleshooting guide](../../../troubleshooting.md). Localized user and administrator
+guides are listed in [`docs/README.md`](../../README.md). English root guides
+remain the technical source of truth; if a translated procedure appears
+incomplete or differs, follow the English source.
 
 A test run or a successfully built Docker image is **not** a production
 installation. A production deployment also needs HTTPS, a protected application
@@ -37,7 +43,8 @@ choose one, LUMS tries to use the browser language; after sign-in, a language
 saved to your account takes precedence. Some technical or dynamic text may
 remain in its original language when a translation is not available. Markdown
 guides are separate from the web interface and are not translated
-automatically.
+automatically. Translated Markdown guides are maintained separately; use the
+documentation index to find the available coverage by language.
 
 ---
 
@@ -135,6 +142,8 @@ Administrators can:
 * inspect client status
 * monitor client reporting
 * view client telemetry (CPU, memory, network when telemetry is enabled)
+
+---
 
 ---
 
@@ -327,6 +336,21 @@ client reporting status, backup-storage visibility, and CPU/memory telemetry
 when telemetry is configured. It is a quick operational view, not a substitute
 for checking container, reverse-proxy, host, and backup logs or for performing
 a restore test. See [LUMS_Health_Dashboard.md](LUMS_Health_Dashboard.md).
+a restore test. See [LUMS_Health_Dashboard.md](../../../LUMS_Health_Dashboard.md).
+
+---
+
+### Alerts
+
+LUMS includes an alert-management API and a basic dashboard for stored alert
+records. Administrators can create and manage rules, trigger an alert manually,
+and acknowledge, resolve, or manually escalate an active alert. Rule conditions
+and thresholds are stored as configuration; the current server does not
+evaluate them automatically against telemetry. Notification integrations
+(email, Slack, PagerDuty, and generic webhooks) are not available through the
+API, and bulk clearing is disabled to preserve alert history. See
+[`docs/LUMS_REALTIME_ALERTING_IMPLEMENTATION.md`](../../LUMS_REALTIME_ALERTING_IMPLEMENTATION.md)
+for the implemented boundaries.
 
 ---
 
@@ -479,6 +503,7 @@ Operator, and Viewer templates provide starting permission sets that can be
 customized for each account.
 
 Authorization is enforced on the server using the account's stored permissions.
+authorisation is enforced on the server using the account's stored permissions.
 
 The frontend additionally hides functionality that the user's permissions do
 not allow.
@@ -838,6 +863,7 @@ Typical responsibilities include:
 * update detection
 
 Distribution-specific behavior remains inside the package-manager layer.
+Distribution-specific behaviour remains inside the package-manager layer.
 
 ---
 
@@ -994,6 +1020,7 @@ Viewer
 ```
 
 Authorization is enforced server-side.
+authorisation is enforced server-side.
 
 The frontend additionally adapts the visible interface to the user's
 permissions, but frontend visibility is never considered a security boundary.
@@ -1066,6 +1093,7 @@ to the account owner.
 Administrators with `backups.manage` can create validated `.db` or `.db.gz`
 database backups in a server-configured directory and choose a safe subfolder
 within that mounted location. See [`administration.md`](administration.md) and
+within that mounted location. See [`administration.md`](../../../administration.md) and
 the in-app Markdown restore guide for Docker storage setup and recovery.
 
 User passwords are stored using Argon2 password hashing rather than plaintext or reversible encryption.
@@ -1268,6 +1296,7 @@ A validated package name is passed to the package-manager abstraction for remova
 A specific package can be updated when the client reports it as an available update.
 
 ### System Update
+### Client System Update
 
 The system update operation delegates the update process to the native package manager.
 
@@ -1290,6 +1319,7 @@ Instead, it:
 5. reports the result to the server
 
 Distribution-specific behavior remains isolated inside the package-manager layer.
+Distribution-specific behaviour remains isolated inside the package-manager layer.
 
 ---
 
@@ -1430,6 +1460,12 @@ The remaining documentation review is handled separately as part of the final re
 
 ---
 
+* repository artefact hygiene
+
+Keeping documentation aligned with the implementation is ongoing maintenance, not a separate release gate.
+
+---
+
 ## Testing and CI
 
 LUMS includes automated tests covering core application behavior and security controls.
@@ -1453,6 +1489,8 @@ for areas such as:
 * job-result validation
 * security behavior
 * API behavior
+* security behaviour
+* API behaviour
 
 Continuous integration executes the automated test suite before changes are considered ready.
 
@@ -1923,6 +1961,7 @@ Used primarily for:
 * diagnostics
 * errors
 * runtime behavior
+* runtime behaviour
 * troubleshooting
 
 ### Audit Logs
@@ -1945,6 +1984,7 @@ The LUMS test suite covers multiple layers of the application.
 ### Authentication
 
 Tests cover authentication behavior, session handling, and security controls.
+Tests cover authentication behaviour, session handling, and security controls.
 
 ### RBAC
 
@@ -1957,6 +1997,7 @@ Tests verify that:
 ### Package Management
 
 Tests cover package-search behavior and package-management-related API handling.
+Tests cover package-search behaviour and package-management-related API handling.
 
 ### Update Jobs
 
@@ -1971,6 +2012,11 @@ Tests cover:
 ### Security
 
 Tests cover security-sensitive application behavior and regression cases.
+* recovery behaviour
+
+### Security
+
+Tests cover security-sensitive application behaviour and regression cases.
 
 ### Full Suite
 
@@ -2034,10 +2080,26 @@ Security architecture, security controls, audit findings, hardening, and release
 ### `telemetry.md`
 
 Optional CPU and memory telemetry, agent configuration, data retention, security, and troubleshooting.
+Optional CPU, memory, disk, network, host and operational telemetry, agent
+configuration, data retention, security, and troubleshooting.
 
 ### `LUMS_Health_Dashboard.md`
 
 What the authenticated health dashboard reports, how client status is classified, telemetry limits, backup-storage interpretation, and operational checks.
+
+### `LUMS_Infrastructure_Topology.md`
+
+How LUMS imports registered clients, manages infrastructure and dependencies, protects topology edits, and identifies potential shared failure points.
+
+### `server/static/backup-restore.md`
+
+Careful Docker-based recovery of a verified SQLite backup, including integrity
+checks and a fallback copy of the active database.
+
+### `docs/update-tools-package.md`
+
+What the downloadable updater-tools artefact contains, how CI publishes it,
+and the checks required before production use.
 
 ### `troubleshooting.md`
 
@@ -2100,14 +2162,29 @@ The current implementation includes:
 * HTTPS transport
 * automated testing
 * continuous integration
+* optional CPU, memory, disk, network, host and event telemetry
+* infrastructure topology from registered clients and manually maintained inventory
+* persistent alert records and rule-management endpoints, with the limitations
+  documented in `docs/LUMS_REALTIME_ALERTING_IMPLEMENTATION.md`
 
 The project is currently in the final documentation and release-readiness phase.
 
 ---
 
 ## Security Status
+This list is a high-level inventory, not a feature-completeness or release
+readiness claim. Optional components may need separate installation and
+configuration, and individual features have documented limits. Check the
+source revision and its tests for the behaviour of a specific release.
 
-The major security-review areas have been implemented and reviewed.
+---
+
+## Security Baseline
+
+The security model is implemented in the application and documented in
+[`security.md`](../../../security.md). Its controls and verification status are
+revision-specific; consult the tests and deployment checks for the exact
+source revision being used. This document is not a security certification.
 
 The current security baseline includes:
 
@@ -2163,7 +2240,7 @@ There is currently:
 * no stable release tag
 * no GitHub Release
 
-The project deliberately follows the release sequence:
+## Release Process
 
 ```text id="f3c4y9"
 Implementation
@@ -2201,10 +2278,18 @@ The roadmap is intentionally focused on stability and maintainability rather tha
 * prepare release version
 * create the first official Git tag
 * publish the first GitHub Release
+Release and tag availability can change independently of this documentation;
+check the repository's [Releases](https://github.com/NovaForgeCtrl/LUMS/releases)
+and [tags](https://github.com/NovaForgeCtrl/LUMS/tags) for the current state.
+A release should only be published after the implementation, security review,
+documentation, and regression tests for that revision are complete.
 
-### Future Development
+---
 
-Potential future work may include:
+## Roadmap
+
+This guide does not track a branch-specific or time-based project phase.
+Potential future work, when selected and verified, may include:
 
 * additional Linux distributions
 * additional package-manager backends
@@ -2325,7 +2410,14 @@ administration.md
 security.md
 troubleshooting.md
 telemetry.md
+LUMS_Health_Dashboard.md
+LUMS_Infrastructure_Topology.md
+server/static/backup-restore.md
+docs/update-tools-package.md
 LUMS_Optional_Theme_System.md
+PRODUCT.md
+docs/LUMS_REALTIME_ALERTING_IMPLEMENTATION.md
+docs/README.md
 ```
 
 Each document has a defined purpose.
@@ -2345,12 +2437,25 @@ The optional theme document covers frontend theme architecture.
 ---
 
 ## License
+The telemetry, health-dashboard, topology, backup-restore and updater-package
+guides document those operational features. The optional theme reference and
+`PRODUCT.md` are internal design/context documents; the alert-management
+document records the current implementation and its unavailable features.
+[`docs/README.md`](../../README.md) indexes the documentation by language.
 
-LUMS is released under the MIT License.
+---
+
+## licence
+
+LUMS is released under the MIT licence.
 
 The license is intended to keep the project open and accessible while allowing use, modification, and redistribution under the terms of the license.
 
 See the repository license file for the complete legal text.
+
+---
+
+See the repository licence file for the complete legal text.
 
 ---
 
@@ -2423,7 +2528,7 @@ At its highest level, LUMS can be understood as five layers:
                         │
 ┌───────────────────────▼───────────────────────┐
 │                    API                        │
-│    Authentication, authorisation, validation  │
+│    Authentication, authorization, validation  │
 └───────────────────────┬───────────────────────┘
                         │
 ┌───────────────────────▼───────────────────────┐

@@ -56,6 +56,7 @@ Authentication and authorisation are deliberately separated.
 A valid authenticated session does not automatically grant access to every administrative operation.
 
 Authorization is enforced server-side. The web interface additionally hides functions that are not available to the current role, but UI visibility is never treated as a security boundary.
+authorisation is enforced server-side. The web interface additionally hides functions that are not available to the current role, but UI visibility is never treated as a security boundary.
 
 ---
 
@@ -89,6 +90,13 @@ LUMS currently supports three web-user roles:
 * `administrator`
 * `operator`
 * `viewer`
+
+Role templates are stored in `users.role`; individual permissions are stored
+server-side in `user_permissions`.
+
+The server loads the effective permissions for each authenticated account.
+Client-side permission information controls presentation only and never
+replaces server-side authorisation.
 
 Role templates are stored in `users.role`; individual permissions are stored
 server-side in `user_permissions`.
@@ -313,6 +321,15 @@ Audit #16 is intentionally different from the technical security controls above.
 LUMS currently has no official stable release, no release tag, and no GitHub Release. This is intentional because the project remains under active development.
 
 Audit #18 remains open until the complete documentation set has been reviewed and synchronized with the current implementation.
+| #16   | Versioning / Releases                  | Check current repository releases and tags |
+| #17   | Role-Based Access Control              | PASS                      |
+
+This table records the scope and outcome of earlier verification; it is not a
+certification or a guarantee about a later revision. Re-run relevant checks
+against the exact code being deployed. Release availability is dynamic, so
+consult the repository's [Releases](https://github.com/NovaForgeCtrl/LUMS/releases)
+and [tags](https://github.com/NovaForgeCtrl/LUMS/tags) rather than inferring
+status from this document.
 
 # Security Audit #01
 
@@ -332,6 +349,8 @@ The audit verified:
 * foreign-key integrity
 * client lifecycle behavior
 * client disable behavior
+* client lifecycle behaviour
+* client disable behaviour
 * preservation of historical job information
 * preservation of audit information
 
@@ -409,6 +428,7 @@ Timeout handling was tested against:
 * processes resistant to normal termination
 * kill fallback
 * integration-level timeout behavior
+* integration-level timeout behaviour
 
 The timeout mechanism prevents a package-management operation from remaining indefinitely in an active state.
 
@@ -456,6 +476,17 @@ The audit covered:
 * production login behavior
 
 The rate limiter therefore provides a server-side control against repeated authentication attempts rather than relying on client-side behavior.
+* isolated rate-limit behaviour
+* concurrent authentication failures
+* transaction rollback
+* database-lock handling
+* successful-login reset behaviour
+* rate-limit audit events
+* production login behaviour
+
+**Status: PASS**
+
+---
 
 **Status: PASS**
 
@@ -744,6 +775,7 @@ The audit included testing of:
 * update-job execution
 * APT result handling
 * update detection behavior
+* update detection behaviour
 
 The corresponding hardening was committed as:
 
@@ -884,6 +916,9 @@ The CI process includes validation of:
 * API behavior
 * update-job handling
 * package-management behavior
+* API behaviour
+* update-job handling
+* package-management behaviour
 * client authentication
 * job-result validation
 * security-sensitive error handling
@@ -960,9 +995,19 @@ The current component versions include:
 * LUMS Agent: `1.7.0`
 * LUMS Watcher: `1.2.1`
 
-There is currently no single formal version number representing the complete LUMS application.
+---
 
-This is an intentional project-state decision rather than an accidental omission.
+# Security Audit #16
+
+## Versioning and Releases
+
+Versioning and release management are part of the security review because
+operators must be able to identify the exact code and artifacts they deploy.
+Release availability and component versions change independently of this
+guide. Check the repository's [current tags](https://github.com/NovaForgeCtrl/LUMS/tags)
+and [Releases page](https://github.com/NovaForgeCtrl/LUMS/releases), and inspect
+the version metadata in the exact source revision being deployed. Do not treat
+this document as a live release catalogue.
 
 The planned release process is:
 
@@ -1007,13 +1052,34 @@ The following security audit areas are complete:
 | #15   | Application / Audit Logging            | PASS                      |
 | #16   | Versioning / Releases                  | REVIEWED — OPEN BY DESIGN |
 
+| Audit | Area                                   | Status                    |
+| ----- | -------------------------------------- | ------------------------- |
+| #01   | SQLite Foreign Keys                    | PASS                      |
+| #02   | SQLite Runtime Configuration           | PASS                      |
+| #03   | Update Timeout / Process Handling      | PASS                      |
+| #04   | Login Rate Limiting                    | PASS                      |
+| #05   | API Input Validation                   | PASS                      |
+| #06   | Session Revocation                     | PASS                      |
+| #07   | Client Token Rotation                  | PASS                      |
+| #08   | IP Address Handling / Offline Networks | PASS                      |
+| #09   | Job Recovery / Checkpointing           | PASS                      |
+| #10   | APT Robustness                         | PASS                      |
+| #11   | Arch Reboot Detection                  | PASS                      |
+| #12   | Unit Tests / API Result Validation     | PASS                      |
+| #13   | Simulation Tests                       | PASS                      |
+| #14   | Continuous Integration                 | PASS                      |
+| #15   | Application / Audit Logging            | PASS                      |
+| #16   | Versioning / Releases                  | REVIEWED — OPEN BY DESIGN |
+
+* #17 Role-Based Access Control
 The remaining numbered technical audit area is:
 
 * #17 Role-Based Access Control
 
-The documentation review is tracked separately as:
-
 * #18 Documentation Review — IN PROGRESS
+Documentation alignment is an ongoing maintenance activity, not a numbered
+security-control audit. The language and guide index is maintained in
+[`docs/README.md`](../../README.md).
 
 # Security Audit #17
 
@@ -1025,6 +1091,7 @@ template selects its default permissions, which an administrator can customize
 for each account.
 
 The role remains account metadata. Protected routes authorize against the
+The role remains account metadata. Protected routes authorise against the
 account's server-stored permission set, not the role label. The interface hides
 unavailable functions for usability, while the server remains the security
 boundary.
@@ -1059,6 +1126,7 @@ the same grants.
 ---
 
 ## Authorization Enforcement
+## authorisation Enforcement
 
 Protected operations use server-side authentication and permission checks.
 
@@ -1168,6 +1236,16 @@ backups only to the server-configured `LUMS_BACKUP_DIR`; it does not accept
 filesystem paths from the browser. Backup files are created with owner-only
 permissions and are integrity-checked before publication.
 
+Database backup creation requires `backups.manage`; the Administrator
+template includes this permission by default. The server writes SQLite online
+backups only to the server-configured `LUMS_BACKUP_DIR`; it does not accept
+filesystem paths from the browser. Backup files are created with owner-only
+permissions and are integrity-checked before publication.
+
+---
+
+## RBAC Security Testing
+
 ---
 
 ## RBAC Security Testing
@@ -1186,6 +1264,7 @@ The tests include:
 * user-management restrictions
 * client-page visibility
 * permission-specific interface behavior
+* permission-specific interface behaviour
 
 RBAC tests cover role-template defaults, custom permissions, permission
 dependencies, and server-side authorisation. Production verification should
@@ -1215,7 +1294,8 @@ The server remains the authoritative security boundary.
 
 ## Documentation Review
 
-The security documentation is reviewed against the currently implemented LUMS system.
+Review documentation against the implementation whenever code or deployment
+behaviour changes.
 
 The purpose of this review is to ensure that security documentation describes the actual implementation rather than an earlier development state.
 
@@ -1246,12 +1326,16 @@ Documentation must distinguish between:
 
 * implemented controls
 * verified production behavior
+* verified production behaviour
 * planned improvements
 * intentionally open project decisions
 
 Historical implementation details must not be presented as current production configuration.
 
-In particular, the documentation reflects the current SQLite production configuration rather than the current WAL configuration.
+`server/init_db.py` enables SQLite WAL mode. Connections created by
+`server/app.py` enable foreign-key enforcement and a 5,000 ms busy timeout.
+Confirm the effective runtime settings for the deployment being reviewed
+rather than inferring them from this guide.
 
 The current production runtime is documented as:
 
@@ -1261,6 +1345,8 @@ The current production runtime is documented as:
 * application-level `PRAGMA foreign_keys = ON`
 
 The current Viewer-RBAC behavior is also documented according to the implemented production interface.
+The Viewer-RBAC description should also be checked against the current
+permission definitions and protected routes.
 
 Viewer users have access to:
 
@@ -1278,6 +1364,9 @@ Viewer users do not have access to:
 The documentation review also removes or replaces outdated references to earlier test counts, migration states, deployment configurations, and development-only behavior.
 
 **Status: IN PROGRESS**
+Replace outdated test counts, migration states, deployment configurations,
+and development-only behaviour whenever they are found. These are review
+criteria, not claims that a particular release has completed every review.
 
 ---
 
@@ -1492,6 +1581,16 @@ The technical security controls reviewed in audits #01–#15 and #17 have passed
 Audit #16 remains intentionally open because LUMS has not yet reached its first official stable release.
 
 Audit #18 remains open until the complete project documentation has been reviewed and synchronized with the final implementation state.
+| #16   | Versioning / Releases                  | Check current repository releases and tags |
+| #17   | Role-Based Access Control              | PASS                      |
+
+The technical security controls reviewed in audits #01–#15 and #17 passed their
+recorded checks. Those results are not a certification or a guarantee about a
+later revision.
+
+Release and tag availability can change; consult the repository's current
+[Releases page](https://github.com/NovaForgeCtrl/LUMS/releases) and
+[tags](https://github.com/NovaForgeCtrl/LUMS/tags).
 
 No security audit result should be interpreted as a guarantee that LUMS is free from vulnerabilities.
 
@@ -1503,7 +1602,9 @@ Changes to the application, Agent, dependencies, container configuration, networ
 
 # Security Baseline
 
-The current security baseline is based on the verified implementation and production deployment state.
+This baseline describes controls configured in the source and deployment
+guidance. It is not proof that a particular installation applies them; verify
+the effective settings in the target environment.
 
 The baseline includes:
 
@@ -1592,3 +1693,8 @@ The current security baseline is documented according to the verified implementa
 
 `segfault // override`
 
+---
+
+**LUMS — Linux Update Management without the noise.**
+
+`segfault // override`
