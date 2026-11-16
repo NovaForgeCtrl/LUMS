@@ -15,6 +15,12 @@ your account may not have permission to use it. Ask your administrator for
 help; do not share accounts or use a client token as a web password.
 
 **Installing or operating LUMS?** Start with the
+[installation guide](install.md), then read the
+[administration guide](administration.md). If something goes wrong, use the
+[troubleshooting guide](troubleshooting.md). These detailed technical guides
+are maintained in English; translated guides are listed in
+[`docs/README.md`](docs/README.md). Translation coverage can vary, so use the
+English source when a localized procedure is incomplete or differs.
 [installation guide](../../../install.md), then read the
 [administration guide](../../../administration.md). If something goes wrong, use the
 [troubleshooting guide](../../../troubleshooting.md). Localized user and administrator
@@ -135,6 +141,9 @@ Administrators can:
 * rotate client tokens
 * inspect client status
 * monitor client reporting
+* view client telemetry (CPU, memory, network when telemetry is enabled)
+
+---
 
 ---
 
@@ -147,6 +156,40 @@ The server stores the inventory and exposes it through the management interface.
 The installed-software view is intentionally separate from package-management search.
 
 This allows administrators and read-only users to inspect installed software without automatically exposing package-management operations.
+
+---
+
+### Fleet Telemetry and Health Dashboard
+
+The optional telemetry system monitors CPU utilization, memory utilization, and network traffic across the fleet.
+
+The `/health` dashboard provides:
+
+* Real-time client status (online, unknown, offline)
+* CPU and memory utilization charts (line, area, or current-value gauges)
+* Network traffic monitoring (receive/transmit bytes per second)
+* 1-hour, 24-hour, and 7-day historical views
+* Client filtering (by status, stale telemetry, high load)
+* Searchable client list with sortable columns
+* Automatic data refresh every 5 seconds
+* Latest backup status
+
+Telemetry data is retained for 7 days. Telemetry submission occurs approximately every 5 seconds when the agent's systemd timer is enabled and the client can reach the server.
+
+---
+
+### Theme System
+
+LUMS includes an optional theme system providing six visual themes:
+
+* **standard** - default LUMS interface
+* **LUMSStadium** - alternative corporate theme
+* **golf** - calming aesthetic
+* **nerd** - developer-focused theme
+* **geek** - technical theme
+* **admin** - administrator-specific theme
+
+Themes are visual presentation only and do not modify authentication, authorisation, update execution, or security controls. Theme preference is stored in browser local storage and persists across sessions.
 
 ---
 
@@ -292,6 +335,7 @@ The authenticated health dashboard at `/health` summarizes the database status,
 client reporting status, backup-storage visibility, and CPU/memory telemetry
 when telemetry is configured. It is a quick operational view, not a substitute
 for checking container, reverse-proxy, host, and backup logs or for performing
+a restore test. See [LUMS_Health_Dashboard.md](LUMS_Health_Dashboard.md).
 a restore test. See [LUMS_Health_Dashboard.md](../../../LUMS_Health_Dashboard.md).
 
 ---
@@ -458,6 +502,7 @@ LUMS combines role templates with per-user permissions. The Administrator,
 Operator, and Viewer templates provide starting permission sets that can be
 customized for each account.
 
+Authorization is enforced on the server using the account's stored permissions.
 authorisation is enforced on the server using the account's stored permissions.
 
 The frontend additionally hides functionality that the user's permissions do
@@ -817,6 +862,7 @@ Typical responsibilities include:
 * system updates
 * update detection
 
+Distribution-specific behavior remains inside the package-manager layer.
 Distribution-specific behaviour remains inside the package-manager layer.
 
 ---
@@ -925,7 +971,7 @@ Security-relevant and administrative actions are recorded by the server-side aud
 
 The audit trail complements normal application logging.
 
-Logging answers questions about application behaviour.
+Logging answers questions about application behavior.
 
 Audit logging additionally records important administrative actions and their context.
 
@@ -973,6 +1019,7 @@ Operator
 Viewer
 ```
 
+Authorization is enforced server-side.
 authorisation is enforced server-side.
 
 The frontend additionally adapts the visible interface to the user's
@@ -1045,6 +1092,7 @@ to the account owner.
 
 Administrators with `backups.manage` can create validated `.db` or `.db.gz`
 database backups in a server-configured directory and choose a safe subfolder
+within that mounted location. See [`administration.md`](administration.md) and
 within that mounted location. See [`administration.md`](../../../administration.md) and
 the in-app Markdown restore guide for Docker storage setup and recovery.
 
@@ -1247,6 +1295,7 @@ A validated package name is passed to the package-manager abstraction for remova
 
 A specific package can be updated when the client reports it as an available update.
 
+### System Update
 ### Client System Update
 
 The system update operation delegates the update process to the native package manager.
@@ -1259,7 +1308,7 @@ All operations return structured results to the LUMS server.
 
 LUMS treats the package manager as a privileged local component.
 
-The agent therefore does not attempt to emulate package-manager behaviour itself.
+The agent therefore does not attempt to emulate package-manager behavior itself.
 
 Instead, it:
 
@@ -1269,6 +1318,7 @@ Instead, it:
 4. captures the result
 5. reports the result to the server
 
+Distribution-specific behavior remains isolated inside the package-manager layer.
 Distribution-specific behaviour remains isolated inside the package-manager layer.
 
 ---
@@ -1404,6 +1454,12 @@ The LUMS security review has covered the following areas:
 * HTTP/transport security
 * filesystem/runtime permissions
 * network exposure
+* repository artifact hygiene
+
+The remaining documentation review is handled separately as part of the final release-readiness process.
+
+---
+
 * repository artefact hygiene
 
 Keeping documentation aligned with the implementation is ongoing maintenance, not a separate release gate.
@@ -1412,7 +1468,7 @@ Keeping documentation aligned with the implementation is ongoing maintenance, no
 
 ## Testing and CI
 
-LUMS includes automated tests covering core application behaviour and security controls.
+LUMS includes automated tests covering core application behavior and security controls.
 
 Run the complete test suite from the repository root:
 
@@ -1431,6 +1487,8 @@ for areas such as:
 * package search
 * update jobs
 * job-result validation
+* security behavior
+* API behavior
 * security behaviour
 * API behaviour
 
@@ -1659,7 +1717,7 @@ The agent does not provide an unrestricted remote shell.
 
 ## Package Manager Layer
 
-The package-manager implementation isolates distribution-specific behaviour from the rest of the agent.
+The package-manager implementation isolates distribution-specific behavior from the rest of the agent.
 
 Conceptually:
 
@@ -1902,6 +1960,7 @@ Used primarily for:
 
 * diagnostics
 * errors
+* runtime behavior
 * runtime behaviour
 * troubleshooting
 
@@ -1924,6 +1983,7 @@ The LUMS test suite covers multiple layers of the application.
 
 ### Authentication
 
+Tests cover authentication behavior, session handling, and security controls.
 Tests cover authentication behaviour, session handling, and security controls.
 
 ### RBAC
@@ -1936,6 +1996,7 @@ Tests verify that:
 
 ### Package Management
 
+Tests cover package-search behavior and package-management-related API handling.
 Tests cover package-search behaviour and package-management-related API handling.
 
 ### Update Jobs
@@ -1946,6 +2007,11 @@ Tests cover:
 * validation
 * state transitions
 * result handling
+* recovery behavior
+
+### Security
+
+Tests cover security-sensitive application behavior and regression cases.
 * recovery behaviour
 
 ### Security
@@ -2013,6 +2079,7 @@ Security architecture, security controls, audit findings, hardening, and release
 
 ### `telemetry.md`
 
+Optional CPU and memory telemetry, agent configuration, data retention, security, and troubleshooting.
 Optional CPU, memory, disk, network, host and operational telemetry, agent
 configuration, data retention, security, and troubleshooting.
 
@@ -2100,6 +2167,11 @@ The current implementation includes:
 * persistent alert records and rule-management endpoints, with the limitations
   documented in `docs/LUMS_REALTIME_ALERTING_IMPLEMENTATION.md`
 
+The project is currently in the final documentation and release-readiness phase.
+
+---
+
+## Security Status
 This list is a high-level inventory, not a feature-completeness or release
 readiness claim. Optional components may need separate installation and
 configuration, and individual features have documented limits. Check the
@@ -2158,6 +2230,16 @@ Security is treated as an ongoing engineering responsibility rather than a one-t
 
 ---
 
+## Release Status
+
+LUMS does not currently claim a stable production release version.
+
+There is currently:
+
+* no final semantic version
+* no stable release tag
+* no GitHub Release
+
 ## Release Process
 
 ```text id="f3c4y9"
@@ -2178,6 +2260,24 @@ Git Tag
 GitHub Release
 ```
 
+The first official release should only be created after the current implementation, security review, documentation, and regression testing are considered complete.
+
+---
+
+## Roadmap
+
+The roadmap is intentionally focused on stability and maintainability rather than adding features without completing the existing foundation.
+
+### Current Phase
+
+* complete documentation review
+* remove remaining documentation inconsistencies
+* close documentation audit work
+* perform final full test run
+* verify CI
+* prepare release version
+* create the first official Git tag
+* publish the first GitHub Release
 Release and tag availability can change independently of this documentation;
 check the repository's [Releases](https://github.com/NovaForgeCtrl/LUMS/releases)
 and [tags](https://github.com/NovaForgeCtrl/LUMS/tags) for the current state.
@@ -2332,6 +2432,11 @@ The security guide documents the security architecture and audit state.
 
 The troubleshooting guide provides diagnostic procedures.
 
+The optional theme document covers frontend theme architecture.
+
+---
+
+## License
 The telemetry, health-dashboard, topology, backup-restore and updater-package
 guides document those operational features. The optional theme reference and
 `PRODUCT.md` are internal design/context documents; the alert-management
@@ -2344,7 +2449,11 @@ document records the current implementation and its unavailable features.
 
 LUMS is released under the MIT licence.
 
-The licence is intended to keep the project open and accessible while allowing use, modification, and redistribution under the terms of the licence.
+The license is intended to keep the project open and accessible while allowing use, modification, and redistribution under the terms of the license.
+
+See the repository license file for the complete legal text.
+
+---
 
 See the repository licence file for the complete legal text.
 

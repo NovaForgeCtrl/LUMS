@@ -1,97 +1,139 @@
-
 # LUMS
 
-**Linux-Updateverwaltung ohne unnötigen Lärm.**
+**Linux-Update-Verwaltung ohne Störungen.**
 
-## Erste Schritte
+<!-- LUMS-POSTGRES-STATUS-2026-11-15 -->
+## Aktuelle Datenbankarchitektur und Migrationsstatus
 
-LUMS verwaltet Linux-Updates zentral. Ein Server zeigt Clients, installierte Software und verfügbare Updates an. Ein Agent auf jedem verwalteten Linux-System führt genehmigte Paketaktionen mithilfe des Paketmanagers dieses Systems aus. LUMS ersetzt weder APT unter Debian/Ubuntu noch pacman unter Arch Linux.
+**Status-Datum: 15. November 2026**
 
-**Du verwendest bereits eine bestehende LUMS-Installation?** Öffne die von deiner Administration bereitgestellte Adresse und melde dich mit deinem eigenen Konto an. Wenn eine Funktion fehlt, verfügt dein Konto möglicherweise nicht über die erforderliche Berechtigung. Bitte deine Administration um Hilfe. Teile keine Konten und verwende kein Client-Token als Webpasswort.
+LUMS wird von einer bestehenden SQLite-basierten Bereitstellung zu einem PostgreSQL-basierten Nachfolger übergeleitet.
+
+Dies sind separate Bereitstellungszustände:
+
+- **Bestehende Produktion:** Die SQLite-basierte LUMS-Installation bleibt der aktive produktive Dienst.
+- **PostgreSQL-Kandidat:** Eine isolierte Nachfolgerumgebung, die für Implementierung und Validierung verwendet wird.
+
+Der Kandidat enthält derzeit die PostgreSQL-Datenbank, Bereitstellungs- und Migrationsdienste, separate Anwendungs- und Worker-Berechtigungsdienste, die Webanwendung und den SOC-Worker.
+
+Der PostgreSQL-Kandidat ist noch kein vollständiger Produktionsersatz. Der SOC-Collector und das Envoy-Gateway sind nicht als Teil des Kandidaten-Compose-Stacks bereitgestellt. Runtime-mTLS-Durchsetzung, ein vertrauenswürdiger Produktionszeitanbieter und ein integriertes PostgreSQL-Backup- und Restore-Management sind noch ausstehend.
+
+Das Vorhandensein von PostgreSQL-Code oder einem laufenden Kandidaten-Container darf nicht als Beweis dafür interpretiert werden, dass die entsprechende Funktion vollständig integriert oder produktionsreif ist.
 
 **Du installierst oder betreibst LUMS?** Beginne mit der [Installationsanleitung](<Installation und Upgrade.md>) und lies anschließend die [Administrationsanleitung](<Administration und Backups.md>). Wenn etwas nicht funktioniert, verwende die [Anleitung zur Fehlerbehebung](Fehlersuche.md). Übersetzte Anleitungen sind ebenfalls verfügbar; ihr Umfang kann von den englischen technischen Originalen abweichen. Das [Dokumentationsverzeichnis](../../README.md) enthält alle verfügbaren Sprachfassungen.
 
-Ein Testlauf oder ein erfolgreich erstelltes Docker-Image ist **keine produktive Installation**. Für einen produktiven Einsatz sind außerdem HTTPS, ein geschütztes Anwendungsgeheimnis, persistente Daten, verifizierte Backups und ein gehärteter Container erforderlich. Übernimm keine Produktionsbefehle, bevor du Platzhalter und Speicherpfade mit deiner eigenen Installation abgeglichen hast.
+<!-- /LUMS-POSTGRES-STATUS-2026-11-15 -->
+
+## Erste Schritte
+
+LUMS verwaltet Linux-Updates zentral. Ein Server zeigt Clients, installierte
+Software und verfügbare Updates an. Ein Agent auf jedem verwalteten Linux-System führt
+genehmigte Paketaktionen mit dem Paketmanager des Systems aus. LUMS ersetzt nicht
+APT auf Debian/Ubuntu oder pacman auf Arch Linux.
+
+**Verwenden Sie nur eine bestehende LUMS-Installation?** Öffnen Sie die von Ihrem
+Administrator bereitgestellte Adresse und melden Sie sich mit Ihrem Konto an. Wenn eine Funktion fehlt,
+hat Ihr Konto möglicherweise keine Berechtigung, diese zu verwenden. Bitten Sie Ihren Administrator um
+Hilfe; teilen Sie keine Konten und verwenden Sie kein Client-Token als Web-Passwort.
+
+**LUMS installieren oder betreiben?** Beginnen Sie mit dem
+[Installationshandbuch](install.md), lesen Sie dann das
+[Verwaltungshandbuch](administration.md). Wenn etwas schief geht, verwenden Sie das
+[Fehlerbehebungshandbuch](troubleshooting.md). Diese ausführlichen technischen Anleitungen
+werden auf Englisch gepflegt; übersetzte Anleitungen werden aufgelistet in
+[`docs/README.md`](docs/README.md). Die Übersetzungsabdeckung kann variieren. Verwenden Sie daher die
+englische Quelle, wenn eine lokalisierte Anleitung unvollständig oder abweichend ist.
+
+Ein Test oder ein erfolgreich erstelltes Docker-Image ist **nicht** eine Produktionsinstallation. Eine Produktionsbereitstellung benötigt auch HTTPS, einen geschützten Anwendungsschlüssel,
+persistente Daten, verifizierte Sicherungen und einen gehärteten Container. Kopieren Sie nicht
+Produktionsbefehle, bis Sie ihre Platzhalter und Speicherpfade
+gegen Ihre eigene Installation überprüft haben.
 
 ### Sprachen der Weboberfläche
 
-Die Weboberfläche bietet Deutsch, Englisch (USA und Großbritannien), Französisch, Spanisch, vereinfachtes Chinesisch, Japanisch, Polnisch, Schwedisch, norwegisches Bokmål und Finnisch. Wähle die Sprache oben rechts auf der Anmeldeseite. Wenn du keine Sprache auswählst, versucht LUMS, die Browsersprache zu verwenden. Nach der Anmeldung hat eine in deinem Konto gespeicherte Sprache Vorrang. Einige technische oder dynamisch erzeugte Texte können in ihrer ursprünglichen Sprache verbleiben, wenn keine Übersetzung verfügbar ist. Markdown-Anleitungen sind von der Weboberfläche getrennt und werden nicht automatisch übersetzt.
+Die Weboberfläche bietet Deutsch, Englisch (US und UK), Französisch, Spanisch,
+Vereinfachtes Chinesisch, Japanisch, Polnisch, Schwedisch, Norwegisch Bokmål und Finnisch.
+Wählen Sie eine Sprache in der oberen rechten Ecke der Anmeldeseite. Wenn Sie keine Sprache auswählen,
+versucht LUMS, die Browsersprache zu verwenden; nach der Anmeldung hat eine
+auf Ihr Konto gespeicherte Sprache Vorrang. Einige technische oder dynamische Texte
+können in ihrer Originalsprache verbleiben, wenn keine Übersetzung verfügbar ist. Markdown-Anleitungen sind von der Weboberfläche getrennt und werden nicht
+automatisch übersetzt.
 
 ---
 
-LUMS ist ein Linux-Updateverwaltungsserver, der eine kontrollierte, nachvollziehbare und sichere Verwaltung von Software und Updates für Linux-Clients ermöglichen soll.
+LUMS ist ein Linux-Update-Verwaltungsserver, der eine gesteuerte, nachvollziehbare und sichere Software- und Update-Verwaltung für Linux-Clients bietet.
 
-Anstatt sich auf unkontrollierte Update-Aktivitäten einzelner Clients zu verlassen, bietet LUMS eine zentrale Verwaltungsebene für Softwareinventar, Update-Erkennung, Paketoperationen, Update-Aufträge, Ausführungsüberwachung und Ergebnisberichte.
+Anstatt sich auf unkontrollierte clientseitige Update-Aktivitäten zu verlassen, bietet LUMS eine zentrale Verwaltungsebene für Software-Inventar, Update-Erkennung, Paketoperationen, Update-Aufträge, Ausführungsüberwachung und Ergebnisberichterstattung.
 
-LUMS ist für Umgebungen konzipiert, in denen Updates **sichtbar, kontrolliert, nachvollziehbar und wiederherstellbar** sein sollen.
+LUMS ist für Umgebungen ausgelegt, in denen Updates **sichtbar, gesteuert, nachverfolgbar und wiederherstellbar** sein sollten.
 
 ---
 
 ## Was ist LUMS?
 
-LUMS (**Linux Update Management Server**) besteht aus einem zentralen Server und schlanken Linux-Clients.
+LUMS (**Linux-Update-Verwaltungsserver**) besteht aus einem zentralen Server und schlanken Linux-Clients.
 
-Der Server stellt die Verwaltungsoberfläche, API, Authentifizierung, Autorisierung, Auftragsverwaltung, Audit-Protokollierung und dauerhafte Speicherung bereit.
+Der Server bietet die Verwaltungsoberfläche, API, Authentifizierung, Autorisierung, Auftragsverwaltung, Audit-Protokollierung und persistente Zustände.
 
 Der clientseitige Agent führt lokale Paketmanager-Operationen aus und meldet die Ergebnisse an den Server zurück.
 
-Die grundlegende Architektur sieht folgendermaßen aus:
+Die grundlegende Architektur ist:
 
 ```text
-                   ┌──────────────────────┐
-                   │      Webbrowser      │
-                   └──────────┬───────────┘
-                              │
-                              ▼
-                   ┌──────────────────────┐
-                   │     LUMS-Server      │
-                   │                      │
-                   │ Weboberfläche / API  │
-                   │ Authentifizierung    │
-                   │ RBAC                 │
-                   │ Auftragsverwaltung   │
-                   │ Audit-Protokoll      │
-                   │ SQLite               │
-                   └──────────┬───────────┘
-                              │
-                        HTTPS / API
-                              │
-             ┌────────────────┴────────────────┐
-             │                                 │
-             ▼                                 ▼
-     ┌─────────────────┐             ┌─────────────────┐
-     │  Linux-Client   │             │  Linux-Client   │
-     │                 │             │                 │
-     │ LUMS-Agent      │             │ LUMS-Agent      │
-     │ Paketmanager    │             │ Paketmanager    │
-     │ Watcher         │             │ Watcher         │
-     └─────────────────┘             └─────────────────┘
+                    ┌──────────────────────┐
+                    │      Web Browser      │
+                    └──────────┬───────────┘
+                               │
+                               ▼
+                    ┌──────────────────────┐
+                    │     LUMS Server      │
+                    │                      │
+                    │ Web UI / API         │
+                    │ Authentication       │
+                    │ RBAC                 │
+                    │ Job Management       │
+                    │ Audit Logging        │
+                    │ SQLite               │
+                    └──────────┬───────────┘
+                               │
+                         HTTPS / API
+                               │
+              ┌────────────────┴────────────────┐
+              │                                 │
+              ▼                                 ▼
+      ┌─────────────────┐             ┌─────────────────┐
+      │   Linux Client  │             │   Linux Client  │
+      │                 │             │                 │
+      │ LUMS Agent      │             │ LUMS Agent      │
+      │ Package Manager │             │ Package Manager │
+      │ Watcher         │             │ Watcher         │
+      └─────────────────┘             └─────────────────┘
 ```
 
 ---
 
 ## Warum LUMS?
 
-Linux-Systeme verfügen bereits über ausgezeichnete Paketverwaltungswerkzeuge.
+Linux-Systeme bieten bereits ausgezeichnete Paketverwaltungswerkzeuge.
 
 LUMS versucht nicht, diese zu ersetzen.
 
-Stattdessen ergänzt LUMS diese Werkzeuge um eine Verwaltungsebene, mit der Administratoren zentral Fragen beantworten können, zum Beispiel:
+Stattdessen bietet LUMS eine Verwaltungsebene um diese Werkzeuge, damit Administratoren zentral Fragen wie diese beantworten können:
 
-- Welche Clients gibt es?
-- Welche Software ist installiert?
-- Welche Updates sind verfügbar?
-- Welche Pakete sollen installiert oder entfernt werden?
-- Welche Update-Aufträge laufen gerade?
-- Was ist während eines Updates passiert?
-- Hat der Client das Ergebnis erfolgreich gemeldet?
-- War ein Neustart erforderlich?
-- Kann ein unterbrochener Auftrag sicher wiederhergestellt werden?
-- Wer hat eine administrative Aktion ausgelöst?
+* Which clients exist?
+* Which software is installed?
+* Which updates are available?
+* Which packages should be installed or removed?
+* Which update jobs are running?
+* What happened during an update?
+* Did the client successfully report the result?
+* Was a reboot required?
+* Can an interrupted job recover safely?
+* Who initiated an administrative action?
 
-Das Ziel ist nicht, den zugrunde liegenden Linux-Paketmanager zu verbergen.
+The goal is not to hide the underlying Linux package manager.
 
-Das Ziel ist, seinen Betrieb **verwaltbar und nachvollziehbar** zu machen.
+The goal is to make its operation **manageable and auditable**.
 
 ---
 
@@ -101,17 +143,18 @@ Das Ziel ist, seinen Betrieb **verwaltbar und nachvollziehbar** zu machen.
 
 LUMS verwaltet registrierte Linux-Clients und deren Authentifizierungsstatus.
 
-Jeder Client erhält ein eigenes Authentifizierungs-Token.
+Jeder Client erhält ein individuelles Authentifizierungs-Token.
 
-Client-Token werden nicht als Klartext-Zugangsdaten gespeichert. Der Server speichert einen SHA-256-Hashwert und prüft eingehende Client-Authentifizierungen anhand dieses Hashwerts.
+Client-Token werden nicht als Klartext-Anmeldedaten gespeichert. Der Server speichert einen SHA-256-Hash und validiert die eingehende Client-Authentifizierung gegen diesen Hash.
 
 Administratoren können:
 
-- Clients registrieren
-- Clients deaktivieren
-- Client-Token erneuern
-- den Clientstatus prüfen
-- die Rückmeldungen der Clients überwachen
+* register clients
+* disable clients
+* rotate client tokens
+* inspect client status
+* monitor client reporting
+* view client telemetry (CPU, memory, network when telemetry is enabled)
 
 ---
 
@@ -119,45 +162,79 @@ Administratoren können:
 
 Clients melden ihre installierte Software an den LUMS-Server.
 
-Der Server speichert das Inventar und stellt es über die Verwaltungsoberfläche bereit.
+Der Server speichert das Inventar und macht es über die Verwaltungsoberfläche verfügbar.
 
-Die Ansicht der installierten Software ist bewusst von der Paketsuche getrennt.
+Die Ansicht der installierten Software ist bewusst von der Paketmanagementsuche getrennt.
 
-So können Administratoren und Benutzer mit Leserechten installierte Software einsehen, ohne automatisch Zugriff auf Paketverwaltungsaktionen zu erhalten.
+Dies ermöglicht es Administratoren und Read-Only-Benutzern, installierte Software zu inspizieren, ohne automatisch Paketmanagement-Operationen freizulegen.
 
 ---
 
-### Updateinventar
+### Telemetrie und Integritätsdashboard
 
-Clients prüfen regelmäßig, ob Paketupdates verfügbar sind.
+Das optionale Telemetrie-System überwacht CPU-Auslastung, Speicherauslastung und Netzwerkverkehr über die gesamte Flotte.
 
-Der Server speichert die gemeldeten Updateinformationen und stellt sie berechtigten Benutzern zur Verfügung.
+Das `/health`-Dashboard bietet:
 
-Diese Informationen können als Grundlage für kontrollierte Update-Aufträge dienen.
+* Real-time client status (online, unknown, offline)
+* CPU and memory utilization charts (line, area, or current-value gauges)
+* Network traffic monitoring (receive/transmit bytes per second)
+* 1-hour, 24-hour, and 7-day historical views
+* Client filtering (by status, stale telemetry, high load)
+* Searchable client list with sortable columns
+* Automatic data refresh every 5 seconds
+* Latest backup status
+
+Telemetrie-Daten werden 7 Tage lang gespeichert. Die Telemetrie-Übermittlung erfolgt ungefähr alle 5 Sekunden, wenn der systemd-Timer des Agenten aktiviert ist und der Client den Server erreichen kann.
+
+---
+
+### Themensystem
+
+LUMS bietet ein optionales Themensystem mit sechs visuellen Themen:
+
+* **standard** - default LUMS interface
+* **LUMSStadium** - alternative corporate theme
+* **golf** - calming aesthetic
+* **nerd** - developer-focused theme
+* **geek** - technical theme
+* **admin** - administrator-specific theme
+
+Themen sind nur visuell und ändern nicht die Authentifizierung, Autorisierung, Update-Ausführung oder Sicherheitskontrollen. Die Theme-Voreinstellung wird im Browser-Speicher gespeichert und bleibt über Sitzungen hinweg bestehen.
+
+---
+
+### Update-Inventar
+
+Clients ermitteln regelmäßig, ob Paket-Updates verfügbar sind.
+
+Der Server speichert die gemeldeten Update-Informationen und stellt sie autorisierten Benutzern zur Verfügung.
+
+Update-Informationen können als Grundlage für gesteuerte Update-Aufträge verwendet werden.
 
 ---
 
 ### Paketverwaltung
 
-LUMS stellt Paketverwaltungsaktionen über den Client-Agent bereit.
+LUMS bietet Paketmanagement-Operationen über den Client-Agent.
 
-Zu den unterstützten Paketaktionen gehören:
+Unterstützte Paketoperationen sind:
 
-- `INSTALL_PACKAGE`
-- `REMOVE_PACKAGE`
-- `UPDATE_PACKAGE`
-- `UPDATE_SYSTEM`
+* `INSTALL_PACKAGE`
+* `REMOVE_PACKAGE`
+* `UPDATE_PACKAGE`
+* `UPDATE_SYSTEM`
 
-Die Paketverwaltungsschicht abstrahiert den zugrunde liegenden Paketmanager.
+Die Paketmanagement-Ebene abstrahiert den zugrunde liegenden Paketmanager.
 
-Derzeit werden folgende Paketmanagerfamilien unterstützt:
+Derzeit unterstützte Paketmanager-Familien sind:
 
-- **Debian / Ubuntu:** APT / dpkg
-- **Arch Linux:** pacman
+* **Debian / Ubuntu:** APT / dpkg
+* **Arch Linux:** pacman
 
-Auch die Paketsuche ist über LUMS verfügbar.
+Die Paketsuche ist auch über LUMS verfügbar.
 
-Suchanfragen werden an den Zielclient gesendet, dort mit dem lokalen Paketmanager ausgeführt und anschließend zur Anzeige an den Server zurückgegeben.
+Such-Anfragen werden an den Ziel-Client gesendet, mit dem lokalen Paketmanager ausgeführt und an den Server zurückgegeben, um angezeigt zu werden.
 
 ---
 
@@ -165,9 +242,9 @@ Suchanfragen werden an den Zielclient gesendet, dort mit dem lokalen Paketmanage
 
 Update-Operationen werden als persistente Aufträge dargestellt.
 
-Ein Auftrag kann eine oder mehrere Paketoperationen enthalten und besitzt einen serverseitigen Ausführungsstatus.
+Ein Auftrag kann eine oder mehrere Paketoperationen enthalten und behält einen serverseitigen Ausführungszustand bei.
 
-Der allgemeine Lebenszyklus lautet:
+Der allgemeine Lebenszyklus ist:
 
 ```text
 PENDING
@@ -180,61 +257,61 @@ RUNNING
    └──────────────► FAILED
 ```
 
-Ergebnisse auf Paketebene werden unabhängig voneinander erfasst. Dadurch können unterbrochene Aufträge wiederhergestellt werden, ohne bereits erfolgreich abgeschlossene Operationen unnötig erneut auszuführen.
+Ergebnisse auf Paketebene werden unabhängig nachverfolgt, damit unterbrochene Aufträge wiederhergestellt werden können, ohne unnötig Operationen zu wiederholen, die bereits erfolgreich abgeschlossen wurden.
 
 ---
 
-### Kontrollierte Ausführung
+### Gesteuerte Ausführung
 
-LUMS führt keine beliebigen Shell-Befehle aus, die über die Weboberfläche übermittelt werden.
+LUMS führt nicht willkürliche Shell-Befehle aus, die von der Weboberfläche bereitgestellt werden.
 
 Der Server erstellt strukturierte Aufträge mit validierten Aktionen und Paketnamen.
 
-Der Client-Agent ordnet diese Aktionen den passenden lokalen Paketmanager-Operationen zu.
+Der Client-Agent ordnet diese Aktionen der entsprechenden lokalen Paketmanager-Operation zu.
 
-Damit entsteht eine bewusste Trennung zwischen:
+Dies schafft eine bewusste Grenze zwischen:
 
 ```text
-Weboberfläche
+Web UI
    ↓
 API
    ↓
-Validierter Auftrag
+Validated Job
    ↓
 Agent
    ↓
-Paketmanager
+Package Manager
 ```
 
 ---
 
-### Leerlaufabhängige Ausführung
+### Leerlauf-bewusste Ausführung
 
-LUMS kann die Ausführung von Updates aufschieben, solange ein Client als aktiv gilt.
+LUMS kann die Update-Ausführung verschieben, während ein Client als aktiv angesehen wird.
 
-Der aktuelle Leerlaufgrenzwert beträgt **300 Sekunden**.
+Der aktuelle Leerlauf-Schwellenwert beträgt **300 Sekunden**.
 
-Sofern unterstützt, verwendet der Agent die lokalen Sitzungs- und Leerlaufinformationen über `loginctl`.
+Wenn unterstützt, verwendet der Agent die Sitzungs-/Leerlauf-Informationen des lokalen Systems über `loginctl`.
 
-Wenn die Leerlauferkennung nicht verfügbar ist, gibt LUMS nicht fälschlich vor, der Client sei im Leerlauf.
+Wenn die Leerlauf-Erkennung nicht verfügbar ist, tut LUMS nicht so, als würde der Client im Leerlauf sein.
 
-Diese Unterscheidung ist wichtig, denn **ein unbekannter Leerlaufstatus ist nicht dasselbe wie ein bestätigter Leerlaufstatus**.
+Diese Unterscheidung ist wichtig, da **unbekannter Leerlauf-Zustand nicht dasselbe ist wie bestätigter Leerlauf-Zustand**.
 
 ---
 
-### Auftragswiederherstellung
+### Auftragswiedererherstellung
 
-Update-Aufträge sind darauf ausgelegt, Unterbrechungen zu überstehen.
+Update-Aufträge sind so konzipiert, dass sie Unterbrechungen überstehen.
 
-Der Server hält den persistenten Status der Aufträge und Paketpositionen vor.
+Der Server verwaltet persistente Auftrags- und Paketelem-Zustände.
 
-Bei einer Wiederherstellung werden bereits erfolgreiche Paketoperationen nicht unnötig erneut ausgeführt.
+Bei der Wiederherstellung werden bereits erfolgreiche Paketelem nicht unnötig erneut ausgeführt.
 
-Dadurch entsteht ein prüfpunktähnliches Ausführungsmodell für Operationen mit mehreren Paketen.
+Dies bietet ein Checkpoint-ähnliches Ausführungsmodell für Multi-Paket-Operationen.
 
-Das Ziel lautet:
+Das Ziel ist:
 
-> **Den Auftrag wiederherstellen, statt ihn blind vollständig neu zu starten.**
+> **Stellen Sie den Auftrag wieder her, starten Sie nicht blind den gesamten Auftrag neu.**
 
 ---
 
@@ -242,24 +319,34 @@ Das Ziel lautet:
 
 Einige Paketoperationen können einen Systemneustart erfordern.
 
-LUMS behandelt die Neustarterkennung deshalb als Bestandteil der Verarbeitung von Update-Ergebnissen. Ein erfolgreicher Rückgabecode des Paketmanagers bedeutet nicht automatisch, dass das System bereits wieder vollständig betriebsbereit ist.
+LUMS behandelt daher die Neustarterkennung als Teil der Update-Ergebnishandhabung, anstatt anzunehmen, dass ein erfolgreicher Paketmanager-Ausstieg immer bedeutet, dass das System vollständig funktionsfähig ist.
 
-Der Client meldet die erkannte Neustartanforderung an den Server zurück.
+Der Client meldet die erkannte Neustart-Anforderung an den Server zurück.
 
 ---
 
-### Clientauthentifizierung
+### Client-Authentifizierung
 
-Die Clientkommunikation wird über individuelle Client-Token authentifiziert.
+Die Client-Kommunikation wird mit pro-Client-Tokens authentifiziert.
 
-Token sind:
+Tokens sind:
 
-- individuell zugewiesen
-- erneuerbar
-- serverseitig nur als SHA-256-Hashwerte gespeichert
-- werden vor der Annahme von Clientmeldungen validiert
+* individually assigned
+* rotatable
+* stored server-side only as SHA-256 digests
+* validated before accepting client reports
 
-Durch eine Token-Erneuerung kann ein Administrator bisherige Zugangsdaten ungültig machen, ohne den Client neu anlegen zu müssen.
+Die Token-Rotation ermöglicht einem Administrator, eine zuvor ausgegebene Client-Anmeldedaten zu invalidieren, ohne den Client neu zu erstellen.
+
+---
+
+### Integritätsdashboard
+
+Das authentifizierte Integritätsdashboard unter `/health` fasst den Datenbankstatus,
+Client-Berichterstatus, Backup-Speichersichtbarkeit und CPU-/Speichertelemetrie zusammen,
+wenn Telemetrie konfiguriert ist. Es ist eine schnelle operative Ansicht, kein Ersatz
+für die Überprüfung von Container-, Reverse-Proxy-, Host- und Backup-Protokollen oder für die Durchführung
+eines Restore-Tests. Siehe [LUMS_Health_Dashboard.md](LUMS_Health_Dashboard.md).
 
 ---
 
@@ -277,39 +364,39 @@ LUMS enthält eine API zur Alarmverwaltung und ein einfaches Dashboard für gesp
 
 ### Nachvollziehbarkeit
 
-Administrative und sicherheitsrelevante Aktionen werden über das LUMS-Audit-Log-System erfasst.
+Administrative und sicherheitsrelevante Aktionen werden durch das LUMS-Audit-Protokoll-System aufgezeichnet.
 
-Das Audit-Protokoll soll folgende Fragen beantworten:
+Der Audit-Pfad soll antworten:
 
 ```text
-Wer?
-Was?
-Wann?
-Welches Objekt war betroffen?
-Mit welchem Ergebnis?
+Who?
+What?
+When?
+Against which object?
+With which result?
 ```
 
-Dazu gehören sicherheitskritische Vorgänge wie authentifizierungsbezogene Aktionen, Clientverwaltung, Benutzerverwaltung und das Erstellen von Update-Aufträgen.
+Dies umfasst sicherheitsempfindliche Operationen wie authentifizierungsbezogene Aktionen, Client-Verwaltung, Benutzerverwaltung und Erstellung von Update-Aufträgen.
 
 ---
 
-## Gestaltungsprinzip
+## Design Principle
 
-LUMS folgt einem einfachen Grundsatz:
+LUMS follows a simple principle:
 
-> **Die Linux-Updateverwaltung sichtbar, kontrolliert, wiederherstellbar und nachvollziehbar machen – ohne die darunterliegenden Linux-Werkzeuge zu verbergen.**
+> **Make Linux update management visible, controlled, recoverable, and auditable — without hiding the Linux tools underneath.**
 
-## Architektur
+## Architecture
 
-LUMS trennt Verwaltung, Ausführung und Speicherung in klar definierte Komponenten.
+LUMS separates management, execution, and persistence into clearly defined components.
 
-Der Server ist für Orchestrierung und Richtlinien zuständig.
+The server is responsible for orchestration and policy.
 
-Der Client ist für die lokale Systeminteraktion verantwortlich.
+The client is responsible for local system interaction.
 
-Der Paketmanager bleibt dafür zuständig, Software tatsächlich zu installieren, zu entfernen oder zu aktualisieren.
+The package manager remains responsible for actually installing, removing, or updating software.
 
-Diese Trennung ist beabsichtigt.
+This separation is intentional.
 
 ```text
 Browser
@@ -317,138 +404,141 @@ Browser
    │ HTTPS
    ▼
 ┌──────────────────────────────────────────┐
-│               LUMS-Server                │
+│                LUMS Server                │
 │                                          │
-│ Weboberfläche                            │
-│ Authentifizierung / Sitzungen            │
-│ RBAC                                     │
-│ API                                      │
-│ Clientverwaltung                         │
-│ Paketsuche                               │
-│ Update-Auftragsverwaltung                │
-│ Audit-Protokollierung                    │
-│ SQLite-Persistenz                        │
+│  Web UI                                  │
+│  Authentication / Sessions               │
+│  RBAC                                    │
+│  API                                     │
+│  Client Management                       │
+│  Package Search                          │
+│  Update Job Management                   │
+│  Audit Logging                            │
+│  SQLite Persistence                       │
 └───────────────────┬──────────────────────┘
                     │
-                    │ HTTPS / Client-API
+                    │ HTTPS / Client API
                     ▼
 ┌──────────────────────────────────────────┐
-│                LUMS-Agent                │
+│               LUMS Agent                  │
 │                                          │
-│ Authentifizierung                        │
-│ Inventarmeldung                          │
-│ Update-Erkennung                         │
-│ Paketsuche                               │
-│ Auftragsausführung                       │
-│ Ergebnismeldung                          │
-│ Neustarterkennung                        │
-│ Leerlauferkennung                        │
+│  Authentication                          │
+│  Inventory Reporting                     │
+│  Update Detection                        │
+│  Package Search                          │
+│  Job Execution                           │
+│  Result Reporting                        │
+│  Reboot Detection                        │
+│  Idle Detection                          │
 └───────────────────┬──────────────────────┘
                     │
                     ▼
           ┌────────────────────┐
-          │ Paketmanager       │
+          │ Package Manager    │
           │                    │
-          │ APT / dpkg          │
-          │ pacman              │
+          │ APT / dpkg         │
+          │ pacman             │
           └────────────────────┘
 ```
 
 ---
 
-## Serverkomponenten
+## Server Components
 
-Der LUMS-Server stellt die zentrale Verwaltungsebene bereit.
+The LUMS server provides the central management layer.
 
-### Webanwendung
+### Web Application
 
-Die Webanwendung stellt die Verwaltungsoberfläche für folgende Bereiche bereit:
+The web application provides the administrative interface for:
 
-- Clientverwaltung
-- Softwareinventar
-- Updateinformationen
-- Update-Aufträge
-- Paketverwaltung
-- Updateverlauf
-- Benutzerverwaltung
-- Systemwartung
+* client management
+* software inventory
+* update information
+* update jobs
+* package management
+* update history
+* user management
+* system maintenance
 
-Die Oberfläche berücksichtigt die RBAC-Rolle des angemeldeten Benutzers.
+The interface respects the current user's RBAC role.
 
-Die sichtbaren Funktionen werden daher an die Berechtigungen des Benutzers angepasst. Die Autorisierung wird jedoch zusätzlich immer serverseitig durchgesetzt.
+Frontend visibility is therefore adapted to the user's permissions, but authorization is always enforced server-side as well.
 
 ---
 
 ### API
 
-Die API verbindet die Weboberfläche und die Linux-Clients mit der serverseitigen Anwendungslogik.
+The API connects the web interface and Linux clients to the server-side application logic.
 
-Sie verarbeitet unter anderem:
+It handles operations such as:
 
-- Clientregistrierung und -verwaltung
-- Clientmeldungen
-- Paketsuchen
-- Paketsuchergebnisse
-- Update-Aufträge
-- Auftragsergebnisse
-- Benutzerverwaltung
-- Audit-Ereignisse
+* client registration and management
+* client reports
+* package searches
+* package-search results
+* update jobs
+* job results
+* user management
+* audit events
 
-API-Endpunkte validieren Eingaben, bevor zustandsverändernde Aktionen ausgeführt werden.
+API endpoints validate their input before performing state-changing operations.
 
 ---
 
-### Authentifizierung und Sitzungen
+### Authentication and Sessions
 
-Administratoren melden sich über die LUMS-Webanwendung an.
+Administrative users authenticate through the LUMS web application.
 
-Sitzungen werden serverseitig verwaltet und können ausdrücklich widerrufen werden.
+Sessions are server-controlled and support explicit session revocation.
 
-Zu den Sicherheitsmechanismen der Authentifizierung gehören:
+Authentication security includes:
 
-- Passwort-Hashing mit Argon2
-- Sitzungsverwaltung
-- Sitzungswiderruf
-- Begrenzung der Anmeldeversuche
-- CSRF-Schutz
-- rollenbasierte Autorisierung
+* password hashing using Argon2
+* session management
+* session revocation
+* login rate limiting
+* CSRF protection
+* role-based authorization
 
-Die Clientauthentifizierung ist von der administrativen Authentifizierung getrennt.
+Client authentication is separate from administrative authentication.
 
 ---
 
 ### RBAC
 
-LUMS kombiniert Rollenvorlagen mit individuellen Berechtigungen pro Benutzer. Die Vorlagen Administrator, Operator und Viewer bieten Ausgangsberechtigungen, die für jedes Konto angepasst werden können.
+LUMS combines role templates with per-user permissions. The Administrator,
+Operator, and Viewer templates provide starting permission sets that can be
+customized for each account.
 
-Die Autorisierung wird serverseitig anhand der für das Konto gespeicherten Berechtigungen durchgesetzt.
+Authorization is enforced on the server using the account's stored permissions.
 
-Zusätzlich blendet das Frontend Funktionen aus, die der Benutzer nicht verwenden darf.
+The frontend additionally hides functionality that the user's permissions do
+not allow.
 
-Das bedeutet: Das Ausblenden einer Schaltfläche gilt niemals als Sicherheitsgrenze.
+This means that hiding a button is never treated as a security boundary.
 
 ---
 
-### SQLite-Persistenz
+### SQLite Persistence
 
-LUMS verwendet SQLite zur dauerhaften Speicherung des Anwendungszustands.
+LUMS uses SQLite for persistent application state.
 
-Die Datenbank speichert unter anderem:
+The database stores information such as:
 
-- Benutzer
-- Sitzungen
-- Clients
-- Client-Authentifizierungsstatus
-- Softwareinventar
-- verfügbare Updates
-- Update-Aufträge
-- Ergebnisse einzelner Paketoperationen
-- Paketsuchanfragen und Suchergebnisse
-- Audit-Informationen
+* users
+* sessions
+* clients
+* client authentication state
+* software inventory
+* available updates
+* update jobs
+* package-level job results
+* package-search requests and results
+* audit information
 
-Die Anwendung aktiviert die Durchsetzung von SQLite-Fremdschlüsseln ausdrücklich für Datenbankverbindungen.
+The application explicitly enables SQLite foreign-key enforcement for database connections.
 
-Die aktuelle SQLite-Basiskonfiguration für den Produktivbetrieb lautet:
+The current production SQLite baseline is:
 
 ```text
 journal_mode = wal
@@ -457,251 +547,260 @@ synchronous = 2
 foreign_keys = ON
 ```
 
-Die aktuelle Produktivkonfiguration verwendet den WAL-Modus von SQLite.
+LUMS uses SQLite WAL mode in the current production configuration.
 
 ---
 
-## Containerarchitektur
+## Container Architecture
 
-Der LUMS-Server wird in einem gehärteten Docker-Container bereitgestellt.
+The LUMS server is deployed as a hardened Docker container.
 
-Der Anwendungskontainer wird bewusst als ersetzbar behandelt.
+The application container is intentionally treated as disposable.
 
-Der persistente Anwendungszustand wird in einem dedizierten Docker-Volume gespeichert:
+Persistent application state is stored in the dedicated Docker volume:
 
 ```text
 lums-data
 ```
 
-Das Root-Dateisystem des Produktivcontainers ist schreibgeschützt.
+The production container uses a read-only root filesystem.
 
-Schreibbare Speicherorte sind gezielt auf die erforderlichen Laufzeit- und persistenten Speicherpfade begrenzt.
+Writable locations are deliberately restricted to required runtime and persistent storage paths.
 
-Die Sicherheitsbasis für den Produktivbetrieb umfasst:
+The production security baseline includes:
 
 ```text
-schreibgeschütztes Root-Dateisystem
-alle Linux-Capabilities entfernt
+read-only root filesystem
+all Linux capabilities dropped
 no-new-privileges
-eingeschränktes /tmp
-eingeschränktes /run
-schreibgeschützter Secret-Mount
-dediziertes persistentes Datenvolume
-nicht privilegierter Anwendungsbenutzer
+restricted /tmp
+restricted /run
+read-only secret mount
+dedicated persistent data volume
+non-root application user
 ```
 
-Die Anwendung ist intern unter folgender Adresse erreichbar:
+The application is exposed internally through:
 
 ```text
 127.0.0.1:5050
 ```
 
-Der externe HTTPS-Zugriff erfolgt über den Reverse Proxy.
+External HTTPS access is provided through the reverse proxy.
 
 ---
 
-## Persistente und ersetzbare Komponenten
+## Persistent and Disposable Components
 
-LUMS trennt dauerhafte Zustände von austauschbaren Laufzeitkomponenten.
+LUMS separates persistent state from replaceable runtime components.
 
 ```text
 Persistent
-├── SQLite-Datenbank
-├── Clientstatus
-├── Benutzerstatus
-├── Auftragsstatus
-└── Auditstatus
+├── SQLite database
+├── client state
+├── user state
+├── job state
+└── audit state
 
-Ersetzbar
-├── Docker-Container
-├── Anwendungsprozess
-└── generierter Laufzeitzustand
+Disposable
+├── Docker container
+├── application process
+└── generated runtime state
 ```
 
-Das Ersetzen des Anwendungskontainers löscht die LUMS-Datenbank daher nicht automatisch.
+Replacing the application container therefore does not inherently remove the LUMS database.
 
-Diese Trennung ist für Aktualisierungen und Wiederherstellung wichtig.
+This separation is important for upgrades and recovery.
 
 ---
 
-## Clientarchitektur
+## Client Architecture
 
-Der Linux-Client besteht aus mehreren zusammenarbeitenden Komponenten.
+The Linux client consists of several cooperating components.
 
-### LUMS-Agent
+### LUMS Agent
 
-Der Agent ist für die Interaktion mit dem LUMS-Server und dem lokalen Linux-System zuständig.
+The agent is responsible for interaction with the LUMS server and the local Linux system.
 
-Aktuelle Agent-Version:
+Current agent version:
 
 ```text
 1.7.0
 ```
 
-Der Agent übernimmt:
+The agent handles:
 
-- Authentifizierung
-- Inventarerfassung
-- Update-Erkennung
-- Paketsuche
-- Paketoperationen
-- Ausführung von Update-Aufträgen
-- Ergebnismeldung
-- Neustarterkennung
-- Behandlung des Leerlaufstatus
-- Mitwirkung an der Auftragswiederherstellung
+* authentication
+* inventory collection
+* update detection
+* package search
+* package operations
+* update-job execution
+* result reporting
+* reboot detection
+* idle-state handling
 
 ---
 
-### Paketmanagerschicht
+### Package Manager Layer
 
-Die Paketmanagerschicht stellt eine kontrollierte Abstraktion über den nativen Linux-Paketmanager bereit.
+The package-manager layer provides a controlled abstraction around the native Linux package manager.
 
-LUMS muss den Paketmanager nicht ersetzen.
+The agent does not require LUMS to replace the package manager.
 
-Stattdessen gilt:
+Instead:
 
 ```text
-LUMS-Aktion
-    │
-    ▼
-Paketmanager-Abstraktion
-    │
-    ├── Debian / Ubuntu → APT / dpkg
-    │
-    └── Arch Linux     → pacman
+LUMS Action
+     │
+     ▼
+Package Manager Abstraction
+     │
+     ├── Debian / Ubuntu → APT / dpkg
+     │
+     └── Arch Linux      → pacman
 ```
 
-Dadurch bleibt distributionsspezifische Paketbehandlung innerhalb des Clients.
+This keeps distribution-specific package handling inside the client.
 
 ---
 
-### Ausführungs-Watcher
+### Execution Watcher
 
-Der Watcher überwacht die Ausführung von Update-Aufträgen auf dem Client.
+The watcher monitors update-job execution on the client.
 
-Aktuelle Watcher-Version:
+Current watcher version:
 
 ```text
 1.2.1
 ```
 
-Der Watcher arbeitet mit dem Agenten und dem serverseitigen Auftragsstatus zusammen.
+The watcher works together with the agent and the server-side job state.
 
-Sein Zweck besteht darin, Ausführungssituationen zu erkennen, in denen ein Auftrag, der ausgeführt werden sollte, unbegrenzt unbearbeitet bleibt.
+Its purpose is to ensure that jobs which are expected to execute do not remain indefinitely unprocessed.
 
 ---
 
-## Meldeweg
+## Reporting Path
 
-Die normale Clientkommunikation verläuft in dieser Richtung:
+Normal client reporting follows this direction:
 
 ```text
-Linux-Client
+Linux Client
+    │
+    │ inventory / update information
+    ▼
+LUMS API
+    │
+    ▼
+SQLite
+    │
+    ▼
+Web UI
+```
+
+For example, an update check performed by the client produces information that is reported to the server and stored as the client's current update state.
+
+The browser does not directly query the client's package manager.
+
+---
+
+## Package Search Path
+
+Package search follows a different request/response flow:
+
+```text
+Browser
    │
-   │ Inventar- / Updateinformationen
+   │ search request
    ▼
-LUMS-API
+LUMS Server
    │
+   │ package-search request
+   ▼
+Linux Client
+   │
+   │ APT / pacman search
+   ▼
+Linux Client
+   │
+   │ search result
+   ▼
+LUMS Server
+   │
+   ▼
+Browser
+```
+
+The server therefore does not need to maintain a complete remote package repository index for every client.
+
+The search is performed using the client's own package-management environment.
+
+---
+
+## Update Execution Path
+
+An update job follows the general architecture:
+
+```text
+Browser
+   │
+   │ create job
+   ▼
+LUMS API
+   │
+   │ validate request
    ▼
 SQLite
    │
+   │ persistent job
    ▼
-Weboberfläche
-```
-
-Eine vom Client durchgeführte Updateprüfung erzeugt beispielsweise Informationen, die an den Server gemeldet und als aktueller Updatezustand des Clients gespeichert werden.
-
-Der Browser fragt den Paketmanager des Clients nicht direkt ab.
-
----
-
-## Ablauf der Paketsuche
-
-Die Paketsuche folgt einem eigenen Anfrage- und Antwortablauf:
-
-```text
-Browser
-  │ Suchanfrage
-  ▼
-LUMS-Server
-  │ Paketsuchauftrag
-  ▼
-Linux-Client
-  │ APT- / pacman-Suche
-  ▼
-Linux-Client
-  │ Suchergebnis
-  ▼
-LUMS-Server
-  │
-  ▼
-Browser
-```
-
-Der Server muss daher keinen vollständigen entfernten Paketindex für jeden Client pflegen.
-
-Die Suche wird in der Paketverwaltungsumgebung des jeweiligen Clients ausgeführt.
-
----
-
-## Ablauf der Update-Ausführung
-
-Ein Update-Auftrag folgt grundsätzlich dieser Architektur:
-
-```text
-Browser
-  │ Auftrag erstellen
-  ▼
-LUMS-API
-  │ Anfrage validieren
-  ▼
-SQLite
-  │ Persistenter Auftrag
-  ▼
-Linux-Client
-  │ Aktion ausführen
-  ▼
+Linux Client
+   │
+   │ execute action
+   ▼
 APT / dpkg / pacman
-  │ Ergebnis
-  ▼
-Linux-Client
-  │ Validiertes Ergebnis
-  ▼
-LUMS-API
-  │
-  ▼
+   │
+   │ result
+   ▼
+Linux Client
+   │
+   │ validated result
+   ▼
+LUMS API
+   │
+   ▼
 SQLite
-  │
-  ▼
+   │
+   ▼
 Browser
 ```
 
-Die zentrale LUMS-Ausführungskette lautet:
+This creates the central LUMS execution chain:
 
-> **Browser → API → SQLite → Agent → Paketmanager → Ergebnis → SQLite → Oberfläche**
-
----
-
-## Atomare Auftragsübernahme
-
-Update-Aufträge sind persistente serverseitige Objekte.
-
-Vor der Ausführung muss der Agent einen Auftrag übernehmen, der ausgeführt werden darf.
-
-Die Übernahme erfolgt atomar, damit derselbe ausstehende Auftrag nicht unbeabsichtigt von mehreren Ausführungspfaden übernommen wird.
-
-Das ist besonders wichtig, wenn Timer, Wiederholungsversuche, Wiederherstellung oder mehrere clientseitige Prozesse beteiligt sind.
+> **Browser → API → SQLite → Agent → Package Manager → Result → SQLite → UI**
 
 ---
 
-## Auftragsausführung
+## Atomic Job Claiming
 
-Der Server erstellt strukturierte Aufträge.
+Update jobs are persistent server-side objects.
 
-Der Client-Agent interpretiert die unterstützten Auftragsaktionen und führt die entsprechende lokale Operation aus.
+Before execution, the agent must obtain a job that is eligible for execution.
 
-Die unterstützten Paketaktionen sind:
+Job claiming is performed atomically so that the same pending job is not unintentionally claimed by multiple execution paths.
+
+This is particularly important when timers, retries, recovery, or multiple client-side processes are involved.
+
+---
+
+## Job Execution
+
+The server creates structured jobs.
+
+The client agent interprets the supported job actions and executes the corresponding local operation.
+
+The supported package actions are:
 
 ```text
 INSTALL_PACKAGE
@@ -710,215 +809,215 @@ UPDATE_PACKAGE
 UPDATE_SYSTEM
 ```
 
-Paketnamen werden validiert, bevor ein Paketauftrag erstellt wird.
+Package names are validated before a package job is created.
 
-Der Agent behandelt Paketnamen nicht als beliebige Shell-Fragmente.
+The agent does not treat package names as arbitrary shell fragments.
 
 ---
 
-## Paketverwaltungsabstraktion
+## Package Management Abstraction
 
-Paketoperationen werden bewusst hinter einer Paketmanager-Abstraktion implementiert.
+Package operations are deliberately implemented behind a package-manager abstraction.
 
-Dadurch bleibt das übergeordnete LUMS-Auftragsmodell unabhängig von distributionsspezifischen Befehlen.
+This keeps the higher-level LUMS job model independent from distribution-specific commands.
 
-Beispiel:
+For example:
 
 ```text
 INSTALL_PACKAGE
-      │
-      ├── Debian / Ubuntu → APT
-      │
-      └── Arch Linux     → pacman
+       │
+       ├── Debian / Ubuntu → APT
+       │
+       └── Arch Linux      → pacman
 ```
 
-Dasselbe Prinzip gilt für das Entfernen und Aktualisieren von Paketen.
+The same principle applies to removal and package updates.
 
 ---
 
 ## Debian / Ubuntu
 
-Auf Debian-basierten Systemen verwendet LUMS die nativen APT-/dpkg-Werkzeuge.
+On Debian-family systems, LUMS uses the native APT/dpkg tooling.
 
-Typische Aufgaben sind:
+Typical responsibilities include:
 
-- Paketsuche
-- Abruf von Paketmetadaten
-- Paketinstallation
-- Paketentfernung
-- Paketaktualisierungen
-- Systemaktualisierungen
-- Update-Erkennung
+* package search
+* package metadata lookup
+* package installation
+* package removal
+* package updates
+* system updates
+* update detection
 
-Der LUMS-Agent ersetzt APT nicht.
+The LUMS agent does not replace APT.
 
-Er stellt eine kontrollierte Orchestrierung darum bereit.
+It provides controlled orchestration around it.
 
 ---
 
 ## Arch Linux
 
-Auf Arch-Linux-Systemen verwendet LUMS den nativen Paketmanager pacman.
+On Arch Linux systems, LUMS uses the native pacman package manager.
 
-Typische Aufgaben sind:
+Typical responsibilities include:
 
-- Paketsuche
-- Abruf von Paketmetadaten
-- Paketinstallation
-- Paketentfernung
-- Paketaktualisierungen
-- Systemaktualisierungen
-- Update-Erkennung
+* package search
+* package metadata lookup
+* package installation
+* package removal
+* package updates
+* system updates
+* update detection
 
-Distributionsspezifisches Verhalten bleibt innerhalb der Paketmanagerschicht.
+Distribution-specific behavior remains inside the package-manager layer.
 
 ---
 
-## Paketsuche
+## Package Search
 
-Die Paketsuche ist vom Inventar der installierten Software getrennt.
+Package search is separate from the installed-software inventory.
 
-Diese Unterscheidung ist wichtig:
+This distinction is important:
 
 ```text
-Installierte Software
-       │
-       └── Was ist bereits installiert?
+Installed Software
+        │
+        └── What is already installed?
 
-Paketsuche in der Paketverwaltung
-       │
-       └── Welche Pakete findet der Client aktuell?
+Package Management Search
+        │
+        └── What package can the client currently find?
 ```
 
-Suchergebnisse können Informationen enthalten wie:
+Search results may contain package information such as:
 
-- Paketname
-- Version
-- Beschreibung
-- Repository-Informationen, sofern verfügbar
+* package name
+* version
+* description
+* repository information where available
 
-Die Suchergebnisse werden an den LUMS-Server zurückgegeben und in der Paketverwaltungsoberfläche angezeigt.
+Search results are returned to the LUMS server and displayed in the Package Management interface.
 
 ---
 
-## Berechtigungen der Paketverwaltung
+## Package Management Permissions
 
-Paketverwaltung ist ein privilegierter Vorgang.
+Package management is a privileged operation.
 
-Das aktuelle Berechtigungsmodell lautet:
+The current permission model is:
 
 ```text
-Administrator → erlaubt
-Operator      → erlaubt
-Viewer        → nicht erlaubt
+Administrator → allowed
+Operator      → allowed
+Viewer        → not allowed
 ```
 
-Ein Viewer kann weiterhin installierte Software einsehen.
+A Viewer can still inspect installed software.
 
-Die Paketverwaltungsoberfläche ist für Viewer ausgeblendet. Die entsprechenden serverseitigen Endpunkte für Änderungen erzwingen die Berechtigungen unabhängig davon.
-
----
-
-## Verarbeitung von Update-Ergebnissen
-
-LUMS behandelt das Ergebnis einer Update-Operation als strukturierten Zustand und nicht lediglich als rohe Befehlsausgabe.
-
-Relevante Informationen können umfassen:
-
-- Erfolg oder Fehlschlag
-- Ergebnis auf Paketebene
-- Ausführungsstatus
-- Fehlerinformationen
-- erforderlicher Neustart
-- Abschlusszeitpunkte
-
-Dadurch kann der Server einen aussagekräftigen Updateverlauf führen.
+The Package Management interface itself is hidden for Viewers, and corresponding server-side mutation endpoints enforce authorization independently.
 
 ---
 
-## Neustarterkennung
+## Update Result Handling
 
-Nach Paketoperationen prüft der Client, ob ein Neustart erforderlich ist.
+LUMS treats the result of an update operation as structured state rather than simply displaying raw command output.
 
-Das Ergebnis wird als Bestandteil des Auftragsergebnisses an den Server gemeldet.
+Relevant information can include:
 
-Eine erforderliche Neustartaktion bleibt so mit der Update-Operation verknüpft, statt in einer clientseitigen Terminalsitzung verloren zu gehen.
+* success or failure
+* package-level result
+* execution state
+* error information
+* reboot requirement
+* completion timestamps
+
+This allows the server to maintain a meaningful update history.
 
 ---
 
-## Grenze der Clientauthentifizierung
+## Reboot Detection
 
-Die Client-API verwendet einen anderen Authentifizierungsmechanismus als administrative Websitzungen.
+After package operations, the client checks whether the operation indicates that a reboot is required.
+
+The result is reported to the server as part of the job result.
+
+A reboot requirement therefore remains associated with the update operation instead of being lost in a client-side terminal session.
+
+---
+
+## Client Authentication Boundary
+
+The client API uses a separate authentication mechanism from administrative web sessions.
 
 ```text
-Administrativer Benutzer
-       │
-       ▼
-Webauthentifizierung
-       │
-       ▼
-   LUMS-Server
+Administrative User
+        │
+        ▼
+ Web Authentication
+        │
+        ▼
+    LUMS Server
 
-Linux-Client
-       │
-       ▼
-   Client-Token
-       │
-       ▼
-   LUMS-Server
+Linux Client
+        │
+        ▼
+ Client Token
+        │
+        ▼
+    LUMS Server
 ```
 
-Diese Trennung verhindert, dass administrative Browsersitzungen und Client-Zugangsdaten als austauschbare Authentifizierungsmechanismen verwendet werden.
+This separation prevents administrative browser sessions and client credentials from becoming interchangeable authentication mechanisms.
 
 ---
 
-## Audit-Trail
+## Audit Trail
 
-Sicherheitsrelevante und administrative Aktionen werden vom serverseitigen Auditsystem erfasst.
+Security-relevant and administrative actions are recorded by the server-side audit system.
 
-Der Audit-Trail ergänzt die normalen Anwendungsprotokolle.
+The audit trail complements normal application logging.
 
-Protokolle beantworten Fragen zum Anwendungsverhalten.
+Logging answers questions about application behavior.
 
-Audit-Protokolle halten zusätzlich wichtige administrative Aktionen und deren Kontext fest.
+Audit logging additionally records important administrative actions and their context.
 
-Das ist hilfreich, wenn Änderungen an Clients, Benutzern, Authentifizierungszuständen oder Update-Aufträgen untersucht werden müssen.
+This distinction is useful when investigating changes to clients, users, authentication state, or update jobs.
 
 ---
 
-## Betriebsprinzip
+## Operational Principle
 
-LUMS trennt bewusst:
+LUMS deliberately separates:
 
 ```text
-Verwaltung
-    │
-    ▼
-Richtlinien / Autorisierung
-    │
-    ▼
-Auftrag
-    │
-    ▼
-Clientausführung
-    │
-    ▼
-Nativer Paketmanager
+Management
+     │
+     ▼
+Policy / Authorization
+     │
+     ▼
+Job
+     │
+     ▼
+Client Execution
+     │
+     ▼
+Native Package Manager
 ```
 
-Jede Ebene hat eine klar definierte Verantwortung.
+Each layer has a defined responsibility.
 
-Der Server verwaltet.
+The server manages.
 
-Der Agent führt aus.
+The agent executes.
 
-Der Paketmanager nimmt die eigentliche Systemänderung vor.
+The package manager performs the actual system change.
 
-Das Ergebnis läuft über dieselbe kontrollierte Kette zurück.
+The result travels back through the same controlled chain.
 
-## Rollenbasierte Zugriffskontrolle
+## Role-Based Access Control
 
-LUMS verwendet drei administrative Rollen:
+LUMS uses three administrative roles:
 
 ```text
 Administrator
@@ -926,195 +1025,205 @@ Operator
 Viewer
 ```
 
-Die Autorisierung wird serverseitig durchgesetzt.
+Authorization is enforced server-side.
 
-Das Frontend passt zusätzlich die sichtbare Oberfläche an die Berechtigungen des Benutzers an. Die Sichtbarkeit im Frontend gilt jedoch niemals als Sicherheitsgrenze.
+The frontend additionally adapts the visible interface to the user's
+permissions, but frontend visibility is never considered a security boundary.
 
 ### Administrator
 
-Administratoren dürfen:
+Administrators have access to:
 
-- Clients anzeigen
-- installierte Software anzeigen
-- verfügbare Updates anzeigen
-- Update-Aufträge erstellen und ausführen
-- den Updateverlauf einsehen
-- die Paketverwaltung verwenden
-- Systemwartung durchführen
-- Clients erstellen und deaktivieren
-- Client-Token erneuern
-- Benutzer erstellen und verwalten
-- Rollen und Benutzerzugriffe verwalten
+* view clients
+* view installed software
+* view available updates
+* create and execute update jobs
+* view update history
+* use package management
+* perform system maintenance
+* create and disable clients
+* rotate client tokens
+* create and manage users
+* manage roles and user access
 
 ### Operator
 
-Operatoren dürfen:
+Operators have access to:
 
-- Clients anzeigen
-- installierte Software anzeigen
-- verfügbare Updates anzeigen
-- Update-Aufträge erstellen und ausführen
-- den Updateverlauf einsehen
-- die Paketverwaltung verwenden
-- Systemwartung durchführen
+* view clients
+* view installed software
+* view available updates
+* create and execute update jobs
+* view update history
+* use package management
+* perform system maintenance
 
-Operatoren dürfen nicht:
+Operators do not have access to:
 
-- Benutzer verwalten
-- Rollen administrieren
-- Clients erstellen oder deaktivieren
-- Client-Token erneuern
+* user management
+* role administration
+* client creation or disabling
+* client-token rotation
 
 ### Viewer
 
-Viewer haben Lesezugriff auf:
+Viewers have read-only access to:
 
-- Clients
-- installierte Software
+* clients
+* installed software
 
-Folgende Funktionen stehen Viewern nicht zur Verfügung:
+The following functionality is unavailable to Viewers:
 
-- Verwaltung verfügbarer Updates
-- Update-Aufträge
-- Updateverlauf
-- Paketverwaltung
-- Systemwartung
-- andere zustandsverändernde administrative Aktionen
+* available-update management
+* update jobs
+* update history
+* package management
+* system maintenance
+* other state-changing administrative operations
 
-Der Server setzt diese Einschränkungen unabhängig davon durch.
+The server independently enforces these restrictions.
 
 ---
 
-## Benutzerverwaltung
+## User Management
 
-LUMS stellt Benutzern mit der Berechtigung `users.manage` eine Benutzerverwaltung bereit.
+LUMS provides user management to accounts with the `users.manage` permission.
 
-Berechtigte Benutzer können Konten anhand einer Rollenvorlage erstellen und anschließend einzelne Berechtigungen zuweisen oder die Vorlage ausdrücklich anwenden. Neue Konten starten ohne Berechtigungen; nach der Erstellung wird der Berechtigungseditor geöffnet. Benutzerverwalter können außerdem private administrative Notizen speichern, die für den Kontoinhaber nicht sichtbar sind.
+Users with this permission can create accounts using a role template and
+then assign permissions individually or explicitly apply that template. New
+accounts start without permissions; the permission editor opens after creation.
+User managers can also save private administrative notes that are not visible
+to the account owner.
+
+Administrators with `backups.manage` can create validated `.db` or `.db.gz`
+database backups in a server-configured directory and choose a safe subfolder
+within that mounted location. See [`administration.md`](administration.md) and
+the in-app Markdown restore guide for Docker storage setup and recovery.
 
 Administratoren mit `backups.manage` können validierte Datenbank-Backups im Format `.db` oder `.db.gz` in einem serverseitig konfigurierten Verzeichnis erstellen und einen sicheren Unterordner innerhalb dieses eingebundenen Speicherorts auswählen. Hinweise zur Docker-Speicherkonfiguration und Wiederherstellung stehen in [`administration.md`](<Administration und Backups.md>) und in der integrierten Markdown-Anleitung zur Wiederherstellung.
 
-Benutzerpasswörter werden mit Argon2 gehasht und weder im Klartext noch mit umkehrbarer Verschlüsselung gespeichert.
+User passwords are stored using Argon2 password hashing rather than plaintext or reversible encryption.
 
-Benutzerverwaltungsaktionen sind geschützt durch:
+User-management operations are protected by:
 
-- Authentifizierung
-- berechtigungsbasierte Autorisierung
-- CSRF-Schutz
-- Eingabevalidierung
-- Prüfung auf doppelte Benutzernamen
-- Audit-Protokollierung
+* authentication
+* permission-based authorization
+* CSRF protection
+* input validation
+* duplicate-user checks
+* audit logging
 
-Die Benutzerverwaltungsoberfläche wird ohne `users.manage` nicht angezeigt.
-
----
-
-## Sitzungssicherheit
-
-Die administrative Authentifizierung verwendet eine serverseitige Sitzungsverwaltung.
-
-Zu den Sicherheitsmaßnahmen gehören:
-
-- authentifizierter Sitzungsstatus
-- Sitzungswiderruf
-- CSRF-Schutz bei zustandsverändernden Anfragen
-- Begrenzung der Anmeldeversuche
-- Durchsetzung deaktivierter Konten
-- Rollenprüfungen
-
-Beim Widerruf einer Sitzung wird der zugehörige authentifizierte Zustand ungültig gemacht, anstatt lediglich die Benutzeroberfläche auszublenden.
+The user-management interface is not exposed without `users.manage`.
 
 ---
 
-## Begrenzung von Anmeldeversuchen
+## Session Security
 
-Wiederholte fehlgeschlagene Anmeldeversuche unterliegen einer progressiven Begrenzung.
+Administrative authentication uses server-side session handling.
 
-Die aktuellen Schwellenwerte sind:
+Session security includes:
+
+* authenticated session state
+* session revocation
+* CSRF protection for state-changing requests
+* login rate limiting
+* disabled-account enforcement
+* role checks
+
+Revoking a session invalidates the corresponding authenticated state rather than merely hiding the user interface.
+
+---
+
+## Login Rate Limiting
+
+Repeated failed login attempts are subject to progressive rate limiting.
+
+The current thresholds are:
 
 ```text
-5 Versuche   → 30 Sekunden
-6 Versuche   → 60 Sekunden
-7 Versuche   → 120 Sekunden
-8+ Versuche  → 300 Sekunden
+5 attempts  → 30 seconds
+6 attempts  → 60 seconds
+7 attempts  → 120 seconds
+8+ attempts → 300 seconds
 ```
 
-Der zugehörige Zustand wird in SQLite gespeichert.
+The relevant state is persisted in SQLite.
 
-Eine erfolgreiche Anmeldung setzt den entsprechenden Fehlerstatus zurück.
+Successful authentication clears the applicable failure state.
 
-Dadurch kann der Schutz nicht einfach durch einen Neustart der Anwendung umgangen werden.
+This prevents a simple application restart from being used to bypass the login protection.
 
 ---
 
-## Sicherheit der Client-Token
+## Client Token Security
 
-Jeder registrierte Client besitzt ein eigenes Authentifizierungs-Token.
+Each registered client has its own authentication token.
 
-Der Server speichert das Token als SHA-256-Hashwert.
+The server stores the token as a SHA-256 digest.
 
-Das ursprüngliche Token wird für die normale serverseitige Prüfung nicht benötigt.
+The original token is not required for normal server-side validation.
 
-Durch eine Token-Erneuerung kann ein Administrator vorhandene Zugangsdaten ungültig machen und einen Ersatz ausstellen.
+Token rotation allows administrators to invalidate an existing credential and issue a replacement.
 
-Der Lebenszyklus ist damit klar definiert:
+This creates a clear lifecycle:
 
 ```text
-Erstellen
-   │
-   ▼
-Verwenden
-   │
-   ▼
-Erneuern
-   │
-   ▼
-Altes Token ungültig
+Create
+  │
+  ▼
+Use
+  │
+  ▼
+Rotate
+  │
+  ▼
+Old token invalid
 ```
 
 ---
 
-## API-Sicherheit
+## API Security
 
-LUMS validiert API-Eingaben, bevor zustandsverändernde Aktionen ausgeführt werden.
+LUMS validates API input before performing state-changing operations.
 
-Zu den Sicherheitsmaßnahmen gehören:
+Security controls include:
 
-- Authentifizierung
-- Autorisierung anhand der Benutzerberechtigungen
-- CSRF-Schutz, wo anwendbar
-- Eingabevalidierung
-- Validierung von Paketnamen
-- strukturierte Auftragsaktionen
-- parametrisierte Datenbankabfragen
-- kontrollierte Fehlerbehandlung
+* authentication
+* per-user permission authorization
+* CSRF protection where applicable
+* input validation
+* package-name validation
+* structured job actions
+* parameterized database queries
+* controlled error handling
 
-Die Anwendung verwendet von Benutzern übermittelte Paketnamen nicht als uneingeschränkte Shell-Befehle.
-
----
-
-## Schutz vor SQL-Injection
-
-Datenbankoperationen verwenden parametrisierte SQL-Anweisungen.
-
-Von Benutzern kontrollierte Werte werden nicht direkt an SQL-Abfragen angehängt.
-
-Dies betrifft Bereiche wie:
-
-- Authentifizierung
-- Clientverwaltung
-- Benutzerverwaltung
-- Paketsuchen
-- Update-Aufträge
-- Audit-Daten
-- Ergebnismeldungen
-
-Ziel ist es, Datenwerte und SQL-Anweisungen getrennt zu halten.
+The application does not use user-provided package names as unrestricted shell commands.
 
 ---
 
-## SQLite-Sicherheitsbasis
+## SQL Injection Protection
 
-Die aktuelle SQLite-Konfiguration für den Produktivbetrieb lautet:
+Database operations use parameterized SQL statements.
+
+User-controlled values are not directly concatenated into SQL queries.
+
+This applies to areas such as:
+
+* authentication
+* client management
+* user management
+* package searches
+* update jobs
+* audit data
+* result reporting
+
+The goal is to keep data values separate from SQL instructions.
+
+---
+
+## SQLite Security Baseline
+
+The current production SQLite configuration is:
 
 ```text
 journal_mode = wal
@@ -1123,43 +1232,43 @@ synchronous = 2
 foreign_keys = ON
 ```
 
-Die Anwendung aktiviert die Fremdschlüsselprüfung für Datenbankverbindungen ausdrücklich.
+Foreign-key enforcement is explicitly enabled by the application for database connections.
 
-Die aktuelle Konfiguration verwendet den WAL-Modus.
+The current configuration uses WAL mode.
 
-Die Datenbank befindet sich im persistenten Docker-Volume und nicht im Dateisystem des ersetzbaren Anwendungskontainers.
+The database is stored in the persistent Docker volume rather than inside the disposable application container filesystem.
 
 ---
 
-## Auftragswiederherstellung und Prüfpunkte
+## Job Recovery and Checkpointing
 
-LUMS behandelt Update-Aufträge als persistente Zustandsautomaten.
+LUMS treats update jobs as persistent state machines.
 
-Ein Auftrag mit mehreren Paketen kann mehrere einzelne Paketoperationen enthalten.
+A multi-package job may contain several individual package operations.
 
-Jede Paketposition kann einen eigenen Ergebnisstatus erreichen.
+Each package item can reach its own result state.
 
-Nach einer Unterbrechung kann die Wiederherstellung unterscheiden zwischen:
+If execution is interrupted, recovery can distinguish between:
 
 ```text
-bereits erfolgreich
-       │
-       └── nicht unnötig wiederholen
+already successful
+        │
+        └── do not unnecessarily repeat
 
-nicht abgeschlossen
-       │
-       └── für die Wiederherstellung geeignet
+not completed
+        │
+        └── eligible for recovery
 ```
 
-Dadurch sinkt das Risiko, nach einer Unterbrechung bereits abgeschlossene Paketoperationen blind erneut auszuführen.
+This reduces the risk of blindly repeating completed package operations after an interruption.
 
 ---
 
-## Kontrollierte Update-Ausführung
+## Controlled Update Execution
 
-LUMS begrenzt bewusst die Aktionen, die über die Update-Auftrags-API angefordert werden können.
+LUMS deliberately limits the actions that can be requested through the update-job API.
 
-Unterstützte Aktionen:
+Supported actions are:
 
 ```text
 INSTALL_PACKAGE
@@ -1168,354 +1277,358 @@ UPDATE_PACKAGE
 UPDATE_SYSTEM
 ```
 
-Der Server validiert die Aktion und die zugehörigen Paketinformationen, bevor er den Auftrag erstellt.
+The server validates the action and relevant package information before creating the job.
 
-Der Agent ordnet die strukturierte Aktion anschließend der passenden Paketmanager-Operation zu.
+The agent then maps the structured action to the appropriate package-manager operation.
 
-So wird verhindert, dass das Updatesystem zu einem allgemeinen Mechanismus für die Ausführung entfernter Befehle wird.
+This avoids turning the update system into a generic remote-command execution mechanism.
 
 ---
 
-## Paketoperationen
+## Package Operations
 
-Paketoperationen werden über den nativen Paketmanager des Clients ausgeführt.
+Package operations are executed through the native package manager of the client.
 
 ### Installation
 
-Ein validierter Paketname wird zur Installation an die Paketmanager-Abstraktion übergeben.
+A validated package name is passed to the package-manager abstraction for installation.
 
-### Entfernung
+### Removal
 
-Ein validierter Paketname wird zur Entfernung an die Paketmanager-Abstraktion übergeben.
+A validated package name is passed to the package-manager abstraction for removal.
 
-### Paketaktualisierung
+### Package Update
 
-Ein bestimmtes Paket kann aktualisiert werden, wenn der Client es als verfügbares Update meldet.
+A specific package can be updated when the client reports it as an available update.
 
-### Systemaktualisierung
+### System Update
 
-Die Systemaktualisierung übergibt den Aktualisierungsvorgang an den nativen Paketmanager.
+The system update operation delegates the update process to the native package manager.
 
-Alle Operationen geben strukturierte Ergebnisse an den LUMS-Server zurück.
-
----
-
-## Sicherheit des Paketmanagers
-
-LUMS behandelt den Paketmanager als privilegierte lokale Komponente.
-
-Der Agent versucht daher nicht, das Verhalten des Paketmanagers selbst nachzubilden.
-
-Stattdessen:
-
-1. validiert er die angeforderte Operation
-2. wählt die passende Paketmanager-Implementierung aus
-3. führt die kontrollierte Operation aus
-4. erfasst das Ergebnis
-5. meldet das Ergebnis an den Server
-
-Distributionsspezifisches Verhalten bleibt innerhalb der Paketmanagerschicht isoliert.
+All operations return structured results to the LUMS server.
 
 ---
 
-## Neustartbehandlung
+## Package Manager Safety
 
-Einige Paketoperationen können einen Neustart erfordern.
+LUMS treats the package manager as a privileged local component.
 
-LUMS speichert Neustartanforderungen als Bestandteil der Update-Auftragsergebnisse.
+The agent therefore does not attempt to emulate package-manager behavior itself.
 
-So können Administratoren unterscheiden zwischen:
+Instead, it:
+
+1. validates the requested operation
+2. selects the appropriate package-manager implementation
+3. executes the controlled operation
+4. captures the result
+5. reports the result to the server
+
+Distribution-specific behavior remains isolated inside the package-manager layer.
+
+---
+
+## Reboot Handling
+
+Some package operations may require a reboot.
+
+LUMS records reboot requirements as part of update-job results.
+
+This allows administrators to distinguish between:
 
 ```text
-Update abgeschlossen
+Update completed
 ```
 
-und:
+and:
 
 ```text
-Update abgeschlossen
-Neustart erforderlich
+Update completed
+Reboot required
 ```
 
-Die Neustartanforderung ist damit Bestandteil des Betriebszustands und keine unabhängige Benachrichtigung.
+The reboot requirement is therefore part of the operational state rather than being treated as an unrelated notification.
 
 ---
 
-## Audit-Protokollierung
+## Audit Logging
 
-LUMS führt einen Anwendungs-Audit-Trail für wichtige administrative und sicherheitsrelevante Aktionen.
+LUMS maintains an application audit trail for important administrative and security-relevant actions.
 
-Beispiele sind:
+Examples include:
 
-- authentifizierungsbezogene Ereignisse
-- Clientverwaltung
-- Token-Operationen
-- Benutzerverwaltung
-- Erstellung von Update-Aufträgen
-- sicherheitskritische Zustandsänderungen
+* authentication-related events
+* client management
+* token operations
+* user management
+* update-job creation
+* security-sensitive state changes
 
-Die Audit-Protokollierung ist von der gewöhnlichen Diagnoseprotokollierung getrennt.
+Audit logging is separate from ordinary diagnostic logging.
 
-Diagnoseprotokolle helfen bei der Fehlersuche.
+Diagnostic logs help troubleshoot the application.
 
-Audit-Einträge liefern einen administrativen Verlauf relevanter Aktionen.
+Audit records provide an administrative history of relevant actions.
 
 ---
 
-## Sicherheitshärtung
+## Security Hardening
 
-Die aktuelle Bereitstellung umfasst mehrere Härtungsebenen.
+The current deployment includes multiple layers of hardening.
 
-### Container-Härtung
+### Container Hardening
 
-Der Produktivcontainer verwendet:
+The production container uses:
 
-- Ausführung als nicht privilegierter Benutzer
-- schreibgeschütztes Root-Dateisystem
-- entfernte Linux-Capabilities
-- `no-new-privileges`
-- eingeschränkte temporäre Dateisysteme
-- schreibgeschützten Secret-Mount
-- dediziertes persistentes Datenvolume
+* non-root application execution
+* read-only root filesystem
+* dropped Linux capabilities
+* `no-new-privileges`
+* restricted temporary filesystems
+* read-only secret mount
+* dedicated persistent data volume
 
-### Netzwerkhärtung
+### Network Hardening
 
-Der Anwendungskontainer ist auf dem Host an die Loopback-Adresse gebunden:
+The application container is bound to loopback on the host:
 
 ```text
 127.0.0.1:5050
 ```
 
-Der Anwendungsport wird daher nicht direkt als LAN-Dienst bereitgestellt.
+The application port is therefore not directly exposed as a LAN service.
 
-Der externe Zugriff erfolgt über den HTTPS-Reverse-Proxy.
+External access is handled through the HTTPS reverse proxy.
 
-Die Firewall gibt den internen Anwendungsport nicht frei.
+The firewall does not expose the internal application port.
 
-### Transportsicherheit
+### Transport Security
 
-Der administrative Zugriff erfolgt über HTTPS.
+Administrative access is provided through HTTPS.
 
-Der Reverse Proxy übernimmt die externe TLS-Terminierung.
+The reverse proxy handles external TLS termination.
 
-HTTP-Anfragen werden auf HTTPS umgeleitet.
+HTTP requests are redirected to HTTPS.
 
-### Geheimnisse und Konfiguration
+### Secrets and Configuration
 
-Sensible Laufzeit-Zugangsdaten werden außerhalb des Quellcodeverzeichnisses gehalten.
+Sensitive runtime credentials are kept outside the application source tree.
 
-Das Produktionsgeheimnis wird als schreibgeschützte Secret-Datei in den Container eingebunden.
+The production secret is mounted into the container as a read-only secret file.
 
-Regeln im Repository und im Docker-Build-Kontext verhindern, dass übliche Backup-, Geheimnis-, Datenbank- und Zertifikatsdateien unbeabsichtigt in den Image-Build-Kontext gelangen.
+Repository and Docker build context rules prevent common backup, secret, database, and certificate artifacts from unintentionally entering the image build context.
 
-### Abhängigkeits- und Buildsicherheit
+### Dependency and Build Security
 
-Die Python-Abhängigkeiten für den Produktivbetrieb sind fest versioniert.
+The production Python dependencies are pinned.
 
-Das Python-Basisimage für den Produktivbetrieb ist per Digest festgelegt.
+The production Python base image is pinned by digest.
 
-Der Docker-Build-Kontext wird durch `.dockerignore` eingeschränkt.
+The Docker build context is restricted through `.dockerignore`.
 
-Diese Maßnahmen verbessern die Reproduzierbarkeit des Builds und verringern das Risiko, versehentlich sensible Dateien einzuschließen.
+These controls improve build reproducibility and reduce accidental inclusion of sensitive files.
 
 ---
 
-## Status der Sicherheitsprüfung
+## Security Audit Status
 
-Die Sicherheitsprüfung von LUMS hat folgende Bereiche abgedeckt:
+The LUMS security review has covered the following areas:
 
-- Durchsetzung von SQLite-Fremdschlüsseln
-- SQLite-Laufzeitkonfiguration
-- Update-Timeouts und Prozessbehandlung
-- Begrenzung von Anmeldeversuchen
-- API-Eingabevalidierung
-- Sitzungswiderruf
-- Erneuerung von Client-Token
-- Offline- und IP-Behandlung
-- Auftragswiederherstellung und Prüfpunkte
-- Robustheit von APT
-- Neustarterkennung unter Arch Linux
-- Validierung von Einheiten- und API-Ergebnissen
-- Simulationstests
-- kontinuierliche Integration
-- Anwendungs- und Audit-Protokollierung
-- Versionierung und Release-Verfahren
-- RBAC
-- Sitzungs- und CSRF-Sicherheit
-- Sicherheit von Zugangsdaten
-- Abhängigkeits- und Buildsicherheit
-- Docker- und Container-Härtung
-- Schutz von Geheimnissen und Build-Kontext
-- HTTP- und Transportsicherheit
-- Dateisystem- und Laufzeitberechtigungen
-- Netzwerkexposition
-- Sauberkeit der Repository-Artefakte
+* SQLite foreign-key enforcement
+* SQLite runtime configuration
+* update timeout and process handling
+* login rate limiting
+* API input validation
+* session revocation
+* client-token rotation
+* offline/IP handling
+* job recovery and checkpointing
+* APT robustness
+* Arch reboot detection
+* unit and API result validation
+* simulation testing
+* continuous integration
+* application and audit logging
+* versioning and release handling
+* RBAC
+* session and CSRF security
+* credential security
+* dependency and build security
+* Docker/container hardening
+* secrets and build-context protection
+* HTTP/transport security
+* filesystem/runtime permissions
+* network exposure
+* repository artifact hygiene
+
+The remaining documentation review is handled separately as part of the final release-readiness process.
 
 Die Dokumentation muss bei Änderungen am Code oder am Bereitstellungsverhalten mit der Implementierung abgeglichen werden, damit sie das tatsächlich vorhandene System beschreibt.
 
 ---
 
-## Tests und CI
+## Testing and CI
 
-LUMS enthält automatisierte Tests für das grundlegende Anwendungsverhalten und Sicherheitskontrollen.
+LUMS includes automated tests covering core application behavior and security controls.
 
-Führe die vollständige Testsuite im Stammverzeichnis des Repositorys aus:
+Run the complete test suite from the repository root:
 
 ```bash
 ./.venv-test/bin/pytest -q
 ```
 
-Die Anzahl der Tests ändert sich im Laufe der Entwicklung. Entscheidend ist, dass die vollständige Testsuite ohne Fehler erfolgreich durchläuft. Sie umfasst unter anderem Tests für:
+The number of tests changes over time. The required result is that the complete
+suite finishes successfully with no failures. The test suite includes coverage
+for areas such as:
 
-- Authentifizierung
-- RBAC
-- Clientverwaltung
-- Benutzerverwaltung
-- Paketsuche
-- Update-Aufträge
-- Validierung von Auftragsergebnissen
-- Sicherheitsverhalten
-- API-Verhalten
+* authentication
+* RBAC
+* client management
+* user management
+* package search
+* update jobs
+* job-result validation
+* security behavior
+* API behavior
 
-Die kontinuierliche Integration führt die automatisierte Testsuite aus, bevor Änderungen als bereit betrachtet werden.
+Continuous integration executes the automated test suite before changes are considered ready.
 
-Ein erfolgreicher Testlauf ist erforderlich, aber Tests sind nur ein Teil des Release-Prozesses.
+A successful test run is required, but tests are only one part of the release process.
 
-Zusätzlich erforderlich sind:
+The release process also requires:
 
 ```text
-Implementierung
-      ↓
-Sicherheitsprüfung
-      ↓
-Dokumentationsprüfung
-      ↓
-Vollständige Testsuite
-      ↓
+Implementation
+    ↓
+Security Review
+    ↓
+Documentation Review
+    ↓
+Full Test Suite
+    ↓
 CI
-      ↓
+    ↓
 Version
-      ↓
-Git-Tag
-      ↓
-GitHub-Release
+    ↓
+Git Tag
+    ↓
+GitHub Release
 ```
 
 ---
 
-## Entwicklungsstatus
+## Development Status
 
-LUMS befindet sich in aktiver Entwicklung.
+LUMS is currently in active development.
 
-Die zentrale Verwaltungsarchitektur, das clientseitige Ausführungsmodell, die Paketverwaltung, RBAC, Sicherheitshärtung und Wiederherstellungsmechanismen sind implementiert.
+The core management architecture, client execution model, package management, RBAC, security hardening, and recovery mechanisms are implemented.
 
-Das Projekt gilt nicht allein deshalb als fertiges Release, weil die Anwendung funktioniert.
+The project is intentionally not considered a finished release merely because the application is functional.
 
-Zur Release-Reife gehört auch, dass die begleitende Dokumentation und die Betriebsverfahren das aktuelle System korrekt beschreiben.
+Release readiness also requires the surrounding documentation and operational procedures to describe the same current system.
 
-Deshalb wird die Konsistenz der Dokumentation als Teil des Entwicklungsprozesses und nicht als nachträgliche Aufgabe behandelt.
+This is why documentation consistency is treated as part of the engineering process rather than as an afterthought.
 
-## Unterstützte Systeme
+## Supported Systems
 
-LUMS ist für die Verwaltung von Linux-Systemen mit unterstützten nativen Paketmanagern ausgelegt.
+LUMS is designed to manage Linux systems using supported native package managers.
 
 ### Debian / Ubuntu
 
-Unterstützter Paketverwaltungs-Stack:
+Supported package-management stack:
 
 ```text
 APT
 dpkg
 ```
 
-Der Client verwendet die nativen Debian-Paketwerkzeuge für:
+The client uses the native Debian package-management tooling for:
 
-- Paketinventar
-- Update-Erkennung
-- Paketsuche
-- Paketinstallation
-- Paketentfernung
-- Paketaktualisierungen
-- Systemaktualisierungen
+* package inventory
+* update detection
+* package search
+* package installation
+* package removal
+* package updates
+* system updates
 
 ### Arch Linux
 
-Unterstützter Paketverwaltungs-Stack:
+Supported package-management stack:
 
 ```text
 pacman
 ```
 
-Der Client verwendet die nativen Arch-Paketwerkzeuge für:
+The client uses the native Arch package-management tooling for:
 
-- Paketinventar
-- Update-Erkennung
-- Paketsuche
-- Paketinstallation
-- Paketentfernung
-- Paketaktualisierungen
-- Systemaktualisierungen
-
----
-
-## Anforderungen an Clients
-
-Ein verwalteter Linux-Client benötigt:
-
-- eine unterstützte Linux-Distribution
-- den LUMS-Agent
-- Netzwerkverbindung zum LUMS-Server
-- ein registriertes Client-Token
-- einen funktionierenden nativen Paketmanager
-- systemd für timer- und servicebasierte Ausführungskomponenten
-
-Der Client benötigt keinen direkten Zugriff des LUMS-Servers auf seine Paketdatenbank.
-
-Der Client führt lokale Paketoperationen aus und meldet die Ergebnisse an den Server.
+* package inventory
+* update detection
+* package search
+* package installation
+* package removal
+* package updates
+* system updates
 
 ---
 
-## Technologie-Stack
+## Client Requirements
+
+A managed Linux client requires:
+
+* a supported Linux distribution
+* the LUMS agent
+* network connectivity to the LUMS server
+* a registered client token
+* a working native package manager
+* systemd for the timer/service-based execution components
+
+The client does not require the LUMS server to directly access its package database.
+
+The client performs local package operations and reports the results to the server.
+
+---
+
+## Technology Stack
 
 ### Server
 
-- Python
-- Flask
-- Gunicorn
-- SQLite
-- HTML
-- CSS
-- JavaScript
-- Nginx
-- Docker
+* Python
+* Flask
+* Gunicorn
+* SQLite
+* HTML
+* CSS
+* JavaScript
+* Nginx
+* Docker
 
-### Authentifizierung und Sicherheit
+### Authentication and Security
 
-- Argon2-Passwort-Hashing
-- serverseitige Sitzungen
-- CSRF-Schutz
-- Rollenvorlagen mit individuellen Benutzerberechtigungen
-- SHA-256-Hashwerte für Client-Token
-- HTTPS
-- Audit-Protokollierung
+* Argon2 password hashing
+* server-side sessions
+* CSRF protection
+* role templates with per-user permissions
+* SHA-256 client-token digests
+* HTTPS
+* audit logging
 
 ### Client
 
-- Python
-- systemd
-- APT / dpkg
-- pacman
-- `loginctl`, sofern Informationen zum Leerlaufstatus verfügbar sind
+* Python
+* systemd
+* APT / dpkg
+* pacman
+* `loginctl` where idle-state information is available
 
 ---
 
-## Projektstruktur
+## Project Structure
 
-Das Repository ist in Server-, Client-, Frontend- und Testkomponenten unterteilt.
+The repository is organized into separate server, client, frontend, and test components.
 
-Eine vereinfachte Struktur sieht so aus:
+A simplified structure is:
 
-```text
+```text id="1rq7v7"
 LUMS/
 ├── agent/
 │   ├── agent.py
@@ -1538,79 +1651,79 @@ LUMS/
 ├── docker-entrypoint.sh
 ├── .dockerignore
 ├── .gitignore
-└── Dokumentation
+└── documentation
 ```
 
-Die genaue Repository-Struktur kann sich während der Entwicklung von LUMS verändern.
+The exact repository layout may evolve as LUMS develops.
 
-Die architektonische Trennung zwischen Server, Agent, Paketmanager-Abstraktion, Frontend und Tests ist beabsichtigt.
+The architectural separation between server, agent, package-manager abstraction, frontend, and tests is intentional.
 
 ---
 
-## Serveranwendung
+## Server Application
 
-Die Flask-Anwendung stellt die zentrale LUMS-API und Weboberfläche bereit.
+The Flask application provides the central LUMS API and web interface.
 
-Zu ihren Aufgaben gehören:
+Its responsibilities include:
 
-- Authentifizierung
-- Autorisierung
-- Sitzungsverwaltung
-- Clientverwaltung
-- Benutzerverwaltung
-- Softwareinventar
-- Updateinventar
-- Paketsuche
-- Update-Aufträge
-- Verarbeitung von Auftragsergebnissen
-- Audit-Protokollierung
-- Datenbankpersistenz
+* authentication
+* authorization
+* session handling
+* client management
+* user management
+* software inventory
+* update inventory
+* package search
+* update jobs
+* job-result handling
+* audit logging
+* database persistence
 
-Die Anwendung wird innerhalb des Containers von Gunicorn bereitgestellt.
+The application is served by Gunicorn inside the container.
 
-Nginx stellt den externen HTTPS-Zugang bereit.
+Nginx provides the external HTTPS entry point.
 
 ---
 
 ## Agent
 
-Der LUMS-Agent wird direkt auf verwalteten Linux-Clients installiert.
+The LUMS agent is installed directly on managed Linux clients.
 
-Aktuelle Agent-Version:
+Current agent version:
 
-```text
+```text id="w8p4wz"
 1.7.0
 ```
 
-Der Agent übernimmt den clientseitigen Teil der LUMS-Ausführungskette.
+The agent is responsible for the client-side part of the LUMS execution chain.
 
-Zu seinen Aufgaben gehören:
+Its responsibilities include:
 
-- Clientstatus melden
-- installierte Software erfassen
-- verfügbare Updates erkennen
-- Pakete suchen
-- Paketoperationen ausführen
-- Auftragsergebnisse melden
-- erforderliche Neustarts erkennen
-- Leerlaufstatus behandeln
-- an der Auftragswiederherstellung mitwirken
+* reporting client state
+* collecting installed software
+* detecting available updates
+* searching packages
+* executing package operations
+* reporting job results
+* detecting reboot requirements
+* handling idle-state information
+* participating in job recovery
 
-Der Agent stellt keine uneingeschränkte Remote-Shell bereit.
+The agent does not provide an unrestricted remote shell.
 
 ---
 
-## Paketmanagerschicht
+## Package Manager Layer
 
-Die Paketmanager-Implementierung kapselt distributionsspezifisches Verhalten gegenüber dem restlichen Agenten.
+The package-manager implementation isolates distribution-specific behavior from the rest of the agent.
 
-Konzeptionell:
+Conceptually:
 
-```text
+```text id="zq8xq3"
 Agent
   │
   ▼
-Paketmanager-Schnittstelle
+Package Manager Interface
   │
   ├── Debian / Ubuntu
   │      └── APT / dpkg
@@ -1619,337 +1732,348 @@ Paketmanager-Schnittstelle
          └── pacman
 ```
 
-So kann das übergeordnete Update-Auftragssystem mit strukturierten Operationen arbeiten, ohne jeden distributionsspezifischen Befehl kennen zu müssen.
+This allows the higher-level update-job system to work with structured operations without needing to know every distribution-specific command.
 
 ---
 
 ## Watcher
 
-Der LUMS-Ausführungs-Watcher überwacht Aufträge, die auf dem Client ausgeführt werden sollen.
+The LUMS execution watcher monitors jobs that are expected to execute on the client.
 
-Aktuelle Watcher-Version:
+Current watcher version:
 
-```text
+```text id="7k6w3s"
 1.2.1
 ```
 
-Der Watcher arbeitet mit dem Agenten und dem serverseitigen Auftragsstatus zusammen.
+The watcher operates together with the agent and server-side job state.
 
-Diese Architektur hilft LUMS, Situationen zu erkennen, in denen ein Auftrag aussteht oder anderweitig Aufmerksamkeit erfordert.
-
----
-
-## systemd-Integration
-
-Der Client verwendet systemd für geplante und kontrollierte Ausführung.
-
-Zu den relevanten Komponenten gehören Service- und Timer-Units für:
-
-- Clientmeldungen
-- Update-Erkennung
-- Auftragsausführung und Überwachung
-
-Dadurch wird eine vorhersehbare Ausführung ermöglicht, ohne für jeden periodischen Vorgang einen dauerhaft laufenden Vordergrundprozess zu benötigen.
-
-Der Client-Agent kann während der Installation und Fehlersuche auch manuell ausgeführt werden.
+This architecture allows LUMS to detect execution situations where a job remains pending or otherwise requires attention.
 
 ---
 
-## Leerlaufabhängige Ausführung
+## systemd Integration
 
-Die leerlaufabhängige Ausführung soll Störungen für aktive Benutzer verringern.
+The client uses systemd for scheduled and controlled execution.
 
-Der aktuelle Leerlaufgrenzwert beträgt:
+Relevant components include service and timer units for:
 
-```text
-300 Sekunden
+* client reporting
+* update detection
+* job execution/watching
+
+This provides predictable execution without requiring a continuously running foreground process for every periodic operation.
+
+The client agent can also be executed manually during installation and troubleshooting.
+
+---
+
+## Idle-Aware Execution
+
+Idle-aware execution is designed to reduce interference with active users.
+
+The current idle threshold is:
+
+```text id="g8v0lq"
+300 seconds
 ```
 
-Der Client bestimmt den Leerlaufstatus anhand der verfügbaren lokalen Sitzungsinformationen.
+The client determines idle state using the available local session information.
 
-Sofern unterstützt, wird `loginctl` verwendet.
+Where supported, `loginctl` is used.
 
-Der Agent unterscheidet zwischen:
+The agent distinguishes between:
 
-```text
-Leerlauf bestätigt
-Aktiv
-Leerlaufstatus nicht verfügbar
+```text id="6v3m4k"
+confirmed idle
+active
+idle state unavailable
 ```
 
-Ein nicht verfügbarer Leerlaufstatus wird nicht stillschweigend als Leerlauf interpretiert.
+An unavailable idle state is not silently interpreted as idle.
 
-Dadurch bleibt die Ausführungsentscheidung explizit und nachvollziehbar.
+This makes the execution decision explicit and diagnosable.
 
 ---
 
-## Lebenszyklus eines Update-Auftrags
+## Update Job Lifecycle
 
-Der vollständige Lebenszyklus eines Update-Auftrags lässt sich so darstellen:
+The complete lifecycle of an update job can be represented as:
 
-```text
-Erstellen
-   │
-   ▼
-Validieren
-   │
-   ▼
-Speichern
-   │
-   ▼
-Übernehmen
-   │
-   ▼
-Ausführen
-   │
-   ├──────────────► SUCCESS
-   │
-   ├──────────────► FAILED
-   │
-   └──────────────► RECOVERY
-                          │
-                          ▼
-                       Ausführen
+```text id="h4d9kv"
+Create
+  │
+  ▼
+Validate
+  │
+  ▼
+Persist
+  │
+  ▼
+Claim
+  │
+  ▼
+Execute
+  │
+  ├──────────────► SUCCESS
+  │
+  ├──────────────► FAILED
+  │
+  └──────────────► RECOVERY
+                         │
+                         ▼
+                      Execute
 ```
 
-Ein Auftrag wird vor seiner Ausführung gespeichert.
+A job is persisted before execution.
 
-Dadurch behält der Server den beabsichtigten Vorgang im Blick, selbst wenn der Client oder die Anwendung unterbrochen wird.
+This means the server retains knowledge of the intended operation even if the client or application is interrupted.
 
 ---
 
-## Auftragstypen
+## Job Types
 
-LUMS unterstützt derzeit strukturierte Update-Aktionen wie:
+LUMS currently supports structured update actions including:
 
-```text
+```text id="v7r1f8"
 INSTALL_PACKAGE
 REMOVE_PACKAGE
 UPDATE_PACKAGE
 UPDATE_SYSTEM
 ```
 
-Diese Aktionen sind bewusst begrenzt.
+These actions are intentionally limited.
 
-LUMS ist ein Updateverwaltungssystem und kein universelles Framework zur Ausführung entfernter Befehle.
+LUMS is an update-management system, not a general-purpose remote-command framework.
 
 ---
 
-## Auftragsstatus auf Paketebene
+## Package-Level Job State
 
-Aufträge mit mehreren Paketen können den Fortschritt für jedes Paket einzeln verfolgen.
+Jobs containing multiple packages can track package-level progress.
 
-Beispiel:
+For example:
 
-```text
-Auftrag #42
+```text id="v9w1sh"
+Job #42
 
-paket-a → SUCCESS
-paket-b → SUCCESS
-paket-c → FAILED
-paket-d → PENDING
+package-a → SUCCESS
+package-b → SUCCESS
+package-c → FAILED
+package-d → PENDING
 ```
 
-Die Wiederherstellung kann dadurch auf die unvollständigen Teile eines Auftrags beschränkt werden, anstatt erfolgreiche Paketoperationen blind zu wiederholen.
+Recovery can therefore operate on the incomplete portions of the job rather than blindly repeating successful package operations.
 
 ---
 
-## Auftragswiederherstellung
+## Job Recovery
 
-Die Wiederherstellung basiert auf persistenten Prüfpunkten.
+Recovery is designed around persistent checkpoints.
 
-Der Server verwaltet den Auftragsstatus.
+The server maintains the job state.
 
-Der Client meldet Ergebnisse auf Paketebene.
+The client reports package-level results.
 
-Wenn die Ausführung unterbrochen wird, kann der Server feststellen, welche Arbeit bereits abgeschlossen ist und welche noch wiederhergestellt werden kann.
+If execution is interrupted, the server can determine which work has already completed and which work remains eligible for recovery.
 
-Das beabsichtigte Wiederherstellungsprinzip lautet:
+The intended recovery principle is:
 
-> **Vom bekannten Zustand aus fortsetzen, statt anzunehmen, dass noch nichts passiert ist.**
-
----
-
-## Ergebnisvalidierung
-
-Clientseitige Auftragsergebnisse werden validiert, bevor sie in den persistenten Serverzustand übernommen werden.
-
-Das schützt den Auftragsstatus vor fehlerhaften oder unvollständigen Ergebnismeldungen.
-
-Die Validierung umfasst relevante Felder wie:
-
-- Auftragskennung
-- Ausführungsstatus
-- Paket-Ergebnisdaten
-- Fehlerinformationen
-- Neustartinformationen
-
-Die Ergebnisverarbeitung bildet damit eine weitere Grenze zwischen einem authentifizierten Client und dem persistenten Serverzustand.
+> **Continue from known state instead of assuming that nothing happened.**
 
 ---
 
-## Benutzerverwaltung
+## Result Validation
 
-Die Benutzerverwaltung erfordert die Berechtigung `users.manage`.
+Client job results are validated before being accepted into persistent server state.
 
-Berechtigte Benutzer können Konten anhand einer Rollenvorlage erstellen und die einzelnen Berechtigungen des jeweiligen Kontos anpassen.
+This protects the job state from malformed or incomplete result submissions.
 
-Die aktuellen Rollen sind:
+Validation is applied to relevant fields such as:
 
-```text
+* job identity
+* execution state
+* package result data
+* error information
+* reboot information
+
+The result-processing layer therefore acts as another boundary between an authenticated client and persistent server state.
+
+---
+
+## User Management
+
+User management requires the `users.manage` permission.
+
+Authorized users can create users from a role template and customize the
+individual permissions assigned to each account.
+
+The current roles are:
+
+```text id="2xqv79"
 Administrator
 Operator
 Viewer
 ```
 
-Benutzerverwaltungsaktionen werden authentifiziert, auf Berechtigungen geprüft, validiert, soweit anwendbar gegen CSRF geschützt und im Audit-Trail erfasst.
+User-management actions are authenticated, permission-checked, validated,
+protected against CSRF where applicable, and recorded in the audit trail.
 
 ---
 
-## Clientverwaltung
+## Client Management
 
-Administratoren können registrierte Clients verwalten.
+Administrators can manage registered clients.
 
-Die Clientverwaltung umfasst:
+Client-management functions include:
 
-- Registrierung
-- Deaktivierung
-- Erneuerung von Token
-- Prüfung des Clientstatus
+* registration
+* disabling
+* token rotation
+* client status inspection
 
-Jeder registrierte Client besitzt eine unabhängige Authentifizierung.
+Client authentication is independent for every registered client.
 
-Durch die Deaktivierung eines Clients wird dessen normale authentifizierte Kommunikation mit dem Server unterbunden.
-
----
-
-## Updateverlauf
-
-LUMS speichert den Status von Update-Aufträgen dauerhaft, damit abgeschlossene und fehlgeschlagene Operationen auch nach ihrer Ausführung sichtbar bleiben.
-
-Berechtigte Benutzer können abhängig von ihrer Rolle den Verlauf von Update-Operationen einsehen.
-
-Der Verlauf soll den betrieblichen Kontext liefern und nicht nur das jeweils neueste Paketinventar anzeigen.
+Disabling a client prevents it from continuing normal authenticated communication with the server.
 
 ---
 
-## Nachvollziehbarkeit
+## Update History
 
-LUMS führt zwei verwandte, aber unterschiedliche Arten betrieblicher Informationen:
+LUMS maintains persistent update-job state so that completed and failed operations remain visible after execution.
 
-### Anwendungsprotokolle
+Authorized users can inspect the history of update operations according to their role.
 
-Sie dienen hauptsächlich der:
-
-- Diagnose
-- Fehleranalyse
-- Beobachtung des Laufzeitverhaltens
-- Fehlerbehebung
-
-### Audit-Protokolle
-
-Sie dienen hauptsächlich der Erfassung von:
-
-- administrativen Aktionen
-- sicherheitsrelevanten Ereignissen
-- Änderungen wichtiger Zustände
-- Verantwortlichkeit und Nachvollziehbarkeit
-
-Die Trennung dieser Konzepte erleichtert sowohl die Fehlersuche als auch die administrative Prüfung.
+The history is intended to provide operational context rather than merely showing the latest package inventory.
 
 ---
 
-## Teststrategie
+## Auditability
 
-Die LUMS-Testsuite deckt mehrere Anwendungsebenen ab.
+LUMS maintains two related but distinct forms of operational information:
 
-### Authentifizierung
+### Application Logs
 
-Tests prüfen Authentifizierungsverhalten, Sitzungsverwaltung und Sicherheitsmechanismen.
+Used primarily for:
+
+* diagnostics
+* errors
+* runtime behavior
+* troubleshooting
+
+### Audit Logs
+
+Used primarily for:
+
+* administrative actions
+* security-relevant events
+* changes to important state
+* accountability
+
+Keeping these concepts separate makes troubleshooting and administrative review easier.
+
+---
+
+## Testing Strategy
+
+The LUMS test suite covers multiple layers of the application.
+
+### Authentication
+
+Tests cover authentication behavior, session handling, and security controls.
 
 ### RBAC
 
-Tests prüfen, dass:
+Tests verify that:
 
-- Administratoren administrative Aktionen durchführen können
-- Operatoren die ihnen erlaubten Verwaltungsfunktionen erhalten
-- Viewer auf schreibgeschützten Zugriff beschränkt bleiben
+* Administrators can perform administrative actions
+* Operators receive their permitted management functions
+* Viewers remain read-only
 
 ### Paketverwaltung
 
-Tests decken das Verhalten der Paketsuche und die API-Verarbeitung im Zusammenhang mit der Paketverwaltung ab.
+Tests cover package-search behavior and package-management-related API handling.
 
 ### Update-Aufträge
 
-Tests prüfen:
+Tests cover:
 
-- Auftragserstellung
-- Validierung
-- Zustandsübergänge
-- Ergebnisverarbeitung
-- Wiederherstellungsverhalten
+* job creation
+* validation
+* state transitions
+* result handling
+* recovery behavior
 
-### Sicherheit
+### Security
 
-Tests prüfen sicherheitskritisches Anwendungsverhalten und Regressionen.
+Tests cover security-sensitive application behavior and regression cases.
 
-### Vollständige Testsuite
+### Full Suite
 
-Führe die vollständige Testsuite im Stammverzeichnis des Repositorys aus:
+Run the complete test suite from the repository root:
 
 ```bash
 ./.venv-test/bin/pytest -q
 ```
 
-Die Anzahl der Tests ändert sich mit der Weiterentwicklung des Projekts. Maßgeblich ist das Ergebnis des Befehls und nicht eine festgelegte Zahl in diesem Dokument.
+The test count changes as the project evolves; rely on the command's result,
+not a fixed number printed in this document.
 
 ---
 
-## Kontinuierliche Integration
+## Continuous Integration
 
-Das Projekt verwendet kontinuierliche Integration, um automatisierte Prüfungen für Änderungen auszuführen.
+The project uses continuous integration to run automated checks against changes.
 
-Die CI-Pipeline hilft dabei, Regressionen zu erkennen, bevor Änderungen als releasebereit gelten.
+The CI pipeline helps detect regressions before changes are treated as release-ready.
 
-Der Entwicklungsablauf lautet daher:
+The development workflow is therefore:
 
-```text
-Änderung
-   ↓
+```text id="v3n9k8"
+Change
+  ↓
 Test
-   ↓
-Sicherheitsprüfung
-   ↓
-Dokumentationsprüfung
-   ↓
+  ↓
+Security Review
+  ↓
+Documentation Review
+  ↓
 CI
-   ↓
-Release-Vorbereitung
+  ↓
+Release Preparation
 ```
 
-Ein erfolgreicher CI-Lauf ersetzt keine manuelle Sicherheits- oder Dokumentationsprüfung.
+A successful CI run does not replace manual security or documentation review.
 
 ---
 
-## Dokumentation
+## Documentation
 
-LUMS unterhält separate Dokumentation für unterschiedliche betriebliche Aufgaben.
+LUMS maintains separate documentation for different operational concerns.
 
 ### `README.md`
 
-Projektübersicht, Architektur, Funktionen, Sicherheitsbasis, Entwicklungsstatus und Projektausrichtung.
+Project overview, architecture, features, security baseline, development status, and project direction.
 
 ### `install.md`
 
-Installation, Bereitstellung, Clientkonfiguration, Validierung, Aktualisierung und Entfernung.
+Installation, deployment, client setup, validation, upgrade, and removal procedures.
 
 ### `administration.md`
 
-Regelmäßige Administration, Wartung, Backups, Aktualisierungen, Betriebsverfahren und Notfalladministration.
+Routine administration, maintenance, backups, upgrades, operational procedures, and emergency administration.
 
 ### `security.md`
 
-Sicherheitsarchitektur, Sicherheitskontrollen, Prüfergebnisse, Härtung und Informationen zur Release-Sicherheit.
+Security architecture, security controls, audit findings, hardening, and release-readiness security information.
+
+### `telemetry.md`
+
+Optional CPU and memory telemetry, agent configuration, data retention, security, and troubleshooting.
+
+### `LUMS_Health_Dashboard.md`
+
+What the authenticated health dashboard reports, how client status is classified, telemetry limits, backup-storage interpretation, and operational checks.
 
 ### `telemetry.md`
 
@@ -1973,42 +2097,67 @@ Was das herunterladbare Updater-Tools-Artefakt enthält, wie die CI es veröffen
 
 ### `troubleshooting.md`
 
-Diagnoseverfahren für Server, Clients, Aufträge, Paketverwaltung, Authentifizierung, Datenbank, Container und Netzwerkprobleme.
+Diagnostic procedures for server, client, jobs, package management, authentication, database, container, and network problems.
 
 ### `LUMS_Optional_Theme_System.md`
 
-Architektur und Wartung optionaler LUMS-Frontend-Themes.
+Architecture and maintenance guidance for optional LUMS frontend themes.
 
-Die Dokumentation ist nach Zuständigkeiten getrennt, damit Betriebsanweisungen nicht mit Sicherheitsdesign oder visueller Anpassung vermischt werden.
+The documentation is intentionally separated by responsibility so that operational instructions do not become mixed with security design or visual customization.
 
 ---
 
-## Dokumentationsprinzip
+## Documentation Principle
 
-Dokumentation wird als Bestandteil des Systems behandelt.
+Documentation is treated as part of the system.
 
-Eine Funktion gilt nicht als vollständig, wenn der Code funktioniert, die Dokumentation aber eine ältere Architektur beschreibt.
+A feature is not considered completely finished when the code works but the documentation still describes an older architecture.
 
-Das angestrebte Verhältnis lautet:
+The intended relationship is:
 
-```text
-Implementierung
+```text id="0m1m5u"
+Implementation
       │
       ├── Tests
-      ├── Sicherheitsprüfung
-      └── Dokumentation
+      ├── Security Review
+      └── Documentation
                │
                ▼
-          Releasebereit
+          Release Ready
 ```
 
-Das ist besonders wichtig für sicherheitskritische Bereitstellungs- und Administrationsverfahren.
+This is particularly important for security-sensitive deployment and administration procedures.
 
-## Aktueller Status
+## Current Status
 
-LUMS ist eine aktiv entwickelte Plattform zur Linux-Updateverwaltung.
+LUMS is an actively developed Linux update-management platform.
 
-Die aktuelle Implementierung umfasst:
+The current implementation includes:
+
+* centralized client management
+* software inventory
+* update detection
+* package search
+* package installation and removal
+* package-specific updates
+* system updates
+* persistent update jobs
+* package-level job state
+* job recovery
+* reboot detection
+* idle-aware execution
+* client-token authentication
+* token rotation
+* administrative authentication
+* role-based access control
+* user management
+* audit logging
+* container hardening
+* HTTPS transport
+* automated testing
+* continuous integration
+
+The project is currently in the final documentation and release-readiness phase.
 
 - zentrale Clientverwaltung
 - Softwareinventar
@@ -2040,73 +2189,87 @@ Diese Liste ist eine Übersicht auf hoher Ebene und keine Aussage über vollstä
 
 ---
 
-## Sicherheitsstatus
+## Security Status
 
-Die wesentlichen Bereiche der Sicherheitsprüfung wurden implementiert und überprüft.
+The major security-review areas have been implemented and reviewed.
 
-Die aktuelle Sicherheitsbasis umfasst:
+The current security baseline includes:
 
 ```text
-Authentifizierung
-   ├── Argon2-Passwort-Hashing
-   ├── Sitzungsverwaltung
-   ├── Sitzungswiderruf
-   └── Begrenzung von Anmeldeversuchen
+Authentication
+    ├── Argon2 password hashing
+    ├── session handling
+    ├── session revocation
+    └── login rate limiting
 
-Autorisierung
-   ├── Administrator
-   ├── Operator
-   └── Viewer
+Authorization
+    ├── Administrator
+    ├── Operator
+    └── Viewer
 
-Clientsicherheit
-   ├── individuelle Client-Token
-   ├── SHA-256-Token-Hashwerte
-   └── Token-Erneuerung
+Client Security
+    ├── per-client tokens
+    ├── SHA-256 token digests
+    └── token rotation
 
-API-Sicherheit
-   ├── Eingabevalidierung
-   ├── CSRF-Schutz
-   ├── RBAC-Durchsetzung
-   └── parametrisierte SQL-Abfragen
+API Security
+    ├── input validation
+    ├── CSRF protection
+    ├── RBAC enforcement
+    └── parameterized SQL
 
-Laufzeitsicherheit
-   ├── nicht privilegierter Container
-   ├── schreibgeschütztes Root-Dateisystem
-   ├── entfernte Capabilities
-   ├── no-new-privileges
-   ├── eingeschränkte temporäre Dateisysteme
-   └── geschützter Secret-Mount
+Runtime Security
+    ├── non-root container
+    ├── read-only root filesystem
+    ├── dropped capabilities
+    ├── no-new-privileges
+    ├── restricted temporary filesystems
+    └── protected secret mount
 
-Netzwerksicherheit
-   ├── HTTPS
-   ├── Reverse Proxy
-   ├── Bindung der Anwendung an Loopback
-   └── Firewall-Beschränkungen
+Network Security
+    ├── HTTPS
+    ├── reverse proxy
+    ├── loopback application binding
+    └── firewall restrictions
 ```
 
-Sicherheit wird als fortlaufende Entwicklungsaufgabe behandelt und nicht als einmalige Checkliste.
+Security is treated as an ongoing engineering responsibility rather than a one-time checklist.
 
 ---
 
+## Release Status
+
+LUMS does not currently claim a stable production release version.
+
+There is currently:
+
+* no final semantic version
+* no stable release tag
+* no GitHub Release
+
+The project deliberately follows the release sequence:
+
 ## Release-Prozess
 
-```text
-Implementierung
+```text id="f3c4y9"
+Implementation
       ↓
-Sicherheitsprüfung
+Security Review
       ↓
-Dokumentationsprüfung
+Documentation Review
       ↓
-Vollständige Testsuite
+Full Test Suite
       ↓
 CI
       ↓
-Versionszuweisung
+Version Assignment
       ↓
-Git-Tag
+Git Tag
       ↓
-GitHub-Release
+GitHub Release
 ```
+
+The first official release should only be created after the current implementation, security review, documentation, and regression testing are considered complete.
 
 Die Verfügbarkeit von Releases und Tags kann sich unabhängig von dieser Dokumentation ändern. Prüfe den aktuellen Stand auf der Releases-Seite und bei den Tags des Repositorys. Ein Release sollte erst veröffentlicht werden, wenn Implementierung, Sicherheitsüberprüfung, Dokumentation und Regressionstests für die betreffende Revision abgeschlossen sind.
 
@@ -2114,270 +2277,279 @@ Die Verfügbarkeit von Releases und Tags kann sich unabhängig von dieser Dokume
 
 ## Roadmap
 
-Die Roadmap konzentriert sich bewusst auf Stabilität und Wartbarkeit, statt neue Funktionen hinzuzufügen, bevor die bestehende Grundlage abgeschlossen ist.
+The roadmap is intentionally focused on stability and maintainability rather than adding features without completing the existing foundation.
+
+### Current Phase
+
+* complete documentation review
+* remove remaining documentation inconsistencies
+* close documentation audit work
+* perform final full test run
+* verify CI
+* prepare release version
+* create the first official Git tag
+* publish the first GitHub Release
 
 ### Zukünftige Entwicklung
 
-Mögliche zukünftige Arbeiten sind:
+Potential future work may include:
 
-- Unterstützung weiterer Linux-Distributionen
-- zusätzliche Paketmanager-Backends
-- weitere Verbesserungen der Benutzeroberfläche
-- zusätzliche Berichtsfunktionen
-- erweiterte betriebliche Automatisierung
-- zusätzliche Sicherheitskontrollen
-- weitere Testabdeckung
+* additional Linux distributions
+* additional package-manager backends
+* further UI improvements
+* additional reporting capabilities
+* expanded operational automation
+* additional security controls
+* further test coverage
 
-Neue Funktionen sollen die bestehenden Architekturgrenzen beibehalten.
-
----
-
-## Was LUMS nicht ist
-
-LUMS ist ausdrücklich nicht konzipiert als:
-
-- universelle Remote-Shell
-- Ersatz für APT, dpkg oder pacman
-- vollständige Plattform für Konfigurationsmanagement
-- Endpoint-Management-Suite für jedes Betriebssystem
-- ausschließlich cloudbasierter Dienst
-- unkontrolliertes Framework zur Befehlsausführung
-
-LUMS konzentriert sich auf ein klar umrissenes Problem:
-
-> **Kontrollierte Linux-Software- und Updateverwaltung mit persistentem Zustand und Nachvollziehbarkeit.**
+Future features should preserve the existing architectural boundaries.
 
 ---
 
-## Entwicklungsphilosophie
+## What LUMS Is Not
 
-LUMS folgt einem einfachen Entwicklungszyklus:
+LUMS is intentionally not designed as:
 
-```text
-Erstellen
-   ↓
-Testen
-   ↓
-Absichern
-   ↓
-Dokumentieren
+* a general-purpose remote shell
+* a replacement for APT, dpkg, or pacman
+* a full configuration-management platform
+* an endpoint-management suite for every operating system
+* a cloud-only service
+* an uncontrolled command-execution framework
+
+LUMS focuses on a narrower problem:
+
+> **Controlled Linux software and update management with persistent state and auditability.**
+
+---
+
+## Development Philosophy
+
+LUMS follows a simple development cycle:
+
+```text id="8a0mve"
+Build
+  ↓
+Test
+  ↓
+Secure
+  ↓
+Document
 ```
 
-Eine Funktion gilt nicht allein deshalb als fertig, weil sie in der Entwicklungsumgebung funktioniert.
+A feature is not considered complete simply because it works in the developer environment.
 
-Sie sollte außerdem:
+It should also be:
 
-- getestet
-- sicherheitsgeprüft
-- dokumentiert
-- reproduzierbar
-- verständlich
-- bei Bedarf wiederherstellbar
-
-sein.
+* tested
+* security-reviewed
+* documented
+* reproducible
+* understandable
+* recoverable where appropriate
 
 ---
 
-## Änderungsphilosophie
+## Change Philosophy
 
-Änderungen sollten bewusst vorgenommen werden.
+Changes should be made deliberately.
 
-Eine typische Änderung sollte folgende Fragen beantworten:
+A typical change should answer:
 
-1. Welches Problem wird gelöst?
-2. Welche Komponente sollte die Änderung verantworten?
-3. Hat die Änderung Auswirkungen auf die Sicherheit?
-4. Beeinflusst sie den persistenten Zustand?
-5. Beeinflusst sie Clients?
-6. Sind Dokumentationsänderungen erforderlich?
-7. Welche Tests belegen, dass bestehende Funktionen weiterhin arbeiten?
+1. What problem does this solve?
+2. Which component should own the change?
+3. Does the change affect security?
+4. Does it affect persistent state?
+5. Does it affect clients?
+6. Does it require documentation changes?
+7. Which tests prove that existing functionality still works?
 
-Das verringert das Risiko, einen Teil des Systems zu korrigieren und dabei unbemerkt einen anderen Teil zu beschädigen.
+This reduces the risk of fixing one part of the system while silently breaking another.
 
 ---
 
-## Entwicklungsablauf
+## Development Workflow
 
-Der bevorzugte Entwicklungsablauf ist:
+The preferred development workflow is:
 
-```text
-Verstehen
+```text id="r8u6o1"
+Understand
    ↓
-Implementieren
+Implement
    ↓
-Testen
+Test
    ↓
-Prüfen
+Inspect
    ↓
-Härten
+Harden
    ↓
-Dokumentieren
+Document
    ↓
-Regressionstest
+Regression Test
 ```
 
-Sicherheitskritische Änderungen werden zusätzlich überprüft, bevor sie als abgeschlossen gelten.
+Security-sensitive changes receive additional verification before being considered complete.
 
 ---
 
 ## Repository
 
-Das Projekt-Repository wird auf GitHub gehostet:
+The project repository is hosted on GitHub:
 
 **NovaForgeCtrl/LUMS**
 
-Das Repository enthält den Quellcode der Anwendung, Clientkomponenten, Tests, Containerkonfiguration und Projektdokumentation.
+The repository contains the application source code, client components, tests, container configuration, and project documentation.
 
 ---
 
-## Dokumentationsumfang
+## Documentation Set
 
-Der aktuelle Dokumentationsumfang besteht aus:
+The current documentation set consists of:
 
-```text
+```text id="0xw7cy"
 README.md
 install.md
 administration.md
 security.md
 troubleshooting.md
+telemetry.md
 LUMS_Optional_Theme_System.md
 ```
 
-Jedes Dokument hat einen klar definierten Zweck.
+Each document has a defined purpose.
 
-Das README bietet die Projektübersicht.
+The README provides the project-level overview.
 
-Die Installationsanleitung beschreibt die Bereitstellung.
+The installation guide explains deployment.
 
-Die Administrationsanleitung erläutert den laufenden Betrieb.
+The administration guide explains ongoing operation.
 
-Die Sicherheitsanleitung dokumentiert Sicherheitsarchitektur und Prüfstatus.
+The security guide documents the security architecture and audit state.
 
-Die Anleitung zur Fehlerbehebung enthält Diagnoseverfahren.
+The troubleshooting guide provides diagnostic procedures.
 
-Das Dokument zu optionalen Themes behandelt die Architektur visueller Anpassungen.
-
----
-
-## Lizenz
-
-LUMS wird unter der MIT-Lizenz veröffentlicht.
-
-Die Lizenz soll das Projekt offen und zugänglich halten und gleichzeitig Nutzung, Änderung und Weiterverbreitung gemäß den Lizenzbedingungen erlauben.
-
-Den vollständigen Rechtstext findest du in der Lizenzdatei des Repositorys.
+The optional theme document covers frontend theme architecture.
 
 ---
 
-## Community und Beiträge
+## License
 
-LUMS ist ein Open-Source-Projekt; Beiträge sind willkommen.
+LUMS is released under the MIT License.
 
-Hilfreiche Beiträge können sein:
+The license is intended to keep the project open and accessible while allowing use, modification, and redistribution under the terms of the license.
 
-- Fehlerberichte
-- Sicherheitsmeldungen
-- Verbesserungen der Dokumentation
-- Tests
-- Unterstützung weiterer Paketmanager
-- Verbesserungen am Frontend
-- Verbesserungen am Backend
-- Verbesserungen der Bereitstellung
-
-Beiträge sollten die Architektur- und Sicherheitsprinzipien des Projekts bewahren.
+See the repository license file for the complete legal text.
 
 ---
 
-## Sicherheitsmeldungen
+## Community and Contributions
 
-Sicherheitsprobleme sollten nicht wie gewöhnliche Funktionswünsche behandelt werden.
+LUMS is an open-source project and contributions are welcome.
 
-Bei der Meldung eines Sicherheitsproblems sollten genügend Informationen bereitgestellt werden, um das Problem reproduzieren und verstehen zu können, ohne unnötig sensible Informationen offenzulegen.
+Useful contributions can include:
 
-Sicherheitsrelevante Änderungen sollten vor dem Zusammenführen sorgfältig geprüft werden.
+* bug reports
+* security reports
+* documentation improvements
+* tests
+* package-manager support
+* frontend improvements
+* backend improvements
+* deployment improvements
+
+Contributions should preserve the project's architectural and security principles.
 
 ---
 
-## Projektidentität
+## Security Reports
 
-LUMS basiert auf einer einfachen Idee:
+Security issues should not be treated like ordinary feature requests.
 
-> **Linux-Updateverwaltung ohne unnötigen Lärm.**
+When reporting a security problem, provide enough information to reproduce and understand the issue without unnecessarily exposing sensitive information.
 
-Das Projekt versucht nicht, Komplexität zu verbergen, indem es vorgibt, Linux-Paketverwaltung sei einfach.
+Security-related changes should be reviewed carefully before being merged.
 
-Stattdessen macht es die relevanten Zustände sichtbar:
+---
 
-```text
-Was ist installiert?
-       ↓
-Was kann aktualisiert werden?
-       ↓
-Was soll geändert werden?
-       ↓
-Wer hat es angefordert?
-       ↓
-Was ist tatsächlich passiert?
-       ↓
-Welcher Zustand bleibt zurück?
+## Project Identity
+
+LUMS is built around a simple idea:
+
+> **Linux update management without the noise.**
+
+The project does not attempt to hide complexity by pretending that Linux package management is simple.
+
+Instead, it makes the relevant state visible:
+
+```text id="q2j5r0"
+What is installed?
+        ↓
+What can be updated?
+        ↓
+What should change?
+        ↓
+Who requested it?
+        ↓
+What actually happened?
+        ↓
+What state remains?
 ```
 
-Diese Informationen bilden die Grundlage einer kontrollierten Updateverwaltung.
+That information is the foundation of controlled update management.
 
 ---
 
-## Gesamtarchitektur
+## Final Architecture
 
-Auf höchster Ebene lässt sich LUMS in fünf Ebenen unterteilen:
+At its highest level, LUMS can be understood as five layers:
 
-```text
+```text id="7b4p6n"
 ┌───────────────────────────────────────────────┐
 │                    UI                         │
-│       Interaktion und Sichtbarkeit             │
+│       Human interaction and visibility        │
 └───────────────────────┬───────────────────────┘
                         │
 ┌───────────────────────▼───────────────────────┐
 │                    API                        │
-│ Authentifizierung, Autorisierung, Validierung  │
+│    Authentication, authorization, validation  │
 └───────────────────────┬───────────────────────┘
                         │
 ┌───────────────────────▼───────────────────────┐
-│                 Persistenz                    │
-│       Aufträge, Clients, Benutzer, Ergebnisse  │
-│                   und Audit                    │
+│                  Persistence                   │
+│       Jobs, clients, users, results, audit   │
 └───────────────────────┬───────────────────────┘
                         │
 ┌───────────────────────▼───────────────────────┐
 │                    Agent                      │
-│      Lokale Ausführung und Systemmeldungen     │
+│      Local execution and system reporting     │
 └───────────────────────┬───────────────────────┘
                         │
 ┌───────────────────────▼───────────────────────┐
-│              Native Linux-Werkzeuge            │
-│               APT / dpkg / pacman              │
+│              Native Linux Tools               │
+│              APT / dpkg / pacman             │
 └───────────────────────────────────────────────┘
 ```
 
-Jede Ebene hat eine bestimmte Verantwortung.
+Each layer has a specific responsibility.
 
-Die UI ermöglicht die Interaktion.
+The UI provides interaction.
 
-Die API setzt Richtlinien durch.
+The API enforces policy.
 
-SQLite stellt den persistenten Zustand bereit.
+SQLite provides persistent state.
 
-Der Agent führt kontrollierte Aktionen auf den Clients aus.
+The agent performs controlled client-side execution.
 
-Der native Paketmanager nimmt die eigentliche Systemänderung vor.
+The native package manager performs the actual system change.
 
 ---
 
-## Abschließender Grundsatz
+## Final Principle
 
-LUMS basiert auf einem zentralen Grundsatz:
+LUMS is built around one central principle:
 
-> **Systemzustand beobachten. Änderungen kontrollieren. Ergebnisse protokollieren.**
+> **Observe the system. Control the change. Record the result.**
 
-Dieser Grundsatz gilt für die Softwarearchitektur, die Update-Ausführung, das Sicherheitsmodell, die Wiederherstellungsmechanismen und die Dokumentation.
+That principle applies to the software architecture, update execution, security model, recovery mechanisms, and documentation.
 
-**Linux-Updateverwaltung ohne unnötigen Lärm.**
+**Linux-Update-Verwaltung ohne Störungen.**

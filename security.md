@@ -199,6 +199,86 @@ Plaintext client-token values are not written to audit records.
 
 ---
 
+# Telemetry Security
+
+Telemetry data (CPU, memory, network metrics) is subject to the same authentication and authorization model as other client-side components.
+
+## Telemetry Submission
+
+Telemetry samples are submitted via `POST /api/telemetry` and require:
+
+* Client authentication using the same client token as update reporting
+* HTTPS for remote connections (plain HTTP only for `127.0.0.1`, `localhost`, `::1`)
+* Optional CA certificate verification for custom certificate authorities
+
+The telemetry endpoint validates:
+
+* Client token authentication against the stored SHA-256 digest
+* Payload structure and field types
+* Numeric ranges (CPU and memory 0-100%, bytes non-negative)
+* Sample freshness (rejects samples with excessively old or future timestamps)
+
+Invalid payloads are rejected with appropriate HTTP status codes.
+
+The client token is not included in the JSON payload and is not logged in agent output.
+
+## Telemetry Access Control
+
+Telemetry history and fleet overview queries require the `clients.view` permission.
+
+The following endpoints require authentication:
+
+* `GET /api/telemetry/history/<client_id>?hours=1-168` - client history
+* `GET /api/telemetry/overview` - fleet summary
+
+Unauthenticated or unauthorized requests are rejected.
+
+## Telemetry Data Classification
+
+Telemetry contains system resource metrics only:
+
+* CPU utilization percentage
+* Memory utilization percentage and bytes
+* Network byte counters (cumulative, no payload data)
+
+Telemetry does **not** contain:
+
+* Package-management operations
+* Command output or logs
+* User activity
+* File contents
+* Network packet data
+* Private configuration values
+
+This data classification limits telemetry to resource-utilization metrics appropriate for operational monitoring.
+
+## Data Storage and Retention
+
+Telemetry samples are stored in the `telemetry_samples` table with the following schema:
+
+```sql
+CREATE TABLE telemetry_samples (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    client_id INTEGER NOT NULL,
+    timestamp TEXT NOT NULL,
+    cpu_percent REAL NOT NULL,
+    memory_percent REAL NOT NULL,
+    memory_total_bytes INTEGER NOT NULL,
+    memory_available_bytes INTEGER NOT NULL,
+    network_rx_bytes INTEGER,
+    network_tx_bytes INTEGER,
+    FOREIGN KEY (client_id) REFERENCES clients(id)
+)
+```
+
+Data older than 7 days is automatically removed during the processing of new telemetry submissions.
+
+Telemetry data is subject to the same backup and encryption considerations as the rest of the LUMS database.
+
+Backups are not encrypted by LUMS; use host-level encryption or separate backup encryption where required.
+
+---
+
 # Security Audit
 
 The security audit is performed incrementally.

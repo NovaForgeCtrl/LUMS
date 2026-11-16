@@ -26,17 +26,21 @@ It does not replace either component or perform package updates.
 
 Each sample contains these required fields:
 
-- `cpu_percent`: CPU utilization from 0 to 100.
-- `memory_percent`: memory utilization from 0 to 100.
-- `memory_total_bytes`: total detected memory in bytes.
-- `memory_available_bytes`: available memory in bytes.
+- `cpu_percent`: CPU utilization from 0 to 100, calculated from `/proc/stat`.
+
+- `memory_percent`: memory utilization from 0 to 100, calculated as (total - available) / total.
+
+- `memory_total_bytes`: total detected memory in bytes from `/proc/meminfo`.
+
+- `memory_available_bytes`: available memory in bytes from `/proc/meminfo`.
+
 
 Agent version 1.1.0 and later also sends two optional cumulative counters:
 
 - `network_rx_bytes`: bytes received since boot, summed over all non-loopback
-  interfaces.
+  interfaces from `/proc/net/dev`.
 - `network_tx_bytes`: bytes sent since boot, summed over all non-loopback
-  interfaces.
+  interfaces from `/proc/net/dev`.
 
 Both counters must be sent together as non-negative integers. Older agents
 that omit them keep working; the dashboard then shows no network data for
@@ -48,9 +52,13 @@ the gap between two samples exceeds five minutes.
 Agent version 1.2.0 and later also reports a bounded system snapshot:
 
 - load average, uptime, operating system, kernel, and root filesystem usage;
+
 - link state, byte counters, errors and drops for each network interface;
+
 - configured DNS servers and best-effort gateway, DNS, and internet reachability;
+
 - thermal and fan readings when exposed by the kernel;
+
 - selected systemd service states, run times and restart counts, plus Docker
   and Podman container names and normalized states when local tools and
   permissions allow read-only inspection.
@@ -88,20 +96,35 @@ reflect firewall policy rather than an outage.
 
 The server assigns the sample timestamp and rejects invalid payloads.
 
+Telemetry samples are stored in the `telemetry_samples` table in SQLite:
+
+```sql
+CREATE TABLE telemetry_samples (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    client_id INTEGER NOT NULL,
+    timestamp TEXT NOT NULL,
+    cpu_percent REAL NOT NULL,
+    memory_percent REAL NOT NULL,
+    memory_total_bytes INTEGER NOT NULL,
+    memory_available_bytes INTEGER NOT NULL,
+    network_rx_bytes INTEGER,
+    network_tx_bytes INTEGER,
+    FOREIGN KEY (client_id) REFERENCES clients(id)
+)
+
 After updating the server, run the database migration once
-(`python3 server/security_migration.py`) so the network columns, latest
+(python3 server/security_migration.py) so the network columns, latest
 system-state table, retained dashboard preferences, and event history exist.
 Update the agent on each client to start reporting the new metrics. To monitor
 the LUMS server itself, register it as a client and install/configure the
 telemetry agent on that host as well.
-
-## Security and privacy
+Security and privacy
 
 The telemetry endpoint requires client authentication using the configured
 LUMS client token.
 
 The agent sends requests over HTTPS when connecting to a remote server.
-Plain HTTP is permitted only for `localhost`, `127.0.0.1` and `::1`. Remote server connections require HTTPS. An optional CA file
+Plain HTTP is permitted only for localhost, 127.0.0.1 and ::1. Remote server connections require HTTPS. An optional CA file
 can be configured for certificate verification.
 
 The agent does not include the client token in the JSON payload or log it.
@@ -111,9 +134,8 @@ require root privileges to collect the documented metrics.
 Telemetry contains system resource and operational metadata, not package
 updates or arbitrary command output. Interface addresses, DNS servers, service
 names, and container names can be sensitive infrastructure details; access to
-the dashboard and API remains protected by the `clients.view` permission.
-
-## Data retention
+the dashboard and API remains protected by the clients.view permission.
+Data retention
 
 The server removes telemetry samples older than seven days when processing
 new telemetry submissions.
@@ -122,7 +144,7 @@ The authenticated history endpoint accepts a time range from 1 to 168 hours.
 Access requires the appropriate client-view permission. Large result sets
 may be downsampled to a maximum of 1,000 samples.
 
-The `/health` dashboard offers 1-hour, 24-hour, and 7-day history ranges and
+The /health dashboard offers 1-hour, 24-hour, and 7-day history ranges and
 refreshes its displayed data every five seconds. It shows CPU, memory, disk
 utilization and aggregate network history, plus live disk, load, uptime,
 kernel, operating system, interface, connectivity, sensor, service and
@@ -132,7 +154,7 @@ and per-client details. CPU and memory can be shown as a line chart, an area
 chart or a donut gauge of the current value; the chosen view is remembered in
 the browser. Network traffic is shown as download and upload rates. Telemetry
 older than two minutes is marked as stale. The fleet overview uses the
-`/api/telemetry/overview` endpoint, which requires the client-view permission.
+/api/telemetry/overview endpoint, which requires the client-view permission.
 History requests are limited to 1–168 hours and may be downsampled to a
 maximum of 1,000 samples. The systemd timer is configured to run the one-shot
 agent every five seconds; actual sample frequency depends on service
@@ -152,35 +174,119 @@ to seven days and the event endpoint returns at most 500 entries.
 
 CSV and JSON exports are available for the selected client and time range.
 History downloads include all retained samples for that range; charts remain
-downsampled to at most 1,000 points. Exports require `clients.view` and are
+downsampled to at most 1,000 points. Exports require clients.view and are
 not cached by the browser.
 
 When configured, Wazuh and Suricata status rows display their systemd service
 state only; LUMS does not connect to their APIs or collect their alerts. To
 report a service, include its installed unit (for example
-`wazuh-agent.service`, `wazuh-manager.service`, or `suricata.service`) in the
-agent's `LUMS_MONITORED_SERVICES` allowlist. No integration credentials are
+wazuh-agent.service, wazuh-manager.service, or suricata.service) in the
+agent's LUMS_MONITORED_SERVICES allowlist. No integration credentials are
 required or stored by LUMS.
+Configuration
 
-## Configuration
+The telemetry agent uses LUMS_BASE, LUMS_TOKEN and the optional LUMS_CA_FILE environment variables. Remote server connections require HTTPS. See install.md for installation and configuration instructions.
+Installation and operation
 
-The telemetry agent uses `LUMS_BASE`, `LUMS_TOKEN` and the optional `LUMS_CA_FILE` environment variables. Remote server connections require HTTPS. See [install.md](install.md) for installation and configuration instructions.
+The telemetry service is separate from the normal LUMS client. On Debian, first update the LUMS repository checkout on the client and run sudo bash scripts/install-telemetry-agent.sh from its root. The installer checks that /etc/default/lums-agent defines LUMS_BASE and LUMS_TOKEN, installs the current collector and systemd units, enables the timer, and sends a test sample. It never prints the token.
 
-## Installation and operation
+Inspect the timer and service with systemctl status lums-telemetry.timer and systemctl status lums-telemetry.service. Review recent service logs with journalctl -u lums-telemetry.service -n 30 --no-pager. An inactive one-shot service between scheduled runs is not necessarily an error; check the timer and recent logs as well.
 
-The telemetry service is separate from the normal LUMS client. On Debian, first update the LUMS repository checkout on the client and run `sudo bash scripts/install-telemetry-agent.sh` from its root. The installer checks that `/etc/default/lums-agent` defines `LUMS_BASE` and `LUMS_TOKEN`, installs the current collector and systemd units, enables the timer, and sends a test sample. It never prints the token.
+The /monitoring page distinguishes between no samples, basic telemetry without detailed snapshots, and an outdated snapshot, and shows these client-side checks. Do not paste or share the token when troubleshooting.
+Troubleshooting
 
-Inspect the timer and service with `systemctl status lums-telemetry.timer` and `systemctl status lums-telemetry.service`. Review recent service logs with `journalctl -u lums-telemetry.service -n 30 --no-pager`. An inactive one-shot service between scheduled runs is not necessarily an error; check the timer and recent logs as well.
+    No samples appear: Verify the server URL, client token and authentication.
 
-The `/monitoring` page distinguishes between no samples, basic telemetry without detailed snapshots, and an outdated snapshot, and shows these client-side checks. Do not paste or share the token when troubleshooting.
+    TLS errors: Check the server certificate and configured CA file.
 
-## Troubleshooting
+    Service failures: Inspect the service journal.
 
-- **No samples appear:** Verify the server URL, client token and authentication.
-- **TLS errors:** Check the server certificate and configured CA file.
-- **Service failures:** Inspect the service journal.
-- **Missing history:** Check client-view permissions and the requested time range (1–168 hours).
+    Missing history: Check client-view permissions and the requested time range (1–168 hours).
+
+API Reference
+Submit Telemetry Sample
+
+Endpoint: POST /api/telemetry
+
+Authentication: LUMS client token (in Authorization: Bearer <token> header)
+
+Request body:
+JSON
+
+{
+  "cpu_percent": 45.5,
+  "memory_percent": 62.0,
+  "memory_total_bytes": 8589934592,
+  "memory_available_bytes": 3221225472,
+  "network_rx_bytes": 1048576000,
+  "network_tx_bytes": 524288000
+}
+
+Response: 204 No Content on success
+Retrieve Telemetry History
+
+Endpoint: GET /api/telemetry/history/<client_id>?hours=24
+
+Authentication: Requires clients.view permission
+
+Query parameters:
+
+    hours: Time range (1–168 hours)
+
+Response: Array of telemetry samples with calculated rates
+Fleet Overview
+
+Endpoint: GET /api/telemetry/overview
+
+Authentication: Requires clients.view permission
+
+Response: Client status summary with latest telemetry
+Agent Implementation
+
+The telemetry agent (agent/telemetry.py) is a standalone script that:
+
+    Reads CPU counters from /proc/stat
+
+    Reads memory information from /proc/meminfo
+
+    Reads network counters from /proc/net/dev
+
+    Submits measurements via HTTPS POST to /api/telemetry
+
+    Runs via systemd timer approximately every 5 seconds
+
+Agent version 1.1.0 adds network byte counting. The agent uses only the Python standard library and requires no root privileges.
+
+Environment variables:
+
+    LUMS_BASE: Server URL (e.g., https://lums.example.com)
+
+    LUMS_TOKEN: Client authentication token
+
+    LUMS_CA_FILE (optional): Path to CA certificate for custom certificate authorities
+
+The agent logs to stdout; systemd captures logs in the journal:
+Bash
+
+journalctl -u lums-telemetry.service -f
+
+CPU Calculation
+
+The agent samples CPU counters twice with a 0.2-second interval to calculate utilization:
+Python
+
+def calculate_cpu_percent(before, after):
+    total_delta = after[0] - before[0]
+    idle_delta = after[1] - before[1]
+    busy = 100.0 * (total_delta - idle_delta) / total_delta
+    return round(min(100.0, max(0.0, busy)), 2)
+
+Memory Calculation
+
+Memory utilization is calculated from /proc/meminfo:
+
+memory_percent = (MemTotal - MemAvailable) / MemTotal * 100
 
 For the dashboard's status thresholds and the limits of its backup-storage
-indicator, see [LUMS_Health_Dashboard.md](LUMS_Health_Dashboard.md). For general guidance,
-see [install.md](install.md) and [troubleshooting.md](troubleshooting.md).
+indicator, see LUMS_Health_Dashboard.md. For general guidance,
+see install.md and troubleshooting.md.

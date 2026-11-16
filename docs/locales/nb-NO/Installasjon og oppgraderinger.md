@@ -1,15 +1,24 @@
+﻿# LUMS Installasjonsveiledning
 # LUMS-installasjonsveiledning
 
 ## Linux Update Management Server
 
+**Project:** LUMS
+**Slogan:** Linux Update Management without the noise.
+**Repository:** `NovaForgeCtrl/LUMS`
 **Prosjekt:** LUMS
 **Slagord:** Linux Update Management without the noise.
 **Repositorium:** `NovaForgeCtrl/LUMS`
 
 ---
 
+## Kom i gang: Understand the Installation Before You Begin
 ## Kom i gang: forstå installasjonen før du begynner
 
+This guide covers a complete server installation, including advanced
+maintenance and verification procedures. It is **not** a single script to run
+without review: the server name, TLS certificate, secret file, backup
+destination, network, and database vary between installations.
 Denne veiledningen dekker en komplett serverinstallasjon, inkludert avanserte
 vedlikeholds- og verifiseringsprosedyrer. Den er **ikke** et enkelt skript som
 skal kjøres uten gjennomgang: servernavn, TLS-sertifikat, hemmelighetsfil,
@@ -17,6 +26,15 @@ sikkerhetskopimål, nettverk og database varierer mellom installasjoner.
 
 ### Hva blir installert?
 
+* **LUMS server:** the web interface and API, running in a Docker container.
+* **Nginx:** accepts external HTTPS connections and forwards them locally to
+  the container.
+* **Data volume:** contains the SQLite database. This volume must survive
+  upgrades and must never be deleted during a normal container replacement.
+* **Secret file:** protects application sessions, among other things. Never
+  put it in the Git repository, a Docker image, or a chat message.
+* **LUMS Agent and Watcher:** installed separately on managed Linux clients. A
+  working server alone does not update any clients.
 * **LUMS-server:** webgrensesnittet og API-et, som kjører i en Docker-container.
 * **Nginx:** tar imot eksterne HTTPS-tilkoblinger og videresender dem lokalt
   til containeren.
@@ -27,8 +45,15 @@ sikkerhetskopimål, nettverk og database varierer mellom installasjoner.
 * **LUMS Agent og Watcher:** installeres separat på administrerte Linux-klienter.
   En fungerende server alene oppdaterer ingen klienter.
 
-| Begrep | Betydning |
+| Term | Meaning |
 | --- | --- |
+| Terminal / shell | A text window where you enter Linux commands. |
+| `sudo` | Runs the command that follows with administrator rights. Linux may ask for your password. |
+| Host | The Linux computer running Docker and the LUMS server. |
+| Container | An isolated process running the LUMS web application. |
+| Image | A prepared template Docker uses to start a container. |
+| Volume | Persistent Docker storage that remains when a container is replaced. |
+| Placeholder | Text such as `LUMS-SERVER` that must be replaced with your actual value. |
 | Terminal / skall | Et tekstvindu der du skriver Linux-kommandoer. |
 | `sudo` | Kjører kommandoen som følger med administratorrettigheter. Linux kan be om passordet ditt. |
 | Vert | Linux-maskinen som kjører Docker og LUMS-serveren. |
@@ -37,8 +62,13 @@ sikkerhetskopimål, nettverk og database varierer mellom installasjoner.
 | Volum | Vedvarende Docker-lagring som blir værende når en container byttes ut. |
 | Plassholder | Tekst som `LUMS-SERVER` som må erstattes med din faktiske verdi. |
 
+### Run tests only (this does not install a server)
 ### Kjør bare tester (dette installerer ingen server)
 
+These steps are suitable for Debian 13 to check out the source and run tests
+locally. They do **not** create a production server reachable over the network
+and do not install an agent on another computer. `sudo` is only needed to
+install Debian packages.
 Disse trinnene egner seg for Debian 13 for å hente ut kildekoden og kjøre tester
 lokalt. De oppretter **ikke** en produksjonsserver som er tilgjengelig over
 nettverket, og installerer ikke en agent på en annen datamaskin. `sudo` trengs
@@ -54,6 +84,18 @@ python3 -m venv .venv-test
 ./.venv-test/bin/pytest -q
 ```
 
+`apt update` refreshes package lists; it does not upgrade all installed
+software. The `.venv-test` Python virtual environment keeps test dependencies
+separate from the rest of the system. A successful test run exits with code
+`0`; the number of tests can change as the project grows. If creating the
+environment fails, check that `python3-venv` is installed. If a test fails,
+save the complete error and read the
+[troubleshooting guide](troubleshooting.md); do not delete production data.
+
+For a real installation, continue with the numbered sections and read the
+security and backup instructions first. If LUMS is already running, use the
+upgrade procedure in [`administration.md`](administration.md), not the
+first-install procedure.
 `apt update` oppdaterer pakkelistene; den oppgraderer ikke all installert
 programvare. Det virtuelle Python-miljøet `.venv-test` holder testavhengighetene
 atskilt fra resten av systemet. En vellykket testkjøring avsluttes med kode
@@ -72,6 +114,47 @@ førstegangsinstallasjon.
 
 # 1. Oversikt
 
+LUMS is a centralized Linux update management platform for controlled update distribution, client reporting, package management, update-job execution, result validation and auditable administration.
+
+The current Arkitektur separates the management server from the managed Linux clients.
+
+The server provides:
+
+* Web-based administration
+* Client management
+* Client authentication
+* Package inventory
+* Available-update reporting
+* Package search
+* Package installation and removal
+* Update-job management
+* Job result validation
+* Update history
+* Role-based access control
+* Audit logging
+* SQLite-based persistent state
+
+Linux clients provide:
+
+* System information
+* Installed-package inventory
+* Available-update detection
+* Package operations
+* Update-job execution
+* Idle-state detection
+* Job checkpointing and recovery
+* Reboot detection
+* Result reporting
+
+The current implementation supports:
+
+```text
+Debian / Ubuntu
+    â””â”€â”€ APT / dpkg
+
+Arch Linux
+    â””â”€â”€ pacman
+```
 LUMS er en sentralisert plattform for Linux-oppdateringsstyring for kontrollert distribusjon av oppdateringer, klientrapportering, pakkehåndtering, kjøring av oppdateringsjobber, validering av resultater og sporbar administrasjon.
 
 Den nåværende arkitekturen skiller administrasjonsserveren fra de administrerte Linux-klientene.
@@ -118,6 +201,36 @@ Arch Linux
 
 # 2. Arkitektur
 
+The production Arkitektur is:
+
+```text
+                         LUMS Server
+                              â”‚
+                              â”‚ HTTPS :443
+                              â–¼
+                       â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”
+                       â”‚    Nginx     â”‚
+                       â”‚  TLS / Proxy â”‚
+                       â””â”€â”€â”€â”€â”€â”€â”¬â”€â”€â”€â”€â”€â”€â”€â”˜
+                              â”‚
+                              â”‚ HTTP
+                              â–¼
+                       127.0.0.1:5050
+                              â”‚
+                              â–¼
+                    â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”
+                    â”‚   Docker: lums    â”‚
+                    â”‚                   â”‚
+                    â”‚   Gunicorn        â”‚
+                    â”‚   Flask :5000     â”‚
+                    â”‚   SQLite          â”‚
+                    â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”¬â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜
+                              â”‚
+                              â–¼
+                         lums-data
+                              â”‚
+                              â–¼
+```
 Produksjonsarkitekturen er:
 
 ```text
@@ -147,10 +260,20 @@ Produksjonsarkitekturen er:
                          lums-data
                               │
                               ▼
+```
                    /var/lib/lums/lums.db
 
 
         Linux Client
+              â”‚
+              â”‚ HTTPS + Bearer Token
+              â–¼
+         LUMS API
+              â”‚
+              â”œâ”€â”€ Report
+              â”œâ”€â”€ Package Search
+              â”œâ”€â”€ Job Retrieval
+              â””â”€â”€ Job Result
               │
               │ HTTPS + Bearer Token
               ▼
@@ -162,6 +285,19 @@ Produksjonsarkitekturen er:
               └── Job Result
 ```
 
+The LUMS application is **not intended to be directly exposed to the network**.
+
+The application container is bound to:
+
+```text
+127.0.0.1:5050 â†’ container:5000
+```
+
+Nginx is the external HTTPS entry point.
+
+Port `5000` is not published directly.
+
+Port `5050` must remain localhost-only.
 LUMS-applikasjonen er **ikke ment å eksponeres direkte mot nettverket**.
 
 Applikasjonscontaineren er bundet til:
@@ -180,10 +316,13 @@ Port `5050` må forbli kun tilgjengelig på localhost.
 
 # 3. Applikasjonskomponenter
 
+A complete LUMS installation consists of several components.
 En komplett LUMS-installasjon består av flere komponenter.
 
+## 3.1 LUMS Server
 ## 3.1 LUMS-server
 
+The server contains:
 Serveren inneholder:
 
 ```text
@@ -199,12 +338,14 @@ Job management
 Package management
 ```
 
+The application runs inside the Docker container:
 Applikasjonen kjører i Docker-containeren:
 
 ```text
 lums
 ```
 
+The persistent database is stored outside the container's writable application filesystem:
 Den vedvarende databasen lagres utenfor containerens skrivbare applikasjonsfilsystem:
 
 ```text
@@ -215,16 +356,36 @@ lums-data:/var/lib/lums/lums.db
 
 ## 3.2 Nginx
 
+Nginx provides:
 Nginx tilbyr:
 
 ```text
 HTTPS termination
 TLS certificate handling
+HTTP â†’ HTTPS redirect
 HTTP → HTTPS redirect
 Reverse proxy
 External network entry point
 ```
 
+The intended request path is:
+
+```text
+Browser
+   â”‚
+   â”‚ HTTPS
+   â–¼
+Nginx
+   â”‚
+   â”‚ localhost HTTP
+   â–¼
+127.0.0.1:5050
+   â”‚
+   â–¼
+LUMS
+```
+
+The Flask/Gunicorn application should not be exposed directly to the LAN.
 Den tiltenkte forespørselsveien er:
 
 ```text
@@ -246,8 +407,12 @@ Flask/Gunicorn-applikasjonen bør ikke eksponeres direkte mot LAN.
 
 ---
 
+## 3.3 Linux Agent
 ## 3.3 Linux-agent
 
+The LUMS Agent runs on every managed Linux client.
+
+The current Agent version is:
 LUMS Agent kjører på hver administrerte Linux-klient.
 
 Den nåværende agentversjonen er:
@@ -256,6 +421,7 @@ Den nåværende agentversjonen er:
 1.7.0
 ```
 
+The Agent is responsible for:
 Agenten er ansvarlig for:
 
 ```text
@@ -270,12 +436,17 @@ Result reporting
 Reboot detection
 ```
 
+The Agent communicates with the LUMS server using HTTPS and a client-specific Bearer token.
 Agenten kommuniserer med LUMS-serveren via HTTPS og et klientspesifikt Bearer-token.
 
 ---
 
+## 3.4 Execution Watcher
 ## 3.4 Utføringsovervåker (Watcher)
 
+The execution watcher is responsible for controlled update-job execution.
+
+The current Watcher version is:
 Utføringsovervåkeren er ansvarlig for kontrollert kjøring av oppdateringsjobber.
 
 Den nåværende Watcher-versjonen er:
@@ -284,6 +455,7 @@ Den nåværende Watcher-versjonen er:
 1.2.1
 ```
 
+The Watcher handles:
 Watcher håndterer:
 
 ```text
@@ -296,12 +468,16 @@ Interrupted-job recovery
 Result processing
 ```
 
+The Watcher is intentionally separated from ordinary client reporting.
 Watcher er bevisst adskilt fra vanlig klientrapportering.
 
 ---
 
 # 4. Sikkerhetsmodell
 
+The installation must preserve the LUMS security baseline.
+
+The production server uses:
 Installasjonen må bevare LUMS' sikkerhetsgrunnlinje.
 
 Produksjonsserveren bruker:
@@ -321,18 +497,27 @@ Persistent Docker volume
 Read-only secret mount
 ```
 
+The Docker container runs as the unprivileged user:
 Docker-containeren kjører som den uprivilegerte brukeren:
 
 ```text
 lums
 ```
 
+with UID:
 med UID:
 
 ```text
 10001
 ```
 
+The container must not run in privileged mode.
+
+The root filesystem must remain read-only.
+
+The application must not require write access to its application directory.
+
+Persistent application data is stored through the dedicated Docker volume.
 Containeren må ikke kjøre i privilegert modus.
 
 Rotfilsystemet må forbli skrivebeskyttet.
@@ -343,8 +528,10 @@ Vedvarende applikasjonsdata lagres via det dedikerte Docker-volumet.
 
 ---
 
+# 5. Current RBAC Model
 # 5. Nåværende RBAC-modell
 
+LUMS currently provides three web roles:
 LUMS tilbyr for øyeblikket tre webroller:
 
 ```text
@@ -355,6 +542,7 @@ viewer
 
 ## Administrator
 
+Administrators can perform administrative operations including:
 Administratorer kan utføre administrative operasjoner, blant annet:
 
 ```text
@@ -375,6 +563,7 @@ Manage roles
 
 ## Operator
 
+Operators can perform operational management:
 Operatører kan utføre operativ administrasjon:
 
 ```text
@@ -387,6 +576,7 @@ Use package management
 Use system maintenance
 ```
 
+Operators do not have access to:
 Operatører har ikke tilgang til:
 
 ```text
@@ -400,6 +590,9 @@ Client-token rotation
 
 ## Viewer
 
+Viewers have intentionally restricted access.
+
+A Viewer can access:
 Visere har bevisst begrenset tilgang.
 
 En Viewer har tilgang til:
@@ -409,6 +602,7 @@ Clients
 Installed software
 ```
 
+The following management areas are hidden from the Viewer interface and protected server-side:
 Følgende administrasjonsområder er skjult i Viewer-grensesnittet og beskyttet på serversiden:
 
 ```text
@@ -419,6 +613,9 @@ Package Management
 System Maintenance
 ```
 
+UI hiding is therefore not the security boundary.
+
+Server-side authorization remains mandatory.
 Skjuling i brukergrensesnittet er derfor ikke sikkerhetsgrensen.
 
 Autorisasjon på serversiden er fortsatt obligatorisk.
@@ -427,8 +624,10 @@ Autorisasjon på serversiden er fortsatt obligatorisk.
 
 # 6. Installasjonskrav
 
+## 6.1 LUMS Server
 ## 6.1 LUMS-server
 
+The current deployment requires a Linux host with:
 Den nåværende distribusjonen krever en Linux-vert med:
 
 ```text
@@ -440,6 +639,7 @@ Network connectivity
 Persistent storage
 ```
 
+The server must have enough storage for:
 Serveren må ha nok lagringsplass til:
 
 ```text
@@ -450,12 +650,15 @@ Logs
 Backups
 ```
 
+The LUMS application itself runs inside Docker.
 Selve LUMS-applikasjonen kjører i Docker.
 
 ---
 
+## 6.2 Linux Clients
 ## 6.2 Linux-klienter
 
+Managed Linux clients require:
 Administrerte Linux-klienter krever:
 
 ```text
@@ -467,6 +670,7 @@ Valid client token
 Trusted TLS certificate
 ```
 
+Supported package-management families:
 Støttede pakkehåndteringsfamilier:
 
 ```text
@@ -477,18 +681,47 @@ Arch Linux
     pacman
 ```
 
+The client must be able to reach the LUMS HTTPS endpoint.
 Klienten må kunne nå LUMS' HTTPS-endepunkt.
 
 ---
 
+# 7. Anbefalt mappelayout
 # 7. Anbefalt katalogstruktur
 
+The recommended server-side repository location is:
 Den anbefalte plasseringen av repositoriet på serveren er:
 
 ```text
 /opt/lums-public/
 ```
 
+The repository contains the application source, Agent source and tests.
+
+A typical installation uses:
+
+```text
+/opt/lums-public/
+    â”œâ”€â”€ agent/
+    â”œâ”€â”€ server/
+    â”œâ”€â”€ tests/
+    â”œâ”€â”€ Dockerfile
+    â”œâ”€â”€ requirements.txt
+    â””â”€â”€ requirements-dev.txt
+```
+
+Host-side configuration is kept outside the repository:
+
+```text
+/etc/lums/
+    â”œâ”€â”€ secrets/
+    â”‚   â””â”€â”€ lums_secret
+    â””â”€â”€ tls/
+        â”œâ”€â”€ lums.crt
+        â””â”€â”€ lums.key
+```
+
+Persistent application data is stored in:
 Repositoriet inneholder applikasjonskildekoden, agentkildekoden og tester.
 
 En typisk installasjon bruker:
@@ -520,20 +753,26 @@ Vedvarende applikasjonsdata lagres i:
 lums-data:/var/lib/lums
 ```
 
+The SQLite database is:
 SQLite-databasen er:
 
 ```text
 /var/lib/lums/lums.db
 ```
 
+The database must never be stored inside the Git working tree.
+
+Secrets and private TLS material must also remain outside the repository.
 Databasen må aldri lagres inne i Git-arbeidstreet.
 
 Hemmeligheter og privat TLS-materiale må også forbli utenfor repositoriet.
 
 ---
 
+# 8. Repository Preparation
 # 8. Klargjøring av repositoriet
 
+Clone the repository into the intended installation directory:
 Klon repositoriet inn i den tiltenkte installasjonskatalogen:
 
 ```bash
@@ -545,32 +784,42 @@ sudo git clone \
     lums-public
 ```
 
+Enter the repository:
 Gå inn i repositoriet:
 
 ```bash
 cd /opt/lums-public
 ```
 
+Check the working tree:
 Kontroller arbeidstreet:
 
 ```bash
 git status
 ```
 
+Inspect the current revision:
 Inspiser den gjeldende revisjonen:
 
 ```bash
 git log -1 --oneline --decorate
 ```
 
+For controlled deployments, the exact commit used for the installation should be recorded.
+
+Do not build production images from an unknown or unverified working tree.
 For kontrollerte distribusjoner bør den nøyaktige commit-en som brukes til installasjonen, dokumenteres.
 
 Ikke bygg produksjonsbilder fra et ukjent eller ubekreftet arbeidstre.
 
 ---
 
+# 9. Repository Security Check
 # 9. Sikkerhetskontroll av repositoriet
 
+Before building the production image, verify that sensitive files have not been placed into the repository.
+
+Review the working tree:
 Før du bygger produksjonsbildet, kontroller at ingen sensitive filer er plassert i repositoriet.
 
 Gjennomgå arbeidstreet:
@@ -579,12 +828,14 @@ Gjennomgå arbeidstreet:
 git status --short
 ```
 
+Review ignored files where appropriate:
 Gjennomgå ignorerte filer der det er hensiktsmessig:
 
 ```bash
 git status --ignored --short
 ```
 
+The repository must not contain:
 Repositoriet må ikke inneholde:
 
 ```text
@@ -598,14 +849,19 @@ Runtime logs
 Temporary backup files
 ```
 
+The project uses repository ignore rules to prevent common backup artifacts from being accidentally tracked.
+
+Before committing changes, inspect the staged file list carefully.
 Prosjektet bruker ignoreringsregler i repositoriet for å hindre at vanlige sikkerhetskopiartefakter ved et uhell blir sporet.
 
 Før du committer endringer, inspiser listen over stagede filer nøye.
 
 ---
 
+# 10. Prepare Host Configuration Directories
 # 10. Klargjør konfigurasjonskataloger på verten
 
+Create the required host-side directories:
 Opprett de nødvendige katalogene på verten:
 
 ```bash
@@ -614,6 +870,13 @@ sudo install -d -m 700 /etc/lums/secrets
 sudo install -d -m 700 /etc/lums/tls
 ```
 
+The secret directory contains the application secret.
+
+The TLS directory contains the TLS certificate and private key.
+
+Protecting these directories reduces the risk of accidental disclosure.
+
+Verify:
 Hemmelighetskatalogen inneholder applikasjonshemmeligheten.
 
 TLS-katalogen inneholder TLS-sertifikatet og den private nøkkelen.
@@ -631,8 +894,12 @@ sudo stat -c '%a %U:%G %n' \
 
 ---
 
+# 11. Create the Application Secret
 # 11. Opprett applikasjonshemmeligheten
 
+The LUMS application secret is stored on the host rather than embedded directly into the Docker image.
+
+The production secret path is:
 LUMS' applikasjonshemmelighet lagres på verten i stedet for å bygges direkte inn i Docker-bildet.
 
 Stien til produksjonshemmeligheten er:
@@ -641,12 +908,14 @@ Stien til produksjonshemmeligheten er:
 /etc/lums/secrets/lums_secret
 ```
 
+Generate a random secret:
 Generer en tilfeldig hemmelighet:
 
 ```bash
 sudo sh -c 'umask 077 && openssl rand -hex 32 > /etc/lums/secrets/lums_secret'
 ```
 
+Protect the resulting file:
 Beskytt den resulterende filen:
 
 ```bash
@@ -654,6 +923,7 @@ sudo chmod 600 \
     /etc/lums/secrets/lums_secret
 ```
 
+Verify the permissions without displaying the secret:
 Verifiser tillatelsene uten å vise hemmeligheten:
 
 ```bash
@@ -661,12 +931,14 @@ sudo stat -c '%a %U:%G %n' \
     /etc/lums/secrets/lums_secret
 ```
 
+Expected:
 Forventet:
 
 ```text
 600
 ```
 
+The secret must never be:
 Hemmeligheten må aldri være:
 
 ```text
@@ -678,12 +950,17 @@ Published in issues
 Included in documentation
 ```
 
+The container receives the secret through a read-only bind mount.
 Containeren mottar hemmeligheten gjennom en skrivebeskyttet bind-montering.
 
 ---
 
+# 12. Prepare TLS Material
 # 12. Klargjør TLS-materiale
 
+LUMS uses HTTPS for external access.
+
+The recommended host-side locations are:
 LUMS bruker HTTPS for ekstern tilgang.
 
 De anbefalte plasseringene på verten er:
@@ -693,6 +970,9 @@ De anbefalte plasseringene på verten er:
 /etc/lums/tls/lums.key
 ```
 
+Install the appropriate certificate and private key before configuring Nginx.
+
+Protect the private key:
 Installer riktig sertifikat og privat nøkkel før du konfigurerer Nginx.
 
 Beskytt den private nøkkelen:
@@ -702,6 +982,7 @@ sudo chmod 600 \
     /etc/lums/tls/lums.key
 ```
 
+The certificate may be readable by the Nginx service:
 Sertifikatet kan være lesbart for Nginx-tjenesten:
 
 ```bash
@@ -709,6 +990,7 @@ sudo chmod 644 \
     /etc/lums/tls/lums.crt
 ```
 
+Verify:
 Verifiser:
 
 ```bash
@@ -717,12 +999,43 @@ sudo stat -c '%a %U:%G %n' \
     /etc/lums/tls/lums.key
 ```
 
+The private key must never be committed to Git or included in the Docker image.
 Den private nøkkelen må aldri committes til Git eller inkluderes i Docker-bildet.
 
 ---
 
+# 13. Installation Principle
 # 13. Installasjonsprinsipp
 
+The installation should proceed in controlled stages:
+
+```text
+Repository
+    â†“
+Host configuration
+    â†“
+Application secret
+    â†“
+TLS material
+    â†“
+Docker image
+    â†“
+Persistent volume
+    â†“
+Hardened container
+    â†“
+Nginx / HTTPS
+    â†“
+Administrator
+    â†“
+Server validation
+    â†“
+Linux clients
+```
+
+Do not connect production clients before the server has passed its own validation checks.
+
+The following sections continue with Docker image construction and the hardened production deployment.
 Installasjonen bør gjennomføres i kontrollerte trinn:
 
 ```text
@@ -753,8 +1066,12 @@ Ikke koble til produksjonsklienter før serveren har bestått sine egne valideri
 
 De følgende kapitlene fortsetter med bygging av Docker-bildet og den herdede produksjonsdistribusjonen.
 
+# 14. Build the LUMS Docker Image
 # 14. Bygg LUMS Docker-bildet
 
+Before building the production image, make sure the repository is in the intended state.
+
+Enter the repository:
 Før du bygger produksjonsbildet, sørg for at repositoriet er i ønsket tilstand.
 
 Gå inn i repositoriet:
@@ -763,12 +1080,18 @@ Gå inn i repositoriet:
 cd /opt/lums-public
 ```
 
+Run the test suite before creating a production image:
 Kjør testsuiten før du lager et produksjonsbilde:
 
 ```bash
 ./.venv-test/bin/pytest -q
 ```
 
+The test count is expected to grow as the project evolves.
+
+The important requirement is that the relevant test suite completes successfully before deployment.
+
+Build the Docker image:
 Antall tester forventes å vokse etter hvert som prosjektet utvikler seg.
 
 Det viktige kravet er at den relevante testsuiten fullføres uten feil før distribusjon.
@@ -781,26 +1104,35 @@ sudo docker build \
     .
 ```
 
+Verify that the image exists:
 Verifiser at bildet finnes:
 
 ```bash
 sudo docker image ls lums
 ```
 
+Inspect the image:
 Inspiser bildet:
 
 ```bash
 sudo docker image inspect lums:latest
 ```
 
+The production image is based on a pinned Python 3.13 slim base image.
+
+The Dockerfile also uses pinned production dependencies where required.
 Produksjonsbildet er basert på et festet (pinned) Python 3.13 slim-basisbilde.
 
 Dockerfile bruker også festede produksjonsavhengigheter der det er nødvendig.
 
 ---
 
+# 15. Review the Docker Build
 # 15. Gjennomgå Docker-byggingen
 
+Before deploying the image, review the build output for unexpected errors or warnings.
+
+Check the resulting image:
 Før du distribuerer bildet, gjennomgå byggeresultatet for uventede feil eller advarsler.
 
 Kontroller det resulterende bildet:
@@ -810,6 +1142,7 @@ sudo docker inspect \
     lums:latest
 ```
 
+Verify the configured application user:
 Verifiser den konfigurerte applikasjonsbrukeren:
 
 ```bash
@@ -818,12 +1151,16 @@ sudo docker image inspect \
     --format '{{.Config.User}}'
 ```
 
+The application is intended to run as:
 Applikasjonen er ment å kjøre som:
 
 ```text
 lums
 ```
 
+The application must not require root privileges during normal execution.
+
+Review the Dockerfile when changing the build process:
 Applikasjonen må ikke kreve root-rettigheter under normal kjøring.
 
 Gjennomgå Dockerfile når byggeprosessen endres:
@@ -832,26 +1169,50 @@ Gjennomgå Dockerfile når byggeprosessen endres:
 sed -n '1,240p' Dockerfile
 ```
 
+Do not add secrets, certificates or production databases to the Docker build context.
+
+The repository contains a `.dockerignore` file to reduce the risk of accidentally including runtime artifacts in the image.
 Ikke legg hemmeligheter, sertifikater eller produksjonsdatabaser i Docker-byggekonteksten.
 
 Repositoriet inneholder en `.dockerignore`-fil for å redusere risikoen for at kjøretidsartefakter ved et uhell havner i bildet.
 
 ---
 
+# 16. Create the Persistent Docker Volume
 # 16. Opprett det vedvarende Docker-volumet
 
+Create the persistent LUMS data volume:
 Opprett det vedvarende LUMS-datavolumet:
 
 ```bash
 sudo docker volume create lums-data
 ```
 
+Verify:
 Verifiser:
 
 ```bash
 sudo docker volume inspect lums-data
 ```
 
+The volume stores persistent application data:
+
+```text
+lums-data
+    â†“
+/var/lib/lums
+    â†“
+/var/lib/lums/lums.db
+```
+
+The container filesystem itself must not be treated as persistent application storage.
+
+The database therefore survives container replacement as long as the `lums-data` volume is preserved.
+
+> [!IMPORTANT]
+> Never remove `lums-data` during a normal application upgrade.
+
+Removing the volume removes the SQLite database stored inside it.
 Volumet lagrer vedvarende applikasjonsdata:
 
 ```text
@@ -873,8 +1234,10 @@ Fjerning av volumet fjerner SQLite-databasen som ligger i det.
 
 ---
 
+# 17. Verify the Persistent Volume
 # 17. Verifiser det vedvarende volumet
 
+Before starting LUMS, confirm that the volume exists:
 Før du starter LUMS, bekreft at volumet finnes:
 
 ```bash
@@ -882,20 +1245,28 @@ sudo docker volume inspect \
     lums-data
 ```
 
+The volume can also be checked through Docker:
 Volumet kan også kontrolleres via Docker:
 
 ```bash
 sudo docker volume ls | grep lums-data
 ```
 
+A newly created volume will normally not contain a database yet.
+
+The database is initialized by the LUMS application during deployment.
 Et nyopprettet volum inneholder normalt ingen database ennå.
 
 Databasen initialiseres av LUMS-applikasjonen under distribusjonen.
 
 ---
 
+# 18. Production Container Configuration
 # 18. Konfigurasjon av produksjonscontaineren
 
+The production container uses several security controls simultaneously.
+
+The expected runtime baseline is:
 Produksjonscontaineren bruker flere sikkerhetskontroller samtidig.
 
 Den forventede kjøretidsgrunnlinjen er:
@@ -912,6 +1283,13 @@ Persistent writable data volume
 Dedicated /tmp tmpfs
 ```
 
+The application port is published only to localhost:
+
+```text
+127.0.0.1:5050 â†’ container:5000
+```
+
+The external HTTPS endpoint is provided by Nginx.
 Applikasjonsporten publiseres bare til localhost:
 
 ```text
@@ -922,8 +1300,10 @@ Det eksterne HTTPS-endepunktet leveres av Nginx.
 
 ---
 
+# 19. Start the Hardened LUMS Container
 # 19. Start den herdede LUMS-containeren
 
+Before starting a new production container, make sure another container named `lums` is not already running:
 Før du starter en ny produksjonscontainer, sørg for at ingen annen container med navnet `lums` allerede kjører:
 
 ```bash
@@ -931,6 +1311,9 @@ sudo docker ps \
     --filter name=lums
 ```
 
+If an existing deployment is being replaced, preserve the existing container until the new image has been validated.
+
+Start the hardened container:
 Hvis en eksisterende distribusjon skal erstattes, bevar den eksisterende containeren til det nye bildet er validert.
 
 Start den herdede containeren:
@@ -951,6 +1334,15 @@ sudo docker run -d \
     lums:latest
 ```
 
+The application secret is mounted read-only.
+
+The SQLite database is stored in the persistent volume.
+
+The root filesystem is read-only.
+
+All Linux capabilities are dropped.
+
+The `no-new-privileges` security option prevents processes inside the container from gaining additional privileges.
 Applikasjonshemmeligheten monteres skrivebeskyttet.
 
 SQLite-databasen lagres i det vedvarende volumet.
@@ -963,8 +1355,10 @@ Sikkerhetsvalget `no-new-privileges` hindrer prosesser i containeren i å oppnå
 
 ---
 
+# 20. Verify the Container State
 # 20. Verifiser containerens tilstand
 
+Check the running container:
 Kontroller den kjørende containeren:
 
 ```bash
@@ -972,12 +1366,14 @@ sudo docker ps \
     --filter name=lums
 ```
 
+Expected state:
 Forventet tilstand:
 
 ```text
 Up ...
 ```
 
+Check the container state directly:
 Kontroller containerens tilstand direkte:
 
 ```bash
@@ -986,12 +1382,14 @@ sudo docker inspect \
     lums
 ```
 
+Expected:
 Forventet:
 
 ```text
 running
 ```
 
+Inspect recent logs:
 Inspiser nylige logger:
 
 ```bash
@@ -1000,12 +1398,15 @@ sudo docker logs \
     lums
 ```
 
+Application startup errors must be resolved before continuing with the installation.
 Oppstartsfeil i applikasjonen må løses før du fortsetter med installasjonen.
 
 ---
 
+# 21. Verify Container Security
 # 21. Verifiser containersikkerheten
 
+Inspect the effective runtime security configuration:
 Inspiser den effektive sikkerhetskonfigurasjonen ved kjøring:
 
 ```bash
@@ -1013,6 +1414,7 @@ sudo docker inspect lums \
     --format='User={{.Config.User}} ReadonlyRootfs={{.HostConfig.ReadonlyRootfs}} Privileged={{.HostConfig.Privileged}} CapDrop={{json .HostConfig.CapDrop}} SecurityOpt={{json .HostConfig.SecurityOpt}}'
 ```
 
+The expected baseline is:
 Den forventede grunnlinjen er:
 
 ```text
@@ -1023,38 +1425,49 @@ CapDrop=["ALL"]
 SecurityOpt=["no-new-privileges:true"]
 ```
 
+The exact formatting of the Docker output may vary.
+
+The effective configuration is what matters.
 Den nøyaktige formateringen av Docker-utdataene kan variere.
 
 Det er den effektive konfigurasjonen som teller.
 
 ---
 
+# 22. Verify the Application Port
 # 22. Verifiser applikasjonsporten
 
+Check the published Docker port:
 Kontroller den publiserte Docker-porten:
 
 ```bash
 sudo docker port lums
 ```
 
+Expected:
 Forventet:
 
 ```text
 5000/tcp -> 127.0.0.1:5050
 ```
 
+The following is **not** acceptable for the production application:
 Følgende er **ikke** akseptabelt for produksjonsapplikasjonen:
 
 ```text
 0.0.0.0:5050
 ```
 
+or:
 eller:
 
 ```text
 0.0.0.0:5000
 ```
 
+The application is intentionally accessible only through the local reverse-proxy path.
+
+Check the listening sockets:
 Applikasjonen er bevisst bare tilgjengelig via den lokale omvendte proxy-banen.
 
 Kontroller lyttende sockets:
@@ -1063,12 +1476,15 @@ Kontroller lyttende sockets:
 sudo ss -lntp | grep -E ':5050|:5000'
 ```
 
+Only the localhost application binding should be present.
 Bare localhost-bindingen for applikasjonen skal være til stede.
 
 ---
 
+# 23. Verify the Secret Mount
 # 23. Verifiser hemmelighetsmonteringen
 
+Confirm that the secret is mounted:
 Bekreft at hemmeligheten er montert:
 
 ```bash
@@ -1076,12 +1492,16 @@ sudo docker inspect lums \
     --format='{{range .Mounts}}{{println .Source "->" .Destination "RW=" .RW}}{{end}}'
 ```
 
+The application secret should appear similar to:
 Applikasjonshemmeligheten skal se omtrent slik ut:
 
 ```text
 /etc/lums/secrets/lums_secret -> /run/secrets/lums_secret RW=false
 ```
 
+The exact output may contain additional mount information.
+
+The important property is:
 De nøyaktige utdataene kan inneholde ytterligere informasjon om monteringen.
 
 Den viktige egenskapen er:
@@ -1090,6 +1510,9 @@ Den viktige egenskapen er:
 RW=false
 ```
 
+Never print the secret contents.
+
+A direct readability test is sufficient:
 Skriv aldri ut innholdet i hemmeligheten.
 
 En direkte lesbarhetstest er tilstrekkelig:
@@ -1099,6 +1522,7 @@ sudo docker exec lums \
     sh -c 'test -r /run/secrets/lums_secret && echo "secret mount: OK"'
 ```
 
+Expected:
 Forventet:
 
 ```text
@@ -1107,8 +1531,10 @@ secret mount: OK
 
 ---
 
+# 24. Verify the Persistent Volume Mount
 # 24. Verifiser monteringen av det vedvarende volumet
 
+Inspect the container mounts:
 Inspiser containerens monteringer:
 
 ```bash
@@ -1116,18 +1542,29 @@ sudo docker inspect lums \
     --format='{{range .Mounts}}{{println .Type .Source "->" .Destination "RW=" .RW}}{{end}}'
 ```
 
+The LUMS data volume must be mounted at:
 LUMS-datavolumet må være montert på:
 
 ```text
 /var/lib/lums
 ```
 
+and must be writable:
 og må være skrivbart:
 
 ```text
 RW=true
 ```
 
+The expected relationship is:
+
+```text
+lums-data
+    â†“
+/var/lib/lums
+```
+
+The root filesystem remains read-only while the dedicated data volume provides the required persistent write access.
 Det forventede forholdet er:
 
 ```text
@@ -1140,8 +1577,12 @@ Rotfilsystemet forblir skrivebeskyttet, mens det dedikerte datavolumet gir den n
 
 ---
 
+# 25. Verify the Read-Only Root Filesystem
 # 25. Verifiser det skrivebeskyttede rotfilsystemet
 
+The application root filesystem must be read-only.
+
+The container runtime should report:
 Applikasjonens rotfilsystem må være skrivebeskyttet.
 
 Container-kjøretiden skal rapportere:
@@ -1150,6 +1591,9 @@ Container-kjøretiden skal rapportere:
 ReadonlyRootfs=true
 ```
 
+A controlled write test can be performed inside the container.
+
+For example:
 En kontrollert skrivetest kan utføres inne i containeren.
 
 For eksempel:
@@ -1159,6 +1603,11 @@ sudo docker exec lums \
     sh -c 'touch /app/.write-test'
 ```
 
+The command should fail because `/app` is part of the read-only container filesystem.
+
+Do not disable the read-only root filesystem merely because an application component attempts to write outside its designated writable locations.
+
+If the application requires persistent data, use the appropriate volume or runtime filesystem instead.
 Kommandoen skal feile fordi `/app` er en del av containerens skrivebeskyttede filsystem.
 
 Ikke deaktiver det skrivebeskyttede rotfilsystemet bare fordi en applikasjonskomponent forsøker å skrive utenfor sine angitte skrivbare plasseringer.
@@ -1167,8 +1616,12 @@ Hvis applikasjonen trenger vedvarende data, bruk det aktuelle volumet eller kjø
 
 ---
 
+# 26. Verify the Writable Temporary Filesystem
 # 26. Verifiser det skrivbare midlertidige filsystemet
 
+The container provides a dedicated `/tmp` tmpfs.
+
+Verify:
 Containeren har et dedikert `/tmp`-tmpfs.
 
 Verifiser:
@@ -1178,12 +1631,14 @@ sudo docker exec lums \
     sh -c 'touch /tmp/lums-write-test && rm -f /tmp/lums-write-test && echo "tmpfs: OK"'
 ```
 
+Expected:
 Forventet:
 
 ```text
 tmpfs: OK
 ```
 
+The temporary filesystem is configured with:
 Det midlertidige filsystemet er konfigurert med:
 
 ```text
@@ -1191,14 +1646,19 @@ noexec
 nosuid
 ```
 
+and a size limit.
+
+This provides temporary writable storage without making the container root filesystem writable.
 og en størrelsesgrense.
 
 Dette gir midlertidig skrivbar lagring uten at containerens rotfilsystem blir skrivbart.
 
 ---
 
+# 27. Verify the Application Data Directory
 # 27. Verifiser applikasjonens datakatalog
 
+The LUMS application requires write access to its persistent data directory.
 LUMS-applikasjonen krever skrivetilgang til sin vedvarende datakatalog.
 
 Test:
@@ -1208,18 +1668,22 @@ sudo docker exec lums \
     sh -c 'touch /var/lib/lums/.write-test && rm -f /var/lib/lums/.write-test && echo "data volume: OK"'
 ```
 
+Expected:
 Forventet:
 
 ```text
 data volume: OK
 ```
 
+This confirms that the dedicated writable volume is available while the rest of the container remains read-only.
 Dette bekrefter at det dedikerte skrivbare volumet er tilgjengelig mens resten av containeren forblir skrivebeskyttet.
 
 ---
 
+# 28. Verify the Application User
 # 28. Verifiser applikasjonsbrukeren
 
+Confirm the effective runtime user:
 Bekreft den effektive kjøretidsbrukeren:
 
 ```bash
@@ -1227,6 +1691,9 @@ sudo docker exec lums \
     id
 ```
 
+The process should run as the unprivileged LUMS user.
+
+Expected identity includes:
 Prosessen skal kjøre som den uprivilegerte LUMS-brukeren.
 
 Forventet identitet inneholder:
@@ -1235,6 +1702,9 @@ Forventet identitet inneholder:
 uid=10001(lums)
 ```
 
+The exact group information may vary according to the image configuration.
+
+The container must not run as:
 Den nøyaktige gruppeinformasjonen kan variere avhengig av bildets konfigurasjon.
 
 Containeren må ikke kjøre som:
@@ -1243,12 +1713,15 @@ Containeren må ikke kjøre som:
 root
 ```
 
+during normal operation.
 under normal drift.
 
 ---
 
+# 29. Database Initialization
 # 29. Databaseinitialisering
 
+After the container starts, check whether the database exists:
 Etter at containeren har startet, kontroller om databasen finnes:
 
 ```bash
@@ -1256,6 +1729,9 @@ sudo docker exec lums \
     ls -lh /var/lib/lums/lums.db
 ```
 
+If the application has initialized successfully, the database should be present.
+
+The database is located at:
 Hvis applikasjonen er initialisert, skal databasen være til stede.
 
 Databasen ligger i:
@@ -1264,24 +1740,29 @@ Databasen ligger i:
 /var/lib/lums/lums.db
 ```
 
+inside the container and physically persists through:
 inne i containeren og er fysisk vedvarende gjennom:
 
 ```text
 lums-data
 ```
 
+The database must not be copied into:
 Databasen må ikke kopieres til:
 
 ```text
 /opt/lums-public
 ```
 
+or committed to Git.
 eller committes til Git.
 
 ---
 
+# 30. Verify SQLite Runtime Configuration
 # 30. Verifiser SQLite-kjøretidskonfigurasjonen
 
+The current LUMS production baseline uses:
 Den nåværende LUMS-produksjonsgrunnlinjen bruker:
 
 ```text
@@ -1291,6 +1772,13 @@ synchronous = 2
 foreign_keys = ON
 ```
 
+The application explicitly enables foreign-key enforcement for database connections.
+
+The database uses WAL mode for normal production operation.
+
+The runtime configuration can be inspected from the application database.
+
+For example:
 Applikasjonen aktiverer eksplisitt håndheving av fremmednøkler for databasetilkoblinger.
 
 Databasen bruker WAL-modus i normal produksjonsdrift.
@@ -1318,6 +1806,7 @@ db.close()
 PY
 ```
 
+Expected values are equivalent to:
 Forventede verdier tilsvarer:
 
 ```text
@@ -1327,12 +1816,15 @@ synchronous=2
 foreign_keys=0
 ```
 
+The application enables foreign keys explicitly.
 Applikasjonen aktiverer fremmednøkler eksplisitt.
 
 ---
 
+# 31. Verify Database Integrity
 # 31. Verifiser databaseintegriteten
 
+Run an SQLite integrity check:
 Kjør en SQLite-integritetskontroll:
 
 ```bash
@@ -1347,18 +1839,24 @@ db.close()
 PY
 ```
 
+Expected:
 Forventet:
 
 ```text
 ok
 ```
 
+Do not continue with deployment if the integrity check reports database corruption.
 Ikke fortsett med distribusjonen hvis integritetskontrollen melder om databaseskade.
 
 ---
 
+# 32. Verify Database Migrations
 # 32. Verifiser databasemigreringer
 
+LUMS uses application migrations for database schema changes.
+
+Inspect the migration-related files:
 LUMS bruker applikasjonsmigreringer for endringer i databaseskjemaet.
 
 Inspiser de migreringsrelaterte filene:
@@ -1368,6 +1866,9 @@ ls -lh \
     server/*migration*.py
 ```
 
+The application performs required migrations during startup/deployment according to the current implementation.
+
+After startup, inspect the application logs:
 Applikasjonen utfører nødvendige migreringer under oppstart/distribusjon i henhold til den gjeldende implementasjonen.
 
 Etter oppstart, inspiser applikasjonsloggene:
@@ -1378,6 +1879,9 @@ sudo docker logs \
     lums
 ```
 
+Migration errors must be investigated before creating users or connecting clients.
+
+Do not manually modify the production SQLite schema unless the project documentation explicitly requires it.
 Migreringsfeil må undersøkes før du oppretter brukere eller kobler til klienter.
 
 Ikke endre produksjons-SQLite-skjemaet manuelt med mindre prosjektdokumentasjonen uttrykkelig krever det.
@@ -1399,8 +1903,12 @@ For den gjeldende oppførselen og begrensningene ved distribusjonsvalidering, se
 
 ---
 
+# 33. Local Application Validation
 # 33. Lokal applikasjonsvalidering
 
+Before configuring Nginx, confirm that the application responds locally.
+
+The Docker application is bound to:
 Før du konfigurerer Nginx, bekreft at applikasjonen svarer lokalt.
 
 Docker-applikasjonen er bundet til:
@@ -1409,6 +1917,7 @@ Docker-applikasjonen er bundet til:
 127.0.0.1:5050
 ```
 
+A local request can be tested with:
 En lokal forespørsel kan testes med:
 
 ```bash
@@ -1416,6 +1925,11 @@ curl -I \
     http://127.0.0.1:5050/
 ```
 
+The exact HTTP response depends on the current application route and authentication state.
+
+The important requirement is that the request reaches the running LUMS application.
+
+If the connection fails, inspect:
 Det nøyaktige HTTP-svaret avhenger av den gjeldende applikasjonsruten og autentiseringstilstanden.
 
 Det viktige kravet er at forespørselen når den kjørende LUMS-applikasjonen.
@@ -1427,6 +1941,7 @@ sudo docker ps \
     --filter name=lums
 ```
 
+and:
 og:
 
 ```bash
@@ -1435,12 +1950,15 @@ sudo docker logs \
     lums
 ```
 
+Do not expose port `5050` externally as a troubleshooting workaround.
 Ikke eksponer port `5050` eksternt som en omvei ved feilsøking.
 
 ---
 
+# 34. Initial Server Checkpoint
 # 34. Første serversjekkpunkt
 
+At this stage, the server should satisfy:
 På dette stadiet skal serveren oppfylle:
 
 ```text
@@ -1464,12 +1982,19 @@ På dette stadiet skal serveren oppfylle:
 [ ] Local application endpoint responds
 ```
 
+Do not connect production clients yet.
+
+The next stage configures Nginx, HTTPS and the external LUMS endpoint.
 Ikke koble til produksjonsklienter ennå.
 
 Neste trinn konfigurerer Nginx, HTTPS og det eksterne LUMS-endepunktet.
 
+# 35. Configure Nginx
 # 35. Konfigurer Nginx
 
+Nginx provides the external HTTPS entry point for LUMS.
+
+The application itself remains bound to:
 Nginx er det eksterne HTTPS-inngangspunktet for LUMS.
 
 Selve applikasjonen forblir bundet til:
@@ -1478,6 +2003,24 @@ Selve applikasjonen forblir bundet til:
 127.0.0.1:5050
 ```
 
+The intended request path is:
+
+```text
+Client
+   â”‚
+   â”‚ HTTPS
+   â–¼
+Nginx :443
+   â”‚
+   â”‚ HTTP localhost
+   â–¼
+127.0.0.1:5050
+   â”‚
+   â–¼
+LUMS container :5000
+```
+
+Create the Nginx site configuration:
 Den tiltenkte forespørselsveien er:
 
 ```text
@@ -1529,20 +2072,26 @@ server {
 EOF
 ```
 
+Replace:
 Erstatt:
 
 ```text
 LUMS-SERVER
 ```
 
+with the hostname or address used by the installation.
+
+Do not use the literal placeholder in a production configuration.
 med vertsnavnet eller adressen som brukes i installasjonen.
 
 Ikke bruk den bokstavelige plassholderen i en produksjonskonfigurasjon.
 
 ---
 
+# 36. Enable the LUMS Nginx Configuration
 # 36. Aktiver LUMS' Nginx-konfigurasjon
 
+Create the enabled-site link:
 Opprett lenken til det aktiverte nettstedet:
 
 ```bash
@@ -1551,6 +2100,7 @@ sudo ln -s \
     /etc/nginx/sites-enabled/lums
 ```
 
+If the default Nginx site is not required, remove it:
 Hvis standard Nginx-nettstedet ikke er nødvendig, fjern det:
 
 ```bash
@@ -1558,18 +2108,22 @@ sudo rm -f \
     /etc/nginx/sites-enabled/default
 ```
 
+Do not remove other Nginx configurations belonging to unrelated applications.
 Ikke fjern andre Nginx-konfigurasjoner som tilhører urelaterte applikasjoner.
 
 ---
 
+# 37. Validate the Nginx Configuration
 # 37. Valider Nginx-konfigurasjonen
 
+Always test the configuration before reloading Nginx:
 Test alltid konfigurasjonen før du laster Nginx på nytt:
 
 ```bash
 sudo nginx -t
 ```
 
+Expected:
 Forventet:
 
 ```text
@@ -1577,12 +2131,14 @@ syntax is ok
 test is successful
 ```
 
+Only after a successful configuration test should Nginx be reloaded:
 Først etter en vellykket konfigurasjonstest skal Nginx lastes på nytt:
 
 ```bash
 sudo systemctl reload nginx
 ```
 
+Verify the service:
 Verifiser tjenesten:
 
 ```bash
@@ -1591,12 +2147,15 @@ sudo systemctl status \
     --no-pager
 ```
 
+Nginx must be running before continuing with HTTPS validation.
 Nginx må kjøre før du fortsetter med HTTPS-valideringen.
 
 ---
 
+# 38. Verify TLS Certificate Files
 # 38. Verifiser TLS-sertifikatfilene
 
+Confirm that the configured certificate files exist:
 Bekreft at de konfigurerte sertifikatfilene finnes:
 
 ```bash
@@ -1605,6 +2164,7 @@ sudo ls -lh \
     /etc/lums/tls/lums.key
 ```
 
+Verify permissions:
 Verifiser tillatelsene:
 
 ```bash
@@ -1613,24 +2173,29 @@ sudo stat -c '%a %U:%G %n' \
     /etc/lums/tls/lums.key
 ```
 
+The private key should normally be:
 Den private nøkkelen skal normalt ha:
 
 ```text
 600
 ```
 
+The certificate can normally be:
 Sertifikatet kan normalt ha:
 
 ```text
 644
 ```
 
+Never print the private-key contents.
 Skriv aldri ut innholdet i den private nøkkelen.
 
 ---
 
+# 39. Verify the HTTPS Endpoint
 # 39. Verifiser HTTPS-endepunktet
 
+Test HTTPS locally:
 Test HTTPS lokalt:
 
 ```bash
@@ -1638,6 +2203,11 @@ curl -I \
     https://LUMS-SERVER/
 ```
 
+Replace `LUMS-SERVER` with the hostname covered by the server's TLS
+certificate. Do not use `-k` for routine verification; it skips certificate
+validation.
+
+When the certificate is trusted by the system, use certificate verification:
 Erstatt `LUMS-SERVER` med vertsnavnet som dekkes av serverens TLS-sertifikat.
 Ikke bruk `-k` ved rutinemessig verifisering; det hopper over sertifikatvalidering.
 
@@ -1648,6 +2218,11 @@ curl -I \
     https://LUMS-SERVER/
 ```
 
+A successful response confirms that the request reaches the Nginx HTTPS endpoint.
+
+The exact HTTP status depends on the requested route and authentication state.
+
+The important requirement is that the TLS connection succeeds and the request reaches LUMS.
 Et vellykket svar bekrefter at forespørselen når Nginx' HTTPS-endepunkt.
 
 Den nøyaktige HTTP-statusen avhenger av den forespurte ruten og autentiseringstilstanden.
@@ -1656,8 +2231,10 @@ Det viktige kravet er at TLS-tilkoblingen lykkes og at forespørselen når LUMS.
 
 ---
 
+# 40. Verify HTTP to HTTPS Redirect
 # 40. Verifiser omdirigering fra HTTP til HTTPS
 
+The HTTP listener must redirect clients to HTTPS.
 HTTP-lytteren må omdirigere klienter til HTTPS.
 
 Test:
@@ -1667,6 +2244,7 @@ curl -I \
     http://LUMS-SERVER/
 ```
 
+Expected behavior:
 Forventet oppførsel:
 
 ```text
@@ -1674,6 +2252,11 @@ HTTP/1.1 301 ...
 Location: https://...
 ```
 
+The LUMS application should not be operated through an unencrypted HTTP connection.
+
+Do not permanently configure clients with certificate verification disabled merely because the initial certificate is not trusted.
+
+Fix the trust configuration instead.
 LUMS-applikasjonen bør ikke brukes over en ukryptert HTTP-tilkobling.
 
 Ikke konfigurer klienter permanent med deaktivert sertifikatverifisering bare fordi det første sertifikatet ikke er klarert.
@@ -1682,14 +2265,40 @@ Rett heller opp klareringskonfigurasjonen.
 
 ---
 
+# 41. Verify the External Network Path
 # 41. Verifiser den eksterne nettverksbanen
 
+Inspect the listening sockets:
 Inspiser lyttende sockets:
 
 ```bash
 sudo ss -lntp | grep -E ':80|:443|:5050|:5000'
 ```
 
+The intended Arkitektur is:
+
+```text
+80
+ â”‚
+ â””â”€â”€ HTTP redirect
+        â”‚
+        â–¼
+443
+ â”‚
+ â””â”€â”€ Nginx
+        â”‚
+        â–¼
+127.0.0.1:5050
+        â”‚
+        â–¼
+Docker :5000
+```
+
+Port `5050` must not be exposed to the LAN.
+
+Port `5000` must not be exposed directly.
+
+The Docker application port is an internal reverse-proxy endpoint.
 Den tiltenkte arkitekturen er:
 
 ```text
@@ -1717,8 +2326,10 @@ Docker-applikasjonsporten er et internt endepunkt for den omvendte proxyen.
 
 ---
 
+# 42. Verify Security Headers
 # 42. Verifiser sikkerhetshoder
 
+Inspect the HTTPS response headers:
 Inspiser HTTPS-svarhodene:
 
 ```bash
@@ -1726,6 +2337,9 @@ curl -I \
     https://LUMS-SERVER/
 ```
 
+Review the returned headers rather than assuming that the security configuration is active.
+
+Relevant security headers may include:
 Gjennomgå de returnerte hodene i stedet for å anta at sikkerhetskonfigurasjonen er aktiv.
 
 Relevante sikkerhetshoder kan omfatte:
@@ -1737,6 +2351,9 @@ Referrer-Policy
 Content-Security-Policy
 ```
 
+The exact headers depend on the current LUMS application and Nginx configuration.
+
+If a required header is missing, inspect the effective Nginx configuration:
 De nøyaktige hodene avhenger av den gjeldende LUMS-applikasjonen og Nginx-konfigurasjonen.
 
 Hvis et påkrevd hode mangler, inspiser den effektive Nginx-konfigurasjonen:
@@ -1745,6 +2362,7 @@ Hvis et påkrevd hode mangler, inspiser den effektive Nginx-konfigurasjonen:
 sudo nginx -T
 ```
 
+and the application configuration:
 og applikasjonskonfigurasjonen:
 
 ```bash
@@ -1753,12 +2371,17 @@ sudo docker logs \
     lums
 ```
 
+Do not add security headers blindly without checking which layer is already responsible for them.
 Ikke legg til sikkerhetshoder blindt uten å sjekke hvilket lag som allerede er ansvarlig for dem.
 
 ---
 
+# 43. Verify Host Handling
 # 43. Verifiser vertshåndtering
 
+The production deployment should not expose the application through an unintended default Nginx site.
+
+Review the active configuration:
 Produksjonsdistribusjonen skal ikke eksponere applikasjonen via et utilsiktet standard Nginx-nettsted.
 
 Gjennomgå den aktive konfigurasjonen:
@@ -1767,6 +2390,7 @@ Gjennomgå den aktive konfigurasjonen:
 sudo nginx -T
 ```
 
+Check the enabled sites:
 Kontroller de aktiverte nettstedene:
 
 ```bash
@@ -1774,6 +2398,11 @@ ls -la \
     /etc/nginx/sites-enabled/
 ```
 
+The intended LUMS virtual host should be present.
+
+The default site should not unexpectedly serve the LUMS application.
+
+When using an IP address as the LUMS endpoint, ensure that the configured `server_name` and certificate match the actual deployment model.
 Den tiltenkte LUMS-virtuelle verten skal være til stede.
 
 Standardnettstedet skal ikke uventet servere LUMS-applikasjonen.
@@ -1782,20 +2411,26 @@ Når en IP-adresse brukes som LUMS-endepunkt, sørg for at den konfigurerte `ser
 
 ---
 
+# 44. Verify Docker Exposure Again
 # 44. Verifiser Docker-eksponeringen på nytt
 
+After Nginx is configured, confirm that the application remains localhost-only:
 Etter at Nginx er konfigurert, bekreft at applikasjonen fortsatt kun er tilgjengelig på localhost:
 
 ```bash
 sudo docker port lums
 ```
 
+Expected:
 Forventet:
 
 ```text
 5000/tcp -> 127.0.0.1:5050
 ```
 
+The reverse proxy does not require changing the Docker binding.
+
+Do not change it to:
 Den omvendte proxyen krever ingen endring av Docker-bindingen.
 
 Ikke endre den til:
@@ -1804,14 +2439,21 @@ Ikke endre den til:
 0.0.0.0:5050
 ```
 
+just because Nginx is listening on the network.
+
+Nginx and Docker have deliberately separate exposure boundaries.
 bare fordi Nginx lytter på nettverket.
 
 Nginx og Docker har bevisst adskilte eksponeringsgrenser.
 
 ---
 
+# 45. Create the Initial Administrator
 # 45. Opprett den første administratoren
 
+The initial administrator must be created using the current repository's administrator initialization mechanism.
+
+Before running an initialization command, inspect the available repository implementation:
 Den første administratoren må opprettes med initialiseringsmekanismen for administratorer i det gjeldende repositoriet.
 
 Før du kjører en initialiseringskommando, inspiser den tilgjengelige implementasjonen i repositoriet:
@@ -1820,6 +2462,7 @@ Før du kjører en initialiseringskommando, inspiser den tilgjengelige implement
 cd /opt/lums-public
 ```
 
+Review the security-related initialization files:
 Gjennomgå de sikkerhetsrelaterte initialiseringsfilene:
 
 ```bash
@@ -1830,6 +2473,9 @@ find server \
     -o -iname '*migration*'
 ```
 
+Then inspect the current migration/initialization implementation before executing it.
+
+For example:
 Inspiser deretter den gjeldende migrerings-/initialiseringsimplementasjonen før du kjører den.
 
 For eksempel:
@@ -1839,6 +2485,12 @@ sed -n '1,260p' \
     server/security_migration.py
 ```
 
+Use the initialization procedure provided by the exact repository revision being deployed.
+
+> [!IMPORTANT]
+> Do not copy an administrator password into shell history or documentation.
+
+The initial administrator must receive:
 Bruk initialiseringsprosedyren som følger med den nøyaktige repositoriorevisjonen som distribueres.
 
 > [!IMPORTANT]
@@ -1850,12 +2502,17 @@ Den første administratoren må få:
 role = administrator
 ```
 
+The administrator account is required for the first web login and subsequent client administration.
 Administratorkontoen kreves for den første webinnloggingen og den videre klientadministrasjonen.
 
 ---
 
+# 46. Verify the Administrator Account
 # 46. Verifiser administratorkontoen
 
+After administrator initialization, verify the account without exposing authentication material.
+
+A database inspection can be performed from the container:
 Etter initialisering av administratoren, verifiser kontoen uten å eksponere autentiseringsmateriale.
 
 En databaseinspeksjon kan utføres fra containeren:
@@ -1882,6 +2539,7 @@ db.close()
 PY
 ```
 
+Expected administrator properties include:
 Forventede egenskaper for administratoren er blant annet:
 
 ```text
@@ -1889,6 +2547,7 @@ enabled = 1
 role = administrator
 ```
 
+Do not print:
 Ikke skriv ut:
 
 ```text
@@ -1900,8 +2559,12 @@ application secrets
 
 ---
 
+# 47. Administrator Password
 # 47. Administratorpassord
 
+Use a unique administrator password.
+
+The password should not be reused from:
 Bruk et unikt administratorpassord.
 
 Passordet bør ikke gjenbrukes fra:
@@ -1915,6 +2578,11 @@ network devices
 other LUMS installations
 ```
 
+The LUMS application stores passwords using the configured password-hashing mechanism.
+
+Do not attempt to replace the application password hash manually in SQLite.
+
+If the administrator password must be changed, use the supported application mechanism.
 LUMS-applikasjonen lagrer passord ved hjelp av den konfigurerte mekanismen for passordhashing.
 
 Ikke forsøk å erstatte applikasjonens passordhash manuelt i SQLite.
@@ -1923,14 +2591,23 @@ Hvis administratorpassordet må endres, bruk den støttede applikasjonsmekanisme
 
 ---
 
+# 48. First Web Login
 # 48. Første webinnlogging
 
+Open the LUMS HTTPS endpoint:
 Åpne LUMS' HTTPS-endepunkt:
 
 ```text
 https://LUMS-SERVER/
 ```
 
+Log in with the administrator account.
+
+After authentication, the administrator should have access to the administrative interface.
+
+The administrator interface should provide access to the areas permitted by the current RBAC implementation.
+
+At minimum, the administrator should be able to access:
 Logg inn med administratorkontoen.
 
 Etter autentisering skal administratoren ha tilgang til administrasjonsgrensesnittet.
@@ -1952,8 +2629,18 @@ User management
 
 ---
 
+# 49. Verify Administrator RBAC
 # 49. Verifiser administrator-RBAC
 
+After login, verify that administrative functions are available.
+
+The administrator should be able to access user management.
+
+The administrator should also be able to perform client-management operations permitted by the current implementation.
+
+Server-side authorization remains the security boundary.
+
+The browser interface is not trusted merely because an element is visible or hidden.
 Etter innlogging, verifiser at de administrative funksjonene er tilgjengelige.
 
 Administratoren skal ha tilgang til brukeradministrasjon.
@@ -1966,8 +2653,14 @@ Nettlesergrensesnittet er ikke pålitelig bare fordi et element er synlig eller 
 
 ---
 
+# 50. Create an Operator
 # 50. Opprett en operatør
 
+After the administrator account has been verified, create an operator account through the LUMS user-management interface.
+
+The operator role is intended for operational update management.
+
+An operator can access:
 Etter at administratorkontoen er verifisert, opprett en operatørkonto via LUMS' brukeradministrasjonsgrensesnitt.
 
 Operatørrollen er ment for operativ oppdateringsstyring.
@@ -1984,6 +2677,7 @@ Package management
 System maintenance
 ```
 
+An operator must not be able to perform administrator-only functions such as:
 En operatør skal ikke kunne utføre funksjoner som bare er forbeholdt administratorer, for eksempel:
 
 ```text
@@ -1993,12 +2687,19 @@ Client creation/disabling
 Client-token rotation
 ```
 
+Verify the permissions using the application interface and, where appropriate, the API authorization behavior.
 Verifiser tillatelsene via applikasjonsgrensesnittet og, der det er hensiktsmessig, via autorisasjonsoppførselen i API-et.
 
 ---
 
+# 51. Create a Viewer
 # 51. Opprett en Viewer
 
+A Viewer account can be created when read-only access is required.
+
+The Viewer role is intentionally restricted.
+
+A Viewer can access:
 En Viewer-konto kan opprettes når det kreves skrivebeskyttet tilgang.
 
 Viewer-rollen er bevisst begrenset.
@@ -2010,6 +2711,7 @@ Clients
 Installed software
 ```
 
+The following areas must not be available to a Viewer:
 Følgende områder skal ikke være tilgjengelige for en Viewer:
 
 ```text
@@ -2020,14 +2722,27 @@ Package management
 System maintenance
 ```
 
+These restrictions are enforced server-side.
+
+The interface may additionally hide unavailable functions.
 Disse begrensningene håndheves på serversiden.
 
 Grensesnittet kan i tillegg skjule utilgjengelige funksjoner.
 
 ---
 
+# 52. Verify Viewer Isolation
 # 52. Verifiser Viewer-isolasjon
 
+Log in using a Viewer account and verify the visible interface.
+
+The Viewer should not receive management controls.
+
+The Viewer must not be able to bypass the UI and invoke protected endpoints directly.
+
+An authorization failure should be returned for protected operations.
+
+The expected principle is:
 Logg inn med en Viewer-konto og verifiser det synlige grensesnittet.
 
 Viewer skal ikke få administrasjonskontroller.
@@ -2046,12 +2761,21 @@ server-side authorization
 RBAC boundary
 ```
 
+Never rely on JavaScript or hidden HTML elements as the only authorization mechanism.
 Stol aldri på JavaScript eller skjulte HTML-elementer som eneste autorisasjonsmekanisme.
 
 ---
 
+# 53. Verify Session and CSRF Protection
 # 53. Verifiser økt- og CSRF-beskyttelse
 
+After the first successful login, verify that the application uses its configured session and CSRF protections.
+
+The installation should not disable CSRF protection to make API requests or browser actions work.
+
+If a legitimate request fails with a CSRF error, inspect the application flow rather than disabling the protection.
+
+Session-related behavior is documented in:
 Etter den første vellykkede innloggingen, verifiser at applikasjonen bruker sine konfigurerte økt- og CSRF-beskyttelser.
 
 Installasjonen skal ikke deaktivere CSRF-beskyttelse for å få API-forespørsler eller nettleserhandlinger til å fungere.
@@ -2066,8 +2790,25 @@ docs/security.md
 
 ---
 
+# 54. Verify Login Rate Limiting
 # 54. Verifiser rategrense for innlogging
 
+The current login protection uses persistent failure tracking.
+
+The configured progression is:
+
+```text
+5 attempts  â†’ 30 seconds
+6 attempts  â†’ 60 seconds
+7 attempts  â†’ 120 seconds
+8+ attempts â†’ 300 seconds
+```
+
+Successful authentication clears the applicable failure state.
+
+Do not repeatedly trigger failed authentication against a production installation simply to test the mechanism.
+
+Use the existing test suite for repeated automated validation.
 Den nåværende innloggingsbeskyttelsen bruker vedvarende sporing av mislykkede forsøk.
 
 Den konfigurerte progresjonen er:
@@ -2087,8 +2828,10 @@ Bruk den eksisterende testsuiten for gjentatt automatisert validering.
 
 ---
 
+# 55. Server Validation Checkpoint
 # 55. Serverens valideringssjekkpunkt
 
+At this stage, verify:
 På dette stadiet, verifiser:
 
 ```text
@@ -2112,12 +2855,39 @@ På dette stadiet, verifiser:
 [ ] Session protection remains enabled
 ```
 
+Only after the server passes these checks should Linux clients be installed.
+
+The next section covers the Linux Agent, client configuration, TLS trust and systemd integration.
 Først når serveren har bestått disse kontrollene, bør Linux-klienter installeres.
 
 Neste kapittel dekker Linux-agenten, klientkonfigurasjon, TLS-klarering og systemd-integrasjon.
 
+# 56. Linux Client Installation
 # 56. Installasjon av Linux-klient
 
+LUMS clients are Linux systems managed by the LUMS server.
+
+A client installation consists of:
+
+```text
+Linux system
+    â†“
+LUMS Agent
+    â†“
+Client configuration
+    â†“
+Client token
+    â†“
+TLS trust
+    â†“
+systemd service
+    â†“
+Reporting timer
+```
+
+Update execution is handled separately by the execution watcher.
+
+The current Agent version is:
 LUMS-klienter er Linux-systemer som administreres av LUMS-serveren.
 
 En klientinstallasjon består av:
@@ -2146,6 +2916,7 @@ Den nåværende agentversjonen er:
 1.7.0
 ```
 
+The current Watcher version is:
 Den nåværende Watcher-versjonen er:
 
 ```text
@@ -2154,8 +2925,22 @@ Den nåværende Watcher-versjonen er:
 
 ---
 
+# 57. Supported Linux Clients
 # 57. Støttede Linux-klienter
 
+The current package-management implementations support:
+
+```text
+Debian / Ubuntu
+    â†“
+APT / dpkg
+
+Arch Linux
+    â†“
+pacman
+```
+
+Verify the operating system before installing the client:
 De nåværende implementasjonene av pakkehåndtering støtter:
 
 ```text
@@ -2174,24 +2959,31 @@ Verifiser operativsystemet før du installerer klienten:
 cat /etc/os-release
 ```
 
+Verify the Arkitektur:
 Verifiser arkitekturen:
 
 ```bash
 uname -m
 ```
 
+Verify systemd:
 Verifiser systemd:
 
 ```bash
 systemctl --version
 ```
 
+The client requires a functioning systemd installation.
 Klienten krever en fungerende systemd-installasjon.
 
 ---
 
+# 58. Client Network Requirements
 # 58. Nettverkskrav for klienten
 
+The client must be able to reach the LUMS HTTPS endpoint.
+
+Test basic network connectivity:
 Klienten må kunne nå LUMS' HTTPS-endepunkt.
 
 Test grunnleggende nettverkstilkobling:
@@ -2200,6 +2992,11 @@ Test grunnleggende nettverkstilkobling:
 ping LUMS-SERVER
 ```
 
+A successful ping is not required when ICMP is blocked.
+
+The important requirement is HTTPS connectivity.
+
+Test the LUMS endpoint:
 En vellykket ping er ikke påkrevd når ICMP er blokkert.
 
 Det viktige kravet er HTTPS-tilkobling.
@@ -2211,14 +3008,23 @@ curl -I \
     https://LUMS-SERVER/
 ```
 
+If the server uses a private CA, the client must trust that CA before continuing.
+
+Do not disable TLS verification as a permanent workaround.
 Hvis serveren bruker en privat CA, må klienten stole på denne CA-en før du fortsetter.
 
 Ikke deaktiver TLS-verifisering som en permanent omvei.
 
 ---
 
+# 59. Obtain the LUMS Agent
 # 59. Hent LUMS Agent
 
+The Agent source is included in the LUMS repository.
+
+On the client, obtain the repository or otherwise transfer the required Agent files through the approved deployment method.
+
+The relevant files are:
 Agentens kildekode følger med i LUMS-repositoriet.
 
 På klienten, hent repositoriet eller overfør de nødvendige agentfilene på annen måte via den godkjente distribusjonsmetoden.
@@ -2231,12 +3037,14 @@ agent/watcher.py
 agent/package_manager.py
 ```
 
+The recommended installation directory is:
 Den anbefalte installasjonskatalogen er:
 
 ```text
 /opt/lums-agent
 ```
 
+Create it:
 Opprett den:
 
 ```bash
@@ -2246,14 +3054,17 @@ sudo install -d -m 755 \
 
 ---
 
+# 60. Install the Agent Files
 # 60. Installer agentfilene
 
+From the LUMS repository:
 Fra LUMS-repositoriet:
 
 ```bash
 cd /opt/lums-public
 ```
 
+Install the Agent:
 Installer agenten:
 
 ```bash
@@ -2262,6 +3073,7 @@ sudo cp \
     /opt/lums-agent/agent.py
 ```
 
+Install the Watcher:
 Installer Watcher:
 
 ```bash
@@ -2270,6 +3082,7 @@ sudo cp \
     /opt/lums-agent/watcher.py
 ```
 
+Install the package-manager abstraction:
 Installer pakkehåndteringsabstraksjonen:
 
 ```bash
@@ -2278,6 +3091,7 @@ sudo cp \
     /opt/lums-agent/package_manager.py
 ```
 
+Verify:
 Verifiser:
 
 ```bash
@@ -2285,12 +3099,15 @@ ls -lh \
     /opt/lums-agent/
 ```
 
+The directory should contain the installed Agent components.
 Katalogen skal inneholde de installerte agentkomponentene.
 
 ---
 
+# 61. Verify Agent Versions
 # 61. Verifiser agentversjonene
 
+Verify the installed Agent version:
 Verifiser den installerte agentversjonen:
 
 ```bash
@@ -2299,12 +3116,14 @@ grep -n \
     /opt/lums-agent/agent.py
 ```
 
+The current version is:
 Den nåværende versjonen er:
 
 ```text
 1.7.0
 ```
 
+Verify the Watcher:
 Verifiser Watcher:
 
 ```bash
@@ -2313,18 +3132,24 @@ grep -n \
     /opt/lums-agent/watcher.py
 ```
 
+The current version is:
 Den nåværende versjonen er:
 
 ```text
 1.2.1
 ```
 
+If the installed versions do not match the intended deployment revision, stop and verify that the correct repository revision is being used.
 Hvis de installerte versjonene ikke samsvarer med den tiltenkte distribusjonsrevisjonen, stopp og verifiser at riktig repositoriorevisjon brukes.
 
 ---
 
+# 62. Install systemd Service Files
 # 62. Installer systemd-tjenestefiler
 
+The Agent and Watcher use separate systemd services.
+
+Install the Agent service:
 Agenten og Watcher bruker separate systemd-tjenester.
 
 Installer agenttjenesten:
@@ -2335,6 +3160,7 @@ sudo cp \
     /etc/systemd/system/lums-agent.service
 ```
 
+Install the Watcher service:
 Installer Watcher-tjenesten:
 
 ```bash
@@ -2343,6 +3169,7 @@ sudo cp \
     /etc/systemd/system/lums-agent-watcher.service
 ```
 
+Install the reporting timer:
 Installer rapporteringstimeren:
 
 ```bash
@@ -2351,6 +3178,7 @@ sudo cp \
     /etc/systemd/system/lums-agent.timer
 ```
 
+Install the Watcher timer:
 Installer Watcher-timeren:
 
 ```bash
@@ -2359,6 +3187,7 @@ sudo cp \
     /etc/systemd/system/lums-agent-watcher.timer
 ```
 
+Reload systemd:
 Last systemd på nytt:
 
 ```bash
@@ -2367,8 +3196,10 @@ sudo systemctl daemon-reload
 
 ---
 
+# 63. Verify the systemd Units
 # 63. Verifiser systemd-enhetene
 
+Inspect the Agent service:
 Inspiser agenttjenesten:
 
 ```bash
@@ -2376,6 +3207,7 @@ systemctl cat \
     lums-agent.service
 ```
 
+Inspect the Watcher service:
 Inspiser Watcher-tjenesten:
 
 ```bash
@@ -2383,6 +3215,7 @@ systemctl cat \
     lums-agent-watcher.service
 ```
 
+Inspect the Agent timer:
 Inspiser agenttimeren:
 
 ```bash
@@ -2390,6 +3223,7 @@ systemctl cat \
     lums-agent.timer
 ```
 
+Inspect the Watcher timer:
 Inspiser Watcher-timeren:
 
 ```bash
@@ -2397,18 +3231,24 @@ systemctl cat \
     lums-agent-watcher.timer
 ```
 
+The units should reference the installed files under:
 Enhetene skal referere til de installerte filene under:
 
 ```text
 /opt/lums-agent/
 ```
 
+Do not enable the timers until the client configuration and authentication have been completed.
 Ikke aktiver timerne før klientkonfigurasjonen og autentiseringen er fullført.
 
 ---
 
+# 64. Create the Client Configuration
 # 64. Opprett klientkonfigurasjonen
 
+The client configuration is stored outside the Git repository.
+
+Use:
 Klientkonfigurasjonen lagres utenfor Git-repositoriet.
 
 Bruk:
@@ -2417,6 +3257,7 @@ Bruk:
 /etc/default/lums-agent
 ```
 
+Create the file:
 Opprett filen:
 
 ```bash
@@ -2424,6 +3265,9 @@ sudo install -m 600 /dev/null \
     /etc/default/lums-agent
 ```
 
+The configuration contains the LUMS server endpoint and the client token.
+
+Example structure:
 Konfigurasjonen inneholder LUMS-serverens endepunkt og klienttokenet.
 
 Eksempelstruktur:
@@ -2433,12 +3277,16 @@ LUMS_BASE=https://LUMS-SERVER
 LUMS_TOKEN=<CLIENT-TOKEN>
 ```
 
+Replace:
 Erstatt:
 
 ```text
 LUMS-SERVER
 ```
 
+with the actual LUMS server endpoint.
+
+Replace:
 med det faktiske LUMS-serverendepunktet.
 
 Erstatt:
@@ -2447,6 +3295,9 @@ Erstatt:
 <CLIENT-TOKEN>
 ```
 
+with the token assigned to this client.
+
+Protect the configuration:
 med tokenet som er tildelt denne klienten.
 
 Beskytt konfigurasjonen:
@@ -2456,6 +3307,7 @@ sudo chmod 600 \
     /etc/default/lums-agent
 ```
 
+Verify without displaying its contents:
 Verifiser uten å vise innholdet:
 
 ```bash
@@ -2463,6 +3315,7 @@ sudo stat -c '%a %U:%G %n' \
     /etc/default/lums-agent
 ```
 
+Expected:
 Forventet:
 
 ```text
@@ -2471,8 +3324,12 @@ Forventet:
 
 ---
 
+# 65. Client Tokens
 # 65. Klienttokener
 
+Each LUMS client has its own authentication token.
+
+The token is used as:
 Hver LUMS-klient har sitt eget autentiseringstoken.
 
 Tokenet brukes som:
@@ -2481,6 +3338,13 @@ Tokenet brukes som:
 Authorization: Bearer <CLIENT-TOKEN>
 ```
 
+The server does not need the original token value after provisioning.
+
+The server stores a cryptographic representation of the token for validation.
+
+This means that client credentials should be treated like passwords.
+
+Never place a real token into:
 Serveren trenger ikke den opprinnelige tokenverdien etter klargjøringen.
 
 Serveren lagrer en kryptografisk representasjon av tokenet for validering.
@@ -2500,8 +3364,14 @@ public configuration
 
 ---
 
+# 66. Provision the Client Token
 # 66. Klargjør klienttokenet
 
+Create or provision the client from the LUMS administrator interface according to the current client-management workflow.
+
+The resulting client token must be transferred to the intended client through a secure channel.
+
+Store it only in:
 Opprett eller klargjør klienten fra LUMS' administratorgrensesnitt i henhold til den gjeldende arbeidsflyten for klientadministrasjon.
 
 Det resulterende klienttokenet må overføres til den tiltenkte klienten via en sikker kanal.
@@ -2512,6 +3382,27 @@ Lagre det bare i:
 /etc/default/lums-agent
 ```
 
+on the client.
+
+Do not reuse one client token across multiple machines.
+
+The intended relationship is:
+
+```text
+Client A
+    â†“
+Token A
+
+Client B
+    â†“
+Token B
+
+Client C
+    â†“
+Token C
+```
+
+A compromised token should therefore identify only its associated client.
 på klienten.
 
 Ikke gjenbruk ett klienttoken på flere maskiner.
@@ -2536,8 +3427,28 @@ Et kompromittert token skal derfor bare identifisere den tilhørende klienten.
 
 ---
 
+# 67. Client Token Rotation
 # 67. Rotasjon av klienttoken
 
+Client tokens can be rotated by an administrator.
+
+The rotation flow is:
+
+```text
+Current token
+     â†“
+Administrator rotates token
+     â†“
+Old token invalidated
+     â†“
+New token issued
+     â†“
+Client configuration updated
+```
+
+After updating the client configuration, run the Agent manually to verify that authentication succeeds.
+
+A rotated token must not continue to be accepted indefinitely.
 Klienttokener kan roteres av en administrator.
 
 Rotasjonsforløpet er:
@@ -2560,8 +3471,20 @@ Et rotert token skal ikke fortsette å bli akseptert på ubestemt tid.
 
 ---
 
+# 68. TLS Trust
 # 68. TLS-klarering
 
+The LUMS Agent communicates with the server over HTTPS.
+
+Certificate verification must remain enabled.
+
+For a publicly trusted certificate, the normal operating-system trust store is sufficient.
+
+For a private laboratory CA, install the CA certificate on the client.
+
+Do not solve certificate problems by disabling verification.
+
+The correct solution is to make the client trust the intended certificate authority.
 LUMS Agent kommuniserer med serveren over HTTPS.
 
 Sertifikatverifisering må forbli aktivert.
@@ -2576,8 +3499,12 @@ Den riktige løsningen er å få klienten til å stole på den tiltenkte sertifi
 
 ---
 
+# 69. Debian / Ubuntu TLS Trust
 # 69. TLS-klarering på Debian / Ubuntu
 
+On Debian-family systems, a private CA can be installed into the system trust store.
+
+Copy the CA certificate:
 På Debian-baserte systemer kan en privat CA installeres i systemets klareringslager.
 
 Kopier CA-sertifikatet:
@@ -2588,12 +3515,14 @@ sudo cp \
     /usr/local/share/ca-certificates/lums-ca.crt
 ```
 
+Update the trust store:
 Oppdater klareringslageret:
 
 ```bash
 sudo update-ca-certificates
 ```
 
+Verify that the certificate is accepted:
 Verifiser at sertifikatet blir akseptert:
 
 ```bash
@@ -2601,12 +3530,19 @@ curl -I \
     https://LUMS-SERVER/
 ```
 
+If the command succeeds without `-k`, the system trust configuration is working.
 Hvis kommandoen lykkes uten `-k`, fungerer systemets klareringskonfigurasjon.
 
 ---
 
+# 70. Arch Linux TLS Trust
 # 70. TLS-klarering på Arch Linux
 
+On Arch Linux, install the private CA using the system's configured trust-store mechanism.
+
+After installing the CA, update the trust database according to the active trust-store configuration.
+
+Verify:
 På Arch Linux installerer du den private CA-en via systemets konfigurerte mekanisme for klareringslager.
 
 Etter at CA-en er installert, oppdater klareringsdatabasen i henhold til den aktive konfigurasjonen av klareringslageret.
@@ -2618,18 +3554,22 @@ curl -I \
     https://LUMS-SERVER/
 ```
 
+The connection should succeed without:
 Tilkoblingen skal lykkes uten:
 
 ```text
 -k
 ```
 
+Do not permanently configure the Agent to ignore certificate verification.
 Ikke konfigurer agenten permanent til å ignorere sertifikatverifisering.
 
 ---
 
+# 71. Verify the Package Manager
 # 71. Verifiser pakkehåndtereren
 
+The Agent detects the supported package-management family.
 Agenten oppdager den støttede pakkehåndteringsfamilien.
 
 For Debian/Ubuntu:
@@ -2638,12 +3578,14 @@ For Debian/Ubuntu:
 command -v apt
 ```
 
+and:
 og:
 
 ```bash
 command -v dpkg-query
 ```
 
+Verify installed packages:
 Verifiser installerte pakker:
 
 ```bash
@@ -2653,6 +3595,7 @@ dpkg-query \
     | head
 ```
 
+Verify available updates:
 Verifiser tilgjengelige oppdateringer:
 
 ```bash
@@ -2665,24 +3608,29 @@ For Arch Linux:
 command -v pacman
 ```
 
+Verify installed packages:
 Verifiser installerte pakker:
 
 ```bash
 pacman -Q | head
 ```
 
+Verify available updates:
 Verifiser tilgjengelige oppdateringer:
 
 ```bash
 pacman -Qu
 ```
 
+The package-manager abstraction uses the appropriate implementation automatically.
 Pakkehåndteringsabstraksjonen bruker automatisk riktig implementasjon.
 
 ---
 
+# 72. Verify Agent Permissions
 # 72. Verifiser agenttillatelser
 
+Inspect the installation directory:
 Inspiser installasjonskatalogen:
 
 ```bash
@@ -2690,6 +3638,7 @@ ls -ld \
     /opt/lums-agent
 ```
 
+Inspect the installed files:
 Inspiser de installerte filene:
 
 ```bash
@@ -2697,6 +3646,9 @@ ls -lh \
     /opt/lums-agent/
 ```
 
+The Agent does not need write access to its own source directory.
+
+The client configuration remains protected separately:
 Agenten trenger ikke skrivetilgang til sin egen kildekatalog.
 
 Klientkonfigurasjonen forblir beskyttet separat:
@@ -2706,20 +3658,26 @@ sudo stat -c '%a %U:%G %n' \
     /etc/default/lums-agent
 ```
 
+Expected:
 Forventet:
 
 ```text
 600
 ```
 
+The Agent requires sufficient system privileges to inspect package state and perform package operations.
+
+The exact runtime privileges are defined by the installed systemd service.
 Agenten krever tilstrekkelige systemrettigheter for å inspisere pakketilstand og utføre pakkeoperasjoner.
 
 De nøyaktige kjøretidsrettighetene er definert av den installerte systemd-tjenesten.
 
 ---
 
+# 73. Verify the Agent Configuration
 # 73. Verifiser agentkonfigurasjonen
 
+Before starting the service, verify that the configuration file exists:
 Før du starter tjenesten, verifiser at konfigurasjonsfilen finnes:
 
 ```bash
@@ -2728,6 +3686,9 @@ sudo test -r \
     && echo "agent configuration: OK"
 ```
 
+Do not print the contents of the configuration file.
+
+Verify that the required variables exist without exposing the token:
 Ikke skriv ut innholdet i konfigurasjonsfilen.
 
 Verifiser at de nødvendige variablene finnes uten å eksponere tokenet:
@@ -2746,12 +3707,15 @@ echo "LUMS_TOKEN: configured"
 '
 ```
 
+The token value itself must not be printed.
 Selve tokenverdien må ikke skrives ut.
 
 ---
 
+# 74. Test the Agent Manually
 # 74. Test agenten manuelt
 
+Before enabling the timer, execute the Agent once manually:
 Før du aktiverer timeren, kjør agenten én gang manuelt:
 
 ```bash
@@ -2759,6 +3723,7 @@ sudo systemctl start \
     lums-agent.service
 ```
 
+Check the result:
 Kontroller resultatet:
 
 ```bash
@@ -2767,6 +3732,9 @@ sudo systemctl status \
     --no-pager
 ```
 
+The Agent is a one-shot service.
+
+After successful completion, it may show:
 Agenten er en engangstjeneste (one-shot).
 
 Etter vellykket fullføring kan den vise:
@@ -2775,6 +3743,9 @@ Etter vellykket fullføring kan den vise:
 Active: inactive (dead)
 ```
 
+This is normal.
+
+The important result is:
 Dette er normalt.
 
 Det viktige resultatet er:
@@ -2783,6 +3754,7 @@ Det viktige resultatet er:
 status=0/SUCCESS
 ```
 
+Inspect the journal:
 Inspiser journalen:
 
 ```bash
@@ -2794,8 +3766,30 @@ sudo journalctl \
 
 ---
 
+# 75. Verify the First Client Report
 # 75. Verifiser den første klientrapporten
 
+A successful Agent run should report the client to the LUMS server.
+
+The complete path is:
+
+```text
+Agent
+   â†“
+HTTPS
+   â†“
+Nginx
+   â†“
+LUMS API
+   â†“
+Bearer authentication
+   â†“
+Client lookup
+   â†“
+Report accepted
+```
+
+Inspect the server logs when required:
 En vellykket agentkjøring skal rapportere klienten til LUMS-serveren.
 
 Hele banen er:
@@ -2824,6 +3818,11 @@ sudo docker logs \
     lums
 ```
 
+The client should appear in the LUMS web interface after a successful report.
+
+The local service being successful is not sufficient by itself.
+
+The server must accept the report.
 Klienten skal vises i LUMS' webgrensesnitt etter en vellykket rapport.
 
 At den lokale tjenesten lykkes er ikke tilstrekkelig i seg selv.
@@ -2832,8 +3831,14 @@ Serveren må godta rapporten.
 
 ---
 
+# 76. Verify the Client in the Web Interface
 # 76. Verifiser klienten i webgrensesnittet
 
+Log in as an administrator or operator.
+
+Open the client Oversikt.
+
+The new client should report information such as:
 Logg inn som administrator eller operatør.
 
 Åpne klientoversikten.
@@ -2844,6 +3849,7 @@ Den nye klienten skal rapportere informasjon som:
 Hostname
 IP address
 Operating system
+Arkitektur
 Architecture
 Agent version
 Last report
@@ -2851,14 +3857,19 @@ Installed packages
 Available updates
 ```
 
+The reported information belongs to that client.
+
+A client must not be able to access another client's resources.
 Den rapporterte informasjonen tilhører den klienten.
 
 En klient må ikke kunne få tilgang til en annen klients ressurser.
 
 ---
 
+# 77. Enable the Reporting Timer
 # 77. Aktiver rapporteringstimeren
 
+Only after the manual Agent run succeeds should the reporting timer be enabled:
 Først etter at den manuelle agentkjøringen er vellykket, skal rapporteringstimeren aktiveres:
 
 ```bash
@@ -2866,6 +3877,7 @@ sudo systemctl enable --now \
     lums-agent.timer
 ```
 
+Check:
 Kontroller:
 
 ```bash
@@ -2874,6 +3886,7 @@ sudo systemctl status \
     --no-pager
 ```
 
+Inspect the schedule:
 Inspiser timeplanen:
 
 ```bash
@@ -2882,12 +3895,16 @@ systemctl list-timers \
     --no-pager
 ```
 
+The timer periodically starts:
 Timeren starter periodisk:
 
 ```text
 lums-agent.service
 ```
 
+The service itself remains a one-shot unit.
+
+Therefore, it is normal for the service to return to:
 Selve tjenesten forblir en engangsenhet.
 
 Det er derfor normalt at tjenesten går tilbake til:
@@ -2896,12 +3913,15 @@ Det er derfor normalt at tjenesten går tilbake til:
 inactive (dead)
 ```
 
+between timer executions.
 mellom timerkjøringene.
 
 ---
 
+# 78. Verify Scheduled Reporting
 # 78. Verifiser planlagt rapportering
 
+After enabling the timer, inspect the next scheduled execution:
 Etter at timeren er aktivert, inspiser neste planlagte kjøring:
 
 ```bash
@@ -2910,6 +3930,7 @@ systemctl list-timers \
     --no-pager | grep lums-agent
 ```
 
+After the timer has executed, inspect:
 Etter at timeren har kjørt, inspiser:
 
 ```bash
@@ -2919,6 +3940,25 @@ sudo journalctl \
     --no-pager
 ```
 
+Verify the corresponding client report in LUMS.
+
+A healthy reporting cycle is:
+
+```text
+Timer
+  â†“
+Agent service
+  â†“
+System inventory
+  â†“
+Package inventory
+  â†“
+Update detection
+  â†“
+HTTPS report
+  â†“
+LUMS database
+```
 Verifiser den tilsvarende klientrapporten i LUMS.
 
 En sunn rapporteringssyklus er:
@@ -2941,8 +3981,10 @@ LUMS database
 
 ---
 
+# 79. Client Installation Checkpoint
 # 79. Sjekkpunkt for klientinstallasjon
 
+Before installing the execution watcher, verify:
 Før du installerer utføringsovervåkeren, verifiser:
 
 ```text
@@ -2963,12 +4005,37 @@ Før du installerer utføringsovervåkeren, verifiser:
 [ ] Scheduled reporting verified
 ```
 
+Do not proceed to update-job testing until the reporting path is working.
+
+The next section installs and validates the execution watcher.
 Ikke gå videre til testing av oppdateringsjobber før rapporteringsbanen fungerer.
 
 Neste kapittel installerer og validerer utføringsovervåkeren.
 
+# 80. Install the Execution Watcher
 # 80. Installer utføringsovervåkeren (Watcher)
 
+The LUMS execution watcher is responsible for detecting and executing pending update jobs on the client.
+
+The Arkitektur separates reporting from execution:
+
+```text
+Reporting
+    â”‚
+    â–¼
+lums-agent.service
+    â”‚
+    â””â”€â”€ system inventory / update detection
+
+Execution
+    â”‚
+    â–¼
+lums-agent-watcher.service
+    â”‚
+    â””â”€â”€ pending update jobs
+```
+
+This separation allows regular client reporting to continue independently from update execution.
 LUMS' utføringsovervåker er ansvarlig for å oppdage og utføre ventende oppdateringsjobber på klienten.
 
 Arkitekturen skiller rapportering fra utføring:
@@ -2993,8 +4060,10 @@ Denne adskillelsen lar vanlig klientrapportering fortsette uavhengig av kjøring
 
 ---
 
+# 81. Verify the Watcher Installation
 # 81. Verifiser Watcher-installasjonen
 
+Verify that the Watcher is present:
 Verifiser at Watcher er til stede:
 
 ```bash
@@ -3002,6 +4071,7 @@ ls -lh \
     /opt/lums-agent/watcher.py
 ```
 
+Verify the installed version:
 Verifiser den installerte versjonen:
 
 ```bash
@@ -3010,6 +4080,7 @@ grep -n \
     /opt/lums-agent/watcher.py
 ```
 
+The current Watcher version is:
 Den nåværende Watcher-versjonen er:
 
 ```text
@@ -3018,8 +4089,10 @@ Den nåværende Watcher-versjonen er:
 
 ---
 
+# 82. Verify the Watcher Service
 # 82. Verifiser Watcher-tjenesten
 
+Inspect the systemd unit:
 Inspiser systemd-enheten:
 
 ```bash
@@ -3027,12 +4100,14 @@ systemctl cat \
     lums-agent-watcher.service
 ```
 
+The service must reference:
 Tjenesten må referere til:
 
 ```text
 /opt/lums-agent/watcher.py
 ```
 
+Verify the unit is known to systemd:
 Verifiser at enheten er kjent for systemd:
 
 ```bash
@@ -3041,14 +4116,29 @@ systemctl status \
     --no-pager
 ```
 
+The service may be inactive when no execution has been triggered.
+
+This is not by itself an error.
 Tjenesten kan være inaktiv når ingen kjøring er utløst.
 
 Dette er ikke i seg selv en feil.
 
 ---
 
+# 83. Verify the Watcher Timer
 # 83. Verifiser Watcher-timeren
 
+Before enabling the Watcher timer, verify that:
+
+- `/etc/default/lums-agent` exists and contains the correct client configuration.
+- The LUMS server endpoint and client token are configured correctly.
+- A manual Agent run succeeded and the server accepted the client report.
+- Both Watcher unit files were installed from the repository.
+
+Do not enable the timer while authentication or reporting is failing.
+
+
+Inspect the timer:
 Før du aktiverer Watcher-timeren, verifiser at:
 
 - `/etc/default/lums-agent` finnes og inneholder riktig klientkonfigurasjon.
@@ -3066,6 +4156,7 @@ systemctl cat \
     lums-agent-watcher.timer
 ```
 
+Enable the timer only after verifying all prerequisites above:
 Aktiver timeren først etter at alle forutsetningene ovenfor er verifisert:
 
 ```bash
@@ -3073,6 +4164,7 @@ sudo systemctl enable --now \
     lums-agent-watcher.timer
 ```
 
+Verify:
 Verifiser:
 
 ```bash
@@ -3081,6 +4173,7 @@ systemctl status \
     --no-pager
 ```
 
+Inspect the next scheduled execution:
 Inspiser neste planlagte kjøring:
 
 ```bash
@@ -3091,8 +4184,36 @@ systemctl list-timers \
 
 ---
 
+# 84. Understand Idle-Aware Execution
 # 84. Forstå hviletilstandsbevisst kjøring
 
+The Watcher can use client idle information before executing update jobs.
+
+The intended flow is:
+
+```text
+Pending job
+    â”‚
+    â–¼
+Watcher
+    â”‚
+    â–¼
+Idle detection
+    â”‚
+    â”œâ”€â”€ idle state available
+    â”‚       â”‚
+    â”‚       â–¼
+    â”‚   idle threshold
+    â”‚       â”‚
+    â”‚       â–¼
+    â”‚   execute when allowed
+    â”‚
+    â””â”€â”€ idle state unavailable
+            â”‚
+            â–¼
+        use configured
+        fallback behavior
+```
 Watcher kan bruke informasjon om klientens hviletilstand (idle) før oppdateringsjobber kjøres.
 
 Den tiltenkte flyten er:
@@ -3121,14 +4242,21 @@ Idle detection
         fallback behavior
 ```
 
+Idle detection must never be interpreted as authentication or authorization.
+
+It is an execution scheduling mechanism only.
 Registrering av hviletilstand må aldri tolkes som autentisering eller autorisasjon.
 
 Det er utelukkende en mekanisme for planlegging av kjøring.
 
 ---
 
+# 85. Verify Idle Detection
 # 85. Verifiser registrering av hviletilstand
 
+Run the idle detection path manually through the installed Agent/Watcher implementation.
+
+Inspect the resulting service journal:
 Kjør banen for hviletilstandsregistrering manuelt gjennom den installerte Agent-/Watcher-implementasjonen.
 
 Inspiser den resulterende tjenestejournalen:
@@ -3140,6 +4268,11 @@ sudo journalctl \
     --no-pager
 ```
 
+If the platform does not provide the required idle information, the client may report idle detection as unavailable.
+
+This is not automatically a failure.
+
+The important distinction is:
 Hvis plattformen ikke gir den nødvendige informasjonen om hviletilstand, kan klienten rapportere at registrering av hviletilstand er utilgjengelig.
 
 Dette er ikke automatisk en feil.
@@ -3156,6 +4289,272 @@ versus:
 idle_supported = unavailable
 ```
 
+The client must not be assumed to be idle merely because no idle information was returned.
+
+---
+
+# 86. Optional Telemetry System Installation
+
+Telemetry is an optional component that collects CPU, memory, and network metrics from managed clients.
+
+It is completely separate from the Agent and Watcher and is not required for update management.
+
+Telemetry uses the same client authentication (LUMS_TOKEN) as the Agent but submits to a different endpoint.
+
+If telemetry is not needed, proceed directly to section 87.
+
+---
+
+# 87. Install the Telemetry Agent
+
+The telemetry agent is included in the LUMS repository.
+
+From the repository:
+
+```bash
+cd /opt/lums-public
+```
+
+Install the telemetry agent:
+
+```bash
+sudo cp \
+    agent/telemetry.py \
+    /opt/lums-agent/telemetry.py
+```
+
+Verify:
+
+```bash
+ls -lh \
+    /opt/lums-agent/telemetry.py
+```
+
+Verify the Agent version:
+
+```bash
+grep -n \
+    'AGENT_VERSION' \
+    /opt/lums-agent/telemetry.py
+```
+
+The current telemetry agent version is:
+
+```text
+1.1.0
+```
+
+The telemetry agent requires only the Python 3 standard library.
+
+---
+
+# 88. Install Telemetry systemd Units
+
+Install the telemetry service:
+
+```bash
+sudo cp \
+    agent/lums-telemetry.service \
+    /etc/systemd/system/lums-telemetry.service
+```
+
+Install the telemetry timer:
+
+```bash
+sudo cp \
+    agent/lums-telemetry.timer \
+    /etc/systemd/system/lums-telemetry.timer
+```
+
+Reload systemd:
+
+```bash
+sudo systemctl daemon-reload
+```
+
+Verify the units:
+
+```bash
+systemctl cat \
+    lums-telemetry.service
+```
+
+```bash
+systemctl cat \
+    lums-telemetry.timer
+```
+
+---
+
+# 89. Telemetry Configuration
+
+The telemetry agent uses environment variables from the same `/etc/default/lums-agent` file.
+
+The required variables are:
+
+* `LUMS_BASE`: Server URL (already configured for the main Agent)
+* `LUMS_TOKEN`: Client token (already configured for the main Agent)
+
+Optional variable:
+
+* `LUMS_CA_FILE`: Path to CA certificate (only needed if using a private CA)
+
+The telemetry agent reuses the same client authentication as the main Agent.
+
+No additional credentials are required.
+
+Verify the configuration exists:
+
+```bash
+sudo test -r \
+    /etc/default/lums-agent \
+    && echo "configuration: OK"
+```
+
+For a private certificate authority, install and configure the CA certificate:
+
+```bash
+export LUMS_CA_FILE=/etc/lums/ca.crt
+sudo sh -c "echo 'LUMS_CA_FILE=$LUMS_CA_FILE' >> /etc/default/lums-agent"
+```
+
+Then copy the CA certificate:
+
+```bash
+sudo cp \
+    /path/to/ca.crt \
+    /etc/lums/ca.crt
+```
+
+Protect the file:
+
+```bash
+sudo chmod 644 \
+    /etc/lums/ca.crt
+```
+
+---
+
+# 90. Test the Telemetry Agent Manually
+
+Before enabling the timer, execute the telemetry agent once:
+
+```bash
+sudo systemctl start \
+    lums-telemetry.service
+```
+
+Check the result:
+
+```bash
+sudo systemctl status \
+    lums-telemetry.service \
+    --no-pager
+```
+
+Inspect the journal:
+
+```bash
+sudo journalctl \
+    -u lums-telemetry.service \
+    -n 50 \
+    --no-pager
+```
+
+Look for successful submission messages or any error details.
+
+A successful submission shows a `204 No Content` response.
+
+---
+
+# 91. Enable the Telemetry Timer
+
+Only after the manual telemetry run succeeds, enable the timer:
+
+```bash
+sudo systemctl enable --now \
+    lums-telemetry.timer
+```
+
+Verify:
+
+```bash
+sudo systemctl status \
+    lums-telemetry.timer \
+    --no-pager
+```
+
+Inspect the schedule:
+
+```bash
+systemctl list-timers \
+    lums-telemetry.timer \
+    --no-pager
+```
+
+The timer is configured to execute approximately every 5 seconds.
+
+---
+
+# 92. Verify Telemetry Submission
+
+After the timer is running, check for successful submissions:
+
+```bash
+sudo journalctl \
+    -u lums-telemetry.service \
+    -n 100 \
+    --no-pager
+```
+
+Then verify that samples appear in the LUMS `/health` dashboard:
+
+1. Log in to LUMS
+2. Navigate to `/health` or the Fleet Health Dashboard
+3. Find this client in the client list
+4. Verify that CPU, memory, and (if available) network data appears
+
+If samples do not appear, inspect:
+
+* Server logs: `sudo docker logs --tail 100 lums`
+* Telemetry service logs: `sudo journalctl -u lums-telemetry.service -n 200 --no-pager`
+* Network connectivity to server
+* Client authentication token
+* TLS certificate trust
+
+For detailed telemetry troubleshooting, see `troubleshooting.md` section 11.5.
+
+---
+
+# 93. Optional Telemetry Checkpoint
+
+If telemetry is installed, verify:
+
+```text
+[ ] Telemetry agent installed
+[ ] Telemetry service unit installed
+[ ] Telemetry timer unit installed
+[ ] Configuration variables exist
+[ ] Manual telemetry test succeeds
+[ ] Telemetry timer enabled
+[ ] Telemetry submissions appear in logs
+[ ] Samples visible in /health dashboard
+[ ] CPU data displayed correctly
+[ ] Memory data displayed correctly
+[ ] Network data displayed (if enabled)
+```
+
+If telemetry is not needed, proceed directly to section 94.
+
+---
+
+# 94. Create a Controlled Test Update Job
+
+Do not begin installation testing with a large system update.
+
+Use a small, known package for the first test.
+
+The package should:
 Klienten må ikke antas å være i hviletilstand bare fordi ingen informasjon om hviletilstand ble returnert.
 
 ---
@@ -3175,12 +4574,14 @@ be removable again
 not be required by the operating system
 ```
 
+Example test package:
 Eksempel på testpakke:
 
 ```text
 sl
 ```
 
+Before creating the job, verify whether it is already installed:
 Før du oppretter jobben, verifiser om den allerede er installert:
 
 ```bash
@@ -3191,14 +4592,41 @@ dpkg-query \
     2>/dev/null || true
 ```
 
+For Arch Linux, use a package that is available in the configured repositories and is suitable for a reversible test.
+
+Do not blindly use `sl` on every distribution.
 For Arch Linux, bruk en pakke som er tilgjengelig i de konfigurerte repositoriene og egner seg for en reversibel test.
 
 Ikke bruk `sl` blindt på alle distribusjoner.
 
 ---
 
+# 87. Verify Package Search
 # 87. Verifiser pakkesøk
 
+Use the LUMS Package Management interface to search for the selected package.
+
+The search flow is:
+
+```text
+Browser
+   â†“
+LUMS API
+   â†“
+Package Search Request
+   â†“
+Client
+   â†“
+APT / pacman
+   â†“
+Package Search Result
+   â†“
+LUMS API
+   â†“
+Browser
+```
+
+Verify that the result contains the expected information:
 Bruk LUMS' pakkehåndteringsgrensesnitt (Package Management) til å søke etter den valgte pakken.
 
 Søkeflyten er:
@@ -3231,12 +4659,15 @@ Status
 Action
 ```
 
+For Arch Linux, repository information may also be returned.
 For Arch Linux kan repositorieinformasjon også bli returnert.
 
 ---
 
+# 88. Package Management Permissions
 # 88. Tillatelser for pakkehåndtering
 
+Package management is restricted by RBAC.
 Pakkehåndtering er begrenset av RBAC.
 
 Administrator:
@@ -3245,6 +4676,7 @@ Administrator:
 Allowed
 ```
 
+Operator:
 Operatør:
 
 ```text
@@ -3257,2769 +4689,17 @@ Viewer:
 Not allowed
 ```
 
-En Viewer må ikke kunne utføre pakkeinstallasjon eller -fjerning ved å kalle API-et direkte.
+A Viewer must not be able to execute package installation or removal by directly calling the API.
 
-At nettlesergrensesnittet skjuler funksjonen er bare en ekstra brukervennlighetsbegrensning.
+The browser interface hiding the feature is only an additional usability restriction.
 
-Autorisasjon på serversiden er den faktiske sikkerhetsgrensen.
+The server-side authorization is the actual security boundary.
 
 ---
 
-# 89. Test pakkeinstallasjon
+# 89. Test Package Installation
 
-Opprett en installasjonsjobb via LUMS-grensesnittet.
+Create an installation job through the LUMS interface.
 
-Den logiske operasjonen er:
-
-```text
-INSTALL_PACKAGE
-```
-
-Jobben lagres i LUMS-databasen før agenten utfører den.
-
-Den forventede flyten er:
-
-```text
-Create job
-   ↓
-PENDING
-   ↓
-Watcher detects job
-   ↓
-RUNNING
-   ↓
-Package manager
-   ↓
-SUCCESS
-```
-
-Overvåk jobben i LUMS-grensesnittet.
-
-Ikke endre databasen manuelt for å tvinge fram en jobbtilstand.
-
----
-
-# 90. Verifiser installasjonsresultatet
-
-Etter at jobben melder suksess, verifiser pakken lokalt.
-
-På Debian/Ubuntu:
-
-```bash
-dpkg-query \
-    -W \
-    -f='${binary:Package}\t${Version}\n' \
-    sl
-```
-
-Verifiser at pakkehåndtereren er enig:
-
-```bash
-apt-cache policy \
-    sl
-```
-
-Pakken må faktisk være installert.
-
-En LUMS-tilstand `SUCCESS` må tilsvare en vellykket operasjon på klientsiden.
-
----
-
-# 91. Verifiser jobbresultatet
-
-Inspiser LUMS' jobbhistorikk.
-
-Verifiser:
-
-```text
-Action
-Package
-Client
-Start time
-Completion time
-Result
-```
-
-Resultatet som klienten returnerer, må valideres av serveren.
-
-Ugyldige eller ufullstendige resultatdata må ikke i det stille bli til en vellykket jobb.
-
-Denne valideringen er en del av LUMS' sikkerhets- og pålitelighetsmodell.
-
----
-
-# 92. Test fjerning av pakke
-
-Etter at installasjonen er verifisert, opprett en fjerningsjobb:
-
-```text
-REMOVE_PACKAGE
-```
-
-Overvåk:
-
-```text
-PENDING
-   ↓
-RUNNING
-   ↓
-SUCCESS
-```
-
-Etter fullføring:
-
-```bash
-dpkg-query \
-    -W \
-    -f='${Status}\n' \
-    sl \
-    2>/dev/null || true
-```
-
-Pakken skal ikke lenger være installert.
-
-Hvis pakken ikke var installert før testen, må fraværet ikke behandles som bevis på en vellykket fjerningsoperasjon.
-
----
-
-# 93. Test pakkeoppdatering
-
-Pakkeoppdateringer bruker:
-
-```text
-UPDATE_PACKAGE
-```
-
-Serveren validerer at den forespurte pakken er en tilgjengelig oppdatering før den oppretter den tilsvarende jobben.
-
-Den generelle flyten er:
-
-```text
-Client reports available updates
-       ↓
-User selects package
-       ↓
-Server validates package
-       ↓
-Update job created
-       ↓
-Watcher executes
-       ↓
-Result reported
-```
-
-Ikke konstruer oppdateringsforespørsler manuelt som omgår den normale valideringsbanen.
-
----
-
-# 94. Test systemoppdatering
-
-En fullstendig systemoppdatering bruker:
-
-```text
-UPDATE_SYSTEM
-```
-
-Denne operasjonen påvirker klientens pakkehåndteringstilstand bredere enn en operasjon på én enkelt pakke.
-
-For den første testen av systemoppdatering:
-
-```text
-Use a test client
-Use a current backup
-Monitor the console
-Monitor the LUMS job
-Do not interrupt the package manager
-```
-
-Ikke bruk selve produksjonsserveren som første testmål for systemoppdatering.
-
----
-
-# 95. Pakkehåndtererlåser
-
-APT og pacman kan bruke pakkehåndtererlåser.
-
-Når en operasjon feiler fordi en annen pakkehåndteringsprosess er aktiv, inspiser de kjørende prosessene før du gjør noe.
-
-Debian/Ubuntu:
-
-```bash
-ps aux | grep -E \
-    '[a]pt|[d]pkg|[u]nattended'
-```
-
-Arch Linux:
-
-```bash
-ps aux | grep -E \
-    '[p]acman|[p]ar'
-```
-
-Ikke slett låsfiler for pakkehåndtereren mens pakkehåndtereren faktisk kjører.
-
-En lås beskytter normalt mot samtidige pakkeoperasjoner.
-
----
-
-# 96. Skille LUMS-feil fra pakkehåndtererfeil
-
-Når en jobb feiler, avgjør hvilket lag som sviktet.
-
-```text
-LUMS API
-   │
-   ├── Job creation failure
-   │
-   ▼
-LUMS database
-   │
-   ├── State / persistence problem
-   │
-   ▼
-Watcher
-   │
-   ├── Execution problem
-   │
-   ▼
-Package manager
-   │
-   ├── APT / pacman failure
-   │
-   ▼
-Operating system
-```
-
-Inspiser klientjournalen:
-
-```bash
-sudo journalctl \
-    -u lums-agent-watcher.service \
-    -n 200 \
-    --no-pager
-```
-
-Inspiser LUMS-containeren:
-
-```bash
-sudo docker logs \
-    --tail 200 \
-    lums
-```
-
-Ikke prøv en mislykket jobb på nytt umiddelbart uten å finne ut hvorfor den feilet.
-
----
-
-# 97. Verifiser jobbsjekkpunkter
-
-LUMS sporer tilstanden til jobber og pakkeelementer.
-
-For pakkebaserte jobber kan individuelle pakkeelementer sjekkpunktfestes.
-
-Den tiltenkte oppførselen er:
-
-```text
-Package A → SUCCESS
-Package B → SUCCESS
-Package C → RUNNING
-             │
-             ▼
-          interruption
-             │
-             ▼
-          recovery
-             │
-             ▼
-Package A → not repeated
-Package B → not repeated
-Package C → resumed / handled
-```
-
-Dette forhindrer at fullførte pakkeoperasjoner unødvendig gjentas etter et avbrudd.
-
----
-
-# 98. Test kontrollert jobbgjenoppretting
-
-Bruk en ikke-kritisk testjobb.
-
-Start jobben og observer tilstanden:
-
-```text
-PENDING
-```
-
-deretter:
-
-```text
-RUNNING
-```
-
-Ikke avbryt en produksjonsoppdatering med vilje.
-
-For gjenopprettingstesting, bruk en dedikert testklient og en kontrollert pakkeoperasjon.
-
-Etter et avbrudd eller en simulert feil, start Watcher på nytt:
-
-```bash
-sudo systemctl restart \
-    lums-agent-watcher.timer
-```
-
-Inspiser deretter:
-
-```bash
-sudo journalctl \
-    -u lums-agent-watcher.service \
-    -n 200 \
-    --no-pager
-```
-
-Verifiser at pakkeelementer som allerede er vellykkede, ikke utføres på nytt unødvendig.
-
----
-
-# 99. Verifiser registrering av omstartsbehov
-
-Enkelte pakkeoperasjoner kan kreve omstart.
-
-Agenten/Watcher rapporterer omstartskrav til LUMS.
-
-Den generelle flyten er:
-
-```text
-Package operation
-      ↓
-Reboot requirement detected
-      ↓
-Result reported
-      ↓
-LUMS records reboot state
-```
-
-Etter en testoperasjon som legitimt krever omstart, verifiser det tilsvarende jobbresultatet i LUMS-grensesnittet.
-
-Ikke start en produksjonsklient på nytt bare for å teste mekanismen, med mindre systemet er ment for den testen.
-
----
-
-# 100. Verifiser rapportering etter omstart
-
-Når en testklient startes på nytt, verifiser at:
-
-```text
-systemd
-   ↓
-LUMS Agent timer
-   ↓
-Agent report
-   ↓
-LUMS server
-```
-
-fortsetter å fungere.
-
-Kontroller:
-
-```bash
-systemctl status \
-    lums-agent.timer \
-    --no-pager
-```
-
-og:
-
-```bash
-systemctl status \
-    lums-agent-watcher.timer \
-    --no-pager
-```
-
-Inspiser deretter den nyeste rapporten i LUMS-grensesnittet.
-
----
-
-# 101. Verifiser oppdagelse av oppdateringer
-
-Kjør agenten manuelt:
-
-```bash
-sudo systemctl start \
-    lums-agent.service
-```
-
-Inspiser:
-
-```bash
-sudo journalctl \
-    -u lums-agent.service \
-    -n 100 \
-    --no-pager
-```
-
-Klienten skal rapportere:
-
-```text
-Installed packages
-Available updates
-Agent status
-```
-
-Serveren skal oppdatere klientens gjeldende tilstand.
-
-Ikke forveksle:
-
-```text
-available updates
-```
-
-med:
-
-```text
-installed packages
-```
-
-De representerer ulike datasett.
-
----
-
-# 102. Verifiser installert programvare
-
-Åpne klientens seksjon for installert programvare i LUMS.
-
-Pakkelisten skal samsvare med pakkehåndtereren på klientsiden.
-
-For Debian/Ubuntu:
-
-```bash
-dpkg-query \
-    -W \
-    -f='${binary:Package}\t${Version}\n'
-```
-
-For Arch:
-
-```bash
-pacman -Q
-```
-
-LUMS-inventaret er kun informativt inntil en jobb eksplisitt opprettes.
-
-Filteret for installerte pakker endrer ikke selv klienten.
-
----
-
-# 103. Verifiser pakkesøk separat
-
-Søket i pakkehåndtering (Package Management) er separat fra filteret for installerte pakker.
-
-Forskjellen er:
-
-```text
-Installed Package Filter
-    ↓
-Searches the package inventory already reported by the client
-
-Package Management Search
-    ↓
-Requests package information from the client's package manager
-```
-
-Ikke behandle de to søkefunksjonene som utbyttbare.
-
-En pakke kan være tilgjengelig via APT eller pacman uten å være installert.
-
----
-
-# 104. Verifiser Viewer-isolasjon for pakker
-
-Logg inn som Viewer.
-
-Verifiser at pakkehåndteringsgrensesnittet ikke er tilgjengelig.
-
-Verifiser deretter begrensningen på serversiden ved å forsøke en uautorisert pakkehåndteringsforespørsel via en godkjent testmetode.
-
-Forespørselen må avvises.
-
-Viewer-tilgang må forbli skrivebeskyttet.
-
----
-
-# 105. Verifiser pakkehåndtering for Operator
-
-Logg inn som Operator.
-
-Verifiser tilgang til:
-
-```text
-Package Search
-Package Installation
-Package Removal
-Package Updates
-Update Jobs
-Update History
-```
-
-Operatøren må ikke få tilgang til brukeradministrasjonsfunksjoner som er forbeholdt administratorer.
-
----
-
-# 106. Verifiser pakkehåndtering for administrator
-
-Logg inn som Administrator.
-
-Verifiser de samme pakkehåndteringsfunksjonene som for Operator.
-
-Verifiser i tillegg tilgang til:
-
-```text
-User Management
-Client Management
-Client Token Rotation
-```
-
-Administratorrettigheter må forbli håndhevet på serversiden.
-
----
-
-# 107. Første ende-til-ende-pakketest
-
-Den første komplette testen av pakkehåndtering bør følge denne sekvensen:
-
-```text
-1. Client reports successfully
-2. Package search succeeds
-3. Package result is displayed
-4. Administrator/Operator creates INSTALL_PACKAGE job
-5. Job becomes PENDING
-6. Watcher detects the job
-7. Job becomes RUNNING
-8. Package manager executes
-9. Client reports result
-10. Server validates result
-11. Job becomes SUCCESS
-12. Installed package is verified locally
-13. Package is visible in LUMS inventory
-```
-
-Først etter at denne sekvensen lykkes, bør bredere oppdateringstesting begynne.
-
----
-
-# 108. Sjekkpunkt for klientkjøring
-
-Verifiser:
-
-```text
-[ ] Watcher installed
-[ ] Watcher version verified
-[ ] Watcher timer enabled
-[ ] Idle detection works or reports unavailable correctly
-[ ] Package search works
-[ ] Package installation works
-[ ] Package removal works
-[ ] Package update works
-[ ] System update path is available
-[ ] Job states transition correctly
-[ ] Job results are validated
-[ ] Package checkpointing works
-[ ] Reboot detection works
-[ ] Reporting continues after reboot
-[ ] Viewer cannot mutate package state
-[ ] Operator can manage packages
-[ ] Administrator can manage packages
-```
-
-På dette tidspunktet er den sentrale kjøringsbanen for LUMS-klienter installert og validert.
-
-Neste kapittel dekker full ende-til-ende-validering, RBAC-verifisering, sikkerhetskopiering/gjenoppretting, vedlikehold, oppgraderinger og endelige installasjonskontroller.
-
-# 109. Full ende-til-ende-validering
-
-Etter at serveren og minst én Linux-klient er konfigurert, utfør en komplett ende-til-ende-validering.
-
-Den komplette LUMS-banen er:
-
-```text
-Browser
-   │
-   ▼
-Nginx / HTTPS
-   │
-   ▼
-LUMS API
-   │
-   ▼
-SQLite
-   │
-   ▼
-Client Agent
-   │
-   ▼
-Package Manager
-   │
-   ▼
-Update Result
-   │
-   ▼
-SQLite
-   │
-   ▼
-Web Interface
-```
-
-Ikke anse installasjonen som fullført bare fordi webgrensesnittet åpnes.
-
-Alle viktige lag må verifiseres.
-
----
-
-# 110. Serverhelsekontroll
-
-Verifiser LUMS-containeren:
-
-```bash
-sudo docker ps \
-    --filter name=lums
-```
-
-Verifiser containerens tilstand:
-
-```bash
-sudo docker inspect \
-    lums \
-    --format '{{.State.Status}}'
-```
-
-Forventet:
-
-```text
-running
-```
-
-Inspiser nylige logger:
-
-```bash
-sudo docker logs \
-    --tail 100 \
-    lums
-```
-
-Loggene skal ikke inneholde en aktiv oppstarts- eller migreringsfeil.
-
----
-
-# 111. Containersikkerhetskontroll
-
-Verifiser sikkerhetskonfigurasjonen ved kjøring:
-
-```bash
-sudo docker inspect lums \
-    --format '
-User={{.Config.User}}
-ReadonlyRootfs={{.HostConfig.ReadonlyRootfs}}
-Privileged={{.HostConfig.Privileged}}
-CapDrop={{json .HostConfig.CapDrop}}
-SecurityOpt={{json .HostConfig.SecurityOpt}}
-'
-```
-
-Forventet grunnlinje:
-
-```text
-User=lums
-ReadonlyRootfs=true
-Privileged=false
-CapDrop=["ALL"]
-SecurityOpt=["no-new-privileges:true"]
-```
-
-Verifiser nettverksbindingen:
-
-```bash
-sudo docker port \
-    lums
-```
-
-Forventet:
-
-```text
-5000/tcp -> 127.0.0.1:5050
-```
-
----
-
-# 112. Kontroll av vedvarende lagring
-
-Verifiser LUMS-volumet:
-
-```bash
-sudo docker volume inspect \
-    lums-data
-```
-
-Verifiser at applikasjonsdatabasen finnes:
-
-```bash
-sudo docker exec \
-    lums \
-    ls -lh /var/lib/lums/lums.db
-```
-
-Databasen må ligge i vedvarende lagring.
-
-Ikke lagre produksjonsdatabasen bare i containerens filsystem.
-
----
-
-# 113. SQLite-helsekontroll
-
-Inspiser den gjeldende SQLite-kjøretidskonfigurasjonen:
-
-```bash
-sudo docker exec -i lums \
-    python3 - <<'PY'
-import sqlite3
-
-db = sqlite3.connect("/var/lib/lums/lums.db")
-
-for name in (
-    "journal_mode",
-    "busy_timeout",
-    "synchronous",
-    "foreign_keys",
-):
-    value = db.execute(
-        f"PRAGMA {name}"
-    ).fetchone()[0]
-    print(f"{name}={value}")
-
-db.close()
-PY
-```
-
-Den gjeldende grunnlinjen er:
-
-```text
-journal_mode=wal
-busy_timeout=5000
-synchronous=2
-foreign_keys=0
-```
-
-Applikasjonen aktiverer håndheving av fremmednøkler eksplisitt.
-
----
-
-# 114. SQLite-integritetskontroll
-
-Kjør:
-
-```bash
-sudo docker exec -i lums \
-    python3 - <<'PY'
-import sqlite3
-
-db = sqlite3.connect("/var/lib/lums/lums.db")
-
-result = db.execute(
-    "PRAGMA integrity_check"
-).fetchone()[0]
-
-print(result)
-
-db.close()
-PY
-```
-
-Forventet:
-
-```text
-ok
-```
-
-Ikke fortsett med en ny produksjonsutrulling hvis integritetskontrollen melder om skade.
-
----
-
-# 115. Verifiser databasemigreringer
-
-Inspiser migreringstilstanden:
-
-```bash
-sudo docker logs \
-    --tail 200 \
-    lums | grep -i migration
-```
-
-Applikasjonen må fullføre sine konfigurerte migreringer før normal drift.
-
-Ikke endre migreringstilstandstabellen manuelt med mindre den gjeldende LUMS-migreringsprosedyren uttrykkelig krever det.
-
----
-
-# 116. Kjør den automatiserte testsuiten
-
-I LUMS' utviklings-/testmiljø:
-
-```bash
-cd /opt/lums-public
-```
-
-Kjør:
-
-```bash
-./.venv-test/bin/pytest -q
-```
-
-Antall tester endrer seg etter hvert som prosjektet utvikler seg; stol på
-kommandoens resultat, ikke på et fast antall i dette dokumentet.
-
-Det viktige kravet er:
-
-```text
-all tests pass
-```
-
-Ikke ignorer feilende tester fordi produksjonswebgrensesnittet ser ut til å fungere.
-
----
-
-# 117. Verifiser RBAC
-
-Den gjeldende rollemodellen er:
-
-| Funksjon               | Administrator | Operatør | Viewer |
-| ---------------------- | ------------: | -------: | -----: |
-| Vise klienter          |            Ja |       Ja |     Ja |
-| Installert programvare |            Ja |       Ja |     Ja |
-| Tilgjengelige oppdateringer |       Ja |       Ja |    Nei |
-| Opprette/kjøre jobber  |            Ja |       Ja |    Nei |
-| Oppdateringshistorikk  |            Ja |       Ja |    Nei |
-| Pakkehåndtering        |            Ja |       Ja |    Nei |
-| Systemvedlikehold      |            Ja |       Ja |    Nei |
-| Opprette/deaktivere klienter |      Ja |     Nei |    Nei |
-| Rotere klienttokener   |            Ja |      Nei |    Nei |
-| Brukeradministrasjon   |            Ja |      Nei |    Nei |
-| Rolleadministrasjon    |            Ja |      Nei |    Nei |
-
-Grensesnittet skal gjenspeile disse tillatelsene.
-
-Enda viktigere er at API-et må håndheve dem uavhengig.
-
----
-
-# 118. Verifiser administratortilgang
-
-Logg inn som Administrator.
-
-Verifiser tilgang til:
-
-```text
-Clients
-Installed software
-Available updates
-Update jobs
-Update history
-Package management
-System maintenance
-User management
-```
-
-Verifiser funksjoner for klientadministrasjon:
-
-```text
-Create client
-Disable client
-Rotate client token
-```
-
-Administratoren skal kunne utføre disse operasjonene.
-
----
-
-# 119. Verifiser operatørtilgang
-
-Logg inn som Operator.
-
-Verifiser tilgang til:
-
-```text
-Clients
-Installed software
-Available updates
-Update jobs
-Update history
-Package management
-System maintenance
-```
-
-Verifiser at funksjonalitet som er forbeholdt administratorer ikke er tilgjengelig:
-
-```text
-User management
-Role management
-Client creation/disabling
-Client-token rotation
-```
-
-Stol ikke bare på skjulte UI-elementer.
-
-Beskyttede API-operasjoner må avvise uautoriserte forespørsler.
-
----
-
-# 120. Verifiser Viewer-tilgang
-
-Logg inn som Viewer.
-
-Viewer skal ha tilgang til:
-
-```text
-Clients
-Installed software
-```
-
-Følgende må ikke være tilgjengelig:
-
-```text
-Available updates
-Update jobs
-Update history
-Package management
-System maintenance
-```
-
-Viewer må ikke kunne endre klienttilstand.
-
----
-
-# 121. Verifiser klientautentisering
-
-Bekreft at hver klient bruker sitt eget Bearer-token.
-
-Den forventede modellen er:
-
-```text
-Client A → Token A
-Client B → Token B
-Client C → Token C
-```
-
-Ikke del tokener mellom klienter.
-
-Verifiser at et rotert eller tilbakekalt token ikke lenger blir akseptert.
-
-Legg aldri ekte tokener inn i testutdata eller dokumentasjon.
-
----
-
-# 122. Verifiser oppdagelse av oppdateringer
-
-På en testklient:
-
-```bash
-sudo systemctl start \
-    lums-agent.service
-```
-
-Inspiser:
-
-```bash
-sudo journalctl \
-    -u lums-agent.service \
-    -n 100 \
-    --no-pager
-```
-
-Verifiser deretter klienten i LUMS-grensesnittet.
-
-Den rapporterte informasjonen skal omfatte gjeldende pakkeinventar og oppdateringsinformasjon der det støttes.
-
----
-
-# 123. Verifiser opprettelse av oppdateringsjobb
-
-Opprett en kontrollert oppdateringsjobb via LUMS-grensesnittet.
-
-Jobben skal først vises som:
-
-```text
-PENDING
-```
-
-Watcher behandler deretter jobben:
-
-```text
-PENDING
-   ↓
-RUNNING
-   ↓
-SUCCESS
-```
-
-eller:
-
-```text
-PENDING
-   ↓
-RUNNING
-   ↓
-FAILED
-```
-
-avhengig av det faktiske operasjonsresultatet.
-
-Ikke endre databasetilstanden manuelt.
-
----
-
-# 124. Verifiser jobbkjøring
-
-Inspiser klientens Watcher:
-
-```bash
-sudo journalctl \
-    -u lums-agent-watcher.service \
-    -n 200 \
-    --no-pager
-```
-
-Inspiser LUMS-serveren:
-
-```bash
-sudo docker logs \
-    --tail 200 \
-    lums
-```
-
-Sammenlign jobbtilstanden på serversiden med kjøreresultatet på klientsiden.
-
-De to må stemme overens.
-
----
-
-# 125. Verifiser validering av pakkeresultater
-
-En jobb må ikke bli vellykket bare fordi klienten sendte inn et syntaktisk gyldig svar.
-
-Serveren validerer det returnerte resultatet.
-
-Verifiser dette via de automatiserte testene for resultatvalidering:
-
-```bash
-./.venv-test/bin/pytest -q \
-    tests/test_job_result.py
-```
-
-Et vellykket resultat må ha den forventede strukturen og gyldig jobbkontekst.
-
-Misformede eller inkonsistente resultater må avvises.
-
----
-
-# 126. Verifiser jobbgjenoppretting
-
-Bruk en dedikert testklient for gjenopprettingstesting.
-
-Gjenopprettingsmodellen er:
-
-```text
-Job
- │
- ├── package item A → SUCCESS
- ├── package item B → SUCCESS
- └── package item C → interrupted
-                       │
-                       ▼
-                    recovery
-                       │
-                       ▼
-                  resume safely
-```
-
-Etter gjenoppretting må tidligere vellykkede pakkeelementer ikke gjentas unødvendig.
-
-Inspiser:
-
-```bash
-sudo journalctl \
-    -u lums-agent-watcher.service \
-    -n 200 \
-    --no-pager
-```
-
-Verifiser deretter den endelige jobbtilstanden i LUMS.
-
----
-
-# 127. Verifiser registrering av omstartsbehov
-
-For en kontrollert testoppdatering som krever omstart, verifiser at klienten rapporterer omstartskravet.
-
-Etter omstart:
-
-```bash
-systemctl status \
-    lums-agent.timer \
-    --no-pager
-```
-
-og:
-
-```bash
-systemctl status \
-    lums-agent-watcher.timer \
-    --no-pager
-```
-
-Klienten må gjenoppta normal rapportering etter oppstart.
-
----
-
-# 128. Verifiser revisjonslogging
-
-Utfør en kontrollert administrativ handling, og inspiser deretter LUMS' revisjonslogg.
-
-Relevante operasjoner omfatter:
-
-```text
-Login
-User creation
-Client creation
-Client-token rotation
-Job creation
-Package management
-```
-
-Revisjonsoppføringer skal gi nok informasjon til å rekonstruere den administrative handlingen uten å eksponere hemmeligheter.
-
-Ikke logg:
-
-```text
-Passwords
-Client tokens
-Application secrets
-Private keys
-Session secrets
-```
-
----
-
-# 129. Verifiser skjuling av sensitive data i logger
-
-Inspiser nylige logger:
-
-```bash
-sudo docker logs \
-    --tail 200 \
-    lums
-```
-
-Inspiser klientlogger:
-
-```bash
-sudo journalctl \
-    -u lums-agent.service \
-    -n 200 \
-    --no-pager
-```
-
-og:
-
-```bash
-sudo journalctl \
-    -u lums-agent-watcher.service \
-    -n 200 \
-    --no-pager
-```
-
-Autentiseringslegitimasjon og hemmeligheter må ikke vises i normale diagnostiske utdata.
-
-Hvis en diagnostikkommando ville eksponere en hemmelighet, ikke lim utdataene inn i en sak (issue), en commit eller dokumentasjon.
-
----
-
-# 130. Verifiser nettverkseksponering
-
-Inspiser lyttende porter:
-
-```bash
-sudo ss -lntp
-```
-
-LUMS-applikasjonsporten skal forbli:
-
-```text
-127.0.0.1:5050
-```
-
-Nginx leverer den eksterne tjenesten:
-
-```text
-:80
-:443
-```
-
-Applikasjonen må ikke eksponeres direkte via:
-
-```text
-0.0.0.0:5050
-```
-
-eller:
-
-```text
-0.0.0.0:5000
-```
-
----
-
-# 131. Verifiser brannmurkonfigurasjonen
-
-Hvis en vertsbrannmur er aktivert, inspiser den:
-
-```bash
-sudo ufw status verbose
-```
-
-Distribusjonen skal bare eksponere tjenestene som verten trenger.
-
-Ikke opprett en brannmurregel for port `5050` bare fordi Docker bruker denne porten internt.
-
-Den tiltenkte arkitekturen er:
-
-```text
-LAN
- │
- ▼
-443
- │
- ▼
-Nginx
- │
- ▼
-127.0.0.1:5050
- │
- ▼
-LUMS
-```
-
----
-
-# 132. Sikkerhetskopistrategi
-
-LUMS' SQLite-database er vedvarende applikasjonstilstand.
-
-Sikkerhetskopier bør som et minimum beskytte:
-
-```text
-LUMS database
-TLS material
-LUMS application secret
-Deployment configuration
-```
-
-Sikkerhetskopier må lagres utenfor den aktive LUMS-containeren.
-
-Ikke lagre sikkerhetskopier i:
-
-```text
-/app
-```
-
-og ikke stol på containerens filsystem.
-
-Docker-volumet:
-
-```text
-lums-data
-```
-
-inneholder vedvarende applikasjonsdata, men et Docker-volum er ikke i seg selv en sikkerhetskopi.
-
----
-
-# 133. Databasesikkerhetskopi
-
-Før du tar sikkerhetskopi av databasen, identifiser databasefilen:
-
-```bash
-sudo docker exec \
-    lums \
-    ls -lh /var/lib/lums/lums.db
-```
-
-En databasesikkerhetskopi bør utføres med en konsistent SQLite-sikkerhetskopimekanisme.
-
-Ikke kopier en levende SQLite-database blindt mens den endres, hvis sikkerhetskopiprosedyren ikke kan garantere konsistens.
-
-Etter at du har opprettet en sikkerhetskopi, verifiser at sikkerhetskopifilen finnes og er beskyttet.
-
----
-
-# 134. Konfigurasjonssikkerhetskopi
-
-Beskytt følgende distribusjonsmateriale:
-
-```text
-/etc/lums/secrets/
-/etc/lums/tls/
-/etc/nginx/sites-available/lums
-/etc/nginx/sites-enabled/lums
-```
-
-Ikke publiser disse filene.
-
-Følgende filer er særlig sensitive:
-
-```text
-/etc/lums/secrets/lums_secret
-/etc/lums/tls/lums.key
-```
-
-Beskytt tillatelsene til sikkerhetskopiene tilsvarende.
-
----
-
-# 135. Planlegging av gjenoppretting
-
-En gjenoppretting bør testes på et system som ikke er i produksjon, før den trengs ved katastrofegjenoppretting.
-
-Gjenopprettingssekvensen er konseptuelt:
-
-```text
-Backup
-  ↓
-Verify backup integrity
-  ↓
-Prepare clean LUMS host
-  ↓
-Restore secret/configuration
-  ↓
-Restore database
-  ↓
-Restore TLS material
-  ↓
-Start LUMS
-  ↓
-Run integrity checks
-  ↓
-Validate users/clients/jobs
-```
-
-Ikke overskriv en produksjonsdatabase uten først å bevare den eksisterende tilstanden.
-
----
-
-# 136. Verifiser en databasegjenoppretting
-
-Etter at en database er gjenopprettet, kjør:
-
-```bash
-sudo docker exec lums \
-    python3 - <<'PY'
-import sqlite3
-
-db = sqlite3.connect("/var/lib/lums/lums.db")
-
-print(
-    db.execute(
-        "PRAGMA integrity_check"
-    ).fetchone()[0]
-)
-
-db.close()
-PY
-```
-
-Forventet:
-
-```text
-ok
-```
-
-Verifiser deretter:
-
-```text
-users
-clients
-update jobs
-package data
-audit data
-```
-
-Ikke anta at en vellykket SQLite-integritetskontroll beviser at hele applikasjonstilstanden er korrekt.
-
----
-
-# 137. Vedlikeholdsprinsipper
-
-Rutinemessig vedlikehold bør følge:
-
-```text
-Observe
-   ↓
-Back up
-   ↓
-Change
-   ↓
-Verify
-```
-
-Ikke utfør urelatert vedlikehold under en aktiv oppdateringsjobb.
-
-Før vedlikehold:
-
-```bash
-sudo docker ps \
-    --filter name=lums
-```
-
-Kontroller aktive jobber i LUMS-grensesnittet.
-
-Hvis en oppdatering kjører, la den bli ferdig med mindre vedlikeholdsoperasjonen uttrykkelig krever avbrudd.
-
----
-
-# 138. Containervedlikehold
-
-Inspiser det kjørende bildet:
-
-```bash
-sudo docker inspect \
-    lums \
-    --format '{{.Config.Image}}'
-```
-
-Inspiser containeren:
-
-```bash
-sudo docker ps \
-    --filter name=lums
-```
-
-Inspiser nylige logger:
-
-```bash
-sudo docker logs \
-    --tail 100 \
-    lums
-```
-
-Ikke fjern det vedvarende volumet under vanlig containervedlikehold.
-
-Volumet inneholder applikasjonstilstand.
-
----
-
-# 139. Bildevedlikehold
-
-Før du erstatter produksjonsbildet:
-
-```bash
-cd /opt/lums-public
-```
-
-Kjør de automatiserte testene:
-
-```bash
-./.venv-test/bin/pytest -q
-```
-
-Bygg det nye bildet:
-
-```bash
-sudo docker build \
-    -t lums:new \
-    .
-```
-
-Ikke erstatt den kjørende containeren før bildet har bestått den nødvendige valideringen.
-
-Behold den nåværende fungerende containeren tilgjengelig til erstatningen er verifisert.
-
----
-
-# 140. Kontrollert utskifting av container
-
-Når produksjonscontaineren skal erstattes:
-
-```text
-Current container
-       │
-       ▼
-Backup / checkpoint
-       │
-       ▼
-Build new image
-       │
-       ▼
-Validate image
-       │
-       ▼
-Stop old container
-       │
-       ▼
-Start new container
-       │
-       ▼
-Validate runtime
-       │
-       ▼
-Validate HTTPS
-       │
-       ▼
-Validate application
-```
-
-Det vedvarende volumet må forbli:
-
-```text
-lums-data
-```
-
-Hemmelighetsmonteringen må forbli skrivebeskyttet.
-
-Applikasjonsporten må forbli kun tilgjengelig på localhost.
-
----
-
-# 141. Verifiser kjøretidssikkerhet etter utskifting
-
-Gjenta etter hver containerutskifting:
-
-```bash
-sudo docker inspect lums \
-    --format '
-User={{.Config.User}}
-ReadonlyRootfs={{.HostConfig.ReadonlyRootfs}}
-Privileged={{.HostConfig.Privileged}}
-CapDrop={{json .HostConfig.CapDrop}}
-SecurityOpt={{json .HostConfig.SecurityOpt}}
-'
-```
-
-Verifiser:
-
-```text
-User=lums
-ReadonlyRootfs=true
-Privileged=false
-CapDrop=["ALL"]
-SecurityOpt=["no-new-privileges:true"]
-```
-
-Verifiser også:
-
-```bash
-sudo docker port \
-    lums
-```
-
-Forventet:
-
-```text
-5000/tcp -> 127.0.0.1:5050
-```
-
----
-
-# 142. Verifiser vedvarende data etter utskifting
-
-Etter at erstatningscontaineren er startet:
-
-```bash
-sudo docker exec \
-    lums \
-    ls -lh /var/lib/lums/lums.db
-```
-
-Deretter:
-
-```bash
-sudo docker exec lums \
-    python3 - <<'PY'
-import sqlite3
-
-db = sqlite3.connect("/var/lib/lums/lums.db")
-print(db.execute("PRAGMA integrity_check").fetchone()[0])
-db.close()
-PY
-```
-
-Forventet:
-
-```text
-ok
-```
-
-Verifiser til slutt at eksisterende brukere og klienter fortsatt finnes via LUMS-grensesnittet.
-
----
-
-# 143. Sjekkpunkt etter fullført vedlikehold
-
-Etter vedlikehold, verifiser:
-
-```text
-[ ] Container running
-[ ] Runtime hardening intact
-[ ] Persistent volume mounted
-[ ] Database accessible
-[ ] SQLite integrity check passes
-[ ] Nginx running
-[ ] HTTPS working
-[ ] Login working
-[ ] Existing users present
-[ ] Existing clients present
-[ ] Agent reporting working
-[ ] Watcher working
-[ ] Update jobs working
-[ ] Audit logging working
-```
-
-Først etter disse kontrollene er vedlikeholdsoperasjonen fullført.
-
----
-
-# 144. Installasjonstilstand på dette tidspunktet
-
-Et korrekt installert LUMS-miljø består nå av:
-
-```text
-                    ┌──────────────────────┐
-                    │       Browser        │
-                    └──────────┬───────────┘
-                               │ HTTPS
-                               ▼
-                    ┌──────────────────────┐
-                    │        Nginx         │
-                    └──────────┬───────────┘
-                               │
-                               ▼
-                    ┌──────────────────────┐
-                    │    LUMS Container    │
-                    │                      │
-                    │ Flask / Gunicorn     │
-                    │ RBAC                 │
-                    │ CSRF                 │
-                    │ Audit Logging        │
-                    └──────────┬───────────┘
-                               │
-                               ▼
-                    ┌──────────────────────┐
-                    │       SQLite         │
-                    │     lums-data        │
-                    └──────────┬───────────┘
-                               │
-                ┌──────────────┴──────────────┐
-                │                             │
-                ▼                             ▼
-        ┌──────────────┐              ┌──────────────┐
-        │ LUMS Agent   │              │ LUMS Watcher │
-        │ 1.7.0        │              │ 1.2.1        │
-        └──────┬───────┘              └──────┬───────┘
-               │                             │
-               ▼                             ▼
-        Inventory / Report             Update Jobs
-               │                             │
-               └──────────────┬──────────────┘
-                              ▼
-                       APT / pacman
-```
-
-Dette er den tiltenkte driftsarkitekturen.
-
-Neste kapittel dekker oppgraderinger, avinstallasjon og den endelige installasjonssjekklisten.
-
-# 145. Oppgraderingsprosedyre
-
-LUMS-oppgraderinger bør utføres i kontrollerte trinn.
-
-Den anbefalte sekvensen er:
-
-```text
-Review
-   ↓
-Backup
-   ↓
-Test
-   ↓
-Build
-   ↓
-Deploy
-   ↓
-Validate
-```
-
-Ikke oppgrader produksjonsinstallasjonen bare fordi en ny Git-revisjon finnes.
-
-Etter at arbeidsflyten `Tests` består på `main`, er et nedlastbart arkiv med
-oppdateringsverktøy tilgjengelig under **Artifacts** for den arbeidsflytkjøringen.
-Publiserte GitHub Releases får også et versjonert arkiv etter at utgivelsesrevisjonen
-har bestått testsuiten. Se [pakkeveiledningen](<Nedlastbar pakke med oppdateringsverktøy.md>).
-
-Gjennomgå endringene først:
-
-```bash
-cd /opt/lums-public
-
-git status
-git log --oneline -10
-```
-
-Gjennomgå de relevante endringene i applikasjonen, agenten og migreringene før distribusjon.
-
----
-
-# 146. Opprett en sikkerhetskopi før oppgradering
-
-Før du erstatter produksjonscontaineren, opprett en gjeldende sikkerhetskopi av den vedvarende LUMS-tilstanden.
-
-Verifiser det aktive volumet:
-
-```bash
-sudo docker inspect \
-    lums \
-    --format '{{json .Mounts}}'
-```
-
-Bekreft at:
-
-```text
-lums-data
-```
-
-fortsatt er montert på:
-
-```text
-/var/lib/lums
-```
-
-Beskytt også den eksterne konfigurasjonen:
-
-```text
-/etc/lums/secrets/
-/etc/lums/tls/
-/etc/nginx/
-```
-
-Ikke fortsett med en oppgradering hvis den nødvendige sikkerhetskopien ikke kan verifiseres.
-
----
-
-# 147. Unngå unødvendige endringer under en oppgradering
-
-Før oppgradering, inspiser aktive jobber i LUMS-grensesnittet.
-
-Unngå å erstatte applikasjonen mens en kritisk oppdateringsjobb kjører aktivt.
-
-Om nødvendig, vent til jobben når en sluttilstand:
-
-```text
-SUCCESS
-```
-
-eller:
-
-```text
-FAILED
-```
-
-Ikke endre en jobb manuelt fra `RUNNING` til `SUCCESS` eller `FAILED` bare for å få gjennomført en oppgradering.
-
----
-
-# 148. Oppdater repositoriet
-
-Gå til repositoriet:
-
-```bash
-cd /opt/lums-public
-```
-
-Inspiser den gjeldende tilstanden:
-
-```bash
-git status
-```
-
-Oppdater repositoriet med den vanlige prosjektarbeidsflyten.
-
-Etter oppdateringen:
-
-```bash
-git log --oneline -5
-```
-
-Verifiser at den tiltenkte revisjonen er utsjekket.
-
-Ikke distribuer et repositorium som inneholder utilsiktede lokale endringer.
-
-Hvis lokale endringer finnes:
-
-```bash
-git status
-```
-
-Gjennomgå dem før du fortsetter.
-
----
-
-# 149. Kjør testsuiten før bygging
-
-Kjør:
-
-```bash
-./.venv-test/bin/pytest -q
-```
-
-Alle tester må bestå.
-
-Et endret antall tester er ikke automatisk et problem. Kravet er at
-hele suiten fullføres uten feil.
-
----
-
-# 150. Bygg det oppdaterte bildet
-
-Bygg et nytt bilde uten å erstatte den kjørende containeren umiddelbart:
-
-```bash
-sudo docker build \
-    -t lums:new \
-    .
-```
-
-Verifiser bildet:
-
-```bash
-sudo docker image inspect \
-    lums:new
-```
-
-Byggingen må fullføres uten feil.
-
-Ikke bruk et mislykket eller delvis bygget bilde til produksjonsdistribusjon.
-
----
-
-# 151. Verifiser det oppdaterte bildet
-
-Gjennomgå bildets metadata:
-
-```bash
-sudo docker image inspect \
-    lums:new \
-    --format '
-User={{.Config.User}}
-Entrypoint={{json .Config.Entrypoint}}
-Cmd={{json .Config.Cmd}}
-'
-```
-
-Bildet må bevare den forventede modellen med ikke-privilegert applikasjonsbruker.
-
-Produksjonskjøringen må fortsatt gi:
-
-```text
-read-only root filesystem
-dropped Linux capabilities
-no-new-privileges
-read-only secret mount
-persistent application volume
-localhost-only application port
-```
-
----
-
-# 152. Erstatt produksjonscontaineren
-
-Når det nye bildet har bestått valideringen, erstatt den kjørende containeren med den etablerte herdede konfigurasjonen.
-
-Stopp den eksisterende containeren:
-
-```bash
-sudo docker stop \
-    lums
-```
-
-Fjern bare containeren:
-
-```bash
-sudo docker rm \
-    lums
-```
-
-Fjern **ikke**:
-
-```text
-lums-data
-```
-
-Start erstatningen med den herdede kjøretiden:
-
-```bash
-sudo docker run -d \
-    --name lums \
-    --restart unless-stopped \
-    --read-only \
-    --cap-drop=ALL \
-    --security-opt=no-new-privileges:true \
-    --tmpfs /tmp:rw,noexec,nosuid,size=64m \
-    --tmpfs /run:rw,noexec,nosuid,size=16m \
-    -p 127.0.0.1:5050:5000 \
-    -v /etc/lums/secrets/lums_secret:/run/secrets/lums_secret:ro \
-    -v lums-data:/var/lib/lums \
-    -e LUMS_SECRET_KEY_FILE=/run/secrets/lums_secret \
-    lums:new
-```
-
----
-
-# 153. Verifiser erstatningscontaineren
-
-Kontroller:
-
-```bash
-sudo docker ps \
-    --filter name=lums
-```
-
-Deretter:
-
-```bash
-sudo docker logs \
-    --tail 100 \
-    lums
-```
-
-Verifiser kjøretiden:
-
-```bash
-sudo docker inspect lums \
-    --format '
-User={{.Config.User}}
-ReadonlyRootfs={{.HostConfig.ReadonlyRootfs}}
-Privileged={{.HostConfig.Privileged}}
-CapDrop={{json .HostConfig.CapDrop}}
-SecurityOpt={{json .HostConfig.SecurityOpt}}
-'
-```
-
-Forventet:
-
-```text
-User=lums
-ReadonlyRootfs=true
-Privileged=false
-CapDrop=["ALL"]
-SecurityOpt=["no-new-privileges:true"]
-```
-
----
-
-# 154. Verifiser applikasjonstilgjengelighet
-
-Kontroller det lokale applikasjonsendepunktet:
-
-```bash
-curl -I \
-    http://127.0.0.1:5050/
-```
-
-Test deretter den offentlige HTTPS-banen:
-
-```bash
-curl -I \
-    https://LUMS-SERVER/
-```
-
-Verifiser innlogging via nettleseren.
-
-Ikke anse oppgraderingen som fullført før den eksterne HTTPS-banen også er testet.
-
----
-
-# 155. Verifiser vedvarende tilstand etter oppgradering
-
-Kontroller databasen:
-
-```bash
-sudo docker exec lums \
-    ls -lh /var/lib/lums/lums.db
-```
-
-Kjør:
-
-```bash
-sudo docker exec lums \
-    python3 - <<'PY'
-import sqlite3
-
-db = sqlite3.connect("/var/lib/lums/lums.db")
-print(db.execute("PRAGMA integrity_check").fetchone()[0])
-db.close()
-PY
-```
-
-Forventet:
-
-```text
-ok
-```
-
-Verifiser via webgrensesnittet at:
-
-```text
-users
-clients
-jobs
-audit history
-package information
-```
-
-fortsatt er tilgjengelige.
-
----
-
-# 156. Verifiser klientkommunikasjon etter oppgradering
-
-Kjør agenten på en testklient:
-
-```bash
-sudo systemctl start \
-    lums-agent.service
-```
-
-Inspiser:
-
-```bash
-sudo journalctl \
-    -u lums-agent.service \
-    -n 100 \
-    --no-pager
-```
-
-Verifiser at serveren godtar rapporten.
-
-Verifiser deretter klienten i LUMS-grensesnittet.
-
----
-
-# 157. Verifiser oppdateringskjøring etter oppgradering
-
-Opprett en kontrollert testjobb.
-
-Verifiser:
-
-```text
-PENDING
-   ↓
-RUNNING
-   ↓
-SUCCESS
-```
-
-eller en forventet tilstand:
-
-```text
-FAILED
-```
-
-når operasjonen faktisk feiler.
-
-Inspiser Watcher:
-
-```bash
-sudo journalctl \
-    -u lums-agent-watcher.service \
-    -n 200 \
-    --no-pager
-```
-
-Dette bekrefter at oppgraderingen ikke ødela kjøringsbanen.
-
----
-
-# 158. Verifiser sikkerhetsgrunnlinjen etter oppgradering
-
-Hver produksjonsoppgradering må bevare sikkerhetsgrunnlinjen.
-
-Verifiser:
-
-```text
-[ ] HTTPS
-[ ] Bearer client authentication
-[ ] RBAC
-[ ] CSRF protection
-[ ] Audit logging
-[ ] Non-root container
-[ ] Read-only root filesystem
-[ ] Capabilities dropped
-[ ] no-new-privileges
-[ ] Protected secret mount
-[ ] Persistent data volume
-[ ] Localhost-only Docker port
-[ ] Firewall policy
-```
-
-En funksjonell oppgradering som svekker disse egenskapene regnes ikke som fullført.
-
----
-
-# 159. Tilbakerullingsprosedyre
-
-Hvis den nye containeren feiler valideringen, ikke ødelegg umiddelbart informasjonen om den forrige distribusjonen.
-
-Inspiser først:
-
-```bash
-sudo docker logs \
-    --tail 200 \
-    lums
-```
-
-Hvis det forrige bildet fortsatt er tilgjengelig:
-
-```bash
-sudo docker images
-```
-
-gjenopprett det tidligere validerte bildet med samme herdede containerkonfigurasjon.
-
-Det vedvarende volumet forblir:
-
-```text
-lums-data
-```
-
-Ikke gjenopprett en databasesikkerhetskopi bare fordi applikasjonscontaineren ble byttet ut.
-
-Gjenopprett databasen bare når selve databasen må gjenopprettes.
-
----
-
-# 160. Forberedelse til avinstallasjon
-
-Før du avinstallerer LUMS, avgjør om de vedvarende applikasjonsdataene skal beholdes.
-
-Følgende er separate ressurser:
-
-```text
-Container
-Image
-Persistent volume
-Configuration
-TLS material
-Nginx configuration
-Client installations
-```
-
-Fjerning av containeren fjerner ikke Docker-volumet.
-
-Dette skillet er bevisst.
-
----
-
-# 161. Fjern LUMS-containeren
-
-Stopp containeren:
-
-```bash
-sudo docker stop \
-    lums
-```
-
-Fjern den:
-
-```bash
-sudo docker rm \
-    lums
-```
-
-Verifiser:
-
-```bash
-sudo docker ps -a \
-    --filter name=lums
-```
-
-Det vedvarende volumet finnes fortsatt med mindre det fjernes eksplisitt.
-
----
-
-# 162. Fjern LUMS Docker-bildet
-
-List bilder:
-
-```bash
-sudo docker images \
-    'lums*'
-```
-
-Fjern bare bilder som ikke lenger trengs:
-
-```bash
-sudo docker rmi \
-    lums:new
-```
-
-Gjenta for andre foreldede lokale LUMS-bilder etter behov.
-
-Ikke fjern bildet som trengs for en tilbakerulling før installasjonen er fullstendig tatt ut av drift.
-
----
-
-# 163. Fjern det vedvarende volumet
-
-Utfør dette trinnet bare når LUMS-databasen ikke lenger trengs.
-
-Verifiser:
-
-```bash
-sudo docker volume inspect \
-    lums-data
-```
-
-Opprett en siste sikkerhetskopi om nødvendig.
-
-Fjern deretter:
-
-```bash
-sudo docker volume rm \
-    lums-data
-```
-
-Dette fjerner permanent de vedvarende applikasjonsdataene som ligger i dette volumet.
-
-Ikke kjør denne kommandoen under vanlige oppgraderinger.
-
----
-
-# 164. Fjern LUMS-serverkonfigurasjon
-
-Når serveren tas permanent ut av drift, fjern den LUMS-spesifikke konfigurasjonen:
-
-```text
-/etc/lums/
-/etc/nginx/sites-available/lums
-/etc/nginx/sites-enabled/lums
-```
-
-Fjern Nginx-nettstedet:
-
-```bash
-sudo rm -f \
-    /etc/nginx/sites-enabled/lums
-```
-
-Fjern konfigurasjonen:
-
-```bash
-sudo rm -f \
-    /etc/nginx/sites-available/lums
-```
-
-Valider deretter Nginx:
-
-```bash
-sudo nginx -t
-```
-
-Last på nytt:
-
-```bash
-sudo systemctl reload nginx
-```
-
-Fjern `/etc/lums/` først etter at du har verifisert at ingen annen applikasjon avhenger av den.
-
----
-
-# 165. Fjern klientinstallasjoner
-
-LUMS-klienter må tas ut av drift hver for seg.
-
-Deaktiver agenttimeren:
-
-```bash
-sudo systemctl disable --now \
-    lums-agent.timer
-```
-
-Deaktiver Watcher-timeren:
-
-```bash
-sudo systemctl disable --now \
-    lums-agent-watcher.timer
-```
-
-Stopp eventuelle gjenværende tjenester:
-
-```bash
-sudo systemctl stop \
-    lums-agent.service \
-    lums-agent-watcher.service
-```
-
-Fjern de installerte systemd-enhetene:
-
-```bash
-sudo rm -f \
-    /etc/systemd/system/lums-agent.service \
-    /etc/systemd/system/lums-agent-watcher.service \
-    /etc/systemd/system/lums-agent.timer \
-    /etc/systemd/system/lums-agent-watcher.timer
-```
-
-Last systemd på nytt:
-
-```bash
-sudo systemctl daemon-reload
-```
-
-Fjern agentinstallasjonen:
-
-```bash
-sudo rm -rf \
-    /opt/lums-agent
-```
-
-Fjern klientkonfigurasjonen:
-
-```bash
-sudo rm -f \
-    /etc/default/lums-agent
-```
-
-Utfør disse trinnene bare når klienten faktisk fjernes fra LUMS-administrasjon.
-
----
-
-# 166. Endelig sjekkliste for serverinstallasjon
-
-En fullført LUMS-installasjon skal oppfylle alt av følgende:
-
-```text
-SERVER
-[ ] Debian/Linux host prepared
-[ ] Docker installed
-[ ] Nginx installed
-[ ] Repository deployed
-[ ] Application secret generated
-[ ] TLS material installed
-[ ] LUMS image built
-[ ] Persistent volume created
-[ ] Hardened container deployed
-[ ] Container runs as non-root
-[ ] Root filesystem is read-only
-[ ] Linux capabilities dropped
-[ ] no-new-privileges enabled
-[ ] Secret mounted read-only
-[ ] Persistent data volume mounted
-[ ] Application bound to 127.0.0.1:5050
-[ ] Nginx HTTPS configured
-[ ] HTTP redirects to HTTPS
-[ ] TLS verified
-[ ] Database initialized
-[ ] SQLite integrity check passes
-[ ] Migrations complete
-```
-
----
-
-# 167. Endelig sjekkliste for klientinstallasjon
-
-```text
-CLIENT
-[ ] Supported Linux distribution
-[ ] systemd available
-[ ] Agent installed
-[ ] Agent version verified
-[ ] Watcher installed
-[ ] Watcher version verified
-[ ] Client configuration protected
-[ ] Unique client token configured
-[ ] TLS trust configured
-[ ] Agent manual run succeeds
-[ ] Initial report accepted
-[ ] Client visible in LUMS
-[ ] Reporting timer enabled
-[ ] Watcher timer enabled
-[ ] Idle detection verified
-[ ] Package inventory verified
-[ ] Update detection verified
-```
-
----
-
-# 168. Endelig funksjonell sjekkliste
-
-```text
-FUNCTIONALITY
-[ ] Administrator login works
-[ ] Operator login works
-[ ] Viewer login works
-[ ] Administrator RBAC verified
-[ ] Operator RBAC verified
-[ ] Viewer RBAC verified
-[ ] Client authentication verified
-[ ] Token rotation verified
-[ ] Package search verified
-[ ] Package installation verified
-[ ] Package removal verified
-[ ] Package update verified
-[ ] System update path verified
-[ ] Update jobs verified
-[ ] Job result validation verified
-[ ] Job recovery verified
-[ ] Reboot detection verified
-[ ] Audit logging verified
-[ ] Logs contain no secrets
-[ ] End-to-end reporting verified
-[ ] End-to-end update execution verified
-```
-
----
-
-# 169. Endelig sikkerhetssjekkliste
-
-```text
-SECURITY
-[ ] HTTPS enforced
-[ ] Client Bearer authentication enabled
-[ ] RBAC enforced server-side
-[ ] CSRF protection enabled
-[ ] Session protection enabled
-[ ] Login rate limiting enabled
-[ ] Password hashing enabled
-[ ] Client token hashing enabled
-[ ] Client token rotation available
-[ ] Audit logging enabled
-[ ] Secrets outside Git
-[ ] Secrets outside Docker image
-[ ] TLS private key protected
-[ ] Docker root filesystem read-only
-[ ] Linux capabilities dropped
-[ ] no-new-privileges enabled
-[ ] Container runs as non-root
-[ ] Persistent data isolated in volume
-[ ] Application port localhost-only
-[ ] Firewall reviewed
-[ ] Default Nginx site removed or controlled
-[ ] Backup procedure defined
-[ ] Restore procedure tested
-```
-
----
-
-# 170. Endelig testsjekkliste
-
-Kjør hele den automatiserte testsuiten:
-
-```bash
-cd /opt/lums-public
-
-./.venv-test/bin/pytest -q
-```
-
-Installasjonen bør bare anses som fullført når hele testsuiten består.
-
-Verifiser deretter produksjonskjøringen manuelt:
-
-```bash
-sudo docker ps \
-    --filter name=lums
-```
-
-```bash
-sudo docker logs \
-    --tail 100 \
-    lums
-```
-
-```bash
-curl -I \
-    https://LUMS-SERVER/
-```
-
-```bash
-sudo ss -lntp
-```
-
----
-
-# 171. Endelig dokumentasjonskontroll
-
-Før du erklærer installasjonen som fullført, verifiser at dokumentasjonen samsvarer med den faktiske distribusjonen.
-
-Gjennomgå som et minimum:
-
-```text
-install.md
-security.md
-troubleshooting.md
-administration.md
-docs/README.md
-```
-
-De tekniske veiledningene på rotnivå vedlikeholdes på engelsk og er
-sannhetskilden. Lokaliserte manualer og hurtigstarter er oppført i
-[`docs/README.md`](../../README.md); oversettelsesdekningen kan variere, så bruk
-den engelske kilden når en lokalisert prosedyre er ufullstendig eller avviker.
-
-Dokumentasjonen må ikke inneholde:
-
-```text
-old container commands
-obsolete image names
-obsolete RBAC rules
-obsolete test counts
-obsolete service paths
-obsolete authentication mechanisms
-real secrets
-real client tokens
-private keys
-```
-
-Hvis distribusjonen endres, oppdater dokumentasjonen sammen med implementasjonen.
-
----
-
-# 172. Utgivelsesklarhet
-
-En vellykket installasjon betyr ikke automatisk at LUMS har en offisiell utgivelse.
-
-Den nåværende prosjekttilstanden skiller bevisst mellom:
-
-```text
-Working implementation
-Security audit
-Documentation review
-Release preparation
-Versioning
-Git tag
-GitHub Release
-```
-
-En offisiell LUMS-utgivelse bør først opprettes etter at hele implementasjonen, sikkerhetsgjennomgangen, dokumentasjonsgjennomgangen og den endelige valideringen er fullført.
-
-Inntil da bør repositoriet behandles som et prosjekt under aktiv utvikling.
-
----
-
-# 173. Driftsgrunnlinje
-
-Den nåværende dokumenterte grunnlinjen er:
-
-```text
-LUMS Server
-    Docker
-    Nginx
-    HTTPS
-    SQLite
-    RBAC
-    CSRF
-    Audit Logging
-    Hardened Container
-
-LUMS Agent
-    Version 1.7.0
-
-LUMS Watcher
-    Version 1.2.1
-
-Database
-    journal_mode=wal
-    busy_timeout=5000
-    synchronous=2
-    foreign_keys=ON (application connections)
-
-Container
-    non-root
-    read-only root filesystem
-    CapDrop=ALL
-    no-new-privileges
-    localhost-only application port
-
-Roles
-    Administrator
-    Operator
-    Viewer
-```
-
-Denne grunnlinjen bør behandles som referansetilstanden for feilsøking og fremtidig vedlikehold.
-
----
-
-# 174. Installasjonen er fullført
-
-Installasjonen er fullført når:
-
-```text
-Server
-  │
-  ├── HTTPS works
-  ├── Authentication works
-  ├── RBAC works
-  ├── Database is healthy
-  ├── Container is hardened
-  └── Persistent storage is verified
-       │
-       ▼
-Client
-  │
-  ├── Agent reports
-  ├── Watcher executes
-  ├── Package manager works
-  ├── Jobs complete
-  ├── Results are validated
-  └── Recovery works
-       │
-       ▼
-Operations
-  │
-  ├── Backup exists
-  ├── Restore is understood
-  ├── Troubleshooting documentation is available
-  └── Security baseline is maintained
-```
-
-Det grunnleggende driftsprinsippet i LUMS er:
-
-```text
-Observe first.
-Change second.
-Verify third.
-Document last.
-```
-
-For produksjonsendringer utvides dette til:
-
-```text
-Backup
-   ↓
-Change
-   ↓
-Verify
-   ↓
-Document
-```
-
-En LUMS-installasjon bør alltid forbli reproduserbar, sporbar og gjenopprettbar.
-
-
----
-
-## Valgfri CPU- og minnetelemetriagent
-
-For en oversikt over telemetrimålinger, sikkerhet, datalagring og feilsøking, se [telemetry.md](Telemetri.md).
-
-Telemetriagenten er separat fra den eksisterende rapporteringsagenten og Watcher.
-Den sender CPU- og minnemålinger til det autentiserte endepunktet
-`POST /api/telemetry`. Dashbordet leser målingene via det autentiserte
-klienttelemetri-API-et.
-
-### Installasjonsfiler
-
-Gjennomgå disse repositoriefilene før installasjon:
-
-- `agent/telemetry.py`
-- `agent/lums-telemetry.service`
-- `agent/lums-telemetry.timer`
-- `scripts/install-telemetry-agent.sh`
-- `tests/test_telemetry_agent.py`
-
-Etter at `/etc/default/lums-agent` er konfigurert som beskrevet nedenfor, oppdater
-repositoriets utsjekking på Debian-klienten og kjør dette fra roten:
-
-```sh
-sudo bash scripts/install-telemetry-agent.sh
-```
-
-Installasjonsprogrammet verifiserer at `LUMS_BASE` og `LUMS_TOKEN` finnes uten å
-skrive ut verdiene. Det installerer eller oppdaterer samleren og systemd-enhetene,
-aktiverer timeren på fem sekunder og kjører én umiddelbar prøve for å verifisere
-tilkoblingen. Hvis tjenesten feiler, skriver det ut nylige logger fra telemetritjenesten.
-Tokenet blir værende i den eksisterende klientkonfigurasjonen og kopieres ikke til
-en annen fil.
-
-Installer telemetriskriptet som
-`/usr/local/lib/lums-telemetry/telemetry.py`, eid av root og ikke skrivbart
-for tjenestekontoen. Installer tjenesten og timeren som
-`/etc/systemd/system/lums-telemetry.service` og
-`/etc/systemd/system/lums-telemetry.timer`.
-
-Tjenesten bruker `DynamicUser=yes`, kjører med begrensede rettigheter og er
-lagt til i gruppen `systemd-journal` for skrivebeskyttet tilgang til systemets
-hendelseslogger. Dette muliggjør dashbordets avgrensede sikkerhets- og innloggingssammendrag;
-rå loggmeldinger sendes ikke til serveren.
-Det er en engangstjeneste (one-shot) som planlegges av en separat timer; den erstatter
-ikke den eksisterende LUMS Agent eller Watcher.
-
-At en vanlig LUMS-klient er online, betyr ikke at denne separate telemetritimeren
-er installert eller aktivert. Siden `/monitoring` forklarer om den valgte
-klienten ikke har sendt noen prøver, bare sender grunnleggende målinger, eller har
-foreldede detaljerte data.
-
-### Konfigurasjon og TLS
-
-Konfigurer `/etc/default/lums-agent` med server-URL-en og det individuelle
-klienttokenet:
-
-```sh
-LUMS_BASE=https://lums.example.invalid
-LUMS_TOKEN=REPLACE_WITH_THIS_CLIENTS_TOKEN
-LUMS_CA_FILE=/etc/ssl/certs/lums-ca.crt
-```
-
-Erstatt eksempel-URL-en og tokenet med de faktiske verdiene for miljøet.
-Beskytt konfigurasjonsfilen slik at bare root kan lese den, for eksempel med
-modus `0600`. Commit aldri et ekte token til kildekodekontroll og del det ikke mellom
-klienter.
-
-Valgfritt kan du velge hvilke systemd-tjenesteenheter som skal rapporteres, med en
-kommaseparert tillatelsesliste:
-
-```sh
-LUMS_MONITORED_SERVICES=lums-agent.service,lums-telemetry.service,ssh.service,wazuh-agent.service,suricata.service
-```
-
-Hvis den ikke er satt, bruker agenten sin innebygde liste over LUMS-, Docker- og SSH-tjenester.
-Wazuh og Suricata er valgfrie: legg bare til tjenesteenheter som er installert på
-klienten, og aktiver deretter statusradene deres i `/health`-dashbordet. Dette rapporterer
-bare systemd-tilstand; det krever eller lagrer ikke API-legitimasjon og henter ikke
-sikkerhetsvarselstrømmer.
-
-Hvis en privat sertifiseringsinstans kreves, installer dens sertifikat på
-en sti som kan leses av tjenesteprosessen, for eksempel
-`/etc/ssl/certs/lums-ca.crt`, og sett `LUMS_CA_FILE` tilsvarende. Ikke
-deaktiver sertifikatverifisering. Når `LUMS_CA_FILE` ikke er satt, bruker agenten operativsystemets
-standard CA-klareringslager. Hvis en privat CA kreves, sett eksplisitt
-`LUMS_CA_FILE` til en eksisterende CA-sertifikatfil som kan leses av tjenesteprosessen.
-En eksplisitt konfigurert, men manglende eller uleselig CA-fil får agenten til å feile
-i stedet for stille å falle tilbake til et annet klareringslager.
-Ikke deaktiver sertifikatverifisering og ikke svekk katalogtillatelser for å
-omgå problemer med sertifikatkonfigurasjonen.
-
-### Validering før aktivering
-
-Kjør først prosjekttestene og verifiser enhetsfilene:
-
-```sh
-.venv/bin/python -m pytest -q tests/test_telemetry.py tests/test_telemetry_agent.py
-systemd-analyze verify agent/lums-telemetry.service agent/lums-telemetry.timer
-```
-
-På en testklient, installer filene og konfigurasjonen, last systemd på nytt og
-kjør tjenesten manuelt før du aktiverer timeren. Bekreft vellykket
-autentisering og innkommende prøver i dashbordet. Aktiver først deretter
-timeren på den testklienten. Ikke aktiver den på produksjonsklienter før
-utgivelsen på serversiden er gjennomgått og godkjent.
-
-Agenten rapporterer hvert femte sekund. Serveren beholder målinger i
-sju dager, og dashbord-API-et returnerer høyst 1 000 jevnt fordelte prøver
-per forespurt historikkvindu, med bevaring av den første og den nyeste prøven.
+The logical operation is:
+En Viewer må ikke

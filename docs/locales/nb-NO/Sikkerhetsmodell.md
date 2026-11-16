@@ -1,212 +1,322 @@
-# LUMS Sikkerhetsdokumentasjon
+# LUMS sikkerhetsdokumentasjon
 
-**LUMS — Linux Update Management Server**
+**LUMS — Linux-oppdateringshåndteingsserver**
 
-Dette dokumentet beskriver gjeldende sikkerhetsarkitektur, implementerte sikkerhetskontroller, resultater fra sikkerhetsrevisjonen, driftsbegrensninger og sikkerhetsrelaterte designbeslutninger i LUMS.
+Dette dokumentet beskriver gjeldende sikkerhetsarkitektur, implementerte sikkerhetskontroller, sikkerhetskontrollresultater, operasjonelle begrensninger og sikkerhetsrelaterte designbeslutninger av LUMS.
 
-Dokumentet gjenspeiler **den nåværende implementerte systemtilstanden**. Planlagte eller fremtidige forbedringer er eksplisitt identifisert som sådan.
+Dokumentet gjenspeiler **gjeldende implementert systemtilstand**. Planlagte eller fremtidige forbedringer identifiseres eksplisitt som sådan.
 
 ---
 
-# Sikkerhetsprinsipper
+# Sikkerhetsprinsipp
 
-LUMS følger en dybdeforsvarstilnærming for Linux-oppdateringsadministrasjon.
+LUMS følger en forsvarsstrategi i dybden for Linux-oppdateringshåndtering.
 
-Sikkerhetsmodellen skiller administrativ autentisering, klientautentisering, autorisasjon, kontrollert oppdateringskjøring og revisjonslogging.
+Sikkerhetsmodellen skiller administrativ autentisering, klientautentisering, autorisering, kontrollert oppdateringskjøring og revisjonslogging.
 
 De primære sikkerhetsmålene er:
 
 * autentisert administrativ tilgang
-* rollebasert autorisasjon
+* rollbasert autorisasjon
 * autentisert klientkommunikasjon
 * kontrollert oppdateringskjøring
 * beskyttelse mot samtidig jobbkjøring
-* gjenopprettbare oppdateringsjobber
+* gjenopprettbare oppdatateringsjobber
 * beskyttede hemmeligheter
-* kontrollert containerkjøring
-* reviderbare sikkerhetsfølsomme operasjoner
+* kontrollert beholderkjøring
+* reviderbäre sikkerhetsfølsomme operasjoner
 * forutsigbar feilhåndtering
-* sikkerhetsregresjonstesting
+* sikkerhet regresjonsprøving
 
-LUMS er først og fremst ment for kontrollerte infrastruktur-, laboratorie- og interne nettverksmiljøer.
+LUMS er ment primært for kontrollert infrastruktur, laboratorium- og interne nettverksmiljøer.
 
-Det bør ikke eksponeres direkte mot det offentlige internett uten en ekstra sikkerhetsgjennomgang og passende nettverkskontroller.
+Det bør ikke eksponeres direkte til det offentlige Internett uten en ekstra sikkerhetsgjennomgang og passende nettverkskontroller.
 
 ---
 
 # Sikkerhetsarkitektur
 
-LUMS består av følgende sikkerhetsrelevante komponenter:
+LUMS består av følgende sikkerhetsrelaterte komponenter:
 
-* Web-administrasjonsgrensesnitt
+* Grensesnitt for webadministrasjon
 * REST API
-* SQLite-database
+* SQLite database
 * LUMS Agent på administrerte klienter
-* APT- og pacman-pakkebehandlerbackender
-* Oppdateringsjobb- og gjenopprettingsmekanismer
+* Backends for pakkeadministrasjon via APT og pacman
+* Mekanismer for oppdateringsarbeid og gjenoppretting
 * Nginx HTTPS omvendt proxy
-* Herdet Docker-container
+* Styrket Docker-beholder
 
 Den grunnleggende administrasjonsflyten er:
 
 Browser → HTTPS/Nginx → LUMS API → SQLite → LUMS Agent → Package Manager → Result → SQLite → Web UI
 
-Autentisering og autorisasjon er bevisst atskilt.
+Autentisering og autorisering er bevisst separert.
 
-En gyldig autentisert økt gir ikke automatisk tilgang til hver administrativ operasjon.
+En gyldig autentisert økt gir ikke automatisk tilgang til alle administrative operasjoner.
 
-Autorisasjon håndheves på serversiden. Webgrensesnittet skjuler i tillegg funksjoner som ikke er tilgjengelige for gjeldende rolle, men UI-synlighet behandles aldri som en sikkerhetsgrense.
+Autorisering håndheves serverside. Webgrensesnittet skjuler også funksjoner som ikke er tilgjengelige for gjeldende rolle, men brukergrensesnittvisibilitet behandles aldri som en sikkerhetgrense.
 
 ---
 
-## Administrativ autentisering
+## Administrativ Autentisering
 
-Administrative brukere autentiserer seg gjennom LUMS-webgrensesnittet.
+Administrative brukere autentiserer seg gjennom LUMS webgrensesnitt.
 
-Passord lagres aldri i klartekst. LUMS bruker Argon2-basert passordhashing for passordlagring.
+Passord lagres aldri i ren tekst. LUMS bruker Argon2-basert passord-hashing for passordlagring.
 
 Administrative økter bruker:
 
-* autentisert økthåndtering på serversiden
-* øktutløp
-* øktregenerering
-* CSRF-beskyttelse for tilstandsendrende nettleserforespørsler
-* hastighetsbegrensning for innlogging
-* øktugyldiggjøring under utlogging
-* server-side rollevalidering
+* autentisert serverside-sesjonsbehandling
+* sesjonsutløp
+* sesjonsgjenoppretting
+* CSRF-beskyttelse for statendringsbrowserforespørsler
+* påloggingshastighetsgrense
+* sesjonsannullering ved utlogging
+* serverside-rollevalidering
 
-Autentisering og autorisasjon forblir separate sikkerhetskontroller.
+Autentisering og autorisering forblir separate sikkerhetskontroller.
 
 En vellykket autentisert bruker må fortsatt ha den nødvendige tillatelsen
 for beskyttede operasjoner.
 
 ---
 
-# Rollebasert tilgangskontroll
+# Rollebasert Tilgangskontroll
 
-LUMS støtter for tiden tre web-brukerroller:
+LUMS currently supports three web-user roles:
 
 * `administrator`
-* `operator`
-* `viewer`
+* `operatør`
+* `seer`
 
-Rollemaler lagres i `users.role`; individuelle tillatelser lagres
-på serversiden i `user_permissions`.
+Role templates are stored in `users.role`; individual permissions are stored
+server-side in `user_permissions`.
 
-Serveren laster de effektive tillatelsene for hver autentiserte konto.
-Informasjon om klienttillatelser styrer bare presentasjonen og erstatter
-aldri autorisasjon på serversiden.
+The server loads the effective permissions for each authenticated account.
+Client-side permission information controls presentation only and never
+replaces server-side authorization.
 
 ## Administrator
 
-Administratorer har full administrativ og operativ tilgang.
+Administrators have full administrative and operational access.
 
-De kan:
+They can:
 
-* vise klienter
-* opprette klienter
-* deaktivere klienter
-* rotere klienttokener
-* vise installerte pakker og tilgjengelige oppdateringer
-* opprette oppdateringsjobber
-* utføre støttede oppdateringsoperasjoner
-* vise oppdateringsjobhistorikk
-* bruke pakkeadministrasjon
-* bruke systemvedlikeholdsfunksjoner
-* administrere brukere
-* administrere brukerroller
-* få tilgang til administrative funksjoner
+* view clients
+* create clients
+* disable clients
+* rotate client tokens
+* view installed packages and available updates
+* create update jobs
+* execute supported update operations
+* view update-job history
+* use package management
+* use system-maintenance functions
+* manage users
+* manage user roles
+* access administrative functions
 
 ## Operator
 
-Operatorer kan utføre operative oppdateringsadministrasjonsoppgaver.
+Operators can perform operational update-management tasks.
 
-De kan:
+They can:
 
-* vise klienter
-* vise installerte pakker og tilgjengelige oppdateringer
-* opprette oppdateringsjobber
-* utføre støttede oppdateringsoperasjoner
-* vise oppdateringsjobhistorikk
-* bruke pakkeadministrasjon
-* bruke systemvedlikeholdsfunksjoner
+* view clients
+* view installed packages and available updates
+* create update jobs
+* execute supported update operations
+* view update-job history
+* use package management
+* use system-maintenance functions
 
-Operatorer kan ikke:
+Operators cannot:
 
-* administrere brukere
-* endre brukerroller
-* opprette klienter
-* deaktivere klienter
-* rotere klienttokener
+* manage users
+* change user roles
+* create clients
+* disable clients
+* rotate client tokens
 
 ## Viewer
 
-Viewers har begrenset skrivebeskyttet tilgang.
+Viewers have restricted read-only access.
 
-De kan:
+They can:
 
-* vise klienter
-* vise installert programvare
+* view clients
+* view installed software
 
-Følgende administrasjonsområder er skjult for Viewer-kontoer:
+The following management areas are hidden from Viewer accounts:
 
-* Oppdateringer
-* Oppdateringsjobber
-* Oppdateringshistorikk
-* Pakkeadministrasjon
-* Systemvedlikehold
+* Updates
+* Update Jobs
+* Update History
+* Package Management
+* System Maintenance
 
-Viewer-kontoer kan ikke utføre tilstandsendrende oppdateringsadministrasjonsoperasjoner.
+Viewer accounts cannot perform state-changing update-management operations.
 
-Serveren håndhever disse begrensningene uavhengig gjennom autentisering
-og tillatelseskontroller per bruker.
+The server independently enforces these restrictions through authentication
+and per-user permission checks.
 
 ---
 
 # Klientautentisering
 
-Hver administrert LUMS-klient bruker et individuelt Bearer-token.
+Every managed LUMS client uses an individual Bearer token.
 
-Autentiseringsmekanismen følger modellen:
+The authentication mechanism follows the model:
 
 `Authorization: Bearer <CLIENT_TOKEN>`
 
-Serveren lagrer ikke klienttokener som klartekstverdier.
+The server does not store client tokens as plaintext values.
 
-I stedet lagrer LUMS et SHA-256 heksadesimalt sammendrag av klienttokenet.
+Instead, LUMS stores a SHA-256 hexadecimal digest of the client token.
 
-Autentiseringsflyten er:
+The authentication flow is:
 
 Client Token → SHA-256 → Token Digest → SQLite
 
-Klientautentisering verifiserer det autentiserte tokenet mot den registrerte klienten og sjekker i tillegg den relevante klienttilstanden.
+Client authentication verifies the authenticated token against the registered client and additionally checks the relevant client state.
 
-Sikkerhetsmodellen bruker ikke en kilde-IP-adresse som eneste bevis på klientidentitet.
+The security model does not use a source IP address as the sole proof of client identity.
 
-Dette lar LUMS operere i:
+This allows LUMS to operate in:
 
-* private laboratorienettverk
-* isolert infrastruktur
-* NAT-baserte nettverk
-* offline-miljøer
-* nettverk der klientadresser kan endre seg
+* private laboratory networks
+* isolated infrastructure
+* NAT-based networks
+* offline environments
+* networks where client addresses may change
 
-Klienttokener kan roteres av autoriserte administratorer.
+Client tokens can be rotated by authorized administrators.
 
-En tokenrotasjon genererer et erstatningstoken, lagrer bare sammendraget, ugyldiggjør det forrige tokenet, registrerer den administrative handlingen i revisjonsloggen og presenterer erstatningstokenet én gang.
+A token rotation generates a replacement token, stores only its digest, invalidates the previous token, records the administrative action in the audit log, and presents the replacement token once.
 
-Klartekstverdier for klienttokener skrives ikke til revisjonsoppføringer.
+Plaintext client-token values are not written to audit records.
+
+---
+
+# Telemetrisikkerhet
+
+Telemetry data (CPU, memory, network metrics) is subject to the same authentication and authorization model as other client-side components.
+
+## Telemetry Submission
+
+Telemetry samples are submitted via `POST /api/telemetry` and require:
+
+* Client authentication using the same client token as update reporting
+* HTTPS for remote connections (plain HTTP only for `127.0.0.1`, `localhost`, `::1`)
+* Optional CA certificate verification for custom certificate authorities
+
+The telemetry endpoint validates:
+
+* Client token authentication against the stored SHA-256 digest
+* Payload structure and field types
+* Numeric ranges (CPU and memory 0-100%, bytes non-negative)
+* Sample freshness (rejects samples with excessively old or future timestamps)
+
+Invalid payloads are rejected with appropriate HTTP status codes.
+
+The client token is not included in the JSON payload and is not logged in agent output.
+
+## Telemetry Access Control
+
+Telemetry history and fleet overview queries require the `clients.view` permission.
+
+The following endpoints require authentication:
+
+* `GET /api/telemetry/history/<client_id>?hours=1-168` - client history
+* `GET /api/telemetry/overview` - fleet summary
+
+Unauthenticated or unauthorized requests are rejected.
+
+## Telemetry Data Classification
+
+Telemetry contains system resource metrics only:
+
+* CPU utilization percentage
+* Memory utilization percentage and bytes
+* Network byte counters (cumulative, no payload data)
+
+Telemetry does **not** contain:
+
+* Package-management operations
+* Command output or logs
+* User activity
+* File contents
+* Network packet data
+* Private configuration values
+
+This data classification limits telemetry to resource-utilization metrics appropriate for operational monitoring.
+
+## Data Storage and Retention
+
+Telemetry samples are stored in the `telemetry_samples` table with the following schema:
+
+```sql
+CREATE TABLE telemetry_samples (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    client_id INTEGER NOT NULL,
+    timestamp TEXT NOT NULL,
+    cpu_percent REAL NOT NULL,
+    memory_percent REAL NOT NULL,
+    memory_total_bytes INTEGER NOT NULL,
+    memory_available_bytes INTEGER NOT NULL,
+    network_rx_bytes INTEGER,
+    network_tx_bytes INTEGER,
+    FOREIGN KEY (client_id) REFERENCES clients(id)
+)
+```
+
+Data older than 7 days is automatically removed during the processing of new telemetry submissions.
+
+Telemetry data is subject to the same backup and encryption considerations as the rest of the LUMS database.
+
+Backups are not encrypted by LUMS; use host-level encryption or separate backup encryption where required.
 
 ---
 
 # Sikkerhetsrevisjon
 
-Sikkerhetsrevisjonen utføres trinnvis.
+Sikkerhetsvurderingen utføres trinnvis.
 
-Hvert revisjonsområde gjennomgås mot den faktiske implementasjonen, etterfulgt av automatiserte tester, isolert verifisering eller produksjonsverifisering der det er relevant.
+Hvert revisjonsfelt vurderes mot faktisk implementering, fulgt av automatiserte tester, isolert verifisering eller produksjonsverifisering der aktuelt.
 
-Gjeldende revisjonsområder:
+Gjeldende revisjonsfelt:
 
+| Audit | Area                                   | Status                    |
+| ----- | -------------------------------------- | ------------------------- |
+| #01   | SQLite Foreign Keys                    | PASS                      |
+| #02   | SQLite Runtime Configuration           | PASS                      |
+| #03   | Update Timeout Handling                | PASS                      |
+| #04   | Login Rate Limiting                    | PASS                      |
+| #05   | API Input Validation                   | PASS                      |
+| #06   | Session Revocation                     | PASS                      |
+| #07   | Client Token Rotation                  | PASS                      |
+| #08   | IP Address Handling / Offline Networks | PASS                      |
+| #09   | Job Recovery / Checkpointing           | PASS                      |
+| #10   | APT Robustness                         | PASS                      |
+| #11   | Arch Reboot Detection                  | PASS                      |
+| #12   | Unit Tests / API Result Validation     | PASS                      |
+| #13   | Simulation Tests                       | PASS                      |
+| #14   | Continuous Integration                 | PASS                      |
+| #15   | Application / Audit Logging            | PASS                      |
+| #16   | Versioning / Releases                  | REVIEWED — OPEN BY DESIGN |
+| #17   | Rollebasert Tilgangskontroll              | PASS                      |
+| #18   | Documentation Review                   | IN PROGRESS               |
+
+Revisjon #16 er bevisst annerledes enn de tekniske sikkerhetskontrollene ovenfor.
+
+LUMS har for øyeblikket ingen offisiell stabil versjon, ingen versjonsetikett og ingen GitHub-versjon. Dette er bevisst fordi prosjektet fortsatt er under aktiv utvikling.
+
+Revisjon #18 forblir åpen til hele dokumentasjonssettet er gjennomgått og synkronisert med gjeldende implementering.
+
+# Sikkerhetsrevisjon #01
+
+## SQLite fremmednøkler
 | Revisjon | Område                                   | Status                    |
 | -------- | ---------------------------------------- | ------------------------- |
 | #01      | SQLite-fremmednøkler                      | BESTÅTT |
@@ -233,26 +343,26 @@ Utgivelsesinformasjon er tidsavhengig. Kontroller gjeldende GitHub-utgivelser og
 
 ## SQLite-fremmednøkler
 
-SQLite-fremmednøkkelhåndheving er aktivert for applikasjonsdatabaseforbindelser.
+SQLite foreign-key enforcement is enabled for application database connections.
 
-Applikasjonen aktiverer eksplisitt:
+The application explicitly enables:
 
 `PRAGMA foreign_keys = ON`
 
-Dette sikrer at referanseintegritet håndheves for relasjoner mellom relaterte databaseregistreringer.
+This ensures that referential integrity is enforced for relationships between related database records.
 
-Revisjonen verifiserte:
+The audit verified:
 
-* håndheving av fremmednøkler ved kjøring
-* fremmednøkkelintegritet
-* klientlivssyklusatferd
-* klientdeaktiveringsatferd
-* bevaring av historisk jobbinformasjon
-* bevaring av revisjonsinformasjon
+* runtime foreign-key enforcement
+* foreign-key integrity
+* client lifecycle behavior
+* client disable behavior
+* preservation of historical job information
+* preservation of audit information
 
-Klienttilstand håndteres konservativt.
+Client state is handled conservatively.
 
-Der det er hensiktsmessig, deaktiveres klienter i stedet for å fjernes på en måte som ville ødelegge historisk driftsinformasjon.
+Where appropriate, clients are disabled rather than removed in a way that would destroy historical operational information.
 
 **Status: BESTÅTT**
 
@@ -262,27 +372,27 @@ Der det er hensiktsmessig, deaktiveres klienter i stedet for å fjernes på en m
 
 ## SQLite-kjøretidskonfigurasjon
 
-Produksjons-SQLite-databasen ble gjennomgått for sin kjøringskonfigurasjon.
+The production SQLite database was reviewed for its runtime configuration.
 
-Den verifiserte produksjonskonfigurasjonen er:
+The verified production configuration is:
 
 * `journal_mode`: `wal`
 * `busy_timeout`: `5000`
 * `synchronous`: `2`
 
-Applikasjonen aktiverer eksplisitt:
+The application explicitly enables:
 
 `PRAGMA foreign_keys = ON`
 
-Produksjonsdatabasen bruker for øyeblikket WAL-modus.
+The production database currently uses WAL mode.
 
-Databasekonfigurasjonen ble dokumentert basert på den faktiske verifiserte produksjonstilstanden i stedet for den historiske utviklingskonfigurasjonen.
+The database configuration was documented based on the actual verified production state rather than the historical development configuration.
 
-Den konfigurerte busy timeout reduserer umiddelbare databasefeil når en annen transaksjon midlertidig holder databasen.
+The configured busy timeout reduces immediate database failures when another transaction temporarily holds the database.
 
-Innstillingen for fremmednøkler på applikasjonsnivå sikrer referanseintegritet for hver databaseforbindelse.
+The application-level foreign-key setting ensures referential integrity for each database connection.
 
-Revisjonen inkluderte produksjonsverifisering av den aktive SQLite-konfigurasjonen.
+The audit included production verification of the active SQLite configuration.
 
 **Status: BESTÅTT**
 
@@ -292,9 +402,9 @@ Revisjonen inkluderte produksjonsverifisering av den aktive SQLite-konfigurasjon
 
 ## Tidsavbrudd for oppdateringer og prosesshåndtering
 
-Oppdateringskjøring er beskyttet mot pakkebehandlerprosesser som blokkerer på ubestemt tid.
+Update execution is protected against indefinitely blocking package-manager processes.
 
-Kjøringsflyten er:
+The execution flow is:
 
 Start process
 ↓
@@ -314,22 +424,22 @@ Kill process if required
 ↓
 Complete job
 
-Implementasjonen bruker kontrollert subprocess-håndtering slik at stille prosesser ikke kan blokkere på ubestemt tid mens de venter på utdata.
+The implementation uses controlled subprocess handling so that silent processes cannot block indefinitely while waiting for output.
 
-Tidsavbruddshåndtering ble testet mot:
+Timeout handling was tested against:
 
-* stille prosesser
-* normal prosessfullføring
-* tidsavbruddsforhold
-* prosesser som er motstandsdyktige mot normal terminering
-* kill-fallback
-* tidsavbruddsatferd på integrasjonsnivå
+* silent processes
+* normal process completion
+* timeout conditions
+* processes resistant to normal termination
+* kill fallback
+* integration-level timeout behavior
 
-Tidsavbruddsmekanismen forhindrer at en pakkeadministrasjonsoperasjon forblir på ubestemt tid i en aktiv tilstand.
+The timeout mechanism prevents a package-management operation from remaining indefinitely in an active state.
 
-Feil og tidsavbruddsforhold returneres som kontrollerte jobbresultater og registreres i jobbtilstanden.
+Errors and timeout conditions are returned as controlled job results and are recorded in the job state.
 
-Den gjeldende dokumenterte LUMS Agent-versjonen er:
+The current documented LUMS Agent version is:
 
 `1.7.0`
 
@@ -341,45 +451,51 @@ Den gjeldende dokumenterte LUMS Agent-versjonen er:
 
 ## Hastighetsbegrensning for innlogging
 
-Administrative innloggingsforsøk er hastighetsbegrenset.
+Administrative login attempts are rate limited.
 
-Gjeldende eskaleringspolicy er:
+The current escalation policy is:
 
-* 5 mislykkede forsøk → 30 sekunder
-* 6 mislykkede forsøk → 60 sekunder
-* 7 mislykkede forsøk → 120 sekunder
-* 8 eller flere mislykkede forsøk → 300 sekunder
+* 5 failed attempts → 30 seconds
+* 6 failed attempts → 60 seconds
+* 7 failed attempts → 120 seconds
+* 8 or more failed attempts → 300 seconds
 
-Tilstanden for hastighetsbegrensning lagres i SQLite.
+The rate-limit state is persisted in SQLite.
 
-Samtidige innloggingsfeil bruker transaksjonell databaselåsing med:
+Concurrent login failures use transactional database locking with:
 
 `BEGIN IMMEDIATE`
 
-Dette forhindrer at samtidige autentiseringsfeil omgår den tiltenkte tilstanden for hastighetsbegrensning gjennom race conditions.
+This prevents concurrent authentication failures from bypassing the intended rate-limit state through race conditions.
 
-En vellykket autentisering sletter gjeldende feiltilstand.
+A successful authentication clears the applicable failure state.
 
-Revisjonen dekket:
+The audit covered:
 
-* isolert hastighetsbegrensningsatferd
-* samtidige autentiseringsfeil
-* transaksjonsrollback
-* håndtering av databaselås
-* tilbakestillingsatferd ved vellykket innlogging
-* revisjonshendelser for hastighetsbegrensning
-* produksjonsinnloggingsatferd
+* isolated rate-limit behavior
+* concurrent authentication failures
+* transaction rollback
+* database-lock handling
+* successful-login reset behavior
+* rate-limit audit events
+* production login behavior
 
-Hastighetsbegrenseren gir derfor en kontroll på serversiden mot gjentatte autentiseringsforsøk i stedet for å stole på klientsidens atferd.
+The rate limiter therefore provides a server-side control against repeated authentication attempts rather than relying on client-side behavior.
 
 **Status: BESTÅTT**
 
 ---
 
-# Revisjonsstatus etter del 2
+# Audit Status After Part 2
 
-De fire første sikkerhetsrevisjonsområdene er fullført:
+The first four security audit areas are complete:
 
+| Audit | Area                              | Status |
+| ----- | --------------------------------- | ------ |
+| #01   | SQLite Foreign Keys               | PASS   |
+| #02   | SQLite Runtime Configuration      | PASS   |
+| #03   | Update Timeout / Process Handling | PASS   |
+| #04   | Login Rate Limiting               | PASS   |
 | Revisjon | Område                            | Status |
 | -------- | --------------------------------- | ------ |
 | #01      | SQLite-fremmednøkler               | BESTÅTT |
@@ -387,8 +503,23 @@ De fire første sikkerhetsrevisjonsområdene er fullført:
 | #03      | Tidsavbrudd / prosesshåndtering for oppdateringer | BESTÅTT |
 | #04      | Hastighetsbegrensning for innlogging               | BESTÅTT |
 
-Følgende revisjonsområder er dokumentert i de påfølgende avsnittene:
+The following audit areas are documented in the subsequent sections:
 
+* #05 API Input Validation
+* #06 Session Revocation
+* #07 Client Token Rotation
+* #08 IP Address Handling / Offline Networks
+* #09 Job Recovery / Checkpointing
+* #10 APT Robustness
+* #11 Arch Reboot Detection
+* #12 Unit Tests / API Result Validation
+* #13 Simulation Tests
+* #14 Continuous Integration
+* #15 Application / Audit Logging
+* #16 Versioning / Releases
+* #17 Rollebasert Tilgangskontroll
+
+Audit #18 — Documentation Review — remains open until the complete documentation set has been reviewed and synchronized with the current implementation.
 * #05 Validering av API-inndata
 * #06 Tilbakekalling av økter
 * #07 Rotasjon av klienttokener
@@ -409,45 +540,45 @@ Dokumentasjonen vedlikeholdes løpende mot faktisk implementasjon og konfigurasj
 
 ## Validering av API-inndata
 
-LUMS validerer sikkerhetsfølsom API-input på serversiden.
+LUMS validates security-sensitive API input on the server side.
 
-Klientleverte verdier er ikke klarert bare fordi de kommer fra det autentiserte webgrensesnittet eller en registrert klient.
+Client-supplied values are not trusted simply because they originate from the authenticated web interface or a registered client.
 
-Validering brukes på relevante API-parametere, inkludert:
+Validation is applied to relevant API parameters, including:
 
-* klientidentifikatorer
-* pakkenavn
-* oppdateringsjobbhandlinger
-* pakkelister
-* søkeparametere
-* brukeradministrasjonsparametere
-* klienttokenoperasjoner
-* jobbresultatdata
+* client identifiers
+* package names
+* update-job actions
+* package lists
+* search parameters
+* user-management parameters
+* client-token operations
+* job-result data
 
-Pakkenavn valideres før de sendes til pakkeadministrasjonsoperasjoner.
+Package names are validated before they are passed to package-management operations.
 
-API-et for oppdateringsjobber godtar bare eksplisitt støttede handlinger.
+The update-job API accepts only explicitly supported actions.
 
-De for øyeblikket støttede pakkerelaterte handlingene er:
+The currently supported package-related actions are:
 
 * `INSTALL_PACKAGE`
 * `REMOVE_PACKAGE`
 * `UPDATE_PACKAGE`
 * `UPDATE_SYSTEM`
 
-Uventede handlinger avvises.
+Unexpected actions are rejected.
 
-Pakkelister valideres før jobbopprettelse.
+Package lists are validated before job creation.
 
-For `UPDATE_PACKAGE` må den forespurte pakken også være til stede i klientens informasjon om tilgjengelige oppdateringer.
+For `UPDATE_PACKAGE`, the requested package must also be present in the client's available-update information.
 
-Databasespørringer bruker parameterisert SQL i stedet for å konstruere SQL-setninger fra uklarert input.
+Database queries use parameterized SQL rather than constructing SQL statements from untrusted input.
 
-Dette forhindrer at brukerkontrollerte verdier tolkes som SQL-syntaks.
+This prevents user-controlled values from being interpreted as SQL syntax.
 
-Revisjonen inkluderte negativ inputtesting og SQL-injeksjonsorienterte testtilfeller.
+The audit included negative input testing and SQL-injection-oriented test cases.
 
-Valideringskontrollene ble også verifisert gjennom det automatiserte testsettet.
+The validation controls were also verified through the automated test suite.
 
 **Status: BESTÅTT**
 
@@ -457,32 +588,32 @@ Valideringskontrollene ble også verifisert gjennom det automatiserte testsettet
 
 ## Tilbakekalling av økter
 
-LUMS beskytter autentiserte administrative økter mot fortsatt bruk etter utlogging.
+LUMS protects authenticated administrative sessions against continued use after logout.
 
-Økthåndtering inkluderer:
+Session handling includes:
 
-* autentiserte økter på serversiden
-* øktutløp
-* øktregenerering
-* ugyldiggjøring ved utlogging
-* autentiseringskontroller på serversiden
-* rollevalidering på serversiden
+* authenticated server-side sessions
+* session expiration
+* session regeneration
+* logout invalidation
+* server-side authentication checks
+* server-side role validation
 
-Utlogging ugyldiggjør den aktive autentiserte økten.
+Logging out invalidates the active authenticated session.
 
-Beskyttede API-endepunkter krever en autentisert økt og er ikke avhengige av klienttilstand for å avgjøre om brukeren fortsatt er autentisert.
+Protected API endpoints require an authenticated session and do not rely on client-side state to determine whether the user remains authenticated.
 
-Økttilstand evalueres derfor av serveren for beskyttede operasjoner.
+Session state is therefore evaluated by the server for protected operations.
 
-Tilstandsendrende nettleserforespørsler krever i tillegg CSRF-beskyttelse.
+State-changing browser requests additionally require CSRF protection.
 
-Revisjonen verifiserte at:
+The audit verified that:
 
-* autentisert tilgang fungerer normalt
-* beskyttede endepunkter avviser uautentiserte forespørsler
-* utlogging ugyldiggjør den aktive økten
-* en tidligere autentisert økt ikke kan fortsette å bruke beskyttet funksjonalitet etter tilbakekalling
-* rolleinformasjon evalueres på serversiden
+* authenticated access works normally
+* protected endpoints reject unauthenticated requests
+* logout invalidates the active session
+* a previously authenticated session cannot continue using protected functionality after revocation
+* role information is evaluated server-side
 
 **Status: BESTÅTT**
 
@@ -492,47 +623,47 @@ Revisjonen verifiserte at:
 
 ## Rotasjon av klienttokener
 
-Hver administrert LUMS-klient bruker et individuelt autentiseringstoken.
+Each managed LUMS client uses an individual authentication token.
 
-Klienttokener lagres ikke som klartekstverdier.
+Client tokens are not stored as plaintext values.
 
-I stedet lagrer LUMS SHA-256 heksadesimalt sammendrag av klienttokenet.
+Instead, LUMS stores the SHA-256 hexadecimal digest of the client token.
 
-Autentiseringsmodellen er:
+The authentication model is:
 
 `Authorization: Bearer <CLIENT_TOKEN>`
 
-Serveren hasher det angitte tokenet og sammenligner det resulterende sammendraget med det registrerte klienttokensammendraget.
+The server hashes the supplied token and compares the resulting digest with the registered client token digest.
 
-Autoriserte administratorer kan rotere en klients token.
+Authorized administrators can rotate a client's token.
 
-Tokenrotasjon utfører følgende operasjoner:
+Token rotation performs the following operations:
 
-1. Generer et erstatningstoken.
-2. Beregn dets SHA-256-sammendrag.
-3. Erstatt det lagrede klienttokensammendraget.
-4. Ugyldiggjør det forrige tokenet.
-5. Registrer den administrative handlingen i revisjonsloggen.
-6. Presenter erstatningstokenet for administratoren.
+1. Generate a replacement token.
+2. Calculate its SHA-256 digest.
+3. Replace the stored client-token digest.
+4. Invalidate the previous token.
+5. Record the administrative action in the audit log.
+6. Present the replacement token to the administrator.
 
-Det forrige tokenet kan ikke autentisere etter rotasjon.
+The previous token cannot authenticate after rotation.
 
-Klarteksttokenverdier skrives ikke til revisjonslogger.
+Plaintext token values are not written to audit logs.
 
-Revisjonen verifiserte:
+The audit verified:
 
-* vellykket tokenautentisering
-* lagring av tokensammendrag
-* tokenrotasjon
-* ugyldiggjøring av det forrige tokenet
-* autentisering med erstatningstokenet
-* autorisasjonskrav for tokenrotasjon
-* revisjonslogging
-* beskyttelse mot uautorisert rotasjon
+* successful token authentication
+* token digest storage
+* token rotation
+* invalidation of the previous token
+* authentication with the replacement token
+* authorization requirements for token rotation
+* audit logging
+* protection against unauthorized rotation
 
-Klienttokenrotasjon er begrenset til administratorer.
+Client token rotation is restricted to administrators.
 
-Operatorer og viewers kan ikke rotere klienttokener.
+Operators and seers cannot rotate client tokens.
 
 **Status: BESTÅTT**
 
@@ -542,47 +673,57 @@ Operatorer og viewers kan ikke rotere klienttokener.
 
 ## Håndtering av IP-adresser og frakoblede nettverk
 
-LUMS bruker ikke en klients kilde-IP-adresse som eneste bevis på klientidentitet.
+LUMS does not use a client's source IP address as the sole proof of client identity.
 
-Klientautentisering er basert på det registrerte klienttokenet.
+Client authentication is based on the registered client token.
 
-Dette designet er tilsiktet fordi administrerte klienter kan operere i miljøer der nettverksadressen deres endres.
+This design is intentional because managed clients may operate in environments where their network address changes.
 
-Støttede distribusjonsscenarier inkluderer:
+Supported deployment scenarios include:
 
-* private laboratorienettverk
-* NAT-baserte nettverk
-* isolert infrastruktur
-* klienter med dynamisk adressering
-* offline-miljøer
-* kontrollerte interne nettverk
+* private laboratory networks
+* NAT-based networks
+* isolated infrastructure
+* dynamically addressed clients
+* offline environments
+* controlled internal networks
 
-Serveren skiller derfor:
+The server therefore separates:
 
-**Nettverksplassering**
+**Network location**
 
-fra:
+from:
 
-**Klientidentitet**
+**Client identity**
 
-Et gyldig klienttoken identifiserer den registrerte klienten.
+A valid client token identifies the registered client.
 
-Klientens nettverksadresse kan fortsatt registreres for drifts- og revisjonsformål, men den behandles ikke som en autentiseringslegitimasjon.
+The client's network address may still be recorded for operational and audit purposes, but it is not treated as an authentication credential.
 
-Implementasjonen unngår også antakelser om at en klient må være tilgjengelig fra en fast adresse.
+The implementation also avoids assumptions that a client must be reachable from a fixed address.
 
-Dette er spesielt viktig for laboratoriemiljøer og infrastruktur der nettverkstopologien kan endres uten å endre den logiske identiteten til det administrerte systemet.
+This is particularly important for laboratory environments and infrastructure where network topology may change without changing the logical identity of the managed system.
 
-Revisjonen verifiserte klientautentisering uten å stole på en fast kilde-IP-adresse.
+The audit verified client authentication without relying on a fixed source IP address.
 
 **Status: BESTÅTT**
 
 ---
 
-# Revisjonsstatus etter del 3
+# Audit Status After Part 3
 
-Følgende sikkerhetsrevisjonsområder er fullført:
+The following security audit areas are complete:
 
+| Audit | Area                                   | Status |
+| ----- | -------------------------------------- | ------ |
+| #01   | SQLite Foreign Keys                    | PASS   |
+| #02   | SQLite Runtime Configuration           | PASS   |
+| #03   | Update Timeout / Process Handling      | PASS   |
+| #04   | Login Rate Limiting                    | PASS   |
+| #05   | API Input Validation                   | PASS   |
+| #06   | Session Revocation                     | PASS   |
+| #07   | Client Token Rotation                  | PASS   |
+| #08   | IP Address Handling / Offline Networks | PASS   |
 | Revisjon | Område                                 | Status |
 | -------- | -------------------------------------- | ------ |
 | #01      | SQLite-fremmednøkler                    | BESTÅTT |
@@ -594,7 +735,7 @@ Følgende sikkerhetsrevisjonsområder er fullført:
 | #07      | Rotasjon av klienttokener                  | BESTÅTT |
 | #08      | Håndtering av IP-adresser / frakoblede nettverk | BESTÅTT |
 
-Neste avsnitt dekker:
+The next section covers:
 
 * #09 Jobbgjenoppretting / sjekkpunkter
 * #10 APT-robusthet
@@ -605,34 +746,34 @@ Neste avsnitt dekker:
 
 ## Jobbgjenoppretting og sjekkpunkter
 
-LUMS-oppdateringsjobber er utformet for å gjenopprette trygt fra avbrutt kjøring.
+LUMS update jobs are designed to recover safely from interrupted execution.
 
-Oppdateringsjobber vedlikeholder vedvarende tilstand i SQLite-databasen.
+Update jobs maintain persistent state in the SQLite database.
 
-Individuelle pakkeoperasjoner spores separat fra den overordnede jobbtilstanden.
+Individual package operations are tracked separately from the overall job state.
 
-Dette lar agenten avgjøre hvilke pakkeoperasjoner som allerede er fullført vellykket før en avbrutt jobb gjenopptas.
+This allows the Agent to determine which package operations have already completed successfully before an interrupted job is resumed.
 
-Under gjenoppretting utføres ikke allerede vellykkede pakkeoperasjoner på nytt.
+During recovery, successfully completed package operations are not executed again.
 
-Gjenopprettingslogikken følger derfor prinsippet:
+The recovery logic therefore follows the principle:
 
 `Persistent Job State → Determine Completed Work → Skip Completed Items → Continue Remaining Work`
 
-Dette reduserer risikoen for unødvendige gjentatte pakkeoperasjoner etter:
+This reduces the risk of unnecessary repeated package operations after:
 
-* agentavbrudd
-* prosessterminering
-* systemomstart
-* midlertidig kommunikasjonsfeil
-* containeromstart
-* andre kjøringsavbrudd
+* agent interruption
+* process termination
+* system restart
+* temporary communication failure
+* container restart
+* other execution interruptions
 
-Revisjonen verifiserte gjenoppretting av avbrutte jobber og sjekkpunktatferd.
+The audit verified interrupted-job recovery and checkpoint behavior.
 
-Gjenoppretting ble testet med jobber som inneholdt flere pakkeoperasjoner og med tidligere vellykkede pakkeelementer.
+Recovery was tested with jobs containing multiple package operations and with previously successful package items.
 
-Revisjonen bekreftet at fullført arbeid bevares, og at gjenstående arbeid kan fortsette uten unødvendig å gjenta vellykkede operasjoner.
+The audit confirmed that completed work is preserved and remaining work can continue without unnecessarily repeating successful operations.
 
 **Status: BESTÅTT**
 
@@ -642,29 +783,29 @@ Revisjonen bekreftet at fullført arbeid bevares, og at gjenstående arbeid kan 
 
 ## APT-robusthet
 
-Debian-baserte pakkeoperasjoner utføres gjennom LUMS-pakkebehandlerlaget.
+Debian-based package operations are executed through the LUMS package-management layer.
 
-APT-relaterte oppdateringsoperasjoner ble gjennomgått for pålitelig deteksjon av pakkebehandlertilstand og oppdateringsresultater.
+APT-related update operations were reviewed for reliable detection of package-manager state and update results.
 
-Implementasjonen tar høyde for tilfeller der pakkeadministrasjonskommandoer kan returnere vellykket mens de krever ytterligere tolkning av utdataene eller den resulterende systemtilstanden.
+The implementation accounts for cases where package-management commands may return successfully while requiring additional interpretation of their output or resulting system state.
 
-APT-oppdateringsdeteksjon ble herdet for å unngå å stole på en enkelt simplistisk kommando-utdata-betingelse.
+APT update detection was hardened to avoid relying on a single simplistic command-output condition.
 
-Revisjonen inkluderte testing av:
+The audit included testing of:
 
-* normale APT-operasjoner
-* tilgjengelige pakkeoppdateringer
-* pakkeinstallasjon
-* pakkefjerning
-* oppdateringsjobbkjøring
-* APT-resultathåndtering
-* oppdateringsdeteksjonsatferd
+* normal APT operations
+* available package updates
+* package installation
+* package removal
+* update-job execution
+* APT result handling
+* update detection behavior
 
-Den tilsvarende herdingen ble committet som:
+The corresponding hardening was committed as:
 
 `c76f331 security: harden apt update detection`
 
-Målet er å sikre at LUMS ikke feilaktig rapporterer pakkeadministrasjonstilstand utelukkende basert på ufullstendige eller tvetydige kommando-utdata.
+The objective is to ensure that LUMS does not incorrectly report package-management state based solely on incomplete or ambiguous command output.
 
 **Status: BESTÅTT**
 
@@ -674,23 +815,23 @@ Målet er å sikre at LUMS ikke feilaktig rapporterer pakkeadministrasjonstilsta
 
 ## Oppdagelse av omstart på Arch Linux
 
-Arch Linux-pakkeoperasjoner kan resultere i en systemtilstand der en omstart er nødvendig eller anbefalt.
+Arch Linux package operations can result in a system state where a reboot is required or recommended.
 
-LUMS evaluerer derfor den resulterende systemtilstanden etter relevante pakkeadministrasjonsoperasjoner.
+LUMS therefore evaluates the resulting system state after relevant package-management operations.
 
-Agenten skiller normal fullføring av pakkeoperasjonen fra situasjoner der en omstart er nødvendig.
+The Agent distinguishes normal package-operation completion from situations where a reboot is required.
 
-Omstartstilstanden rapporteres tilbake til LUMS-serveren som en del av jobbresultatet.
+The reboot state is reported back to the LUMS server as part of the job result.
 
-Dette lar administrasjonsgrensesnittet skille mellom:
+This allows the management interface to distinguish between:
 
-* vellykket pakkeoperasjon
-* vellykket operasjon med omstartskrav
-* mislykket operasjon
+* successful package operation
+* successful operation with reboot requirement
+* failed operation
 
-Revisjonen verifiserte Arch Linux-omstartsdeteksjon ved hjelp av den faktiske pakkeadministrasjonskjøringsbanen.
+The audit verified Arch Linux reboot detection using the actual package-management execution path.
 
-Implementasjonen ble testet mot forhold der omstart er nødvendig, og normale fullføringsbetingelser.
+The implementation was tested against reboot-required conditions and normal completion conditions.
 
 **Status: BESTÅTT**
 
@@ -700,34 +841,48 @@ Implementasjonen ble testet mot forhold der omstart er nødvendig, og normale fu
 
 ## Enhetstester og validering av API-resultater
 
-Sikkerhetsfølsom atferd er dekket av automatiserte tester.
+Security-sensitive behavior is covered by automated tests.
 
-Testsettet inkluderer dekning for autentisering, autorisasjon, API-validering, oppdateringsjobber, pakkeadministrasjon, klientautentisering og resultathåndtering.
+The test suite includes coverage for authentication, authorization, API validation, update jobs, package management, client authentication, and result handling.
 
-Agent-til-server-resultatbanen ble spesielt gjennomgått for å sikre at jobbresultater ikke vilkårlig kan endre urelatert servertilstand.
+The Agent-to-server result path was specifically reviewed to ensure that job results cannot arbitrarily alter unrelated server-side state.
 
-Resultatbehandling validerer den innsendte informasjonen før den bruker tilstandsendringer på den tilsvarende oppdateringsjobben.
+Result processing validates the submitted information before applying state changes to the corresponding update job.
 
-Valideringen dekker relevante resultatfelt og forventede jobbrelasjoner.
+The validation covers relevant result fields and expected job relationships.
 
-Dette forhindrer at en autentisert klient fritt kan velge urelaterte jobber eller injisere vilkårlig tilstand i oppdateringsjobbdatabasen.
+This prevents an authenticated client from freely selecting unrelated jobs or injecting arbitrary state into the update-job database.
 
-Sikkerhetstestsettet dekker også negative og uautoriserte tilfeller.
+The security test suite also covers negative and unauthorized cases.
 
-Kjør det fullstendige automatiserte testsettet fra repositoriets rot med
-`./.venv-test/bin/pytest -q`. Antallet tester endres over tid; bruk
-resultatet av gjeldende kjøring i stedet for et fast antall i dette dokumentet.
+Run the complete automated test suite from the repository root with
+`./.venv-test/bin/pytest -q`. The number of tests changes over time; use the
+result of the current run rather than a fixed count in this document.
 
-De relevante sikkerhetskontrollene ble i tillegg verifisert gjennom fokuserte testkjøringer under revisjonen.
+The relevant security controls were additionally verified through focused test runs during the audit.
 
 **Status: BESTÅTT**
 
 ---
 
-# Revisjonsstatus etter del 4
+# Audit Status After Part 4
 
-Følgende sikkerhetsrevisjonsområder er fullført:
+The following security audit areas are complete:
 
+| Audit | Area                                   | Status |
+| ----- | -------------------------------------- | ------ |
+| #01   | SQLite Foreign Keys                    | PASS   |
+| #02   | SQLite Runtime Configuration           | PASS   |
+| #03   | Update Timeout / Process Handling      | PASS   |
+| #04   | Login Rate Limiting                    | PASS   |
+| #05   | API Input Validation                   | PASS   |
+| #06   | Session Revocation                     | PASS   |
+| #07   | Client Token Rotation                  | PASS   |
+| #08   | IP Address Handling / Offline Networks | PASS   |
+| #09   | Job Recovery / Checkpointing           | PASS   |
+| #10   | APT Robustness                         | PASS   |
+| #11   | Arch Reboot Detection                  | PASS   |
+| #12   | Unit Tests / API Result Validation     | PASS   |
 | Revisjon | Område                                 | Status |
 | -------- | -------------------------------------- | ------ |
 | #01      | SQLite-fremmednøkler                    | BESTÅTT |
@@ -743,7 +898,7 @@ Følgende sikkerhetsrevisjonsområder er fullført:
 | #11      | Oppdagelse av omstart på Arch                  | BESTÅTT |
 | #12      | Enhetstester / validering av API-resultater     | BESTÅTT |
 
-Neste avsnitt dekker:
+The next section covers:
 
 * #13 Simuleringstester
 * #14 Kontinuerlig integrasjon
@@ -754,28 +909,28 @@ Neste avsnitt dekker:
 
 ## Simuleringstester
 
-LUMS tilbyr en simuleringsmekanisme for testing av oppdateringsadministrasjonsarbeidsflyter uten å utføre den tilsvarende pakkeadministrasjonsoperasjonen på det administrerte systemet.
+LUMS provides a simulation mechanism for testing update-management workflows without performing the corresponding package-management operation on the managed system.
 
-Simulering er implementert på agentens kjøringslag.
+Simulation is implemented at the Agent execution layer.
 
-Når simulering er aktivert, representeres og behandles pakkeadministrasjonsoperasjoner uten å bruke den forespurte pakkeendringen på operativsystemet.
+When simulation is enabled, package-management operations are represented and processed without applying the requested package change to the operating system.
 
-Dette lar oppdateringsjobbatferd testes uten å bevisst endre det administrerte systemet.
+This allows update-job behavior to be tested without intentionally modifying the managed system.
 
-Simuleringstestene dekker relevante oppdateringsadministrasjonsbaner, inkludert:
+The simulation tests cover relevant update-management paths, including:
 
-* pakkeinstallasjon
-* pakkefjerning
-* pakkeoppdateringer
-* systemoppdateringer
-* jobbkjøring
-* resultatrapportering
-* vellykket fullføring
-* feilhåndtering
+* package installation
+* package removal
+* package updates
+* system updates
+* job execution
+* result reporting
+* successful completion
+* failure handling
 
-Simuleringsmekanismen ble brukt under sikkerhetsrevisjonen for å verifisere jobbopprettelse, agentkjøring, resultathåndtering og tilstandsoverganger på serversiden uavhengig av reelle pakkeendringer.
+The simulation mechanism was used during the security audit to verify job creation, Agent execution, result handling, and server-side state transitions independently from real package modifications.
 
-Simuleringsmodus er en testmekanisme og erstatter ikke autorisasjonskontrollene for normale oppdateringsoperasjoner.
+Simulation mode is a testing mechanism and does not replace the authorization controls of normal update operations.
 
 **Status: BESTÅTT**
 
@@ -785,30 +940,30 @@ Simuleringsmodus er en testmekanisme og erstatter ikke autorisasjonskontrollene 
 
 ## Kontinuerlig integrasjon
 
-LUMS bruker automatisert testing for å oppdage sikkerhets- og funksjonelle regresjoner før endringer anses som fullstendige.
+LUMS uses automated testing to detect security and functional regressions before changes are considered complete.
 
-CI-prosessen kjører det automatiserte testsettet mot prosjektet.
+The CI process executes the automated test suite against the project.
 
-Testmiljøet verifiserer applikasjonen og sikkerhetsfølsom funksjonalitet uavhengig av produksjonscontaineren.
+The test environment verifies the application and security-sensitive functionality independently from the production container.
 
-CI-prosessen inkluderer validering av:
+The CI process includes validation of:
 
-* autentisering
-* autorisasjon
+* authentication
+* authorization
 * RBAC
-* API-atferd
-* håndtering av oppdateringsjobber
-* pakkeadministrasjonsatferd
-* klientautentisering
-* validering av jobbresultater
-* sikkerhetsfølsom feilhåndtering
+* API behavior
+* update-job handling
+* package-management behavior
+* client authentication
+* job-result validation
+* security-sensitive error handling
 
-CI-revisjonen ble gjennomgått etter sikkerhetsherdingsendringene.
+The CI audit was reviewed after the security hardening changes.
 
-Det endelige verifiserte testsettet ble fullført vellykket.
+The final verified test suite completed successfully.
 
-Testantallet endres etter hvert som prosjektet utvikler seg. CI gir en automatisert
-regresjonsbarriere for sikkerhetsrelevante applikasjonsendringer.
+The test count changes as the project evolves. CI provides an automated
+regression barrier for security-relevant application changes.
 
 **Status: BESTÅTT**
 
@@ -818,39 +973,39 @@ regresjonsbarriere for sikkerhetsrelevante applikasjonsendringer.
 
 ## Applikasjons- og revisjonslogging
 
-LUMS registrerer sikkerhetsfølsomme administrative og operative hendelser gjennom revisjonslogging på applikasjonsnivå.
+LUMS records security-sensitive administrative and operational events through application-level audit logging.
 
-Revisjonslogging er utformet for å gi en driftshistorikk uten å lagre sensitiv legitimasjon.
+Audit logging is designed to provide an operational history without storing sensitive credentials.
 
-Relevante sikkerhetsfølsomme handlinger inkluderer hendelser som:
+Relevant security-sensitive actions include events such as:
 
-* autentiseringsrelaterte sikkerhetshendelser
-* administrative handlinger
-* klientadministrasjon
-* klienttokenoperasjoner
-* opprettelse av oppdateringsjobb
-* kjøring av oppdateringsjobb
-* sikkerhetsrelevante feil
+* authentication-related security events
+* administrative actions
+* client management
+* client-token operations
+* update-job creation
+* update-job execution
+* security-relevant failures
 
-Sensitivt legitimasjonsmateriale er utelatt fra revisjonsoppføringer.
+Sensitive credential material is excluded from audit records.
 
-Spesielt:
+In particular:
 
-* passord logges ikke
-* klartekst klienttokener logges ikke
-* hemmelige verdier skrives ikke bevisst til revisjonsoppføringer
+* passwords are not logged
+* plaintext client tokens are not logged
+* secret values are not intentionally written to audit records
 
-Revisjonsoppføringer er knyttet til relevant administrativ eller operativ kontekst der det er aktuelt.
+Audit records are associated with the relevant administrative or operational context where applicable.
 
-Implementasjonen av revisjonslogging ble gjennomgått for:
+The audit logging implementation was reviewed for:
 
-* dekning av sikkerhetsfølsomme hendelser
-* utelatelse av legitimasjon
-* administrativ sporbarhet
-* feilhåndtering
-* bevaring av relevant revisjonsinformasjon
+* security-sensitive event coverage
+* credential exclusion
+* administrative traceability
+* failure handling
+* persistence of relevant audit information
 
-Loggesystemet er ment å støtte både operativ feilsøking og sikkerhetsundersøkelser.
+The logging system is intended to support both operational troubleshooting and security investigation.
 
 **Status: BESTÅTT**
 
@@ -860,21 +1015,69 @@ Loggesystemet er ment å støtte både operativ feilsøking og sikkerhetsunders�
 
 ## Versjonering og utgivelser
 
+Versioning and release management were reviewed as part of the security audit.
+
+LUMS is currently under active development and does not yet have an official stable release.
+
+The current repository state therefore intentionally has:
+
+* no official stable release version
+* no release tag
+* no GitHub Release
 Versjonering og utgivelseshåndtering er gjennomgått som en del av sikkerhetsarbeidet. Utgivelsesstatus er tidsavhengig; slå opp gjeldende GitHub-utgivelser og Git-tagger i repositoriet i stedet for å utlede status fra denne veiledningen.
 
-Gjeldende komponentversjoner inkluderer:
+The current component versions include:
 
 * LUMS Agent: `1.7.0`
 * LUMS Watcher: `1.2.1`
 
+There is currently no single formal version number representing the complete LUMS application.
+
+This is an intentional project-state decision rather than an accidental omission.
+
+The planned release process is:
+
+1. Complete implementation work.
+2. Complete the security review.
+3. Review and synchronize the documentation.
+4. Complete the full automated test suite.
+5. Verify CI.
+6. Define the release version.
+7. Create the corresponding Git tag.
+8. Publish the GitHub Release.
+9. Preserve the release as the documented baseline.
+
+No official release is created solely because the security audit reaches a particular audit number.
+
+Release creation will take place only after the remaining implementation and documentation work has been completed.
+
+**Status: REVIEWED — OPEN BY DESIGN**
 Ikke anta at versjoner som er oppført her, eller sikkerhetsbaselinen ellers i dokumentet, beviser at en bestemt distribusjon har aktivert kontrollene. Operatører må verifisere sitt eget miljø.
 
 ---
 
-# Revisjonsstatus etter del 5
+# Audit Status After Part 5
 
-Følgende sikkerhetsrevisjonsområder er fullført:
+The following security audit areas are complete:
 
+| Audit | Area                                   | Status                    |
+| ----- | -------------------------------------- | ------------------------- |
+| #01   | SQLite Foreign Keys                    | PASS                      |
+| #02   | SQLite Runtime Configuration           | PASS                      |
+| #03   | Update Timeout / Process Handling      | PASS                      |
+| #04   | Login Rate Limiting                    | PASS                      |
+| #05   | API Input Validation                   | PASS                      |
+| #06   | Session Revocation                     | PASS                      |
+| #07   | Client Token Rotation                  | PASS                      |
+| #08   | IP Address Handling / Offline Networks | PASS                      |
+| #09   | Job Recovery / Checkpointing           | PASS                      |
+| #10   | APT Robustness                         | PASS                      |
+| #11   | Arch Reboot Detection                  | PASS                      |
+| #12   | Unit Tests / API Result Validation     | PASS                      |
+| #13   | Simulation Tests                       | PASS                      |
+| #14   | Continuous Integration                 | PASS                      |
+| #15   | Application / Audit Logging            | PASS                      |
+| #16   | Versioning / Releases                  | REVIEWED — OPEN BY DESIGN |
 | Revisjon | Område                                 | Status                    |
 | -------- | -------------------------------------- | ------------------------- |
 | #01      | SQLite-fremmednøkler                    | BESTÅTT |
@@ -894,201 +1097,284 @@ Følgende sikkerhetsrevisjonsområder er fullført:
 | #15      | Applikasjons- og revisjonslogging            | BESTÅTT |
 | #16      | Versjonering / utgivelser             | Slå opp gjeldende utgivelser og tagger |
 
+The remaining numbered technical audit area is:
+
+* #17 Rollebasert Tilgangskontroll
+
+The documentation review is tracked separately as:
+
+* #18 Documentation Review — IN PROGRESS
+
+# Sikkerhetsrevisjon #17
+
+## Rollebasert Tilgangskontroll
 De nummererte tekniske revisjonsområdene dekker kontrollene som er oppført i tabellen. Dokumentasjon vedlikeholdes løpende mot faktisk implementasjon og konfigurasjon. Opplysninger om utgivelser kontrolleres i repositoriets gjeldende utgivelser og tagger.
 
 # Sikkerhetsrevisjon #17
 
 ## Rollebasert tilgangskontroll
 
-LUMS kombinerer rollemaler med individuelt tildelte tillatelser. De
-støttede malene er `administrator`, `operator` og `viewer`; valg av en
-mal velger dens standardtillatelser, som en administrator kan tilpasse
-for hver konto.
+LUMS combines role templates with individually assigned permissions. The
+supported templates are `administrator`, `operatør`, and `seer`; choosing a
+template selects its default permissions, which an administrator can customize
+for each account.
 
-Rollen forblir kontometadata. Beskyttede ruter autoriserer mot
-kontoens serverlagrede tillatelsessett, ikke rolletiketten. Grensesnittet skjuler
-utilgjengelige funksjoner for brukervennlighet, mens serveren forblir sikkerhetsgrensen.
+The role remains account metadata. Protected routes authorize against the
+account's server-stored permission set, not the role label. The interface hides
+unavailable functions for usability, while the server remains the security
+boundary.
 
 ---
 
 ## RBAC-tillatelsesmodell
 
-| Tillatelse        | Tilgang gitt |
-| ----------------- | ------------ |
-| `clients.view`    | Vise klienter og systeminformasjon |
-| `software.view`   | Vise installert programvare |
-| `updates.view`    | Vise tilgjengelige oppdateringer, jobber og historikk |
-| `packages.search` | Søke i pakkerepositorier |
-| `jobs.manage`     | Opprette pakkeoperasjoner og oppdateringsjobber |
-| `clients.manage`  | Registrere/fjerne klienter og rotere klienttokener |
-| `users.manage`    | Opprette brukere og administrere roller og tillatelser |
+| Permission        | Access granted |
+| ----------------- | -------------- |
+| `clients.view`    | View clients and system information |
+| `software.view`   | View installed software |
+| `updates.view`    | View available updates, jobs, and history |
+| `packages.search` | Search package repositories |
+| `jobs.manage`     | Create package operations and update jobs |
+| `clients.manage`  | Register/remove clients and rotate client tokens |
+| `users.manage`    | Create users and manage roles and permissions |
 
-Standard rollemaler er:
+The default role templates are:
 
-| Mal             | Standardtillatelser |
+| Template        | Default permissions |
 | --------------- | ------------------- |
-| `administrator` | Alle tillatelser |
-| `operator`      | Klient-/programvare-/oppdateringssynlighet, pakkesøk og jobbadministrasjon |
-| `viewer`        | Klientsynlighet og synlighet for installert programvare |
+| `administrator` | All permissions |
+| `operatør`      | Client/software/update visibility, package search, and job management |
+| `seer`        | Client visibility and installed-software visibility |
 
-Klientrelaterte tillatelser krever `clients.view`. `jobs.manage` krever også
-`updates.view`. UI laster tillatelser for den autentiserte kontoen og
-utelater kontroller brukeren ikke kan bruke; kontroller på serversiden håndhever uavhengig
-de samme tillatelsene.
+Client-related permissions require `clients.view`. `jobs.manage` also requires
+`updates.view`. The UI loads permissions for the authenticated account and
+omits controls the user cannot use; server-side checks independently enforce
+the same grants.
 
 ---
 
 ## Håndheving av autorisasjon
 
-Beskyttede operasjoner bruker autentisering og tillatelseskontroller på serversiden.
+Protected operations use server-side authentication and permission checks.
 
-Autorisasjonsmodellen følger prinsippet:
+The authorization model follows the principle:
 
 `Authenticate → Load User Permissions → Authorize Operation → Execute`
 
-Autentisering alene er ikke tilstrekkelig for å få tilgang til privilegerte operasjoner.
+Authentication alone is not sufficient to access privileged operations.
 
-Tilstandsendrende operasjoner krever i tillegg CSRF-beskyttelse der det er aktuelt.
+State-changing operations additionally require CSRF protection where applicable.
 
-Eksempler på beskyttede administrative operasjoner inkluderer:
+Examples of protected administrative operations include:
 
-* opprettelse av oppdateringsjobb
-* pakkeinstallasjon
-* pakkefjerning
-* pakkeoppdateringer
-* systemoppdateringer
-* pakkeadministrasjonsoperasjoner
-* klientopprettelse
-* klientdeaktivering
-* klienttokenrotasjon
-* brukeropprettelse
-* brukeradministrasjonsfunksjoner
+* update-job creation
+* package installation
+* package removal
+* package updates
+* system updates
+* package-management operations
+* client creation
+* client disabling
+* client-token rotation
+* user creation
+* user-management functions
 
-Beskyttede endepunkter definerer eksplisitt tillatelsen som kreves for
-den tilsvarende operasjonen.
+Protected endpoints explicitly define the permission required for the
+corresponding operation.
 
-En manglende tillatelse avvises av serveren selv om brukeren manuelt
-konstruerer den tilsvarende HTTP-forespørselen.
+A missing permission is rejected by the server even if the user manually
+constructs the corresponding HTTP request.
 
-Dette forhindrer omgåelse av RBAC-modellen ved å kalle et API-endepunkt som er skjult i webgrensesnittet direkte.
+This prevents bypassing the RBAC model by directly calling an API endpoint that is hidden in the web interface.
 
 ---
 
 ## Begrensninger for Viewer
 
-Viewer-malen er bevisst begrenset av sitt standard tillatelsessett.
+The Viewer template is intentionally restricted by its default permission set.
 
-For kontoer uten de tilsvarende tillatelsene eksponerer klientgrensesnittet ikke:
+For accounts without the corresponding grants, the client interface does not expose:
 
-* Oppdateringer
-* Oppdateringsjobber
-* Oppdateringshistorikk
-* Pakkeadministrasjon
-* Systemvedlikehold
+* Updates
+* Update Jobs
+* Update History
+* Package Management
+* System Maintenance
 
-Serveren forhindrer i tillegg kontoer uten de tilsvarende tillatelsene
-fra å utføre beskyttede operasjoner.
+The server additionally prevents accounts without the corresponding grants
+from performing protected operations.
 
-JavaScript-grensesnittet laster ikke oppdateringsadministrasjonsdata uten
+The JavaScript interface does not load update-management data without
 `updates.view`.
 
-Dette reduserer unødvendig eksponering av driftsinformasjon samtidig som autorisasjon på serversiden opprettholdes som den faktiske sikkerhetskontrollen.
+This reduces unnecessary exposure of operational information while maintaining server-side authorization as the actual security control.
 
-Installert programvare forblir tilgjengelig for Viewer-kontoer som en skrivebeskyttet informasjonsfunksjon.
+Installed software remains available to Viewer accounts as a read-only information function.
 
 ---
 
 ## Administrativ brukeradministrasjon
 
-Brukeradministrasjon krever tillatelsen `users.manage`.
+User management requires the `users.manage` permission.
 
-Brukere med den tillatelsen kan opprette kontoer uten tillatelser og deretter
-tildele individuelle tillatelser eller bruke en rollemal i tillatelseseditoren.
-Rollemaler har beskrivelser som forklarer deres standardtildelinger.
+Users with that permission can create accounts without permissions and then
+assign individual grants or apply a role template in the permission editor.
+Role templates have descriptions explaining their default grants.
 
-Autoriserte brukeradministratorer kan lagre et internt notat per konto. Notater er
-begrenset til 2000 tegn, er ikke inkludert i revisjonsloggdetaljer og er
-ikke synlige for kontoeieren.
+Authorized user managers can save an internal note per account. Notes are
+limited to 2,000 characters, are not included in audit-log details, and are
+not visible to the account owner.
 
-Brukeropprettelse inkluderer:
+User creation includes:
 
-* brukernavnvalidering
-* rollevalidering
-* passordvalidering
-* Argon2-passordhashing
-* deteksjon av dupliserte brukere
-* revisjonslogging
-* CSRF-beskyttelse
-* autorisasjon på serversiden
+* username validation
+* role validation
+* password validation
+* Argon2 password hashing
+* duplicate-user detection
+* audit logging
+* CSRF protection
+* server-side authorization
 
-Brukeradministrasjonsendepunkter er ikke tilgjengelige uten `users.manage`.
+User-management endpoints are not accessible without `users.manage`.
 
-Serveren avviser ukjente tillatelser og ugyldige avhengighetskombinasjoner.
-Minst én aktiv konto må beholde `users.manage`; endringer som ville
-fjerne den siste brukeradministratoren, avvises.
+The server rejects unknown permissions and invalid dependency combinations.
+At least one active account must retain `users.manage`; changes that would
+remove the last user manager are rejected.
 
-Passord lagres aldri i klartekst.
+Passwords are never stored in plaintext.
 
 ---
 
 ## RBAC-databasemigrering
 
-Informasjon om rollemal forblir i brukerdatabaseregistreringen. Individuelle
-tillatelser lagres i `user_permissions`-tabellen med en fremmednøkkel til
-brukerkontoen. Migrering `003-user-permissions` oppretter den tabellen og fyller
-eksisterende kontoer fra deres gjeldende rollemal, og bevarer tilgangen deres
-under overgangen. Migrering `004-user-admin-notes` legger til det private
-`users.admin_note`-feltet; eksisterende kontoer mottar et tomt notat. Migrering
-`005-backup-permission` gir `backups.manage` til eksisterende Administrator-
-kontoer.
+Role-template information remains in the user database record. Individual
+grants are stored in the `user_permissions` table with a foreign key to the
+user account. Migration `003-user-permissions` creates that table and seeds
+existing accounts from their current role template, preserving their access
+during the transition. Migration `004-user-admin-notes` adds the private
+`users.admin_note` field; existing accounts receive an empty note. Migration
+`005-backup-permission` grants `backups.manage` to existing Administrator
+accounts.
 
-Opprettelse av databasesikkerhetskopi krever `backups.manage`; Administrator-
-malen inkluderer denne tillatelsen som standard. Serveren skriver SQLite online-
-sikkerhetskopier bare til den serverkonfigurerte `LUMS_BACKUP_DIR`; den godtar
-ikke filsystembaner fra nettleseren. Sikkerhetskopifiler opprettes med kun eierens
-tillatelser og kontrolleres for integritet før publisering.
+Database backup creation requires `backups.manage`; the Administrator
+template includes this permission by default. The server writes SQLite online
+backups only to the server-configured `LUMS_BACKUP_DIR`; it does not accept
+filesystem paths from the browser. Backup files are created with owner-only
+permissions and are integrity-checked before publication.
 
 ---
 
 ## RBAC-sikkerhetstesting
 
-RBAC-atferd er dekket av automatiserte tester.
+RBAC behavior is covered by automated tests.
 
-Testene inkluderer:
+The tests include:
 
-* Administratorautoritasjon
-* Operatorautoritasjon
-* Viewer-begrensninger
-* beskyttet API-tilgang
-* uautoriserte operasjoner
-* klientadministrasjonsbegrensninger
-* oppdateringsjobbebegrensninger
-* brukeradministrasjonsbegrensninger
-* synlighet på klientsiden
-* tillatelsesspesifikk grensesnittatferd
+* Administrator authorization
+* Operator authorization
+* Viewer restrictions
+* protected API access
+* unauthorized operations
+* client-management restrictions
+* update-job restrictions
+* user-management restrictions
+* client-page visibility
+* permission-specific interface behavior
 
-RBAC-tester dekker rollemalstandarder, tilpassede tillatelser, tillatelses-
-avhengigheter og autorisasjon på serversiden. Produksjonsverifisering bør
-inkludere kontoer med tilpassede tillatelser samt standardmalene
-Administrator, Operator og Viewer.
+RBAC tests cover role-template defaults, custom permissions, permission
+dependencies, and server-side authorization. Production verification should
+include accounts with customized permissions as well as the default
+Administrator, Operator, and Viewer templates.
 
 ---
 
 ## RBAC-sikkerhetsresultat
 
-RBAC-implementasjonen gir lagdelt autorisasjon:
+The RBAC implementation provides layered authorization:
 
-1. Autentisering etablerer brukeridentiteten.
-2. Serveren laster brukerens tillatelser.
-3. Beskyttede ruter håndhever den nødvendige tillatelsen.
-4. CSRF-beskyttelse gjelder for relevante nettlesertilstandsendringer.
-5. Webgrensesnittet skjuler utilgjengelig funksjonalitet.
-6. Automatiserte tester verifiserer autorisasjonsgrenser.
+1. Authentication establishes the user identity.
+2. The server loads the user's permissions.
+3. Protected routes enforce the required permission.
+4. CSRF protection applies to relevant browser state changes.
+5. The web interface hides unavailable functionality.
+6. Automated tests verify authorization boundaries.
 
-Grensesnittet gir derfor ikke autorisasjonsmekanismen i seg selv.
+The interface therefore does not provide the authorization mechanism by itself.
 
-Serveren forblir den autoritative sikkerhetsgrensen.
+The server remains the authoritative security boundary.
 
+**Status: PASS**
+
+# Sikkerhetsrevisjon #18
+
+## Documentation Review
+
+The security documentation is reviewed against the currently implemented LUMS system.
+
+The purpose of this review is to ensure that security documentation describes the actual implementation rather than an earlier development state.
+
+The review covers:
+
+* authentication
+* authorization
+* RBAC
+* client authentication
+* token handling
+* session handling
+* CSRF protection
+* rate limiting
+* SQLite configuration
+* update execution
+* job recovery
+* package management
+* container hardening
+* network exposure
+* secrets handling
+* dependency and build security
+* filesystem permissions
+* application and audit logging
+* versioning and release handling
+* automated security testing
+
+Documentation must distinguish between:
+
+* implemented controls
+* verified production behavior
+* planned improvements
+* intentionally open project decisions
+
+Historical implementation details must not be presented as current production configuration.
+
+In particular, the documentation reflects the current SQLite production configuration rather than the current WAL configuration.
+
+The current production runtime is documented as:
+
+* `journal_mode = wal`
+* `busy_timeout = 5000`
+* `synchronous = 2`
+* application-level `PRAGMA foreign_keys = ON`
+
+The current Viewer-RBAC behavior is also documented according to the implemented production interface.
+
+Viewer users have access to:
+
+* client information
+* installed software
+
+Viewer users do not have access to:
+
+* Updates
+* Update Jobs
+* Update History
+* Package Management
+* System Maintenance
+
+The documentation review also removes or replaces outdated references to earlier test counts, migration states, deployment configurations, and development-only behavior.
+
+**Status: IN PROGRESS**
+
+---
 **Status: BESTÅTT**
 
 ## Dokumentasjonsgjennomgang
@@ -1097,167 +1383,223 @@ Sikkerhets- og driftsdokumentasjonen skal kontrolleres mot den faktiske implemen
 
 Opplysninger om versjoner og utgivelser er tidsavhengige. Kontroller gjeldende GitHub-utgivelser og Git-tagger i repositoriet i stedet for å utlede status fra denne veiledningen.
 
-# Ekstra sikkerhetsherding
+# Additional Security Hardening
 
-Den nummererte sikkerhetsrevisjonen dekker de primære applikasjonssikkerhetskontrollene.
+The numbered security audit covers the primary application security controls.
 
-Ekstra herding ble utført etter den opprinnelige revisjonssekvensen og er en del av gjeldende sikkerhetsbaseline.
+Additional hardening was performed after the original audit sequence and is part of the current security baseline.
 
-Disse kontrollene er dokumentert her fordi de representerer viktige sikkerhetsegenskaper ved gjeldende distribusjon.
+These controls are documented here because they represent important security properties of the current deployment.
 
 ---
 
-## Containerherding
+## Container Hardening
 
-Produksjons-LUMS-containeren kjører med en herdet Docker-konfigurasjon.
+The production LUMS container runs with a hardened Docker configuration.
 
-Produksjonscontaineren bruker:
+The production container uses:
 
-* applikasjonsbruker uten root
-* skrivebeskyttet rotfilsystem
-* fjernede Linux-capabilities
+* non-root application user
+* read-only root filesystem
+* dropped Linux capabilities
 * `no-new-privileges`
-* begrensede midlertidige filsystemer
-* skrivebeskyttet hemmelighetsmontering
-* dedikert vedvarende applikasjonsdatavolum
-* omstartspolicy
-* kun loopback-publisering av applikasjonsporten på verten
+* restricted temporary filesystems
+* read-only secret mount
+* dedicated persistent application-data volume
+* restart policy
+* loopback-only host publication of the application port
 
-Applikasjonens rotfilsystem er derfor ikke skrivbart under normal drift.
+The application root filesystem is therefore not writable during normal operation.
 
-Skrivbare plasseringer er eksplisitt begrenset til plasseringene som kreves av applikasjonen.
+Writable locations are explicitly limited to the locations required by the application.
 
-Produksjonscontaineren ble uavhengig inspisert for å verifisere den effektive kjøringskonfigurasjonen.
+The production container was independently inspected to verify the effective runtime configuration.
 
-Den herdede kjøringen ble også testet ved å verifisere at:
+The hardened runtime was also tested by verifying that:
 
-* skriving til applikasjonsfilsystemet mislykkes
-* `/tmp` forblir tilgjengelig der det er nødvendig
-* `/var/lib/lums` forblir skrivbar
-* hemmelighetsfilen forblir skrivebeskyttet
-* applikasjonen forblir operativ
+* application filesystem writes fail
+* `/tmp` remains available where required
+* `/var/lib/lums` remains writable
+* the secret file remains read-only
+* the application remains operational
 
 ---
 
-## Netteksponering
+## Network Exposure
 
-LUMS-applikasjonsporten er ikke direkte eksponert mot LAN.
+The LUMS application port is not directly exposed to the LAN.
 
-Docker-applikasjonsporten er bundet til loopback-grensesnittet:
+The Docker application port is bound to the loopback interface:
 
 `127.0.0.1:5050`
 
-Ekstern tilgang leveres gjennom Nginx.
+External access is provided through Nginx.
 
-Produksjonsverten eksponerer de tiltenkte nettverkstjenestene gjennom brannmuren og den omvendte proxyen.
+The production host exposes the intended network services through the firewall and reverse proxy.
 
-Distribusjonen ble verifisert for å forhindre direkte ekstern tilgang til den interne Docker-applikasjonsporten.
+The deployment was verified to prevent direct remote access to the internal Docker application port.
 
-Brannmuren bruker en standard-nekte-modell for innkommende og rutet trafikk.
+The firewall uses a default-deny model for incoming and routed traffic.
 
-De tiltenkte eksternt tilgjengelige tjenestene er:
+The intended externally reachable services are:
 
 * SSH
 * HTTP
 * HTTPS
 
-HTTP-forespørsler omdirigeres til HTTPS av webserveren.
+HTTP requests are redirected to HTTPS by the web server.
 
-Standard Nginx-området ble fjernet slik at urelatert standardinnhold ikke eksponeres.
-
----
-
-## Transportssikkerhet
-
-Administrativ webtilgang leveres gjennom HTTPS.
-
-HTTP omdirigeres til HTTPS.
-
-TLS-endepunktet håndteres av Nginx i stedet for Flask/Gunicorn-applikasjonen direkte.
-
-Dette holder transportssikkerhet og applikasjonsservering atskilt.
-
-Den interne Gunicorn-applikasjonsporten er derfor ikke ment å være et offentlig HTTP-endepunkt.
-
-Gjeldende distribusjon er ment for kontrollert intern infrastruktur.
-
-En fremtidig distribusjon med direkte offentlig internett-eksponering vil kreve en ekstra sikkerhetsgjennomgang.
+The default Nginx site was removed so that unrelated default content is not exposed.
 
 ---
 
-## Hemmeligheter og konfigurasjon
+## Transport Security
 
-Produksjonshemmeligheter lagres ikke i applikasjonens kildekodetre.
+Administrative web access is provided through HTTPS.
 
-LUMS-hemmelighetsnøkkelen leveres gjennom en beskyttet hemmelighetsfil.
+HTTP is redirected to HTTPS.
 
-Produksjonscontaineren mottar hemmeligheten gjennom:
+The TLS endpoint is handled by Nginx rather than the Flask/Gunicorn application directly.
+
+This keeps transport security and application serving separated.
+
+The internal Gunicorn application port is therefore not intended to be a public HTTP endpoint.
+
+The current deployment is intended for controlled internal infrastructure.
+
+A future deployment with direct public-Internet exposure would require an additional security review.
+
+---
+
+## Secrets and Configuration
+
+Production secrets are not stored in the application source tree.
+
+The LUMS secret key is supplied through a protected secret file.
+
+The production container receives the secret through:
 
 `/run/secrets/lums_secret`
 
-Hemmelighetsfilen monteres skrivebeskyttet.
+The secret file is mounted read-only.
 
-Applikasjonen leser hemmeligheten gjennom den konfigurerte hemmelighetsfilmekanismen.
+The application reads the secret through the configured secret-file mechanism.
 
-Håndtering av repositorium og Docker-byggekontekst ble gjennomgått for å forhindre utilsiktet inkludering av:
+Repository and Docker build-context handling was reviewed to prevent accidental inclusion of:
 
-* databasefiler
-* sikkerhetskopifiler
-* hemmelighetsfiler
-* private nøkler
-* sertifikater
-* kjøringslogger
-* lokale sikkerhetskopiartefakter
+* database files
+* backup files
+* secret files
+* private keys
+* certificates
+* runtime logs
+* local backup artifacts
 
-Repositoriet ignorerer også vanlige midlertidige sikkerhetskopimønstre som brukes under utvikling.
+The repository also ignores common temporary backup patterns used during development.
 
 ---
 
-## Avhengighets- og byggesikkerhet
+## Dependency and Build Security
 
-Produksjons-Docker-bildet bruker en pinnet Python-basebilde-digest.
+The production Docker image uses a pinned Python base-image digest.
 
-Produksjonskjøringsavhengighetene er eksplisitt versjonspinnet.
+The production runtime dependencies are explicitly version-pinned.
 
-Det gjeldende produksjonsavhengighetssettet inkluderer:
+The current production dependency set includes:
 
 * Flask `3.1.3`
 * argon2-cffi `25.1.0`
 * Gunicorn `23.0.0`
 
-Docker-byggekonteksten er begrenset gjennom `.dockerignore`.
+The Docker build context is restricted through `.dockerignore`.
 
-Gjentatte produksjonsbygg ble sammenlignet under revisjonen.
+Repeated production builds were compared during the audit.
 
-De relevante avhengighets- og pakkemetadataene forble konsistente mellom gjentatte bygg, bortsett fra forventede genererte Python-bytecode-forskjeller.
+The relevant dependency and package metadata remained consistent between repeated builds, apart from expected generated Python bytecode differences.
 
-Dette gir en reproduserbar baseline for produksjonsbildet samtidig som byggekonteksten holdes begrenset.
-
----
-
-## Filsystem- og kjøringstillatelser
-
-Produksjonsapplikasjonen kjører som den dedikerte `lums`-brukeren i stedet for root.
-
-Vedvarende applikasjonsdata lagres i det dedikerte LUMS-datavolumet.
-
-Applikasjonens rotfilsystem er skrivebeskyttet.
-
-Skrivetilgang under kjøring er begrenset til eksplisitt nødvendige plasseringer.
-
-Produksjonskjøringen ble verifisert for å avvise uautoriserte skrivinger til applikasjonsfilsystemet.
-
-Dette reduserer effekten av utilsiktet eller ondsinnet filmodifisering inne i applikasjonscontaineren.
+This provides a reproducible baseline for the production image while keeping the build context limited.
 
 ---
 
-# Konklusjon for sikkerhetsrevisjon
+## Filesystem and Runtime Permissions
 
-Den nåværende LUMS-implementasjonen har gjennomgått en bred sikkerhetsgjennomgang som dekker:
+The production application runs as the dedicated `lums` user rather than root.
 
-* autentisering
-* autorisasjon
+Persistent application data is stored in the dedicated LUMS data volume.
+
+The application root filesystem is read-only.
+
+Runtime write access is restricted to explicitly required locations.
+
+The production runtime was verified to reject unauthorized writes to the application filesystem.
+
+This reduces the impact of accidental or malicious file modification inside the application container.
+
+---
+
+# Sikkerhetsrevisjon Conclusion
+
+The current LUMS implementation has undergone a broad security review covering:
+
+* authentication
+* authorization
 * RBAC
+* session security
+* CSRF protection
+* login rate limiting
+* client-token security
+* API validation
+* SQL injection resistance
+* SQLite integrity
+* update execution
+* timeout handling
+* job recovery
+* package-management robustness
+* result validation
+* simulation
+* continuous integration
+* audit logging
+* container hardening
+* network exposure
+* transport security
+* secrets handling
+* filesystem permissions
+* dependency and build security
+
+The numbered audit results are:
+
+| Audit | Area                                   | Status                    |
+| ----- | -------------------------------------- | ------------------------- |
+| #01   | SQLite Foreign Keys                    | PASS                      |
+| #02   | SQLite Runtime Configuration           | PASS                      |
+| #03   | Update Timeout / Process Handling      | PASS                      |
+| #04   | Login Rate Limiting                    | PASS                      |
+| #05   | API Input Validation                   | PASS                      |
+| #06   | Session Revocation                     | PASS                      |
+| #07   | Client Token Rotation                  | PASS                      |
+| #08   | IP Address Handling / Offline Networks | PASS                      |
+| #09   | Job Recovery / Checkpointing           | PASS                      |
+| #10   | APT Robustness                         | PASS                      |
+| #11   | Arch Reboot Detection                  | PASS                      |
+| #12   | Unit Tests / API Result Validation     | PASS                      |
+| #13   | Simulation Tests                       | PASS                      |
+| #14   | Continuous Integration                 | PASS                      |
+| #15   | Application / Audit Logging            | PASS                      |
+| #16   | Versioning / Releases                  | REVIEWED — OPEN BY DESIGN |
+| #17   | Rollebasert Tilgangskontroll              | PASS                      |
+| #18   | Documentation Review                   | IN PROGRESS               |
+
+The technical security controls reviewed in audits #01–#15 and #17 have passed.
+
+Audit #16 remains intentionally open because LUMS has not yet reached its first official stable release.
+
+Audit #18 remains open until the complete project documentation has been reviewed and synchronized with the final implementation state.
+
+No security audit result should be interpreted as a guarantee that LUMS is free from vulnerabilities.
+
+Security is an ongoing process.
+
+Changes to the application, Agent, dependencies, container configuration, network exposure, authentication model, or deployment architecture should trigger another security review of the affected controls.
 * øktsikkerhet
 * CSRF-beskyttelse
 * hastighetsbegrensning for innlogging
@@ -1314,82 +1656,97 @@ Endringer i applikasjonen, agenten, avhengigheter, containerkonfigurasjon, nette
 
 ---
 
-# Sikkerhetsbaseline
+# Sikkerhetgrunnlinje
 
-Gjeldende sikkerhetsbaseline er basert på den verifiserte implementasjonen og produksjonsdistribusjonstilstanden.
+The current security baseline is based on the verified implementation and production deployment state.
 
-Baselinen inkluderer:
+The baseline includes:
 
-* autentisering på serversiden
-* RBAC på serversiden
-* Argon2-passordhashing
-* SHA-256 klienttokensammendrag
-* CSRF-beskyttelse
-* hastighetsbegrensning for innlogging
-* parameterisert SQL
-* validert API-input
-* kontrollert pakkebehandlerkjøring
-* gjenoppretting av oppdateringsjobber
-* revisjonslogging
-* herdet Docker-kjøring
-* HTTPS gjennom Nginx
-* kun loopback-eksponering av applikasjonsporten
-* brannmurrestriksjoner
-* beskyttede produksjonshemmeligheter
-* pinnede produksjonsavhengigheter
-* begrensede filsystemtillatelser
-* automatisert sikkerhetstesting
+* server-side authentication
+* server-side RBAC
+* Argon2 password hashing
+* SHA-256 client-token digests
+* CSRF protection
+* login rate limiting
+* parameterized SQL
+* validated API input
+* controlled package-manager execution
+* update-job recovery
+* audit logging
+* hardened Docker runtime
+* HTTPS through Nginx
+* loopback-only application-port exposure
+* firewall restrictions
+* protected production secrets
+* pinned production dependencies
+* restricted filesystem permissions
+* automated security testing
 
-Fremtidige endringer bør bevare disse egenskapene med mindre en bevisst arkitektonisk endring erstatter dem med en tilsvarende eller sterkere kontroll.
-
----
-
-# Sikkerhetsvedlikehold
-
-Sikkerhetskontroller bør revalideres når betydelige endringer introduseres.
-
-Eksempler inkluderer:
-
-* autentiseringsendringer
-* nye brukerroller
-* nye API-endepunkter
-* pakkeadministrasjonsendringer
-* agentkjøringsendringer
-* databasemigreringer
-* avhengighetsoppdateringer
-* Dockerfile-endringer
-* containerkjøringsendringer
-* omvendt proxy-endringer
-* brannmurendringer
-* hemmelighetshåndteringsendringer
-* utgivelsesforberedelse
-
-Sikkerhetstesting bør utføres før publisering av en offisiell utgivelse.
-
-Sikkerhetsdokumentasjonen bør oppdateres når den verifiserte sikkerhetsbaselinen endres.
+Future changes should preserve these properties unless a deliberate architectural change replaces them with an equivalent or stronger control.
 
 ---
 
+# Sikkerhetvedlikehold
+
+Security controls should be revalidated when significant changes are introduced.
+
+Examples include:
+
+* authentication changes
+* new user roles
+* new API endpoints
+* package-management changes
+* Agent execution changes
+* database migrations
+* dependency updates
+* Dockerfile changes
+* container-runtime changes
+* reverse-proxy changes
+* firewall changes
+* secret-management changes
+* release preparation
+
+Security testing should be performed before publishing an official release.
+
+The security documentation should be updated whenever the verified security baseline changes.
+
+---
+
+# Utgivelseberedskap
+
+The first official LUMS release will be created only after:
+
+1. implementation work is complete
+2. security review is complete
+3. documentation review is complete
+4. the full automated test suite passes
+5. CI passes
+6. the final version is defined
+7. the Git tag is created
+8. the GitHub Release is published
+
+Until then, LUMS remains an actively developed project.
 # Oppslag av utgivelsesstatus
 
 Utgivelsesstatus er tidsavhengig. Kontroller gjeldende GitHub-utgivelser og Git-tagger i repositoriet i stedet for å utlede status fra denne veiledningen. Sikkerhetsbaselinen dokumenterer implementasjonen som ble gjennomgått, men beviser ikke at kontrollene er aktivert i en bestemt distribusjon. Operatører må verifisere sitt eget miljø.
 
 ---
 
-# Endelig uttalelse
+# Sluttforklaring
 
-LUMS er utformet som en kontrollert plattform for Linux-oppdateringsadministrasjon med sikkerhet som en kjerne-arkitektonisk bekymring.
+LUMS is designed as a controlled Linux update-management platform with security as a core architectural concern.
 
-Sikkerhetsmodellen er ikke avhengig av en enkelt beskyttelsesmekanisme.
+The security model does not rely on a single protective mechanism.
 
-I stedet fungerer autentisering, autorisasjon, validering, kontrollert kjøring, persistens, gjenoppretting, logging, containerisolasjon, nettverksrestriksjoner og automatisert testing sammen som lagdelte kontroller.
+Instead, authentication, authorization, validation, controlled execution, persistence, recovery, logging, container isolation, network restrictions, and automated testing work together as layered controls.
 
-Prosjektet foretrekker bevisst eksplisitt håndheving på serversiden fremfor sikkerhet gjennom grensesnitt.
+The project deliberately favors explicit server-side enforcement over security-by-interface.
 
+The current security baseline is documented according to the verified implementation state rather than historical development behavior.
 Gjeldende sikkerhetsbaseline er dokumentert i henhold til den verifiserte implementasjonstilstanden i stedet for historisk utviklingsatferd. Den er ikke en garanti for en bestemt distribusjon; operatører må verifisere miljøet sitt.
 
 ---
 
-**LUMS — Linux-oppdateringsadministrasjon uten støyen.**
+**LUMS — Linux Update Management without the noise.**
 
 `segfault // override`

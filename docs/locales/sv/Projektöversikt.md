@@ -1,19 +1,26 @@
 # LUMS
 
-**Linux-uppdateringshantering utan bruset.**
+**Linux-uppdateringshantering utan brus.**
 
 ## Komma igång
 
-LUMS hanterar Linux-uppdateringar centralt. En server visar klienter, installerad
-programvara och tillgängliga uppdateringar. En agent på varje hanterat Linux-system utför
-godkända paketåtgärder med systemets pakethanterare. LUMS ersätter inte
-APT på Debian/Ubuntu eller pacman på Arch Linux.
+LUMS hanterar Linux-uppdateringar centralt. A server displays clients, installed
+software, and available updates. An agent on each managed Linux system performs
+approved package actions using that system's package manager. LUMS does not
+replace APT on Debian/Ubuntu or pacman on Arch Linux.
 
-**Använder du bara en befintlig LUMS-installation?** Öppna adressen som din
-administratör tillhandahåller och logga in med ditt eget konto. Om en funktion saknas
-kanske ditt konto inte har behörighet att använda den. Fråga din administratör om
-hjälp; dela inte konton och använd inte en klienttoken som webbplatslösenord.
+**Only using an existing LUMS installation?** Open the address provided by
+your administrator and sign in with your own account. If a feature is missing,
+your account may not have permission to use it. Ask your administrator for
+help; do not share accounts or use a client token as a web password.
 
+**Installing or operating LUMS?** Start with the
+[installation guide](install.md), then read the
+[administration guide](administration.md). If something goes wrong, use the
+[troubleshooting guide](troubleshooting.md). These detailed technical guides
+are maintained in English; translated guides are listed in
+[`docs/README.md`](docs/README.md). Translation coverage can vary, so use the
+English source when a localized procedure is incomplete or differs.
 **Installerar eller driftar du LUMS?** Börja med
 [installationsguiden](<Installation och uppgraderingar.md>), läs sedan
 [administrationsguiden](<Administration och säkerhetskopior.md>). Om något går fel, använd
@@ -21,55 +28,57 @@ hjälp; dela inte konton och använd inte en klienttoken som webbplatslösenord.
 omfattning kan skilja sig från de engelska tekniska originalen. I
 [dokumentationsindexet](../../README.md) listas tillgängliga språkversioner.
 
-En testkörning eller en framgångsrikt byggd Docker-avbildning är **inte** en produktionsinstallation.
-En produktionsdistribution behöver också HTTPS, en skyddad programhemlighet, beständig data,
-verifierade säkerhetskopior och en härdad container. Kopiera inte produktionskommandon
-förrän du har kontrollerat deras platshållare och lagringsplatser mot din egen installation.
+A test run or a successfully built Docker image is **not** a production
+installation. A production deployment also needs HTTPS, a protected application
+secret, persistent data, verified backups, and a hardened container. Do not
+copy production commands until you have checked their placeholders and storage
+paths against your own installation.
 
-### Språk i webbgränssnittet
+### Web interface languages
 
-Webbgränssnittet erbjuder tyska, engelska (US och UK), franska, spanska,
-förenklad kinesiska, japanska, polska, svenska, norskt bokmål och finska.
-Välj ett språk i det övre högra hörnet på inloggningssidan. Om du inte
-väljer ett försöker LUMS använda webbläsarens språk; efter inloggning har ett språk
-sparat på ditt konto företräde. Viss teknisk eller dynamisk text kan
-förbli på sitt originalspråk när en översättning inte är tillgänglig. Markdown-
-guider är separata från webbgränssnittet och översätts inte automatiskt.
-
----
-
-LUMS är en Linux-uppdateringshanteringsserver designad för att tillhandahålla kontrollerad, granskningsbar och säker programvaru- och uppdateringshantering för Linux-klienter.
-
-Istället för att förlita sig på okontrollerad uppdateringsaktivitet på klientsidan tillhandahåller LUMS ett centralt hanteringslager för programvaruinventering, uppdateringsdetektering, paketåtgärder, uppdateringsjobb, övervakning av körning och resultatrapportering.
-
-LUMS är designat för miljöer där uppdateringar ska vara **synliga, kontrollerade, spårbara och återställbara**.
+The web interface offers German, English (US and UK), French, Spanish,
+Simplified Chinese, Japanese, Polish, Swedish, Norwegian Bokmål, and Finnish.
+Choose a language from the upper-right corner of the login page. If you do not
+choose one, LUMS tries to use the browser language; after sign-in, a language
+saved to your account takes precedence. Some technical or dynamic text may
+remain in its original language when a translation is not available. Markdown
+guides are separate from the web interface and are not translated
+automatically.
 
 ---
 
-## Vad är LUMS?
+LUMS is a Linux update management server designed to provide controlled, auditable, and secure software and update management for Linux clients.
 
-LUMS (**Linux Update Management Server**) består av en central server och lättvikts-Linux-klienter.
+Instead of relying on uncontrolled client-side update activity, LUMS provides a central management layer for software inventory, update detection, package operations, update jobs, execution monitoring, and result reporting.
 
-Servern tillhandahåller hanteringsgränssnittet, API, autentisering, auktorisering, jobbhantering, granskningsloggning och beständigt tillstånd.
+LUMS is designed for environments where updates should be **visible, controlled, traceable, and recoverable**.
 
-Klientagenten utför lokala pakethanteraroperationer och rapporterar resultaten tillbaka till servern.
+---
 
-Den grundläggande arkitekturen är:
+Vad är LUMS?
+
+LUMS (**Linux Update Management Server**) consists of a central server and lightweight Linux clients.
+
+The server provides the management interface, API, authentication, authorization, job management, audit logging, and persistent state.
+
+The client-side agent performs local package-manager operations and reports the results back to the server.
+
+The basic architecture is:
 
 ```text
                     ┌──────────────────────┐
-                    │      Webbläsare       │
+                    │      Web Browser      │
                     └──────────┬───────────┘
                                │
                                ▼
                     ┌──────────────────────┐
-                    │     LUMS-server      │
+                    │     LUMS Server      │
                     │                      │
-                    │ Webbgränssnitt / API │
-                    │ Autentisering        │
+                    │ Web UI / API         │
+                    │ Authentication       │
                     │ RBAC                 │
-                    │ Jobbhantering        │
-                    │ Granskningsloggning  │
+                    │ Job Management       │
+                    │ Audit Logging        │
                     │ SQLite               │
                     └──────────┬───────────┘
                                │
@@ -79,114 +88,149 @@ Den grundläggande arkitekturen är:
               │                                 │
               ▼                                 ▼
       ┌─────────────────┐             ┌─────────────────┐
-      │  Linux-klient   │             │  Linux-klient   │
+      │   Linux Client  │             │   Linux Client  │
       │                 │             │                 │
-      │ LUMS-agent      │             │ LUMS-agent      │
-      │ Pakethanterare  │             │ Pakethanterare  │
+      │ LUMS Agent      │             │ LUMS Agent      │
+      │ Package Manager │             │ Package Manager │
       │ Watcher         │             │ Watcher         │
       └─────────────────┘             └─────────────────┘
 ```
 
 ---
 
-## Varför LUMS?
+Varför LUMS?
 
-Linux-system tillhandahåller redan utmärkta verktyg för pakethantering.
+Linux systems already provide excellent package-management tools.
 
-LUMS försöker inte ersätta dem.
+LUMS does not attempt to replace them.
 
-Istället tillhandahåller LUMS ett hanteringslager runt dessa verktyg så att administratörer centralt kan svara på frågor som:
+Instead, LUMS provides a management layer around those tools so that administrators can centrally answer questions such as:
 
-* Vilka klienter finns?
-* Vilken programvara är installerad?
-* Vilka uppdateringar är tillgängliga?
-* Vilka paket ska installeras eller tas bort?
-* Vilka uppdateringsjobb körs?
-* Vad hände under en uppdatering?
-* Rapporterade klienten resultatet framgångsrikt?
-* Krävdes en omstart?
-* Kan ett avbrutet jobb återställas säkert?
-* Vem initierade en administrativ åtgärd?
+* Which clients exist?
+* Which software is installed?
+* Which updates are available?
+* Which packages should be installed or removed?
+* Which update jobs are running?
+* What happened during an update?
+* Did the client successfully report the result?
+* Was a reboot required?
+* Can an interrupted job recover safely?
+* Who initiated an administrative action?
 
-Målet är inte att dölja den underliggande Linux-pakethanteraren.
+The goal is not to hide the underlying Linux package manager.
 
-Målet är att göra dess drift **hanterbar och granskningsbar**.
+The goal is to make its operation **manageable and auditable**.
 
 ---
 
-## Huvudfunktioner
+## Huvudsakliga funktioner
 
 ### Klienthantering
 
-LUMS underhåller registrerade Linux-klienter och deras autentiseringstillstånd.
+LUMS maintains registered Linux clients and their authentication state.
 
-Varje klient får en individuell autentiseringstoken.
+Each client receives an individual authentication token.
 
-Klienttoken lagras inte som klartextuppgifter. Servern lagrar en SHA-256-sammanfattning och validerar inkommande klientautentisering mot den sammanfattningen.
+Client tokens are not stored as plaintext credentials. The server stores a SHA-256 digest and validates incoming client authentication against that digest.
 
-Administratörer kan:
+Administrators can:
 
-* registrera klienter
-* inaktivera klienter
-* rotera klienttoken
-* inspektera klientstatus
-* övervaka klientrapportering
-
----
-
-### Programvaruinventering
-
-Klienter rapporterar sin installerade programvara till LUMS-servern.
-
-Servern lagrar inventeringen och exponerar den via hanteringsgränssnittet.
-
-Vyn för installerad programvara är avsiktligt separat från pakethanteringssökning.
-
-Detta gör det möjligt för administratörer och skrivskyddade användare att inspektera installerad programvara utan att automatiskt exponera pakethanteringsåtgärder.
+* register clients
+* disable clients
+* rotate client tokens
+* inspect client status
+* monitor client reporting
+* view client telemetry (CPU, memory, network when telemetry is enabled)
 
 ---
 
-### Uppdateringsinventering
+### Software Inventory
 
-Klienter bestämmer regelbundet om paketuppdateringar är tillgängliga.
+Clients report their installed software to the LUMS server.
 
-Servern lagrar den rapporterade uppdateringsinformationen och gör den tillgänglig för behöriga användare.
+The server stores the inventory and exposes it through the management interface.
 
-Uppdateringsinformation kan användas som grund för kontrollerade uppdateringsjobb.
+The installed-software view is intentionally separate from package-management search.
+
+This allows administrators and read-only users to inspect installed software without automatically exposing package-management operations.
 
 ---
 
-### Pakethantering
+### Fleet Telemetry and Health Dashboard
 
-LUMS tillhandahåller pakethanteringsåtgärder via klientagenten.
+The optional telemetry system monitors CPU utilization, memory utilization, and network traffic across the fleet.
 
-Paketåtgärder som stöds inkluderar:
+The `/health` dashboard provides:
+
+* Real-time client status (online, unknown, offline)
+* CPU and memory utilization charts (line, area, or current-value gauges)
+* Network traffic monitoring (receive/transmit bytes per second)
+* 1-hour, 24-hour, and 7-day historical views
+* Client filtering (by status, stale telemetry, high load)
+* Searchable client list with sortable columns
+* Automatic data refresh every 5 seconds
+* Latest backup status
+
+Telemetry data is retained for 7 days. Telemetry submission occurs approximately every 5 seconds when the agent's systemd timer is enabled and the client can reach the server.
+
+---
+
+### Theme System
+
+LUMS includes an optional theme system providing six visual themes:
+
+* **standard** - default LUMS interface
+* **LUMSStadium** - alternative corporate theme
+* **golf** - calming aesthetic
+* **nerd** - developer-focused theme
+* **geek** - technical theme
+* **admin** - administrator-specific theme
+
+Themes are visual presentation only and do not modify authentication, authorization, update execution, or security controls. Theme preference is stored in browser local storage and persists across sessions.
+
+---
+
+### Update Inventory
+
+Clients periodically determine whether package updates are available.
+
+The server stores the reported update information and makes it available to authorized users.
+
+Update information can be used as the basis for controlled update jobs.
+
+---
+
+### Package Management
+
+LUMS provides package-management operations through the client agent.
+
+Supported package operations include:
 
 * `INSTALL_PACKAGE`
 * `REMOVE_PACKAGE`
 * `UPDATE_PACKAGE`
 * `UPDATE_SYSTEM`
 
-Pakethanteringslagret abstraherar den underliggande pakethanteraren.
+The package-management layer abstracts the underlying package manager.
 
-Nuvarande pakethanterarfamiljer som stöds är:
+Current supported package-manager families are:
 
 * **Debian / Ubuntu:** APT / dpkg
 * **Arch Linux:** pacman
 
-Paketsökning är också tillgänglig via LUMS.
+Package search is also available through LUMS.
 
-Sökförfrågningar skickas till målklienten, körs med den lokala pakethanteraren och returneras till servern för visning.
+Search requests are sent to the target client, executed using the local package manager, and returned to the server for display.
 
 ---
 
-### Uppdateringsjobb
+### Update Jobs
 
-Uppdateringsåtgärder representeras som beständiga jobb.
+Update operations are represented as persistent jobs.
 
-Ett jobb kan innehålla en eller flera paketåtgärder och upprätthåller ett körningstillstånd på serversidan.
+A job can contain one or more package operations and maintains a server-side execution state.
 
-Den allmänna livscykeln är:
+The general lifecycle is:
 
 ```text
 PENDING
@@ -199,86 +243,96 @@ RUNNING
    └──────────────► FAILED
 ```
 
-Resultat på paketnivå spåras oberoende så att avbrutna jobb kan återställas utan att onödigtvis upprepa operationer som redan slutförts framgångsrikt.
+Package-level results are tracked independently so that interrupted jobs can be recovered without unnecessarily repeating operations that already completed successfully.
 
 ---
 
-### Kontrollerad körning
+### Controlled Execution
 
-LUMS utför inte godtyckliga skalkommandon som tillhandahålls av webbgränssnittet.
+LUMS does not execute arbitrary shell commands supplied by the web interface.
 
-Servern skapar strukturerade jobb med validerade åtgärder och paketnamn.
+The server creates structured jobs using validated actions and package names.
 
-Klientagenten mappar dessa åtgärder till lämplig lokal pakethanteraroperation.
+The client agent maps those actions to the appropriate local package-manager operation.
 
-Detta skapar en avsiktlig gräns mellan:
+This creates a deliberate boundary between:
 
 ```text
-Webbgränssnitt
+Web UI
    ↓
 API
    ↓
-Validerat jobb
+Validated Job
    ↓
 Agent
    ↓
-Pakethanterare
+Package Manager
 ```
 
 ---
 
-### Inaktivitetsmedveten körning
+### Idle-Aware Execution
 
-LUMS kan skjuta upp uppdateringskörning medan en klient anses vara aktiv.
+LUMS can defer update execution while a client is considered active.
 
-Den nuvarande inaktivitetsgränsen är **300 sekunder**.
+The current idle threshold is **300 seconds**.
 
-Där det stöds använder agenten det lokala systemets sessions-/inaktivitetsinformation via `loginctl`.
+Where supported, the agent uses the local system's session/idle information through `loginctl`.
 
-Om inaktivitetsdetektering inte är tillgänglig låtsas LUMS inte att klienten är inaktiv.
+If idle detection is unavailable, LUMS does not pretend that the client is idle.
 
-Denna distinktion är viktig eftersom **okänt inaktivitetstillstånd inte är samma sak som bekräftat inaktivitetstillstånd**.
-
----
-
-### Jobbåterställning
-
-Uppdateringsjobb är designade för att överleva avbrott.
-
-Servern upprätthåller beständigt jobb- och paketobjektstillstånd.
-
-Under återställning körs redan framgångsrika paketobjekt inte onödigtvis igen.
-
-Detta ger en kontrollpunktsliknande körningsmodell för operationer med flera paket.
-
-Målet är:
-
-> **Återställ jobbet, starta inte hela jobbet blint på nytt.**
+This distinction is important because **unknown idle state is not the same as confirmed idle state**.
 
 ---
 
-### Omstartsdetektering
+### Job Recovery
 
-Vissa paketåtgärder kan kräva en systemomstart.
+Update jobs are designed to survive interruptions.
 
-LUMS behandlar därför omstartsdetektering som en del av uppdateringsresultathanteringen istället för att anta att en framgångsrik pakethanterarutgång alltid innebär att systemet är fullt funktionsdugligt.
+The server maintains persistent job and package-item state.
 
-Klienten rapporterar det detekterade omstartsbehovet tillbaka till servern.
+During recovery, already successful package items are not unnecessarily executed again.
+
+This provides a checkpoint-like execution model for multi-package operations.
+
+The goal is:
+
+> **Recover the job, not blindly restart the entire job.**
 
 ---
 
-### Klientautentisering
+### Reboot Detection
 
-Klientkommunikation autentiseras med per-klient-token.
+Some package operations can require a system reboot.
 
-Token är:
+LUMS therefore treats reboot detection as part of update-result handling rather than assuming that a successful package-manager exit always means that the system is fully operational.
 
-* individuellt tilldelade
-* roterbara
-* lagras endast på serversidan som SHA-256-sammanfattningar
-* valideras innan klientrapporter accepteras
+The client reports the detected reboot requirement back to the server.
 
-Tokenrotation gör det möjligt för en administratör att ogiltigförklara en tidigare utfärdad klientuppgift utan att återskapa klienten.
+---
+
+### Client Authentication
+
+Client communication is authenticated using per-client tokens.
+
+Tokens are:
+
+* individually assigned
+* rotatable
+* stored server-side only as SHA-256 digests
+* validated before accepting client reports
+
+Token rotation allows an administrator to invalidate a previously issued client credential without recreating the client.
+
+---
+
+### Health dashboard
+
+The authenticated health dashboard at `/health` summarizes the database status,
+client reporting status, backup-storage visibility, and CPU/memory telemetry
+when telemetry is configured. It is a quick operational view, not a substitute
+for checking container, reverse-proxy, host, and backup logs or for performing
+a restore test. See [LUMS_Health_Dashboard.md](LUMS_Health_Dashboard.md).
 
 
 ---
@@ -295,79 +349,79 @@ LUMS har ett API för larmhantering och en grundläggande panel för lagrade lar
 
 ---
 
-### Granskningsbarhet
+### Auditability
 
-Administrativa och säkerhetsrelevanta åtgärder registreras via LUMS granskningsloggsystem.
+Administrative and security-relevant actions are recorded through the LUMS audit-log system.
 
-Granskningsspåret är avsett att svara på:
+The audit trail is intended to answer:
 
 ```text
-Vem?
-Vad?
-När?
-Mot vilket objekt?
-Med vilket resultat?
+Who?
+What?
+When?
+Against which object?
+With which result?
 ```
 
-Detta inkluderar säkerhetskänsliga operationer som autentiseringsrelaterade åtgärder, klienthantering, användarhantering och skapande av uppdateringsjobb.
+This includes security-sensitive operations such as authentication-related actions, client management, user management, and update-job creation.
 
 ---
 
-## Designprincip
+## Design Principle
 
-LUMS följer en enkel princip:
+LUMS follows a simple principle:
 
-> **Gör Linux-uppdateringshantering synlig, kontrollerad, återställbar och granskningsbar — utan att dölja Linux-verktygen under.**
+> **Make Linux update management visible, controlled, recoverable, and auditable — without hiding the Linux tools underneath.**
 
 ## Arkitektur
 
-LUMS separerar hantering, körning och persistens i tydligt definierade komponenter.
+LUMS separates management, execution, and persistence into clearly defined components.
 
-Servern ansvarar för orkestrering och policy.
+The server is responsible for orchestration and policy.
 
-Klienten ansvarar för lokal systeminteraktion.
+The client is responsible for local system interaction.
 
-Pakethanteraren ansvarar fortfarande för att faktiskt installera, ta bort eller uppdatera programvara.
+The package manager remains responsible for actually installing, removing, or updating software.
 
-Denna separation är avsiktlig.
+This separation is intentional.
 
 ```text
-Webbläsare
+Browser
    │
    │ HTTPS
    ▼
 ┌──────────────────────────────────────────┐
-│                LUMS-server                │
+│                LUMS Server                │
 │                                          │
-│  Webbgränssnitt                          │
-│  Autentisering / Sessioner               │
+│  Web UI                                  │
+│  Authentication / Sessions               │
 │  RBAC                                    │
 │  API                                     │
-│  Klienthantering                         │
-│  Paketsökning                            │
-│  Uppdateringsjobbshantering              │
-│  Granskningsloggning                     │
-│  SQLite-persistens                       │
+│  Client Management                       │
+│  Package Search                          │
+│  Update Job Management                   │
+│  Audit Logging                            │
+│  SQLite Persistence                       │
 └───────────────────┬──────────────────────┘
                     │
-                    │ HTTPS / Klient-API
+                    │ HTTPS / Client API
                     ▼
 ┌──────────────────────────────────────────┐
-│               LUMS-agent                  │
+│               LUMS Agent                  │
 │                                          │
-│  Autentisering                           │
-│  Inventarierapportering                  │
-│  Uppdateringsdetektering                 │
-│  Paketsökning                            │
-│  Jobbkörning                             │
-│  Resultatrapportering                    │
-│  Omstartsdetektering                     │
-│  Inaktivitetsdetektering                 │
+│  Authentication                          │
+│  Inventory Reporting                     │
+│  Update Detection                        │
+│  Package Search                          │
+│  Job Execution                           │
+│  Result Reporting                        │
+│  Reboot Detection                        │
+│  Idle Detection                          │
 └───────────────────┬──────────────────────┘
                     │
                     ▼
           ┌────────────────────┐
-          │ Pakethanterare     │
+          │ Package Manager    │
           │                    │
           │ APT / dpkg         │
           │ pacman             │
@@ -378,100 +432,100 @@ Webbläsare
 
 ## Serverkomponenter
 
-LUMS-servern tillhandahåller det centrala hanteringslagret.
+The LUMS server provides the central management layer.
 
-### Webbapplikation
+### Web Application
 
-Webbapplikationen tillhandahåller det administrativa gränssnittet för:
+The web application provides the administrative interface for:
 
-* klienthantering
-* programvaruinventering
-* uppdateringsinformation
-* uppdateringsjobb
-* pakethantering
-* uppdateringshistorik
-* användarhantering
-* systemunderhåll
+* client management
+* software inventory
+* update information
+* update jobs
+* package management
+* update history
+* user management
+* system maintenance
 
-Gränssnittet respekterar den aktuella användarens RBAC-roll.
+The interface respects the current user's RBAC role.
 
-Frontend-synlighet anpassas därför till användarens behörigheter, men auktorisering upprätthålls alltid även på serversidan.
+Frontend visibility is therefore adapted to the user's permissions, but authorization is always enforced server-side as well.
 
 ---
 
 ### API
 
-API:et ansluter webbgränssnittet och Linux-klienterna till applikationslogiken på serversidan.
+The API connects the web interface and Linux clients to the server-side application logic.
 
-Det hanterar operationer som:
+It handles operations such as:
 
-* klientregistrering och -hantering
-* klientrapporter
-* paketsökningar
-* paketsökresultat
-* uppdateringsjobb
-* jobbresultat
-* användarhantering
-* granskningshändelser
+* client registration and management
+* client reports
+* package searches
+* package-search results
+* update jobs
+* job results
+* user management
+* audit events
 
-API-slutpunkter validerar sin indata innan de utför tillståndsändrande operationer.
+API endpoints validate their input before performing state-changing operations.
 
 ---
 
-### Autentisering och sessioner
+### Authentication and Sessions
 
-Administrativa användare autentiserar sig via LUMS webbapplikation.
+Administrative users authenticate through the LUMS web application.
 
-Sessioner kontrolleras av servern och stöder explicit sessionsåterkallning.
+Sessions are server-controlled and support explicit session revocation.
 
-Autentiseringssäkerhet inkluderar:
+Authentication security includes:
 
-* lösenordshashning med Argon2
-* sessionshantering
-* sessionsåterkallning
-* inloggningsfrekvensbegränsning
-* CSRF-skydd
-* rollbaserad auktorisering
+* password hashing using Argon2
+* session management
+* session revocation
+* login rate limiting
+* CSRF protection
+* role-based authorization
 
-Klientautentisering är separat från administrativ autentisering.
+Client authentication is separate from administrative authentication.
 
 ---
 
 ### RBAC
 
-LUMS kombinerar rollmallar med behörigheter per användare. Mallarna Administrator,
-Operator och Viewer tillhandahåller startbehörighetsuppsättningar som kan
-anpassas för varje konto.
+LUMS combines role templates with per-user permissions. The Administrator,
+Operator, and Viewer templates provide starting permission sets that can be
+customized for each account.
 
-Auktorisering upprätthålls på servern med hjälp av kontots lagrade behörigheter.
+Authorization is enforced on the server using the account's stored permissions.
 
-Frontend döljer dessutom funktionalitet som användarens behörigheter inte
-tillåter.
+The frontend additionally hides functionality that the user's permissions do
+not allow.
 
-Detta innebär att det att dölja en knapp aldrig behandlas som en säkerhetsgräns.
+This means that hiding a button is never treated as a security boundary.
 
 ---
 
-### SQLite-persistens
+### SQLite Persistence
 
-LUMS använder SQLite för beständigt applikationstillstånd.
+LUMS uses SQLite for persistent application state.
 
-Databasen lagrar information som:
+The database stores information such as:
 
-* användare
-* sessioner
-* klienter
-* klientautentiseringstillstånd
-* programvaruinventering
-* tillgängliga uppdateringar
-* uppdateringsjobb
-* jobbresultat på paketnivå
-* paketsökförfrågningar och resultat
-* granskningsinformation
+* users
+* sessions
+* clients
+* client authentication state
+* software inventory
+* available updates
+* update jobs
+* package-level job results
+* package-search requests and results
+* audit information
 
-Applikationen aktiverar uttryckligen SQLite-främmandenyckelkontroll för databasanslutningar.
+The application explicitly enables SQLite foreign-key enforcement for database connections.
 
-Den nuvarande produktionsbaslinjen för SQLite är:
+The current production SQLite baseline is:
 
 ```text
 journal_mode = wal
@@ -480,148 +534,148 @@ synchronous = 2
 foreign_keys = ON
 ```
 
-LUMS använder SQLite WAL-läge i den nuvarande produktionskonfigurationen.
+LUMS uses SQLite WAL mode in the current production configuration.
 
 ---
 
-## Containerarkitektur
+## Container Architecture
 
-LUMS-servern distribueras som en härdad Docker-container.
+The LUMS server is deployed as a hardened Docker container.
 
-Applikationscontainern behandlas avsiktligt som engångs.
+The application container is intentionally treated as disposable.
 
-Beständigt applikationstillstånd lagras i den dedikerade Docker-volymen:
+Persistent application state is stored in the dedicated Docker volume:
 
 ```text
 lums-data
 ```
 
-Produktionscontainern använder ett skrivskyddat rotfilsystem.
+The production container uses a read-only root filesystem.
 
-Skrivbara platser är avsiktligt begränsade till nödvändiga körnings- och beständiga lagringsvägar.
+Writable locations are deliberately restricted to required runtime and persistent storage paths.
 
-Produktionssäkerhetsbaslinjen inkluderar:
+The production security baseline includes:
 
 ```text
-skrivskyddat rotfilsystem
-alla Linux-kapaciteter borttagna
+read-only root filesystem
+all Linux capabilities dropped
 no-new-privileges
-begränsad /tmp
-begränsad /run
-skrivskyddad hemlighetsmontering
-dedikerad beständig datavolym
-icke-root-applikationsanvändare
+restricted /tmp
+restricted /run
+read-only secret mount
+dedicated persistent data volume
+non-root application user
 ```
 
-Applikationen exponeras internt via:
+The application is exposed internally through:
 
 ```text
 127.0.0.1:5050
 ```
 
-Extern HTTPS-åtkomst tillhandahålls via omvänd proxy.
+External HTTPS access is provided through the reverse proxy.
 
 ---
 
-## Beständiga och engångskomponenter
+## Persistent and Disposable Components
 
-LUMS separerar beständigt tillstånd från utbytbara körtidskomponenter.
+LUMS separates persistent state from replaceable runtime components.
 
 ```text
-Beständigt
-├── SQLite-databas
-├── klienttillstånd
-├── användartillstånd
-├── jobbtillstånd
-└── granskningstillstånd
+Persistent
+├── SQLite database
+├── client state
+├── user state
+├── job state
+└── audit state
 
-Engångs
-├── Docker-container
-├── applikationsprocess
-└── genererat körtidstillstånd
+Disposable
+├── Docker container
+├── application process
+└── generated runtime state
 ```
 
-Att ersätta applikationscontainern tar därför inte automatiskt bort LUMS-databasen.
+Replacing the application container therefore does not inherently remove the LUMS database.
 
-Denna separation är viktig för uppgraderingar och återställning.
+This separation is important for upgrades and recovery.
 
 ---
 
-## Klientarkitektur
+## Client Architecture
 
-Linux-klienten består av flera samverkande komponenter.
+The Linux client consists of several cooperating components.
 
-### LUMS-agent
+### LUMS Agent
 
-Agenten ansvarar för interaktion med LUMS-servern och det lokala Linux-systemet.
+The agent is responsible for interaction with the LUMS server and the local Linux system.
 
-Aktuell agentversion:
+Current agent version:
 
 ```text
 1.7.0
 ```
 
-Agenten hanterar:
+The agent handles:
 
-* autentisering
-* inventeringsinsamling
-* uppdateringsdetektering
-* paketsökning
-* paketåtgärder
-* uppdateringsjobbkörning
-* resultatrapportering
-* omstartsdetektering
-* inaktivitetshantering
+* authentication
+* inventory collection
+* update detection
+* package search
+* package operations
+* update-job execution
+* result reporting
+* reboot detection
+* idle-state handling
 
 ---
 
-### Pakethanterarlager
+### Package Manager Layer
 
-Pakethanterarlagret tillhandahåller en kontrollerad abstraktion runt den inbyggda Linux-pakethanteraren.
+The package-manager layer provides a controlled abstraction around the native Linux package manager.
 
-Agenten kräver inte att LUMS ersätter pakethanteraren.
+The agent does not require LUMS to replace the package manager.
 
-Istället:
+Instead:
 
 ```text
-LUMS-åtgärd
+LUMS Action
      │
      ▼
-Pakethanterarabstraktion
+Package Manager Abstraction
      │
      ├── Debian / Ubuntu → APT / dpkg
      │
      └── Arch Linux      → pacman
 ```
 
-Detta håller distributionsspecifik pakethantering inne i klienten.
+This keeps distribution-specific package handling inside the client.
 
 ---
 
 ### Execution Watcher
 
-Watchern övervakar uppdateringsjobbkörning på klienten.
+The watcher monitors update-job execution on the client.
 
-Aktuell watcherversion:
+Current watcher version:
 
 ```text
 1.2.1
 ```
 
-Watchern arbetar tillsammans med agenten och jobbtillståndet på serversidan.
+The watcher works together with the agent and the server-side job state.
 
-Dess syfte är att säkerställa att jobb som förväntas köras inte förblir obearbetade på obestämd tid.
+Its purpose is to ensure that jobs which are expected to execute do not remain indefinitely unprocessed.
 
 ---
 
-## Rapporteringsväg
+## Reporting Path
 
-Normal klientrapportering följer denna riktning:
+Normal client reporting follows this direction:
 
 ```text
-Linux-klient
+Linux Client
     │
-    │ inventering / uppdateringsinformation
+    │ inventory / update information
     ▼
 LUMS API
     │
@@ -629,76 +683,76 @@ LUMS API
 SQLite
     │
     ▼
-Webbgränssnitt
+Web UI
 ```
 
-Till exempel producerar en uppdateringskontroll som utförs av klienten information som rapporteras till servern och lagras som klientens aktuella uppdateringstillstånd.
+For example, an update check performed by the client produces information that is reported to the server and stored as the client's current update state.
 
-Webbläsaren frågar inte direkt klientens pakethanterare.
+The browser does not directly query the client's package manager.
 
 ---
 
-## Paketsökningsväg
+## Package Search Path
 
-Paketsökning följer ett annat förfrågan/svarsflöde:
+Package search follows a different request/response flow:
 
 ```text
-Webbläsare
+Browser
    │
-   │ sökförfrågan
+   │ search request
    ▼
-LUMS-server
+LUMS Server
    │
-   │ paketsökförfrågan
+   │ package-search request
    ▼
-Linux-klient
+Linux Client
    │
-   │ APT / pacman-sökning
+   │ APT / pacman search
    ▼
-Linux-klient
+Linux Client
    │
-   │ sökresultat
+   │ search result
    ▼
-LUMS-server
+LUMS Server
    │
    ▼
-Webbläsare
+Browser
 ```
 
-Servern behöver därför inte underhålla ett komplett fjärrpaketförrådsindex för varje klient.
+The server therefore does not need to maintain a complete remote package repository index for every client.
 
-Sökningen utförs med klientens egen pakethanteringsmiljö.
+The search is performed using the client's own package-management environment.
 
 ---
 
-## Uppdateringskörningsväg
+## Update Execution Path
 
-Ett uppdateringsjobb följer den allmänna arkitekturen:
+An update job follows the general architecture:
 
 ```text
-Webbläsare
+Browser
    │
-   │ skapa jobb
+   │ create job
    ▼
 LUMS API
    │
-   │ validera förfrågan
+   │ validate request
    ▼
 SQLite
    │
-   │ beständigt jobb
+   │ persistent job
    ▼
-Linux-klient
+Linux Client
    │
-   │ utför åtgärd
+   │ execute action
    ▼
 APT / dpkg / pacman
    │
-   │ resultat
+   │ result
    ▼
-Linux-klient
+Linux Client
    │
-   │ validerat resultat
+   │ validated result
    ▼
 LUMS API
    │
@@ -706,34 +760,34 @@ LUMS API
 SQLite
    │
    ▼
-Webbläsare
+Browser
 ```
 
-Detta skapar den centrala LUMS-körningskedjan:
+This creates the central LUMS execution chain:
 
-> **Webbläsare → API → SQLite → Agent → Pakethanterare → Resultat → SQLite → UI**
-
----
-
-## Atomisk jobbtilldelning
-
-Uppdateringsjobb är beständiga objekt på serversidan.
-
-Innan körning måste agenten erhålla ett jobb som är kvalificerat för körning.
-
-Jobbtilldelning utförs atomiskt så att samma väntande jobb inte oavsiktligt tilldelas flera körningsvägar.
-
-Detta är särskilt viktigt när timers, återförsök, återställning eller flera klientprocesser är inblandade.
+> **Browser → API → SQLite → Agent → Package Manager → Result → SQLite → UI**
 
 ---
 
-## Jobbkörning
+## Atomic Job Claiming
 
-Servern skapar strukturerade jobb.
+Update jobs are persistent server-side objects.
 
-Klientagenten tolkar de åtgärder som stöds och utför motsvarande lokala operation.
+Before execution, the agent must obtain a job that is eligible for execution.
 
-Paketåtgärderna som stöds är:
+Job claiming is performed atomically so that the same pending job is not unintentionally claimed by multiple execution paths.
+
+This is particularly important when timers, retries, recovery, or multiple client-side processes are involved.
+
+---
+
+## Job Execution
+
+The server creates structured jobs.
+
+The client agent interprets the supported job actions and executes the corresponding local operation.
+
+The supported package actions are:
 
 ```text
 INSTALL_PACKAGE
@@ -742,19 +796,19 @@ UPDATE_PACKAGE
 UPDATE_SYSTEM
 ```
 
-Paketnamn valideras innan ett paketjobb skapas.
+Package names are validated before a package job is created.
 
-Agenten behandlar inte paketnamn som godtyckliga skalfragment.
+The agent does not treat package names as arbitrary shell fragments.
 
 ---
 
-## Pakethanterarabstraktion
+## Package Management Abstraction
 
-Paketåtgärder implementeras avsiktligt bakom en pakethanterarabstraktion.
+Package operations are deliberately implemented behind a package-manager abstraction.
 
-Detta håller den högre LUMS-jobbmodellen oberoende av distributionsspecifika kommandon.
+This keeps the higher-level LUMS job model independent from distribution-specific commands.
 
-Till exempel:
+For example:
 
 ```text
 INSTALL_PACKAGE
@@ -764,397 +818,401 @@ INSTALL_PACKAGE
        └── Arch Linux      → pacman
 ```
 
-Samma princip gäller för borttagning och paketuppdateringar.
+The same principle applies to removal and package updates.
 
 ---
 
 ## Debian / Ubuntu
 
-På Debian-familjens system använder LUMS den inbyggda APT/dpkg-verktygskedjan.
+On Debian-family systems, LUMS uses the native APT/dpkg tooling.
 
-Typiska ansvarsområden inkluderar:
+Typical responsibilities include:
 
-* paketsökning
-* paketmetadatauppslag
-* paketinstallation
-* borttagning av paket
-* paketuppdateringar
-* systemuppdateringar
-* uppdateringsdetektering
+* package search
+* package metadata lookup
+* package installation
+* package removal
+* package updates
+* system updates
+* update detection
 
-LUMS-agenten ersätter inte APT.
+The LUMS agent does not replace APT.
 
-Den tillhandahåller kontrollerad orkestrering runt det.
+It provides controlled orchestration around it.
 
 ---
 
 ## Arch Linux
 
-På Arch Linux-system använder LUMS den inbyggda pacman-pakethanteraren.
+On Arch Linux systems, LUMS uses the native pacman package manager.
 
-Typiska ansvarsområden inkluderar:
+Typical responsibilities include:
 
-* paketsökning
-* paketmetadatauppslag
-* paketinstallation
-* borttagning av paket
-* paketuppdateringar
-* systemuppdateringar
-* uppdateringsdetektering
+* package search
+* package metadata lookup
+* package installation
+* package removal
+* package updates
+* system updates
+* update detection
 
-Distributionsspecifikt beteende förblir inne i pakethanterarlagret.
+Distribution-specific behavior remains inside the package-manager layer.
 
 ---
 
-## Paketsökning
+## Package Search
 
-Paketsökning är separat från inventeringen av installerad programvara.
+Package search is separate from the installed-software inventory.
 
-Denna distinktion är viktig:
+This distinction is important:
 
 ```text
-Installerad programvara
+Installed Software
         │
-        └── Vad är redan installerat?
+        └── What is already installed?
 
-Pakethanteringssökning
+Package Management Search
         │
-        └── Vilket paket kan klienten för närvarande hitta?
+        └── What package can the client currently find?
 ```
 
-Sökresultat kan innehålla paketinformation som:
+Search results may contain package information such as:
 
-* paketnamn
+* package name
 * version
-* beskrivning
-* förrådsinformation där tillgänglig
+* description
+* repository information where available
 
-Sökresultat returneras till LUMS-servern och visas i pakethanteringsgränssnittet.
+Search results are returned to the LUMS server and displayed in the Package Management interface.
 
 ---
 
-## Behörigheter för pakethantering
+## Package Management Permissions
 
-Pakethantering är en privilegierad operation.
+Package management is a privileged operation.
 
-Den nuvarande behörighetsmodellen är:
+The current permission model is:
 
 ```text
-Administratör → tillåten
-Operator      → tillåten
-Viewer        → inte tillåten
+Administrator → allowed
+Operator      → allowed
+Viewer        → not allowed
 ```
 
-En Viewer kan fortfarande inspektera installerad programvara.
+A Viewer can still inspect installed software.
 
-Själva pakethanteringsgränssnittet är dolt för Viewers, och motsvarande mutationsslutpunkter på serversidan upprätthåller auktorisering oberoende.
-
----
-
-## Hantering av uppdateringsresultat
-
-LUMS behandlar resultatet av en uppdateringsåtgärd som strukturerat tillstånd istället för att bara visa rå kommandoutdata.
-
-Relevant information kan inkludera:
-
-* framgång eller misslyckande
-* resultat på paketnivå
-* körningstillstånd
-* felinformation
-* omstartsbehov
-* tidsstämplar för slutförande
-
-Detta gör det möjligt för servern att upprätthålla en meningsfull uppdateringshistorik.
+The Package Management interface itself is hidden for Viewers, and corresponding server-side mutation endpoints enforce authorization independently.
 
 ---
 
-## Omstartsdetektering
+## Update Result Handling
 
-Efter paketåtgärder kontrollerar klienten om operationen indikerar att en omstart krävs.
+LUMS treats the result of an update operation as structured state rather than simply displaying raw command output.
 
-Resultatet rapporteras till servern som en del av jobbresultatet.
+Relevant information can include:
 
-Ett omstartsbehov förblir därför associerat med uppdateringsoperationen istället för att gå förlorat i en klientsidans terminalsession.
+* success or failure
+* package-level result
+* execution state
+* error information
+* reboot requirement
+* completion timestamps
+
+This allows the server to maintain a meaningful update history.
 
 ---
 
-## Klientautentiseringsgräns
+## Reboot Detection
 
-Klient-API:et använder en separat autentiseringsmekanism från administrativa webbsessioner.
+After package operations, the client checks whether the operation indicates that a reboot is required.
+
+The result is reported to the server as part of the job result.
+
+A reboot requirement therefore remains associated with the update operation instead of being lost in a client-side terminal session.
+
+---
+
+## Client Authentication Boundary
+
+The client API uses a separate authentication mechanism from administrative web sessions.
 
 ```text
-Administrativ användare
+Administrative User
         │
         ▼
- Webbautentisering
+ Web Authentication
         │
         ▼
-    LUMS-server
+    LUMS Server
 
-Linux-klient
+Linux Client
         │
         ▼
- Klienttoken
+ Client Token
         │
         ▼
-    LUMS-server
+    LUMS Server
 ```
 
-Denna separation förhindrar att administrativa webbläsarsessioner och klientuppgifter blir utbytbara autentiseringsmekanismer.
+This separation prevents administrative browser sessions and client credentials from becoming interchangeable authentication mechanisms.
 
 ---
 
-## Granskningsspår
+## Audit Trail
 
-Säkerhetsrelevanta och administrativa åtgärder registreras av granskningssystemet på serversidan.
+Security-relevant and administrative actions are recorded by the server-side audit system.
 
-Granskningsspåret kompletterar normal applikationsloggning.
+The audit trail complements normal application logging.
 
-Loggning svarar på frågor om applikationsbeteende.
+Logging answers questions about application behavior.
 
-Granskningsloggning registrerar dessutom viktiga administrativa åtgärder och deras sammanhang.
+Audit logging additionally records important administrative actions and their context.
 
-Denna distinktion är användbar vid utredning av ändringar i klienter, användare, autentiseringstillstånd eller uppdateringsjobb.
+This distinction is useful when investigating changes to clients, users, authentication state, or update jobs.
 
 ---
 
-## Driftsprincip
+## Operational Principle
 
-LUMS separerar avsiktligt:
+LUMS deliberately separates:
 
 ```text
-Hantering
+Management
      │
      ▼
-Policy / Auktorisering
+Policy / Authorization
      │
      ▼
-Jobb
+Job
      │
      ▼
-Klientkörning
+Client Execution
      │
      ▼
-Inbyggd pakethanterare
+Native Package Manager
 ```
 
-Varje lager har ett definierat ansvar.
+Each layer has a defined responsibility.
 
-Servern hanterar.
+The server manages.
 
-Agenten utför.
+The agent executes.
 
-Pakethanteraren utför den faktiska systemändringen.
+The package manager performs the actual system change.
 
-Resultatet färdas tillbaka genom samma kontrollerade kedja.
+The result travels back through the same controlled chain.
 
-## Rollbaserad åtkomstkontroll
+## Role-Based Access Control
 
-LUMS använder tre administrativa roller:
+LUMS uses three administrative roles:
 
 ```text
-Administratör
+Administrator
 Operator
 Viewer
 ```
 
-Auktorisering upprätthålls på serversidan.
+Authorization is enforced server-side.
 
-Frontend anpassar dessutom det synliga gränssnittet till användarens
-behörigheter, men frontend-synlighet betraktas aldrig som en säkerhetsgräns.
+The frontend additionally adapts the visible interface to the user's
+permissions, but frontend visibility is never considered a security boundary.
 
-### Administratör
+### Administrator
 
-Administratörer har tillgång till:
+Administrators have access to:
 
-* visa klienter
-* visa installerad programvara
-* visa tillgängliga uppdateringar
-* skapa och köra uppdateringsjobb
-* visa uppdateringshistorik
-* använda pakethantering
-* utföra systemunderhåll
-* skapa och inaktivera klienter
-* rotera klienttoken
-* skapa och hantera användare
-* hantera roller och användaråtkomst
+* view clients
+* view installed software
+* view available updates
+* create and execute update jobs
+* view update history
+* use package management
+* perform system maintenance
+* create and disable clients
+* rotate client tokens
+* create and manage users
+* manage roles and user access
 
 ### Operator
 
-Operatorer har tillgång till:
+Operators have access to:
 
-* visa klienter
-* visa installerad programvara
-* visa tillgängliga uppdateringar
-* skapa och köra uppdateringsjobb
-* visa uppdateringshistorik
-* använda pakethantering
-* utföra systemunderhåll
+* view clients
+* view installed software
+* view available updates
+* create and execute update jobs
+* view update history
+* use package management
+* perform system maintenance
 
-Operatorer har inte tillgång till:
+Operators do not have access to:
 
-* användarhantering
-* rolladministration
-* skapande eller inaktivering av klienter
-* rotation av klienttoken
+* user management
+* role administration
+* client creation or disabling
+* client-token rotation
 
 ### Viewer
 
-Viewers har skrivskyddad åtkomst till:
+Viewers have read-only access to:
 
-* klienter
-* installerad programvara
+* clients
+* installed software
 
-Följande funktionalitet är otillgänglig för Viewers:
+The following functionality is unavailable to Viewers:
 
-* hantering av tillgängliga uppdateringar
-* uppdateringsjobb
-* uppdateringshistorik
-* pakethantering
-* systemunderhåll
-* andra tillståndsändrande administrativa operationer
+* available-update management
+* update jobs
+* update history
+* package management
+* system maintenance
+* other state-changing administrative operations
 
-Servern upprätthåller dessa begränsningar oberoende.
+The server independently enforces these restrictions.
 
 ---
 
-## Användarhantering
+## User Management
 
-LUMS tillhandahåller användarhantering för konton med behörigheten `users.manage`.
+LUMS provides user management to accounts with the `users.manage` permission.
 
-Användare med denna behörighet kan skapa konton med en rollmall och
-sedan tilldela behörigheter individuellt eller uttryckligen tillämpa den mallen. Nya
-konton börjar utan behörigheter; behörighetsredigeraren öppnas efter skapandet.
-Användarhanterare kan också spara privata administrativa anteckningar som inte är synliga
-för kontoinnehavaren.
+Users with this permission can create accounts using a role template and
+then assign permissions individually or explicitly apply that template. New
+accounts start without permissions; the permission editor opens after creation.
+User managers can also save private administrative notes that are not visible
+to the account owner.
 
+Administrators with `backups.manage` can create validated `.db` or `.db.gz`
+database backups in a server-configured directory and choose a safe subfolder
+within that mounted location. See [`administration.md`](administration.md) and
+the in-app Markdown restore guide for Docker storage setup and recovery.
 Administratörer med `backups.manage` kan skapa validerade `.db`- eller `.db.gz`-
 databassäkerhetskopior i en serverkonfigurerad katalog och välja en säker undermapp
 inom den monterade platsen. Se [`administration.md`](<Administration och säkerhetskopior.md>) och
 den inbyggda Markdown-återställningsguiden för Docker-lagringsinställning och återställning.
 
-Användarlösenord lagras med Argon2-lösenordshashning snarare än klartext eller reversibel kryptering.
+User passwords are stored using Argon2 password hashing rather than plaintext or reversible encryption.
 
-Användarhanteringsoperationer skyddas av:
+User-management operations are protected by:
 
-* autentisering
-* behörighetsbaserad auktorisering
-* CSRF-skydd
-* inmatningsvalidering
-* dubblettanvändarkontroller
-* granskningsloggning
+* authentication
+* permission-based authorization
+* CSRF protection
+* input validation
+* duplicate-user checks
+* audit logging
 
-Användarhanteringsgränssnittet exponeras inte utan `users.manage`.
-
----
-
-## Sessionssäkerhet
-
-Administrativ autentisering använder sessionshantering på serversidan.
-
-Sessionssäkerhet inkluderar:
-
-* autentiserat sessionstillstånd
-* sessionsåterkallning
-* CSRF-skydd för tillståndsändrande förfrågningar
-* inloggningsfrekvensbegränsning
-* tvång för inaktiverade konton
-* rollkontroller
-
-Att återkalla en session ogiltigförklarar motsvarande autentiserade tillstånd istället för att bara dölja användargränssnittet.
+The user-management interface is not exposed without `users.manage`.
 
 ---
 
-## Inloggningsfrekvensbegränsning
+## Session Security
 
-Upprepade misslyckade inloggningsförsök är föremål för progressiv frekvensbegränsning.
+Administrative authentication uses server-side session handling.
 
-De nuvarande tröskelvärdena är:
+Session security includes:
+
+* authenticated session state
+* session revocation
+* CSRF protection for state-changing requests
+* login rate limiting
+* disabled-account enforcement
+* role checks
+
+Revoking a session invalidates the corresponding authenticated state rather than merely hiding the user interface.
+
+---
+
+## Login Rate Limiting
+
+Repeated failed login attempts are subject to progressive rate limiting.
+
+The current thresholds are:
 
 ```text
-5 försök  → 30 sekunder
-6 försök  → 60 sekunder
-7 försök  → 120 sekunder
-8+ försök → 300 sekunder
+5 attempts  → 30 seconds
+6 attempts  → 60 seconds
+7 attempts  → 120 seconds
+8+ attempts → 300 seconds
 ```
 
-Det relevanta tillståndet lagras i SQLite.
+The relevant state is persisted in SQLite.
 
-Framgångsrik autentisering rensar det tillämpliga feltillståndet.
+Successful authentication clears the applicable failure state.
 
-Detta förhindrar att en enkel applikationsomstart används för att kringgå inloggningsskyddet.
+This prevents a simple application restart from being used to bypass the login protection.
 
 ---
 
-## Klientsäkerhet för token
+## Client Token Security
 
-Varje registrerad klient har sin egen autentiseringstoken.
+Each registered client has its own authentication token.
 
-Servern lagrar tokenet som en SHA-256-sammanfattning.
+The server stores the token as a SHA-256 digest.
 
-Det ursprungliga tokenet krävs inte för normal validering på serversidan.
+The original token is not required for normal server-side validation.
 
-Tokenrotation gör det möjligt för administratörer att ogiltigförklara en befintlig uppgift och utfärda en ersättning.
+Token rotation allows administrators to invalidate an existing credential and issue a replacement.
 
-Detta skapar en tydlig livscykel:
+This creates a clear lifecycle:
 
 ```text
-Skapa
+Create
   │
   ▼
-Använd
+Use
   │
   ▼
-Rotera
+Rotate
   │
   ▼
-Gammalt token ogiltigt
+Old token invalid
 ```
 
 ---
 
-## API-säkerhet
+## API Security
 
-LUMS validerar API-indata innan tillståndsändrande operationer utförs.
+LUMS validates API input before performing state-changing operations.
 
-Säkerhetskontroller inkluderar:
+Security controls include:
 
-* autentisering
-* behörighetsauktorisering per användare
-* CSRF-skydd där tillämpligt
-* inmatningsvalidering
-* paketnamnsvalidering
-* strukturerade jobbåtgärder
-* parametriserade databasfrågor
-* kontrollerad felhantering
+* authentication
+* per-user permission authorization
+* CSRF protection where applicable
+* input validation
+* package-name validation
+* structured job actions
+* parameterized database queries
+* controlled error handling
 
-Applikationen använder inte användartillhandahållna paketnamn som obegränsade skalkommandon.
-
----
-
-## SQL-injektionsskydd
-
-Databasoperationer använder parametriserade SQL-satser.
-
-Användarkontrollerade värden sammanfogas inte direkt i SQL-frågor.
-
-Detta gäller områden som:
-
-* autentisering
-* klienthantering
-* användarhantering
-* paketsökningar
-* uppdateringsjobb
-* granskningsdata
-* resultatrapportering
-
-Målet är att hålla datavärden separerade från SQL-instruktioner.
+The application does not use user-provided package names as unrestricted shell commands.
 
 ---
 
-## SQLite-säkerhetsbaslinje
+## SQL Injection Protection
 
-Den nuvarande produktionskonfigurationen för SQLite är:
+Database operations use parameterized SQL statements.
+
+User-controlled values are not directly concatenated into SQL queries.
+
+This applies to areas such as:
+
+* authentication
+* client management
+* user management
+* package searches
+* update jobs
+* audit data
+* result reporting
+
+The goal is to keep data values separate from SQL instructions.
+
+---
+
+## SQLite Security Baseline
+
+The current production SQLite configuration is:
 
 ```text
 journal_mode = wal
@@ -1163,43 +1221,43 @@ synchronous = 2
 foreign_keys = ON
 ```
 
-Främmandenyckelkontroll aktiveras uttryckligen av applikationen för databasanslutningar.
+Foreign-key enforcement is explicitly enabled by the application for database connections.
 
-Den nuvarande konfigurationen använder WAL-läge.
+The current configuration uses WAL mode.
 
-Databasen lagras i den beständiga Docker-volymen snarare än i det engångsmässiga applikationscontainerfilsystemet.
+The database is stored in the persistent Docker volume rather than inside the disposable application container filesystem.
 
 ---
 
-## Jobbåterställning och kontrollpunkter
+## Job Recovery and Checkpointing
 
-LUMS behandlar uppdateringsjobb som beständiga tillståndsmaskiner.
+LUMS treats update jobs as persistent state machines.
 
-Ett jobb med flera paket kan innehålla flera individuella paketåtgärder.
+A multi-package job may contain several individual package operations.
 
-Varje paketobjekt kan nå sitt eget resultattillstånd.
+Each package item can reach its own result state.
 
-Om körningen avbryts kan återställning skilja mellan:
+If execution is interrupted, recovery can distinguish between:
 
 ```text
-redan framgångsrik
+already successful
         │
-        └── upprepa inte i onödan
+        └── do not unnecessarily repeat
 
-inte slutförd
+not completed
         │
-        └── kvalificerad för återställning
+        └── eligible for recovery
 ```
 
-Detta minskar risken för att blint upprepa slutförda paketåtgärder efter ett avbrott.
+This reduces the risk of blindly repeating completed package operations after an interruption.
 
 ---
 
-## Kontrollerad uppdateringskörning
+## Controlled Update Execution
 
-LUMS begränsar avsiktligt de åtgärder som kan begäras via uppdateringsjobb-API:et.
+LUMS deliberately limits the actions that can be requested through the update-job API.
 
-Åtgärder som stöds är:
+Supported actions are:
 
 ```text
 INSTALL_PACKAGE
@@ -1208,312 +1266,312 @@ UPDATE_PACKAGE
 UPDATE_SYSTEM
 ```
 
-Servern validerar åtgärden och relevant paketinformation innan jobbet skapas.
+The server validates the action and relevant package information before creating the job.
 
-Agenten mappar sedan den strukturerade åtgärden till lämplig pakethanteraroperation.
+The agent then maps the structured action to the appropriate package-manager operation.
 
-Detta undviker att göra uppdateringssystemet till en generisk mekanism för fjärrkommandokörning.
+This avoids turning the update system into a generic remote-command execution mechanism.
 
 ---
 
-## Paketåtgärder
+## Package Operations
 
-Paketåtgärder utförs genom klientens inbyggda pakethanterare.
+Package operations are executed through the native package manager of the client.
 
 ### Installation
 
-Ett validerat paketnamn skickas till pakethanterarabstraktionen för installation.
+A validated package name is passed to the package-manager abstraction for installation.
 
-### Borttagning
+### Removal
 
-Ett validerat paketnamn skickas till pakethanterarabstraktionen för borttagning.
+A validated package name is passed to the package-manager abstraction for removal.
 
-### Paketuppdatering
+### Package Update
 
-Ett specifikt paket kan uppdateras när klienten rapporterar det som en tillgänglig uppdatering.
+A specific package can be updated when the client reports it as an available update.
 
-### Systemuppdatering
+### System Update
 
-Systemuppdateringsåtgärden delegerar uppdateringsprocessen till den inbyggda pakethanteraren.
+The system update operation delegates the update process to the native package manager.
 
-Alla operationer returnerar strukturerade resultat till LUMS-servern.
-
----
-
-## Pakethanterarens säkerhet
-
-LUMS behandlar pakethanteraren som en privilegierad lokal komponent.
-
-Agenten försöker därför inte efterlikna pakethanterarens beteende själv.
-
-Istället:
-
-1. validerar den begärda åtgärden
-2. väljer lämplig pakethanterarimplementation
-3. utför den kontrollerade operationen
-4. fångar resultatet
-5. rapporterar resultatet till servern
-
-Distributionsspecifikt beteende förblir isolerat inne i pakethanterarlagret.
+All operations return structured results to the LUMS server.
 
 ---
 
-## Omstartshantering
+## Package Manager Safety
 
-Vissa paketåtgärder kan kräva en omstart.
+LUMS treats the package manager as a privileged local component.
 
-LUMS registrerar omstartsbehov som en del av uppdateringsjobbresultaten.
+The agent therefore does not attempt to emulate package-manager behavior itself.
 
-Detta gör det möjligt för administratörer att skilja mellan:
+Instead, it:
+
+1. validates the requested operation
+2. selects the appropriate package-manager implementation
+3. executes the controlled operation
+4. captures the result
+5. reports the result to the server
+
+Distribution-specific behavior remains isolated inside the package-manager layer.
+
+---
+
+## Reboot Handling
+
+Some package operations may require a reboot.
+
+LUMS records reboot requirements as part of update-job results.
+
+This allows administrators to distinguish between:
 
 ```text
-Uppdatering slutförd
+Update completed
 ```
 
-och:
+and:
 
 ```text
-Uppdatering slutförd
-Omstart krävs
+Update completed
+Reboot required
 ```
 
-Omstartsbehovet är därför en del av driftstillståndet snarare än att behandlas som en orelaterad avisering.
+The reboot requirement is therefore part of the operational state rather than being treated as an unrelated notification.
 
 ---
 
-## Granskningsloggning
+## Audit Logging
 
-LUMS upprätthåller ett applikationsgranskningsspår för viktiga administrativa och säkerhetsrelevanta åtgärder.
+LUMS maintains an application audit trail for important administrative and security-relevant actions.
 
-Exempel inkluderar:
+Examples include:
 
-* autentiseringsrelaterade händelser
-* klienthantering
-* tokenoperationer
-* användarhantering
-* skapande av uppdateringsjobb
-* säkerhetskänsliga tillståndsändringar
+* authentication-related events
+* client management
+* token operations
+* user management
+* update-job creation
+* security-sensitive state changes
 
-Granskningsloggning är separat från vanlig diagnostisk loggning.
+Audit logging is separate from ordinary diagnostic logging.
 
-Diagnostiska loggar hjälper till att felsöka applikationen.
+Diagnostic logs help troubleshoot the application.
 
-Granskningsposter tillhandahåller en administrativ historik över relevanta åtgärder.
+Audit records provide an administrative history of relevant actions.
 
 ---
 
-## Säkerhetshärdning
+## Security Hardening
 
-Den nuvarande distributionen inkluderar flera lager av härdning.
+The current deployment includes multiple layers of hardening.
 
-### Containerhärdning
+### Container Hardening
 
-Produktionscontainern använder:
+The production container uses:
 
-* icke-root-applikationskörning
-* skrivskyddat rotfilsystem
-* borttagna Linux-kapaciteter
+* non-root application execution
+* read-only root filesystem
+* dropped Linux capabilities
 * `no-new-privileges`
-* begränsade temporära filsystem
-* skrivskyddad hemlighetsmontering
-* dedikerad beständig datavolym
+* restricted temporary filesystems
+* read-only secret mount
+* dedicated persistent data volume
 
-### Nätverkshärdning
+### Network Hardening
 
-Applikationscontainern är bunden till loopback på värden:
+The application container is bound to loopback on the host:
 
 ```text
 127.0.0.1:5050
 ```
 
-Applikationsporten är därför inte direkt exponerad som en LAN-tjänst.
+The application port is therefore not directly exposed as a LAN service.
 
-Extern åtkomst hanteras via HTTPS-omvänd proxy.
+External access is handled through the HTTPS reverse proxy.
 
-Brandväggen exponerar inte den interna applikationsporten.
+The firewall does not expose the internal application port.
 
-### Transportskydd
+### Transport Security
 
-Administrativ åtkomst tillhandahålls via HTTPS.
+Administrative access is provided through HTTPS.
 
-Den omvända proxyn hanterar extern TLS-terminering.
+The reverse proxy handles external TLS termination.
 
-HTTP-förfrågningar omdirigeras till HTTPS.
+HTTP requests are redirected to HTTPS.
 
-### Hemligheter och konfiguration
+### Secrets and Configuration
 
-Känsliga körtidsuppgifter hålls utanför applikationens källträd.
+Sensitive runtime credentials are kept outside the application source tree.
 
-Produktionshemligheten monteras i containern som en skrivskyddad hemlighetsfil.
+The production secret is mounted into the container as a read-only secret file.
 
-Regler för repository och Docker-byggkontext förhindrar att vanliga säkerhetskopior, hemligheter, databaser och certifikatartefakter oavsiktligt kommer in i avbildningsbyggkontexten.
+Repository and Docker build context rules prevent common backup, secret, database, and certificate artifacts from unintentionally entering the image build context.
 
-### Beroende- och byggsäkerhet
+### Dependency and Build Security
 
-Produktions-Python-beroendena är fastnålade.
+The production Python dependencies are pinned.
 
-Produktions-Python-basavbildningen är fastnålad med sammanfattning.
+The production Python base image is pinned by digest.
 
-Docker-byggkontexten begränsas genom `.dockerignore`.
+The Docker build context is restricted through `.dockerignore`.
 
-Dessa kontroller förbättrar byggbarheten och minskar risken för att känsliga filer oavsiktligt inkluderas.
+These controls improve build reproducibility and reduce accidental inclusion of sensitive files.
 
 ---
 
-## Status för säkerhetsgranskning
+## Security Audit Status
 
-LUMS säkerhetsgranskning har täckt följande områden:
+The LUMS security review has covered the following areas:
 
-* SQLite-främmandenyckelkontroll
-* SQLite-körtidskonfiguration
-* uppdateringstidsgräns och processhantering
-* inloggningsfrekvensbegränsning
-* API-indatavalidering
-* sessionsåterkallning
-* klienttokenrotation
-* offline/IP-hantering
-* jobbåterställning och kontrollpunkter
-* APT-robusthet
-* Arch-omstartsdetektering
-* enhets- och API-resultatvalidering
-* simuleringstestning
-* kontinuerlig integration
-* applikations- och granskningsloggning
-* versions- och utgivningshantering
+* SQLite foreign-key enforcement
+* SQLite runtime configuration
+* update timeout and process handling
+* login rate limiting
+* API input validation
+* session revocation
+* client-token rotation
+* offline/IP handling
+* job recovery and checkpointing
+* APT robustness
+* Arch reboot detection
+* unit and API result validation
+* simulation testing
+* continuous integration
+* application and audit logging
+* versioning and release handling
 * RBAC
-* sessions- och CSRF-säkerhet
-* uppgiftssäkerhet
-* beroende- och byggsäkerhet
-* Docker/containerhärdning
-* hemlighets- och byggkontextskydd
-* HTTP/transportskydd
-* filsystem/körtidsbehörigheter
-* nätverksexponering
-* repository-artefakthygien
+* session and CSRF security
+* credential security
+* dependency and build security
+* Docker/container hardening
+* secrets and build-context protection
+* HTTP/transport security
+* filesystem/runtime permissions
+* network exposure
+* repository artifact hygiene
 
-Den återstående dokumentationsgranskningen hanteras separat som en del av den slutliga utgivningsberedskapsprocessen.
+The remaining documentation review is handled separately as part of the final release-readiness process.
 
 ---
 
 ## Testning och CI
 
-LUMS inkluderar automatiska tester som täcker kärnapplikationsbeteende och säkerhetskontroller.
+LUMS includes automated tests covering core application behavior and security controls.
 
-Kör den fullständiga testsviten från repositoryts rot:
+Run the complete test suite from the repository root:
 
 ```bash
 ./.venv-test/bin/pytest -q
 ```
 
-Antalet tester ändras över tid. Det önskade resultatet är att den fullständiga
-sviten slutförs framgångsrikt utan fel. Testsuiten inkluderar täckning
-för områden som:
+The number of tests changes over time. The required result is that the complete
+suite finishes successfully with no failures. The test suite includes coverage
+for areas such as:
 
-* autentisering
+* authentication
 * RBAC
-* klienthantering
-* användarhantering
-* paketsökning
-* uppdateringsjobb
-* jobbresultatvalidering
-* säkerhetsbeteende
-* API-beteende
+* client management
+* user management
+* package search
+* update jobs
+* job-result validation
+* security behavior
+* API behavior
 
-Kontinuerlig integration kör den automatiska testsviten innan ändringar anses redo.
+Continuous integration executes the automated test suite before changes are considered ready.
 
-En framgångsrik testkörning krävs, men tester är bara en del av utgivningsprocessen.
+A successful test run is required, but tests are only one part of the release process.
 
-Utgivningsprocessen kräver också:
+The release process also requires:
 
 ```text
-Implementering
+Implementation
     ↓
-Säkerhetsgranskning
+Security Review
     ↓
-Dokumentationsgranskning
+Documentation Review
     ↓
-Fullständig testsvit
+Full Test Suite
     ↓
 CI
     ↓
 Version
     ↓
-Git-tagg
+Git Tag
     ↓
-GitHub-utgivning
+GitHub Release
 ```
 
 ---
 
-## Utvecklingsstatus
+## Development Status
 
-LUMS är för närvarande under aktiv utveckling.
+LUMS is currently in active development.
 
-Kärnhanteringsarkitekturen, klientkörningsmodellen, pakethantering, RBAC, säkerhetshärdning och återställningsmekanismer är implementerade.
+The core management architecture, client execution model, package management, RBAC, security hardening, and recovery mechanisms are implemented.
 
-Projektet anses avsiktligt inte vara en färdig utgåva bara för att applikationen är funktionell.
+The project is intentionally not considered a finished release merely because the application is functional.
 
-Utgivningsberedskap kräver också att den omgivande dokumentationen och driftprocedurerna beskriver samma aktuella system.
+Release readiness also requires the surrounding documentation and operational procedures to describe the same current system.
 
-Det är därför dokumentationskonsekvens behandlas som en del av ingenjörsprocessen snarare än som en eftertanke.
+This is why documentation consistency is treated as part of the engineering process rather than as an afterthought.
 
 ## Stödda system
 
-LUMS är designat för att hantera Linux-system med stödda inbyggda pakethanterare.
+LUMS is designed to manage Linux systems using supported native package managers.
 
 ### Debian / Ubuntu
 
-Pakethanteringsstack som stöds:
+Supported package-management stack:
 
 ```text
 APT
 dpkg
 ```
 
-Klienten använder Debian inbyggda pakethanteringsverktyg för:
+The client uses the native Debian package-management tooling for:
 
-* paketinventering
-* uppdateringsdetektering
-* paketsökning
-* paketinstallation
-* borttagning av paket
-* paketuppdateringar
-* systemuppdateringar
+* package inventory
+* update detection
+* package search
+* package installation
+* package removal
+* package updates
+* system updates
 
 ### Arch Linux
 
-Pakethanteringsstack som stöds:
+Supported package-management stack:
 
 ```text
 pacman
 ```
 
-Klienten använder Arch inbyggda pakethanteringsverktyg för:
+The client uses the native Arch package-management tooling for:
 
-* paketinventering
-* uppdateringsdetektering
-* paketsökning
-* paketinstallation
-* borttagning av paket
-* paketuppdateringar
-* systemuppdateringar
+* package inventory
+* update detection
+* package search
+* package installation
+* package removal
+* package updates
+* system updates
 
 ---
 
-## Klientkrav
+## Client Requirements
 
-En hanterad Linux-klient kräver:
+A managed Linux client requires:
 
-* en Linux-distribution som stöds
-* LUMS-agenten
-* nätverksanslutning till LUMS-servern
-* ett registrerat klienttoken
-* en fungerande inbyggd pakethanterare
-* systemd för de timer-/tjänstbaserade körningskomponenterna
+* a supported Linux distribution
+* the LUMS agent
+* network connectivity to the LUMS server
+* a registered client token
+* a working native package manager
+* systemd for the timer/service-based execution components
 
-Klienten kräver inte att LUMS-servern direkt kommer åt dess paketdatabas.
+The client does not require the LUMS server to directly access its package database.
 
-Klienten utför lokala paketåtgärder och rapporterar resultaten till servern.
+The client performs local package operations and reports the results to the server.
 
 ---
 
@@ -1531,31 +1589,31 @@ Klienten utför lokala paketåtgärder och rapporterar resultaten till servern.
 * Nginx
 * Docker
 
-### Autentisering och säkerhet
+### Authentication and Security
 
-* Argon2-lösenordshashning
-* sessioner på serversidan
-* CSRF-skydd
-* rollmallar med behörigheter per användare
-* SHA-256-klienttokensammanfattningar
+* Argon2 password hashing
+* server-side sessions
+* CSRF protection
+* role templates with per-user permissions
+* SHA-256 client-token digests
 * HTTPS
-* granskningsloggning
+* audit logging
 
-### Klient
+### Client
 
 * Python
 * systemd
 * APT / dpkg
 * pacman
-* `loginctl` där inaktivitetsinformation är tillgänglig
+* `loginctl` where idle-state information is available
 
 ---
 
 ## Projektstruktur
 
-Repositoryt är organiserat i separata server-, klient-, frontend- och testkomponenter.
+The repository is organized into separate server, client, frontend, and test components.
 
-En förenklad struktur är:
+A simplified structure is:
 
 ```text id="1rq7v7"
 LUMS/
@@ -1580,79 +1638,79 @@ LUMS/
 ├── docker-entrypoint.sh
 ├── .dockerignore
 ├── .gitignore
-└── dokumentation
+└── documentation
 ```
 
-Den exakta repositorylayouten kan utvecklas i takt med att LUMS utvecklas.
+The exact repository layout may evolve as LUMS develops.
 
-Den arkitektoniska separationen mellan server, agent, pakethanterarabstraktion, frontend och tester är avsiktlig.
+The architectural separation between server, agent, package-manager abstraction, frontend, and tests is intentional.
 
 ---
 
-## Serverapplikation
+## Server Application
 
-Flask-applikationen tillhandahåller det centrala LUMS-API:et och webbgränssnittet.
+The Flask application provides the central LUMS API and web interface.
 
-Dess ansvarsområden inkluderar:
+Its responsibilities include:
 
-* autentisering
-* auktorisering
-* sessionshantering
-* klienthantering
-* användarhantering
-* programvaruinventering
-* uppdateringsinventering
-* paketsökning
-* uppdateringsjobb
-* jobbresultathantering
-* granskningsloggning
-* databaspersistens
+* authentication
+* authorization
+* session handling
+* client management
+* user management
+* software inventory
+* update inventory
+* package search
+* update jobs
+* job-result handling
+* audit logging
+* database persistence
 
-Applikationen serveras av Gunicorn inuti containern.
+The application is served by Gunicorn inside the container.
 
-Nginx tillhandahåller den externa HTTPS-ingångspunkten.
+Nginx provides the external HTTPS entry point.
 
 ---
 
 ## Agent
 
-LUMS-agenten installeras direkt på hanterade Linux-klienter.
+The LUMS agent is installed directly on managed Linux clients.
 
-Aktuell agentversion:
+Current agent version:
 
 ```text id="w8p4wz"
 1.7.0
 ```
 
-Agenten ansvarar för klientsidans del av LUMS-körningskedjan.
+The agent is responsible for the client-side part of the LUMS execution chain.
 
-Dess ansvarsområden inkluderar:
+Its responsibilities include:
 
-* rapportering av klienttillstånd
-* insamling av installerad programvara
-* detektering av tillgängliga uppdateringar
-* sökning av paket
-* utförande av paketåtgärder
-* rapportering av jobbresultat
-* detektering av omstartsbehov
-* hantering av inaktivitetsinformation
-* deltagande i jobbåterställning
+* reporting client state
+* collecting installed software
+* detecting available updates
+* searching packages
+* executing package operations
+* reporting job results
+* detecting reboot requirements
+* handling idle-state information
+* participating in job recovery
 
-Agenten tillhandahåller inte ett obegränsat fjärrskal.
+The agent does not provide an unrestricted remote shell.
 
 ---
 
-## Pakethanterarlager
+## Package Manager Layer
 
-Pakethanterarimplementationen isolerar distributionsspecifikt beteende från resten av agenten.
+The package-manager implementation isolates distribution-specific behavior from the rest of the agent.
 
-Konceptuellt:
+Conceptually:
 
 ```text id="zq8xq3"
 Agent
   │
   ▼
-Pakethanterargränssnitt
+Package Manager Interface
   │
   ├── Debian / Ubuntu
   │      └── APT / dpkg
@@ -1661,88 +1719,88 @@ Pakethanterargränssnitt
          └── pacman
 ```
 
-Detta gör det möjligt för det högre uppdateringsjobbsystemet att arbeta med strukturerade operationer utan att behöva känna till varje distributionsspecifikt kommando.
+This allows the higher-level update-job system to work with structured operations without needing to know every distribution-specific command.
 
 ---
 
 ## Watcher
 
-LUMS execution watcher övervakar jobb som förväntas köras på klienten.
+The LUMS execution watcher monitors jobs that are expected to execute on the client.
 
-Aktuell watcherversion:
+Current watcher version:
 
 ```text id="7k6w3s"
 1.2.1
 ```
 
-Watchern arbetar tillsammans med agenten och jobbtillståndet på serversidan.
+The watcher operates together with the agent and server-side job state.
 
-Denna arkitektur gör det möjligt för LUMS att upptäcka körningssituationer där ett jobb förblir väntande eller på annat sätt kräver uppmärksamhet.
-
----
-
-## systemd-integration
-
-Klienten använder systemd för schemalagd och kontrollerad körning.
-
-Relevanta komponenter inkluderar tjänste- och timerenheter för:
-
-* klientrapportering
-* uppdateringsdetektering
-* jobbkörning/övervakning
-
-Detta ger förutsägbar körning utan att kräva en kontinuerligt körande förgrundsprocess för varje periodisk operation.
-
-Klientagenten kan också köras manuellt under installation och felsökning.
+This architecture allows LUMS to detect execution situations where a job remains pending or otherwise requires attention.
 
 ---
 
-## Inaktivitetsmedveten körning
+## systemd Integration
 
-Inaktivitetsmedveten körning är utformad för att minska störningar för aktiva användare.
+The client uses systemd for scheduled and controlled execution.
 
-Den nuvarande inaktivitetsgränsen är:
+Relevant components include service and timer units for:
+
+* client reporting
+* update detection
+* job execution/watching
+
+This provides predictable execution without requiring a continuously running foreground process for every periodic operation.
+
+The client agent can also be executed manually during installation and troubleshooting.
+
+---
+
+## Idle-Aware Execution
+
+Idle-aware execution is designed to reduce interference with active users.
+
+The current idle threshold is:
 
 ```text id="g8v0lq"
-300 sekunder
+300 seconds
 ```
 
-Klienten bestämmer inaktivitetstillstånd med hjälp av tillgänglig lokal sessionsinformation.
+The client determines idle state using the available local session information.
 
-Där det stöds används `loginctl`.
+Where supported, `loginctl` is used.
 
-Agenten skiljer mellan:
+The agent distinguishes between:
 
 ```text id="6v3m4k"
-bekräftat inaktiv
-aktiv
-inaktivitetstillstånd otillgängligt
+confirmed idle
+active
+idle state unavailable
 ```
 
-Ett otillgängligt inaktivitetstillstånd tolkas inte tyst som inaktivt.
+An unavailable idle state is not silently interpreted as idle.
 
-Detta gör körningsbeslutet explicit och diagnostiserbart.
+This makes the execution decision explicit and diagnosable.
 
 ---
 
-## Livscykel för uppdateringsjobb
+## Update Job Lifecycle
 
-Den fullständiga livscykeln för ett uppdateringsjobb kan representeras som:
+The complete lifecycle of an update job can be represented as:
 
 ```text id="h4d9kv"
-Skapa
+Create
   │
   ▼
-Validera
+Validate
   │
   ▼
-Beständiggör
+Persist
   │
   ▼
-Gör anspråk
+Claim
   │
   ▼
-Kör
+Execute
   │
   ├──────────────► SUCCESS
   │
@@ -1751,18 +1809,18 @@ Kör
   └──────────────► RECOVERY
                          │
                          ▼
-                      Kör
+                      Execute
 ```
 
-Ett jobb beständiggörs före körning.
+A job is persisted before execution.
 
-Detta innebär att servern behåller kunskap om den avsedda operationen även om klienten eller applikationen avbryts.
+This means the server retains knowledge of the intended operation even if the client or application is interrupted.
 
 ---
 
-## Jobbtyper
+## Job Types
 
-LUMS stöder för närvarande strukturerade uppdateringsåtgärder inklusive:
+LUMS currently supports structured update actions including:
 
 ```text id="v7r1f8"
 INSTALL_PACKAGE
@@ -1771,20 +1829,20 @@ UPDATE_PACKAGE
 UPDATE_SYSTEM
 ```
 
-Dessa åtgärder är avsiktligt begränsade.
+These actions are intentionally limited.
 
-LUMS är ett uppdateringshanteringssystem, inte ett generellt ramverk för fjärrkommandon.
+LUMS is an update-management system, not a general-purpose remote-command framework.
 
 ---
 
-## Jobbtillstånd på paketnivå
+## Package-Level Job State
 
-Jobb som innehåller flera paket kan spåra framsteg på paketnivå.
+Jobs containing multiple packages can track package-level progress.
 
-Till exempel:
+For example:
 
 ```text id="v9w1sh"
-Jobb #42
+Job #42
 
 package-a → SUCCESS
 package-b → SUCCESS
@@ -1792,245 +1850,281 @@ package-c → FAILED
 package-d → PENDING
 ```
 
-Återställning kan därför arbeta på de ofullständiga delarna av jobbet istället för att blint upprepa framgångsrika paketåtgärder.
+Recovery can therefore operate on the incomplete portions of the job rather than blindly repeating successful package operations.
 
 ---
 
-## Jobbåterställning
+## Job Recovery
 
-Återställning är utformad kring beständiga kontrollpunkter.
+Recovery is designed around persistent checkpoints.
 
-Servern upprätthåller jobbtillståndet.
+The server maintains the job state.
 
-Klienten rapporterar resultat på paketnivå.
+The client reports package-level results.
 
-Om körningen avbryts kan servern avgöra vilket arbete som redan slutförts och vilket arbete som återstår kvalificerat för återställning.
+If execution is interrupted, the server can determine which work has already completed and which work remains eligible for recovery.
 
-Den avsedda återställningsprincipen är:
+The intended recovery principle is:
 
-> **Fortsätt från känt tillstånd istället för att anta att ingenting hände.**
-
----
-
-## Resultatvalidering
-
-Klientjobbresultat valideras innan de accepteras i beständigt servertillstånd.
-
-Detta skyddar jobbtillståndet från felaktiga eller ofullständiga resultatinlämningar.
-
-Validering tillämpas på relevanta fält som:
-
-* jobbidentitet
-* körningstillstånd
-* paketresultatdata
-* felinformation
-* omstartsinformation
-
-Resultatbearbetningslagret fungerar därför som en annan gräns mellan en autentiserad klient och beständigt servertillstånd.
+> **Continue from known state instead of assuming that nothing happened.**
 
 ---
 
-## Användarhantering
+## Result Validation
 
-Användarhantering kräver behörigheten `users.manage`.
+Client job results are validated before being accepted into persistent server state.
 
-Behöriga användare kan skapa användare från en rollmall och anpassa de
-individuella behörigheter som tilldelats varje konto.
+This protects the job state from malformed or incomplete result submissions.
 
-De nuvarande rollerna är:
+Validation is applied to relevant fields such as:
+
+* job identity
+* execution state
+* package result data
+* error information
+* reboot information
+
+The result-processing layer therefore acts as another boundary between an authenticated client and persistent server state.
+
+---
+
+## User Management
+
+User management requires the `users.manage` permission.
+
+Authorized users can create users from a role template and customize the
+individual permissions assigned to each account.
+
+The current roles are:
 
 ```text id="2xqv79"
-Administratör
+Administrator
 Operator
 Viewer
 ```
 
-Användarhanteringsåtgärder autentiseras, behörighetskontrolleras, valideras,
-skyddas mot CSRF där tillämpligt och registreras i granskningsspåret.
+User-management actions are authenticated, permission-checked, validated,
+protected against CSRF where applicable, and recorded in the audit trail.
 
 ---
 
-## Klienthantering
+## Client Management
 
-Administratörer kan hantera registrerade klienter.
+Administrators can manage registered clients.
 
-Klienthanteringsfunktioner inkluderar:
+Client-management functions include:
 
-* registrering
-* inaktivering
-* tokenrotation
-* inspektion av klientstatus
+* registration
+* disabling
+* token rotation
+* client status inspection
 
-Klientautentisering är oberoende för varje registrerad klient.
+Client authentication is independent for every registered client.
 
-Att inaktivera en klient förhindrar den från att fortsätta normal autentiserad kommunikation med servern.
-
----
-
-## Uppdateringshistorik
-
-LUMS upprätthåller beständigt uppdateringsjobbtillstånd så att slutförda och misslyckade operationer förblir synliga efter körning.
-
-Behöriga användare kan inspektera historiken över uppdateringsoperationer enligt sin roll.
-
-Historiken är avsedd att ge operativt sammanhang snarare än att bara visa den senaste paketinventeringen.
+Disabling a client prevents it from continuing normal authenticated communication with the server.
 
 ---
 
-## Granskningsbarhet
+## Update History
 
-LUMS upprätthåller två relaterade men distinkta former av operativ information:
+LUMS maintains persistent update-job state so that completed and failed operations remain visible after execution.
 
-### Applikationsloggar
+Authorized users can inspect the history of update operations according to their role.
 
-Används främst för:
-
-* diagnostik
-* fel
-* körtidsbeteende
-* felsökning
-
-### Granskningsloggar
-
-Används främst för:
-
-* administrativa åtgärder
-* säkerhetsrelevanta händelser
-* ändringar av viktigt tillstånd
-* ansvarsskyldighet
-
-Att hålla dessa begrepp separerade gör felsökning och administrativ granskning enklare.
+The history is intended to provide operational context rather than merely showing the latest package inventory.
 
 ---
 
-## Teststrategi
+## Auditability
 
-LUMS testsvit täcker flera lager av applikationen.
+LUMS maintains two related but distinct forms of operational information:
 
-### Autentisering
+### Application Logs
 
-Tester täcker autentiseringsbeteende, sessionshantering och säkerhetskontroller.
+Used primarily for:
+
+* diagnostics
+* errors
+* runtime behavior
+* troubleshooting
+
+### Audit Logs
+
+Used primarily for:
+
+* administrative actions
+* security-relevant events
+* changes to important state
+* accountability
+
+Keeping these concepts separate makes troubleshooting and administrative review easier.
+
+---
+
+## Testing Strategy
+
+The LUMS test suite covers multiple layers of the application.
+
+### Authentication
+
+Tests cover authentication behavior, session handling, and security controls.
 
 ### RBAC
 
-Tester verifierar att:
+Tests verify that:
 
-* Administratörer kan utföra administrativa åtgärder
-* Operatorer får sina tillåtna hanteringsfunktioner
-* Viewers förblir skrivskyddade
+* Administrators can perform administrative actions
+* Operators receive their permitted management functions
+* Viewers remain read-only
 
-### Pakethantering
+### Package Management
 
-Tester täcker paketsökningsbeteende och API-hantering relaterad till pakethantering.
+Tests cover package-search behavior and package-management-related API handling.
 
-### Uppdateringsjobb
+### Update Jobs
 
-Tester täcker:
+Tests cover:
 
-* jobbskapande
-* validering
-* tillståndsövergångar
-* resultathantering
-* återställningsbeteende
+* job creation
+* validation
+* state transitions
+* result handling
+* recovery behavior
 
-### Säkerhet
+### Security
 
-Tester täcker säkerhetskänsligt applikationsbeteende och regressionsfall.
+Tests cover security-sensitive application behavior and regression cases.
 
-### Fullständig svit
+### Full Suite
 
-Kör den fullständiga testsviten från repositoryts rot:
+Run the complete test suite from the repository root:
 
 ```bash
 ./.venv-test/bin/pytest -q
 ```
 
-Testantalet ändras i takt med att projektet utvecklas; förlita dig på kommandots resultat,
-inte ett fast antal som tryckts i detta dokument.
+The test count changes as the project evolves; rely on the command's result,
+not a fixed number printed in this document.
 
 ---
 
-## Kontinuerlig integration
+## Continuous Integration
 
-Projektet använder kontinuerlig integration för att köra automatiska kontroller mot ändringar.
+The project uses continuous integration to run automated checks against changes.
 
-CI-pipelinen hjälper till att upptäcka regressioner innan ändringar behandlas som utgivningsklara.
+The CI pipeline helps detect regressions before changes are treated as release-ready.
 
-Utvecklingsarbetsflödet är därför:
+The development workflow is therefore:
 
 ```text id="v3n9k8"
-Ändring
+Change
   ↓
 Test
   ↓
-Säkerhetsgranskning
+Security Review
   ↓
-Dokumentationsgranskning
+Documentation Review
   ↓
 CI
   ↓
-Utgivningsförberedelse
+Release Preparation
 ```
 
-En framgångsrik CI-körning ersätter inte manuell säkerhets- eller dokumentationsgranskning.
+A successful CI run does not replace manual security or documentation review.
 
 ---
 
-## Dokumentation
+## Documentation
 
-LUMS underhåller separat dokumentation för olika operativa angelägenheter.
+LUMS maintains separate documentation for different operational concerns.
 
 ### `README.md`
 
-Projektöversikt, arkitektur, funktioner, säkerhetsbaslinje, utvecklingsstatus och projektriktning.
+Project overview, architecture, features, security baseline, development status, and project direction.
 
 ### `install.md`
 
-Installation, distribution, klientinstallation, validering, uppgradering och borttagningsprocedurer.
+Installation, deployment, client setup, validation, upgrade, and removal procedures.
 
 ### `administration.md`
 
-Rutinmässig administration, underhåll, säkerhetskopior, uppgraderingar, operativa procedurer och nödadministration.
+Routine administration, maintenance, backups, upgrades, operational procedures, and emergency administration.
 
 ### `security.md`
 
-Säkerhetsarkitektur, säkerhetskontroller, granskningsresultat, härdning och säkerhetsinformation för utgivningsberedskap.
+Security architecture, security controls, audit findings, hardening, and release-readiness security information.
+
+### `telemetry.md`
+
+Optional CPU and memory telemetry, agent configuration, data retention, security, and troubleshooting.
+
+### `LUMS_Health_Dashboard.md`
+
+What the authenticated health dashboard reports, how client status is classified, telemetry limits, backup-storage interpretation, and operational checks.
 
 ### `troubleshooting.md`
 
-Diagnostiska procedurer för server-, klient-, jobb-, pakethanterings-, autentiserings-, databas-, container- och nätverksproblem.
+Diagnostic procedures for server, client, jobs, package management, authentication, database, container, and network problems.
 
 ### `LUMS_Optional_Theme_System.md`
 
-Arkitektur och underhållsvägledning för valfria LUMS-frontendteman.
+Architecture and maintenance guidance for optional LUMS frontend themes.
 
-Dokumentationen är avsiktligt separerad efter ansvar så att operativa instruktioner inte blandas med säkerhetsdesign eller visuell anpassning.
+The documentation is intentionally separated by responsibility so that operational instructions do not become mixed with security design or visual customization.
 
 ---
 
-## Dokumentationsprincip
+## Documentation Principle
 
-Dokumentation behandlas som en del av systemet.
+Documentation is treated as part of the system.
 
-En funktion anses inte helt färdig när koden fungerar men dokumentationen fortfarande beskriver en äldre arkitektur.
+A feature is not considered completely finished when the code works but the documentation still describes an older architecture.
 
-Det avsedda förhållandet är:
+The intended relationship is:
 
 ```text id="0m1m5u"
-Implementering
+Implementation
       │
-      ├── Tester
-      ├── Säkerhetsgranskning
-      └── Dokumentation
+      ├── Tests
+      ├── Security Review
+      └── Documentation
                │
                ▼
-          Utgivningsklar
+          Release Ready
 ```
 
-Detta är särskilt viktigt för säkerhetskänsliga distributions- och administrationsprocedurer.
+This is particularly important for security-sensitive deployment and administration procedures.
 
-## Aktuell status
+## Current Status
 
+LUMS is an actively developed Linux update-management platform.
+
+The current implementation includes:
+
+* centralized client management
+* software inventory
+* update detection
+* package search
+* package installation and removal
+* package-specific updates
+* system updates
+* persistent update jobs
+* package-level job state
+* job recovery
+* reboot detection
+* idle-aware execution
+* client-token authentication
+* token rotation
+* administrative authentication
+* role-based access control
+* user management
+* audit logging
+* container hardening
+* HTTPS transport
+* automated testing
+* continuous integration
+
+The project is currently in the final documentation and release-readiness phase.
 LUMS är en Linux-plattform för uppdateringshantering under aktiv utveckling.
 
 Den nuvarande implementationen omfattar:
@@ -2064,199 +2158,221 @@ Larmregler och deras villkor och tröskelvärden lagras, men servern utvärderar
 
 ---
 
-## Säkerhetsstatus
+## Security Status
 
-De viktigaste säkerhetsgranskningsområdena har implementerats och granskats.
+The major security-review areas have been implemented and reviewed.
 
-Den nuvarande säkerhetsbaslinjen inkluderar:
+The current security baseline includes:
 
 ```text
-Autentisering
-    ├── Argon2-lösenordshashning
-    ├── sessionshantering
-    ├── sessionsåterkallning
-    └── inloggningsfrekvensbegränsning
+Authentication
+    ├── Argon2 password hashing
+    ├── session handling
+    ├── session revocation
+    └── login rate limiting
 
-Auktorisering
-    ├── Administratör
+Authorization
+    ├── Administrator
     ├── Operator
     └── Viewer
 
-Klientsäkerhet
-    ├── per-klient-token
-    ├── SHA-256-tokensammanfattningar
-    └── tokenrotation
+Client Security
+    ├── per-client tokens
+    ├── SHA-256 token digests
+    └── token rotation
 
-API-säkerhet
-    ├── inmatningsvalidering
-    ├── CSRF-skydd
-    ├── RBAC-upprätthållande
-    └── parametriserad SQL
+API Security
+    ├── input validation
+    ├── CSRF protection
+    ├── RBAC enforcement
+    └── parameterized SQL
 
-Körtidssäkerhet
-    ├── icke-root-container
-    ├── skrivskyddat rotfilsystem
-    ├── borttagna kapaciteter
+Runtime Security
+    ├── non-root container
+    ├── read-only root filesystem
+    ├── dropped capabilities
     ├── no-new-privileges
-    ├── begränsade temporära filsystem
-    └── skyddad hemlighetsmontering
+    ├── restricted temporary filesystems
+    └── protected secret mount
 
-Nätverkssäkerhet
+Network Security
     ├── HTTPS
-    ├── omvänd proxy
-    ├── loopback-applikationsbindning
-    └── brandväggsbegränsningar
+    ├── reverse proxy
+    ├── loopback application binding
+    └── firewall restrictions
 ```
 
-Säkerhet behandlas som ett pågående ingenjörsansvar snarare än en engångskontrolllista.
+Security is treated as an ongoing engineering responsibility rather than a one-time checklist.
 
 ---
 
-## Utgivningsstatus
+## Release Status
 
+LUMS does not currently claim a stable production release version.
+
+There is currently:
+
+* no final semantic version
+* no stable release tag
+* no GitHub Release
+
+The project deliberately follows the release sequence:
 Projektet följer avsiktligt utgivningssekvensen:
 
 ```text id="f3c4y9"
-Implementering
+Implementation
       ↓
-Säkerhetsgranskning
+Security Review
       ↓
-Dokumentationsgranskning
+Documentation Review
       ↓
-Fullständig testsvit
+Full Test Suite
       ↓
 CI
       ↓
-Versionstilldelning
+Version Assignment
       ↓
-Git-tagg
+Git Tag
       ↓
-GitHub-utgivning
+GitHub Release
 ```
 
+The first official release should only be created after the current implementation, security review, documentation, and regression testing are considered complete.
 Tillgängligheten för utgåvor och taggar kan ändras oberoende av dokumentationen. Kontrollera den aktuella statusen på repositoryts [utgivningssida](https://github.com/NovaForgeCtrl/LUMS/releases) och bland [taggarna](https://github.com/NovaForgeCtrl/LUMS/tags). En utgåva bör publiceras först när implementationen, säkerhetsgranskningen, dokumentationen och regressionstesterna för den revisionen är färdiga.
 
 ---
 
-## Färdplan
+## Roadmap
 
-Färdplanen är avsiktligt inriktad på stabilitet och underhållbarhet snarare än att lägga till funktioner utan att slutföra den befintliga grunden.
+The roadmap is intentionally focused on stability and maintainability rather than adding features without completing the existing foundation.
 
+### Current Phase
+
+* complete documentation review
+* remove remaining documentation inconsistencies
+* close documentation audit work
+* perform final full test run
+* verify CI
+* prepare release version
+* create the first official Git tag
+* publish the first GitHub Release
+
+### Future Development
 ### Framtida utveckling
 
-Potentiellt framtida arbete kan inkludera:
+Potential future work may include:
 
-* ytterligare Linux-distributioner
-* ytterligare pakethanterarbackends
-* ytterligare UI-förbättringar
-* ytterligare rapporteringsmöjligheter
-* utökad operativ automatisering
-* ytterligare säkerhetskontroller
-* ytterligare testtäckning
+* additional Linux distributions
+* additional package-manager backends
+* further UI improvements
+* additional reporting capabilities
+* expanded operational automation
+* additional security controls
+* further test coverage
 
-Framtida funktioner bör bevara de befintliga arkitektoniska gränserna.
-
----
-
-## Vad LUMS inte är
-
-LUMS är avsiktligt inte designat som:
-
-* ett generellt fjärrskal
-* en ersättning för APT, dpkg eller pacman
-* en fullständig plattform för konfigurationshantering
-* en endpoint-hanteringssvit för alla operativsystem
-* en molnbaserad tjänst
-* ett okontrollerat ramverk för kommandokörning
-
-LUMS fokuserar på ett smalare problem:
-
-> **Kontrollerad hantering av Linux-programvara och uppdateringar med beständigt tillstånd och granskningsbarhet.**
+Future features should preserve the existing architectural boundaries.
 
 ---
 
-## Utvecklingsfilosofi
+## What LUMS Is Not
 
-LUMS följer en enkel utvecklingscykel:
+LUMS is intentionally not designed as:
+
+* a general-purpose remote shell
+* a replacement for APT, dpkg, or pacman
+* a full configuration-management platform
+* an endpoint-management suite for every operating system
+* a cloud-only service
+* an uncontrolled command-execution framework
+
+LUMS focuses on a narrower problem:
+
+> **Controlled Linux software and update management with persistent state and auditability.**
+
+---
+
+## Development Philosophy
+
+LUMS follows a simple development cycle:
 
 ```text id="8a0mve"
-Bygg
+Build
   ↓
-Testa
+Test
   ↓
-Säkra
+Secure
   ↓
-Dokumentera
+Document
 ```
 
-En funktion anses inte vara komplett bara för att den fungerar i utvecklarens miljö.
+A feature is not considered complete simply because it works in the developer environment.
 
-Den bör också vara:
+It should also be:
 
-* testad
-* säkerhetsgranskad
-* dokumenterad
-* reproducerbar
-* förståelig
-* återställbar där så är lämpligt
-
----
-
-## Ändringsfilosofi
-
-Ändringar bör göras avsiktligt.
-
-En typisk ändring bör svara på:
-
-1. Vilket problem löser detta?
-2. Vilken komponent bör äga ändringen?
-3. Påverkar ändringen säkerheten?
-4. Påverkar den beständigt tillstånd?
-5. Påverkar den klienter?
-6. Kräver den dokumentationsändringar?
-7. Vilka tester bevisar att befintlig funktionalitet fortfarande fungerar?
-
-Detta minskar risken för att fixa en del av systemet medan en annan del tyst går sönder.
+* tested
+* security-reviewed
+* documented
+* reproducible
+* understandable
+* recoverable where appropriate
 
 ---
 
-## Utvecklingsarbetsflöde
+## Change Philosophy
 
-Det föredragna utvecklingsarbetsflödet är:
+Changes should be made deliberately.
+
+A typical change should answer:
+
+1. What problem does this solve?
+2. Which component should own the change?
+3. Does the change affect security?
+4. Does it affect persistent state?
+5. Does it affect clients?
+6. Does it require documentation changes?
+7. Which tests prove that existing functionality still works?
+
+This reduces the risk of fixing one part of the system while silently breaking another.
+
+---
+
+## Development Workflow
+
+The preferred development workflow is:
 
 ```text id="r8u6o1"
-Förstå
+Understand
    ↓
-Implementera
+Implement
    ↓
-Testa
+Test
    ↓
-Inspektera
+Inspect
    ↓
-Härda
+Harden
    ↓
-Dokumentera
+Document
    ↓
-Regressionstesta
+Regression Test
 ```
 
-Säkerhetskänsliga ändringar får ytterligare verifiering innan de anses slutförda.
+Security-sensitive changes receive additional verification before being considered complete.
 
 ---
 
 ## Repository
 
-Projektets repository finns på GitHub:
+The project repository is hosted on GitHub:
 
 **NovaForgeCtrl/LUMS**
 
-Repositoryt innehåller applikationens källkod, klientkomponenter, tester, containerkonfiguration och projektdokumentation.
+The repository contains the application source code, client components, tests, container configuration, and project documentation.
 
 ---
 
-## Dokumentationsuppsättning
+## Documentation Set
 
-Den nuvarande dokumentationsuppsättningen består av:
+The current documentation set consists of:
 
 ```text id="0xw7cy"
 README.md
@@ -2264,144 +2380,144 @@ install.md
 administration.md
 security.md
 troubleshooting.md
+telemetry.md
 LUMS_Optional_Theme_System.md
 ```
 
-Varje dokument har ett definierat syfte.
+Each document has a defined purpose.
 
-README ger projektöversikten.
+The README provides the project-level overview.
 
-Installationsguiden förklarar distribution.
+The installation guide explains deployment.
 
-Administrationsguiden förklarar löpande drift.
+The administration guide explains ongoing operation.
 
-Säkerhetsguiden dokumenterar säkerhetsarkitekturen och granskningsstatusen.
+The security guide documents the security architecture and audit state.
 
-Felsökningsguiden tillhandahåller diagnostiska procedurer.
+The troubleshooting guide provides diagnostic procedures.
 
-Dokumentet om valfria teman täcker frontendtemaarkitektur.
-
----
-
-## Licens
-
-LUMS släpps under MIT-licensen.
-
-Licensen är avsedd att hålla projektet öppet och tillgängligt samtidigt som den tillåter användning, modifiering och redistribution enligt licensvillkoren.
-
-Se repositoryts licensfil för den fullständiga juridiska texten.
+The optional theme document covers frontend theme architecture.
 
 ---
 
-## Community och bidrag
+## License
 
-LUMS är ett öppen källkods-projekt och bidrag är välkomna.
+LUMS is released under the MIT License.
 
-Användbara bidrag kan inkludera:
+The license is intended to keep the project open and accessible while allowing use, modification, and redistribution under the terms of the license.
 
-* felrapporter
-* säkerhetsrapporter
-* dokumentationsförbättringar
-* tester
-* pakethanterarstöd
-* frontendförbättringar
-* backendförbättringar
-* distributionsförbättringar
-
-Bidrag bör bevara projektets arkitektoniska och säkerhetsmässiga principer.
+See the repository license file for the complete legal text.
 
 ---
 
-## Säkerhetsrapporter
+## Community and Contributions
 
-Säkerhetsproblem bör inte behandlas som vanliga funktionsförfrågningar.
+LUMS is an open-source project and contributions are welcome.
 
-När du rapporterar ett säkerhetsproblem, tillhandahåll tillräckligt med information för att reproducera och förstå problemet utan att onödigtvis exponera känslig information.
+Useful contributions can include:
 
-Säkerhetsrelaterade ändringar bör granskas noggrant innan de slås samman.
+* bug reports
+* security reports
+* documentation improvements
+* tests
+* package-manager support
+* frontend improvements
+* backend improvements
+* deployment improvements
+
+Contributions should preserve the project's architectural and security principles.
 
 ---
 
-## Projektidentitet
+## Security Reports
 
-LUMS är byggt kring en enkel idé:
+Security issues should not be treated like ordinary feature requests.
 
-> **Linux-uppdateringshantering utan bruset.**
+When reporting a security problem, provide enough information to reproduce and understand the issue without unnecessarily exposing sensitive information.
 
-Projektet försöker inte dölja komplexitet genom att låtsas att Linux-pakethantering är enkelt.
+Security-related changes should be reviewed carefully before being merged.
 
-Istället gör det relevant tillstånd synligt:
+---
+
+## Project Identity
+
+LUMS is built around a simple idea:
+
+> **Linux update management without the noise.**
+
+The project does not attempt to hide complexity by pretending that Linux package management is simple.
+
+Instead, it makes the relevant state visible:
 
 ```text id="q2j5r0"
-Vad är installerat?
+What is installed?
         ↓
-Vad kan uppdateras?
+What can be updated?
         ↓
-Vad bör ändras?
+What should change?
         ↓
-Vem begärde det?
+Who requested it?
         ↓
-Vad hände faktiskt?
+What actually happened?
         ↓
-Vilket tillstånd kvarstår?
+What state remains?
 ```
 
-Den informationen är grunden för kontrollerad uppdateringshantering.
+That information is the foundation of controlled update management.
 
 ---
 
-## Slutlig arkitektur
+## Final Architecture
 
-På sin högsta nivå kan LUMS förstås som fem lager:
+At its highest level, LUMS can be understood as five layers:
 
 ```text id="7b4p6n"
 ┌───────────────────────────────────────────────┐
 │                    UI                         │
-│       Mänsklig interaktion och synlighet      │
+│       Human interaction and visibility        │
 └───────────────────────┬───────────────────────┘
                         │
 ┌───────────────────────▼───────────────────────┐
 │                    API                        │
-│    Autentisering, auktorisering, validering   │
+│    Authentication, authorization, validation  │
 └───────────────────────┬───────────────────────┘
                         │
 ┌───────────────────────▼───────────────────────┐
-│                  Persistens                    │
-│       Jobb, klienter, användare, resultat,    │
-│       granskning                              │
+│                  Persistence                   │
+│       Jobs, clients, users, results, audit   │
 └───────────────────────┬───────────────────────┘
                         │
 ┌───────────────────────▼───────────────────────┐
 │                    Agent                      │
-│      Lokal körning och systemrapportering     │
+│      Local execution and system reporting     │
 └───────────────────────┬───────────────────────┘
                         │
 ┌───────────────────────▼───────────────────────┐
-│              Inbyggda Linux-verktyg           │
-│              APT / dpkg / pacman              │
+│              Native Linux Tools               │
+│              APT / dpkg / pacman             │
 └───────────────────────────────────────────────┘
 ```
 
-Varje lager har ett specifikt ansvar.
+Each layer has a specific responsibility.
 
-UI:t tillhandahåller interaktion.
+The UI provides interaction.
 
-API:et upprätthåller policy.
+The API enforces policy.
 
-SQLite tillhandahåller beständigt tillstånd.
+SQLite provides persistent state.
 
-Agenten utför kontrollerad klientsidig körning.
+The agent performs controlled client-side execution.
 
-Den inbyggda pakethanteraren utför den faktiska systemändringen.
+The native package manager performs the actual system change.
 
 ---
 
-## Slutlig princip
+## Final Principle
 
-LUMS är byggt kring en central princip:
+LUMS is built around one central principle:
 
-> **Observera systemet. Kontrollera ändringen. Registrera resultatet.**
+> **Observe the system. Control the change. Record the result.**
 
-Den principen gäller för programvaruarkitekturen, uppdateringskörningen, säkerhetsmodellen, återställningsmekanismerna och dokumentationen.
+That principle applies to the software architecture, update execution, security model, recovery mechanisms, and documentation.
 
-**Linux-uppdateringshantering utan bruset.**
+**Linux-uppdateringshantering utan brus.**

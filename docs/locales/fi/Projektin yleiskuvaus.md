@@ -1,5 +1,43 @@
 # LUMS
 
+**Linux-päivitysten hallinta ilman hälyä.**
+
+## Alkuun pääsy
+
+LUMS hallitsee Linux-päivityksiä keskitetysti. A server displays clients, installed
+software, and available updates. An agent on each managed Linux system performs
+approved package actions using that system's package manager. LUMS does not
+replace APT on Debian/Ubuntu or pacman on Arch Linux.
+
+**Only using an existing LUMS installation?** Open the address provided by
+your administrator and sign in with your own account. If a feature is missing,
+your account may not have permission to use it. Ask your administrator for
+help; do not share accounts or use a client token as a web password.
+
+**Installing or operating LUMS?** Start with the
+[installation guide](install.md), then read the
+[administration guide](administration.md). If something goes wrong, use the
+[troubleshooting guide](troubleshooting.md). These detailed technical guides
+are maintained in English; translated guides are listed in
+[`docs/README.md`](docs/README.md). Translation coverage can vary, so use the
+English source when a localized procedure is incomplete or differs.
+
+A test run or a successfully built Docker image is **not** a production
+installation. A production deployment also needs HTTPS, a protected application
+secret, persistent data, verified backups, and a hardened container. Do not
+copy production commands until you have checked their placeholders and storage
+paths against your own installation.
+
+### Web interface languages
+
+The web interface offers German, English (US and UK), French, Spanish,
+Simplified Chinese, Japanese, Polish, Swedish, Norwegian Bokmål, and Finnish.
+Choose a language from the upper-right corner of the login page. If you do not
+choose one, LUMS tries to use the browser language; after sign-in, a language
+saved to your account takes precedence. Some technical or dynamic text may
+remain in its original language when a translation is not available. Markdown
+guides are separate from the web interface and are not translated
+automatically.
 **Linux-päivitysten hallinta ilman turhaa kohinaa.**
 
 ## Aloittaminen
@@ -18,23 +56,23 @@ Verkkokäyttöliittymä tarjoaa saksan, englannin (US ja UK), ranskan, espanjan,
 
 ---
 
-LUMS on Linux-päivitysten hallintapalvelin, joka on suunniteltu tarjoamaan hallittua, valvottavaa ja turvallista ohjelmisto- ja päivityshallintaa Linux-asiakkaille.
+LUMS is a Linux update management server designed to provide controlled, auditable, and secure software and update management for Linux clients.
 
-Sen sijaan, että luotettaisiin hallitsemattomaan asiakaspuolen päivitystoimintaan, LUMS tarjoaa keskitetyn hallintakerroksen ohjelmistoluettelointia, päivitysten tunnistamista, pakettitoimintoja, päivitystöitä, suorituksen seurantaa ja tulosten raportointia varten.
+Instead of relying on uncontrolled client-side update activity, LUMS provides a central management layer for software inventory, update detection, package operations, update jobs, execution monitoring, and result reporting.
 
-LUMS on suunniteltu ympäristöihin, joissa päivitysten on oltava **näkyviä, hallittuja, jäljitettäviä ja palautettavia**.
+LUMS is designed for environments where updates should be **visible, controlled, traceable, and recoverable**.
 
 ---
 
-## Mikä on LUMS?
+Mitä LUMS on?
 
-LUMS (**Linux Update Management Server**) koostuu keskuspalvelimesta ja kevyistä Linux-asiakkaista.
+LUMS (**Linux Update Management Server**) consists of a central server and lightweight Linux clients.
 
-Palvelin tarjoaa hallintakäyttöliittymän, API:n, todennuksen, valtuutuksen, töiden hallinnan, valvontalokituksen ja pysyvän tilan.
+The server provides the management interface, API, authentication, authorization, job management, audit logging, and persistent state.
 
-Asiakaspuolen agentti suorittaa paikalliset paketinhallintatoiminnot ja raportoi tulokset takaisin palvelimelle.
+The client-side agent performs local package-manager operations and reports the results back to the server.
 
-Perusarkkitehtuuri on:
+The basic architecture is:
 
 ```text
                     ┌──────────────────────┐
@@ -67,106 +105,141 @@ Perusarkkitehtuuri on:
       └─────────────────┘             └─────────────────┘
 ```
 
+---
+
 Miksi LUMS?
 
-Linux-järjestelmät tarjoavat jo erinomaiset paketinhallintatyökalut.
+Linux systems already provide excellent package-management tools.
 
-LUMS ei yritä korvata niitä.
+LUMS does not attempt to replace them.
 
-Sen sijaan LUMS tarjoaa hallintakerroksen näiden työkalujen ympärille, jotta ylläpitäjät voivat vastata keskitetysti kysymyksiin, kuten:
+Instead, LUMS provides a management layer around those tools so that administrators can centrally answer questions such as:
 
-* Mitä asiakkaita on olemassa?
+* Which clients exist?
+* Which software is installed?
+* Which updates are available?
+* Which packages should be installed or removed?
+* Which update jobs are running?
+* What happened during an update?
+* Did the client successfully report the result?
+* Was a reboot required?
+* Can an interrupted job recover safely?
+* Who initiated an administrative action?
 
-* Mitä ohjelmistoja on asennettu?
+The goal is not to hide the underlying Linux package manager.
 
-* Mitä päivityksiä on saatavilla?
+The goal is to make its operation **manageable and auditable**.
 
-* Mitkä paketit pitäisi asentaa tai poistaa?
+---
 
-* Mitkä päivitystyöt ovat käynnissä?
+## Ydinominaisuudet
 
-* Mitä päivityksen aikana tapahtui?
+### Asiakashallinta
 
-* Raportoiko asiakas tuloksen onnistuneesti?
+LUMS maintains registered Linux clients and their authentication state.
 
-* Vaadittiinko uudelleenkäynnistys?
+Each client receives an individual authentication token.
 
-* Voiko keskeytynyt työ palautua turvallisesti?
+Client tokens are not stored as plaintext credentials. The server stores a SHA-256 digest and validates incoming client authentication against that digest.
 
-* Kuka käynnisti ylläpitotoimenpiteen?
+Administrators can:
 
-Tavoitteena ei ole piilottaa taustalla olevaa Linux-paketinhallintaa.
+* register clients
+* disable clients
+* rotate client tokens
+* inspect client status
+* monitor client reporting
+* view client telemetry (CPU, memory, network when telemetry is enabled)
 
-Tavoitteena on tehdä sen toiminnasta hallittavaa ja valvottavaa.
-Keskeiset ominaisuudet
-Asiakashallinta
+---
 
-LUMS ylläpitää rekisteröityjä Linux-asiakkaita ja niiden todennustilaa.
+### Software Inventory
 
-Jokainen asiakas saa yksilöllisen todennustunnisteen.
+Clients report their installed software to the LUMS server.
 
-Asiakastunnisteita ei tallenneta salasanana. Palvelin tallentaa SHA-256-tiivisteen ja validoi saapuvan asiakastodennuksen tätä tiivistettä vasten.
+The server stores the inventory and exposes it through the management interface.
 
-Ylläpitäjät voivat:
+The installed-software view is intentionally separate from package-management search.
 
-* rekisteröidä asiakkaita
+This allows administrators and read-only users to inspect installed software without automatically exposing package-management operations.
 
-* poistaa asiakkaita käytöstä
+---
 
-* vaihtaa asiakastunnisteita
+### Fleet Telemetry and Health Dashboard
 
-* tarkastella asiakastilaa
+The optional telemetry system monitors CPU utilization, memory utilization, and network traffic across the fleet.
 
-* seurata asiakasraportointia
+The `/health` dashboard provides:
 
-Ohjelmistoluettelointi
+* Real-time client status (online, unknown, offline)
+* CPU and memory utilization charts (line, area, or current-value gauges)
+* Network traffic monitoring (receive/transmit bytes per second)
+* 1-hour, 24-hour, and 7-day historical views
+* Client filtering (by status, stale telemetry, high load)
+* Searchable client list with sortable columns
+* Automatic data refresh every 5 seconds
+* Latest backup status
 
-Asiakkaat raportoivat asennetut ohjelmistonsa LUMS-palvelimelle.
+Telemetry data is retained for 7 days. Telemetry submission occurs approximately every 5 seconds when the agent's systemd timer is enabled and the client can reach the server.
 
-Palvelin tallentaa luettelon ja tarjoaa sen hallintakäyttöliittymän kautta.
+---
 
-Asennettujen ohjelmistojen näkymä on tarkoituksella erillään paketinhallinnan hausta.
+### Theme System
 
-Tämä mahdollistaa ylläpitäjien ja vain luku -käyttäjien tarkastella asennettuja ohjelmistoja ilman, että paketinhallintatoiminnot paljastuvat automaattisesti.
-Päivitysluettelointi
+LUMS includes an optional theme system providing six visual themes:
 
-Asiakkaat selvittävät säännöllisesti, onko pakettipäivityksiä saatavilla.
+* **standard** - default LUMS interface
+* **LUMSStadium** - alternative corporate theme
+* **golf** - calming aesthetic
+* **nerd** - developer-focused theme
+* **geek** - technical theme
+* **admin** - administrator-specific theme
 
-Palvelin tallentaa raportoidut päivitystiedot ja tarjoaa ne valtuutetuille käyttäjille.
+Themes are visual presentation only and do not modify authentication, authorization, update execution, or security controls. Theme preference is stored in browser local storage and persists across sessions.
 
-Päivitystietoja voidaan käyttää hallittujen päivitystöiden perustana.
-Paketinhallinta
+---
 
-LUMS tarjoaa paketinhallintatoimintoja asiakasagentin kautta.
+### Update Inventory
 
-Tuetut pakettitoiminnot ovat:
+Clients periodically determine whether package updates are available.
 
-* INSTALL_PACKAGE
+The server stores the reported update information and makes it available to authorized users.
 
-* REMOVE_PACKAGE
+Update information can be used as the basis for controlled update jobs.
 
-* UPDATE_PACKAGE
+---
 
-* UPDATE_SYSTEM
+### Package Management
 
-Paketinhallintakerros abstraktoi taustalla olevan paketinhallinnan.
+LUMS provides package-management operations through the client agent.
 
-Tällä hetkellä tuetut paketinhallintaperheet ovat:
+Supported package operations include:
 
-* Debian / Ubuntu: APT / dpkg
+* `INSTALL_PACKAGE`
+* `REMOVE_PACKAGE`
+* `UPDATE_PACKAGE`
+* `UPDATE_SYSTEM`
 
-* Arch Linux: pacman
+The package-management layer abstracts the underlying package manager.
 
-Paketinhaku on myös saatavilla LUMSin kautta.
+Current supported package-manager families are:
 
-Hakupyynnöt lähetetään kohdeasiakkaalle, suoritetaan paikallisella paketinhallinnalla ja palautetaan palvelimelle näytettäväksi.
-Päivitystyöt
+* **Debian / Ubuntu:** APT / dpkg
+* **Arch Linux:** pacman
 
-Päivitystoiminnot esitetään pysyvinä töinä.
+Package search is also available through LUMS.
 
-Työ voi sisältää yhden tai useamman pakettitoiminnon ja ylläpitää palvelinpuolen suoritustilaa.
+Search requests are sent to the target client, executed using the local package manager, and returned to the server for display.
 
-Yleinen elinkaari on:
+---
+
+### Update Jobs
+
+Update operations are represented as persistent jobs.
+
+A job can contain one or more package operations and maintains a server-side execution state.
+
+The general lifecycle is:
 
 ```text
 PENDING
@@ -179,75 +252,104 @@ RUNNING
    └──────────────► FAILED
 ```
 
-Pakettitason tuloksia seurataan erikseen, jotta keskeytyneet työt voidaan palauttaa tarpeettomasti toistamatta jo onnistuneesti suoritettuja toimintoja.
-Hallittu suoritus
+Package-level results are tracked independently so that interrupted jobs can be recovered without unnecessarily repeating operations that already completed successfully.
 
-LUMS ei suorita mielivaltaisia komentotulkkeja verkkokäyttöliittymästä.
+---
 
-Palvelin luo jäsenneltyjä töitä validoitujen toimintojen ja pakettinimien avulla.
+### Controlled Execution
 
-Asiakasagentti yhdistää nämä toiminnot asianmukaiseen paikalliseen paketinhallintatoimintoon.
+LUMS does not execute arbitrary shell commands supplied by the web interface.
 
-Tämä luo tarkoituksellisen rajan seuraavien välille:
+The server creates structured jobs using validated actions and package names.
+
+The client agent maps those actions to the appropriate local package-manager operation.
+
+This creates a deliberate boundary between:
 
 ```text
 Web UI
    ↓
 API
    ↓
-Validoitu työ
+Validated Job
    ↓
-Agentti
+Agent
    ↓
+Package Manager
 ```
-Paketinhallinta
 
-Lepotilatietoinen suoritus
+---
 
-LUMS voi lykätä päivitysten suorittamista, kun asiakas katsotaan aktiiviseksi.
+### Idle-Aware Execution
 
-Nykyinen lepotilan kynnysarvo on 300 sekuntia.
+LUMS can defer update execution while a client is considered active.
 
-Tuettaessa agentti käyttää paikallisen järjestelmän istunto-/lepotilatietoja loginctl:n kautta.
+The current idle threshold is **300 seconds**.
 
-Jos lepotilan tunnistus ei ole käytettävissä, LUMS ei teeskentele, että asiakas on lepotilassa.
+Where supported, the agent uses the local system's session/idle information through `loginctl`.
 
-Tämä ero on tärkeä, koska tuntematon lepotila ei ole sama kuin vahvistettu lepotila.
-Töiden palautus
+If idle detection is unavailable, LUMS does not pretend that the client is idle.
 
-Päivitystyöt on suunniteltu kestämään keskeytyksiä.
+This distinction is important because **unknown idle state is not the same as confirmed idle state**.
 
-Palvelin ylläpitää pysyvää työ- ja pakettikohdetta.
+---
 
-Palautuksen aikana jo onnistuneita pakettikohteita ei suoriteta tarpeettomasti uudelleen.
+### Job Recovery
 
-Tämä tarjoaa tarkistuspisteitä muistuttavan suoritusmallin monipakettitoiminnoille.
+Update jobs are designed to survive interruptions.
 
-Tavoite on:
+The server maintains persistent job and package-item state.
 
-* Palauta työ, äläkä käynnistä koko työtä sokeasti uudelleen.
+During recovery, already successful package items are not unnecessarily executed again.
 
-Uudelleenkäynnistyksen tunnistus
+This provides a checkpoint-like execution model for multi-package operations.
 
-Jotkin pakettitoiminnot voivat vaatia järjestelmän uudelleenkäynnistyksen.
+The goal is:
 
-Siksi LUMS käsittelee uudelleenkäynnistyksen tunnistuksen osana päivitystuloksen käsittelyä sen sijaan, että olettaisi onnistuneen paketinhallinnan lopetuksen aina tarkoittavan, että järjestelmä on täysin toimintakunnossa.
+> **Recover the job, not blindly restart the entire job.**
 
-Asiakas raportoi havaitsemansa uudelleenkäynnistysvaatimuksen takaisin palvelimelle.
-Asiakastodennus
+---
 
-Asiakasviestintä todennetaan asiakaskohtaisilla tunnisteilla.
+### Reboot Detection
 
-Tunnisteet ovat:
+Some package operations can require a system reboot.
 
-* yksilöllisesti määritettyjä
+LUMS therefore treats reboot detection as part of update-result handling rather than assuming that a successful package-manager exit always means that the system is fully operational.
 
-* vaihdettavissa
+The client reports the detected reboot requirement back to the server.
 
-* tallennettu palvelinpuolella vain SHA-256-tiivisteinä
+---
 
-* validoitu ennen asiakasraporttien hyväksymistä
+### Client Authentication
 
+Client communication is authenticated using per-client tokens.
+
+Tokens are:
+
+* individually assigned
+* rotatable
+* stored server-side only as SHA-256 digests
+* validated before accepting client reports
+
+Token rotation allows an administrator to invalidate a previously issued client credential without recreating the client.
+
+---
+
+### Health dashboard
+
+The authenticated health dashboard at `/health` summarizes the database status,
+client reporting status, backup-storage visibility, and CPU/memory telemetry
+when telemetry is configured. It is a quick operational view, not a substitute
+for checking container, reverse-proxy, host, and backup logs or for performing
+a restore test. See [LUMS_Health_Dashboard.md](LUMS_Health_Dashboard.md).
+
+---
+
+### Auditability
+
+Administrative and security-relevant actions are recorded through the LUMS audit-log system.
+
+The audit trail is intended to answer:
 Tunnisteen vaihto mahdollistaa ylläpitäjän mitätöidä aiemmin myönnetyn asiakastunnisteen luomatta asiakasta uudelleen.
 
 
@@ -259,38 +361,38 @@ Kirjautumisen takana oleva `/health`-koontinäyttö kokoaa yhteen tietokannan ti
 
 ### Hälytykset
 
-LUMS tarjoaa tallennettujen hälytystietueiden hallintaan rajapinnan ja peruskoontinäytön. Ylläpitäjä voi hallita sääntöjä, käynnistää hälytyksen manuaalisesti sekä kuitata, ratkaista tai eskaloida aktiivisen hälytyksen. Sääntöjen ehtoja ja kynnysarvoja tallennetaan asetuksina, mutta palvelin ei arvioi niitä automaattisesti telemetrian perusteella. Ilmoitusintegraatiot (sähköposti, Slack, PagerDuty ja yleiset webhookit) eivät ole käytettävissä API:n kautta, ja historiatiedot säilytetään poistamalla massatyhjennys käytöstä. Katso [hälytysten hallinnan toteutusrajat](<Hälytysten hallinta.md>).
+LUMS tarjoaa tallennettujen hälytystietueiden hallintaan rajapinnan ja peruskoontinäytön. Ylläpitäjä voi hallita sääntöjä, käynnistää hälytyksen manuaalisesti sekä kuitata, ratkaista tai eskaloida aktiivisen hälytyksen. Sääntöjen ehtoja ja kynnysarvoja tallennetaan asetuksina, mutta palvelin ei arvioi niitä automaattisesti telemetrian perusteella. Ilmoitusintegraatiot (sähköposti, Slack, PagerDuty ja yleiset webhookit) eivät ole käytettävissä API:n kautta, ja historiatiedot säilytetään poistamalla massatyhjennys käytöstä. Katso [hälytysten hallinnan toteutusrajat](<Hälytyksen hallinta.md>).
 Valvottavuus
 
-Ylläpitoon ja turvallisuuteen liittyvät toiminnot tallennetaan LUMSin valvontalokijärjestelmän kautta.
+```text
+Who?
+What?
+When?
+Against which object?
+With which result?
+```
 
-Valvontajäljen on tarkoitus vastata:
-text
+This includes security-sensitive operations such as authentication-related actions, client management, user management, and update-job creation.
 
-Kuka?
-Mitä?
-Milloin?
-Mitä kohdetta vastaan?
-Millä tuloksella?
+---
 
-Tämä kattaa turvallisuuskriittiset toiminnot, kuten todennukseen liittyvät toimet, asiakashallinnan, käyttäjähallinnan ja päivitystöiden luomisen.
-Suunnitteluperiaate
+## Design Principle
 
-LUMS noudattaa yksinkertaista periaatetta:
+LUMS follows a simple principle:
 
-* Tee Linux-päivitysten hallinnasta näkyvää, hallittua, palautettavaa ja valvottavaa – kuitenkaan piilottamatta alla olevia Linux-työkaluja.
+> **Make Linux update management visible, controlled, recoverable, and auditable — without hiding the Linux tools underneath.**
 
-Arkkitehtuuri
+## Arkkitehtuuri
 
-LUMS erottaa hallinnan, suorituksen ja pysyvyyden selkeästi määriteltyihin komponentteihin.
+LUMS separates management, execution, and persistence into clearly defined components.
 
-Palvelin vastaa orkestroinnista ja käytännöistä.
+The server is responsible for orchestration and policy.
 
-Asiakas vastaa paikallisesta järjestelmävuorovaikutuksesta.
+The client is responsible for local system interaction.
 
-Paketinhallinta vastaa edelleen ohjelmistojen asentamisesta, poistamisesta tai päivittämisestä.
+The package manager remains responsible for actually installing, removing, or updating software.
 
-Tämä erottelu on tarkoituksellinen.
+This separation is intentional.
 
 ```text
 Browser
@@ -335,140 +437,133 @@ Browser
           └────────────────────┘
 ```
 
-Palvelinkomponentit
+---
 
-LUMS-palvelin tarjoaa keskitetyn hallintakerroksen.
-Verkkosovellus
+## Palvelinkomponentit
 
-Verkkosovellus tarjoaa hallintakäyttöliittymän seuraaville:
+The LUMS server provides the central management layer.
 
-* asiakashallinta
+### Web Application
 
-* ohjelmistoluettelointi
+The web application provides the administrative interface for:
 
-* päivitystiedot
+* client management
+* software inventory
+* update information
+* update jobs
+* package management
+* update history
+* user management
+* system maintenance
 
-* päivitystyöt
+The interface respects the current user's RBAC role.
 
-* paketinhallinta
+Frontend visibility is therefore adapted to the user's permissions, but authorization is always enforced server-side as well.
 
-* päivityshistoria
+---
 
-* käyttäjähallinta
-
-* järjestelmän ylläpito
-
-Käyttöliittymä noudattaa nykyisen käyttäjän RBAC-roolia.
-
-Siksi käyttöliittymän näkyvyys mukautetaan käyttäjän oikeuksien mukaan, mutta valtuutus valvotaan aina myös palvelinpuolella.
 ### API
 
-API yhdistää verkkokäyttöliittymän ja Linux-asiakkaat palvelinpuolen sovelluslogiikkaan.
+The API connects the web interface and Linux clients to the server-side application logic.
 
-Se käsittelee toimintoja, kuten:
+It handles operations such as:
 
-* asiakasrekisteröinti ja -hallinta
+* client registration and management
+* client reports
+* package searches
+* package-search results
+* update jobs
+* job results
+* user management
+* audit events
 
-* asiakasraportit
+API endpoints validate their input before performing state-changing operations.
 
-* pakettihaut
+---
 
-* pakettihakujen tulokset
+### Authentication and Sessions
 
-* päivitystyöt
+Administrative users authenticate through the LUMS web application.
 
-* työtulokset
+Sessions are server-controlled and support explicit session revocation.
 
-* käyttäjähallinta
+Authentication security includes:
 
-* valvontatapahtumat
+* password hashing using Argon2
+* session management
+* session revocation
+* login rate limiting
+* CSRF protection
+* role-based authorization
 
-API-päätepisteet validoivat syötteensä ennen tilaa muuttavia toimintoja.
-Todennus ja istunnot
+Client authentication is separate from administrative authentication.
 
-Ylläpitäjät todennetaan LUMS-verkkosovelluksen kautta.
+---
 
-Istunnot ovat palvelinohjattuja ja tukevat eksplisiittistä istunnon mitätöintiä.
-
-Todennuksen turvallisuus sisältää:
-
-* salasanan tiivistys Argon2:lla
-
-* istunnonhallinta
-
-* istunnon mitätöinti
-
-* kirjautumisen nopeusrajoitus
-
-* CSRF-suojaus
-
-* roolipohjainen valtuutus
-
-Asiakastodennus on erillään ylläpitäjätodennuksesta.
 ### RBAC
 
-LUMS yhdistää roolimallit käyttäjäkohtaisiin oikeuksiin. Administrator-, Operator- ja Viewer-mallit tarjoavat aloitusoikeudet, joita voidaan mukauttaa jokaiselle tilille.
+LUMS combines role templates with per-user permissions. The Administrator,
+Operator, and Viewer templates provide starting permission sets that can be
+customized for each account.
 
-Valtuutus valvotaan palvelimella käyttäjän tallennettujen oikeuksien perusteella.
+Authorization is enforced on the server using the account's stored permissions.
 
-Käyttöliittymä piilottaa lisäksi toimintoja, joita käyttäjän oikeudet eivät salli.
+The frontend additionally hides functionality that the user's permissions do
+not allow.
 
-Tämä tarkoittaa, että painikkeen piilottamista ei koskaan pidetä turvarajana.
-SQLite-pysyvyys
+This means that hiding a button is never treated as a security boundary.
 
-LUMS käyttää SQLitea pysyvään sovellustilaan.
+---
 
-Tietokanta tallentaa tietoja, kuten:
+### SQLite Persistence
 
-* käyttäjät
+LUMS uses SQLite for persistent application state.
 
-* istunnot
+The database stores information such as:
 
-* asiakkaat
+* users
+* sessions
+* clients
+* client authentication state
+* software inventory
+* available updates
+* update jobs
+* package-level job results
+* package-search requests and results
+* audit information
 
-* asiakastodennustila
+The application explicitly enables SQLite foreign-key enforcement for database connections.
 
-* ohjelmistoluettelo
+The current production SQLite baseline is:
 
-* saatavilla olevat päivitykset
-
-* päivitystyöt
-
-* pakettitason työtulokset
-
-* pakettihakupyynnöt ja -tulokset
-
-* valvontatiedot
-
-Sovellus ottaa eksplisiittisesti käyttöön SQLite-viiteavainten valvonnan tietokantayhteyksille.
-
-Nykyinen tuotannon SQLite-perustaso on:
 ```text
-
 journal_mode = wal
 busy_timeout = 5000
 synchronous = 2
 foreign_keys = ON
 ```
 
-LUMS käyttää SQLite WAL -tilaa nykyisessä tuotantokokoonpanossa.
-Konttiarkkitehtuuri
+LUMS uses SQLite WAL mode in the current production configuration.
 
-LUMS-palvelin otetaan käyttöön kovennettuna Docker-konttina.
+---
 
-Sovelluskonttia kohdellaan tarkoituksella kertakäyttöisenä.
+## Container Architecture
 
-Pysyvä sovellustila tallennetaan erilliseen Docker-taltioon:
+The LUMS server is deployed as a hardened Docker container.
+
+The application container is intentionally treated as disposable.
+
+Persistent application state is stored in the dedicated Docker volume:
 
 ```text
 lums-data
 ```
 
-Tuotantokontti käyttää vain luku -juuritiedostojärjestelmää.
+The production container uses a read-only root filesystem.
 
-Kirjoitettavat sijainnit on tarkoituksella rajoitettu vaadittuihin ajonaikaisiin ja pysyviin tallennuspolkuihin.
+Writable locations are deliberately restricted to required runtime and persistent storage paths.
 
-Tuotannon turvallisuusperustaso sisältää:
+The production security baseline includes:
 
 ```text
 read-only root filesystem
@@ -481,108 +576,115 @@ dedicated persistent data volume
 non-root application user
 ```
 
-Sovellus on sisäisesti saatavilla osoitteessa:
+The application is exposed internally through:
 
 ```text
 127.0.0.1:5050
 ```
 
-Ulkoinen HTTPS-käyttö tarjotaan käänteisen välityspalvelimen kautta.
-Pysyvät ja kertakäyttöiset komponentit
+External HTTPS access is provided through the reverse proxy.
 
-LUMS erottaa pysyvän tilan korvattavista ajonaikaisista komponenteista.
-text
+---
 
-Pysyvä
-├── SQLite-tietokanta
-├── asiakastila
-├── käyttäjätila
-├── työtila
-└── valvontatila
+## Persistent and Disposable Components
 
-Kertakäyttöinen
-├── Docker-kontti
-├── sovellusprosessi
-└── luotu ajonaikainen tila
+LUMS separates persistent state from replaceable runtime components.
 
-Siksi sovelluskontin korvaaminen ei itsessään poista LUMS-tietokantaa.
+```text
+Persistent
+├── SQLite database
+├── client state
+├── user state
+├── job state
+└── audit state
 
-Tämä erottelu on tärkeä päivityksille ja palautukselle.
-Asiakasarkkitehtuuri
+Disposable
+├── Docker container
+├── application process
+└── generated runtime state
+```
 
-Linux-asiakas koostuu useista yhteistyötä tekevistä komponenteista.
-LUMS-agentti
+Replacing the application container therefore does not inherently remove the LUMS database.
 
-Agentti vastaa vuorovaikutuksesta LUMS-palvelimen ja paikallisen Linux-järjestelmän kanssa.
+This separation is important for upgrades and recovery.
 
-Nykyinen agenttiversio:
+---
+
+## Client Architecture
+
+The Linux client consists of several cooperating components.
+
+### LUMS Agent
+
+The agent is responsible for interaction with the LUMS server and the local Linux system.
+
+Current agent version:
 
 ```text
 1.7.0
 ```
 
-Agentti käsittelee:
+The agent handles:
 
-* todennus
+* authentication
+* inventory collection
+* update detection
+* package search
+* package operations
+* update-job execution
+* result reporting
+* reboot detection
+* idle-state handling
 
-* luettelointi
+---
 
-* päivitysten tunnistus
+### Package Manager Layer
 
-* pakettihaku
+The package-manager layer provides a controlled abstraction around the native Linux package manager.
 
-* pakettitoiminnot
+The agent does not require LUMS to replace the package manager.
 
-* päivitystöiden suoritus
+Instead:
 
-* tulosten raportointi
-
-* uudelleenkäynnistyksen tunnistus
-
-* lepotilan käsittely
-
-Paketinhallintakerros
-
-Paketinhallintakerros tarjoaa hallitun abstraktion natiivin Linux-paketinhallinnan ympärille.
-
-Agentti ei vaadi LUMSia korvaamaan paketinhallintaa.
-
-Sen sijaan:
 ```text
-
-LUMS-toiminto
+LUMS Action
      │
      ▼
-Paketinhallinnan abstraktio
+Package Manager Abstraction
      │
      ├── Debian / Ubuntu → APT / dpkg
      │
      └── Arch Linux      → pacman
 ```
 
-Tämä pitää jakelukohtaisen pakettikäsittelyn asiakkaan sisällä.
-Suorituksen valvoja
+This keeps distribution-specific package handling inside the client.
 
-Valvoja seuraa päivitystöiden suoritusta asiakkaalla.
+---
 
-Nykyinen valvojan versio:
+### Execution Watcher
+
+The watcher monitors update-job execution on the client.
+
+Current watcher version:
 
 ```text
 1.2.1
 ```
 
-Valvoja työskentelee yhdessä agentin ja palvelinpuolen työtilan kanssa.
+The watcher works together with the agent and the server-side job state.
 
-Sen tarkoitus on varmistaa, että työt, joiden odotetaan suoritettavan, eivät jää loputtomasti käsittelemättä.
-Raportointipolku
+Its purpose is to ensure that jobs which are expected to execute do not remain indefinitely unprocessed.
 
-Normaali asiakasraportointi noudattaa tätä suuntaa:
-text
+---
 
-Linux-asiakas
+## Reporting Path
+
+Normal client reporting follows this direction:
+
 ```text
+Linux Client
     │
-    │ luettelo / päivitystiedot
+    │ inventory / update information
     ▼
 LUMS API
     │
@@ -593,69 +695,73 @@ SQLite
 Web UI
 ```
 
-Esimerkiksi asiakkaan suorittama päivitystarkistus tuottaa tiedot, jotka raportoidaan palvelimelle ja tallennetaan asiakkaan nykyiseksi päivitystilaksi.
+For example, an update check performed by the client produces information that is reported to the server and stored as the client's current update state.
 
-Selain ei kysy suoraan asiakkaan paketinhallinnasta.
-Pakettihaun polku
+The browser does not directly query the client's package manager.
 
-Pakettihaku noudattaa erilaista pyyntö/vastaus-virtaa:
-text
+---
 
-Selain
+## Package Search Path
+
+Package search follows a different request/response flow:
+
 ```text
+Browser
    │
-   │ hakupyyntö
+   │ search request
    ▼
-LUMS-palvelin
+LUMS Server
    │
-   │ pakettihakupyyntö
+   │ package-search request
    ▼
-Linux-asiakas
+Linux Client
    │
-   │ APT / pacman -haku
+   │ APT / pacman search
    ▼
-Linux-asiakas
+Linux Client
    │
-   │ hakutulos
+   │ search result
    ▼
-LUMS-palvelin
+LUMS Server
    │
    ▼
+Browser
 ```
-Selain
 
-Siksi palvelimen ei tarvitse ylläpitää täydellistä etäpakettivarastoindeksiä jokaiselle asiakkaalle.
+The server therefore does not need to maintain a complete remote package repository index for every client.
 
-Haku suoritetaan asiakkaan omalla paketinhallintaympäristöllä.
-Päivityksen suorituspolku
+The search is performed using the client's own package-management environment.
 
-Päivitystyö noudattaa yleistä arkkitehtuuria:
-text
+---
 
-Selain
+## Update Execution Path
+
+An update job follows the general architecture:
+
 ```text
+Browser
    │
-   │ luo työ
+   │ create job
    ▼
 LUMS API
    │
-   │ validoi pyyntö
+   │ validate request
    ▼
 SQLite
    │
-   │ pysyvä työ
+   │ persistent job
    ▼
-Linux-asiakas
+Linux Client
    │
-   │ suorita toiminto
+   │ execute action
    ▼
 APT / dpkg / pacman
    │
-   │ tulos
+   │ result
    ▼
-Linux-asiakas
+Linux Client
    │
-   │ validoitu tulos
+   │ validated result
    ▼
 LUMS API
    │
@@ -663,29 +769,34 @@ LUMS API
 SQLite
    │
    ▼
+Browser
 ```
-Selain
 
-Tämä luo LUMSin keskeisen suoritusketjun:
+This creates the central LUMS execution chain:
 
-* Selain → API → SQLite → Agentti → Paketinhallinta → Tulos → SQLite → Käyttöliittymä
+> **Browser → API → SQLite → Agent → Package Manager → Result → SQLite → UI**
 
-Atominen työn varaus
+---
 
-Päivitystyöt ovat pysyviä palvelinpuolen objekteja.
+## Atomic Job Claiming
 
-Ennen suoritusta agentin on saatava työ, joka on kelvollinen suoritettavaksi.
+Update jobs are persistent server-side objects.
 
-Työn varaus suoritetaan atomisesti, jotta sama odottava työ ei tule vahingossa useiden suorituspolkujen varaamaksi.
+Before execution, the agent must obtain a job that is eligible for execution.
 
-Tämä on erityisen tärkeää, kun mukana on ajastimia, uudelleenyrityksiä, palautusta tai useita asiakaspuolen prosesseja.
-Työn suoritus
+Job claiming is performed atomically so that the same pending job is not unintentionally claimed by multiple execution paths.
 
-Palvelin luo jäsenneltyjä töitä.
+This is particularly important when timers, retries, recovery, or multiple client-side processes are involved.
 
-Asiakasagentti tulkitsee tuetut työtoiminnot ja suorittaa vastaavan paikallisen toiminnon.
+---
 
-Tuetut pakettitoiminnot ovat:
+## Job Execution
+
+The server creates structured jobs.
+
+The client agent interprets the supported job actions and executes the corresponding local operation.
+
+The supported package actions are:
 
 ```text
 INSTALL_PACKAGE
@@ -694,16 +805,19 @@ UPDATE_PACKAGE
 UPDATE_SYSTEM
 ```
 
-Pakettinimet validoidaan ennen pakettityön luomista.
+Package names are validated before a package job is created.
 
-Agentti ei käsittele pakettinimiä mielivaltaisina komentotulkin osina.
-Paketinhallinnan abstraktio
+The agent does not treat package names as arbitrary shell fragments.
 
-Pakettitoiminnot on tarkoituksella toteutettu paketinhallinnan abstraktion taakse.
+---
 
-Tämä pitää korkeamman tason LUMS-työmallin riippumattomana jakelukohtaisista komennoista.
+## Package Management Abstraction
 
-Esimerkiksi:
+Package operations are deliberately implemented behind a package-manager abstraction.
+
+This keeps the higher-level LUMS job model independent from distribution-specific commands.
+
+For example:
 
 ```text
 INSTALL_PACKAGE
@@ -713,186 +827,193 @@ INSTALL_PACKAGE
        └── Arch Linux      → pacman
 ```
 
-Sama periaate pätee poistamiseen ja pakettipäivityksiin.
+The same principle applies to removal and package updates.
+
+---
+
 ## Debian / Ubuntu
 
-Debian-perheen järjestelmissä LUMS käyttää natiivia APT/dpkg-työkaluja.
+On Debian-family systems, LUMS uses the native APT/dpkg tooling.
 
-Tyypillisiä vastuita ovat:
+Typical responsibilities include:
 
-* pakettihaku
+* package search
+* package metadata lookup
+* package installation
+* package removal
+* package updates
+* system updates
+* update detection
 
-* pakettimetatietojen haku
+The LUMS agent does not replace APT.
 
-* paketin asennus
+It provides controlled orchestration around it.
 
-* paketin poisto
+---
 
-* pakettipäivitykset
-
-* järjestelmäpäivitykset
-
-* päivitysten tunnistus
-
-LUMS-agentti ei korvaa APT:ta.
-
-Se tarjoaa hallitun orkestroinnin sen ympärille.
 ## Arch Linux
 
-Arch Linux -järjestelmissä LUMS käyttää natiivia pacman-paketinhallintaa.
+On Arch Linux systems, LUMS uses the native pacman package manager.
 
-Tyypillisiä vastuita ovat:
+Typical responsibilities include:
 
-* pakettihaku
+* package search
+* package metadata lookup
+* package installation
+* package removal
+* package updates
+* system updates
+* update detection
 
-* pakettimetatietojen haku
+Distribution-specific behavior remains inside the package-manager layer.
 
-* paketin asennus
+---
 
-* paketin poisto
+## Package Search
 
-* pakettipäivitykset
+Package search is separate from the installed-software inventory.
 
-* järjestelmäpäivitykset
+This distinction is important:
 
-* päivitysten tunnistus
-
-Jakelukohtainen käyttäytyminen pysyy paketinhallintakerroksen sisällä.
-Pakettihaku
-
-Pakettihaku on erillään asennettujen ohjelmistojen luettelosta.
-
-Tämä ero on tärkeä:
 ```text
-
-Asennetut ohjelmistot
+Installed Software
         │
-        └── Mitä on jo asennettu?
+        └── What is already installed?
 
-Paketinhallinnan haku
+Package Management Search
         │
+        └── What package can the client currently find?
 ```
-  * └── Minkä paketin asiakas voi tällä hetkellä löytää?
 
-Hakutulokset voivat sisältää pakettitietoja, kuten:
+Search results may contain package information such as:
 
-* paketin nimi
+* package name
+* version
+* description
+* repository information where available
 
-* versio
+Search results are returned to the LUMS server and displayed in the Package Management interface.
 
-* kuvaus
+---
 
-* varastotiedot, jos saatavilla
+## Package Management Permissions
 
-Hakutulokset palautetaan LUMS-palvelimelle ja näytetään Paketinhallinta-käyttöliittymässä.
-Paketinhallinnan oikeudet
+Package management is a privileged operation.
 
-Paketinhallinta on etuoikeutettu toiminto.
+The current permission model is:
 
-Nykyinen oikeusmalli on:
-text
-
-Administrator → sallittu
-Operator      → sallittu
-Viewer        → ei sallittu
-
-Viewer voi silti tarkastella asennettuja ohjelmistoja.
-
-Paketinhallinnan käyttöliittymä on piilotettu Viewereiltä, ja vastaavat palvelinpuolen mutaatiopäätepisteet valvovat valtuutusta itsenäisesti.
-Päivitystuloksen käsittely
-
-LUMS käsittelee päivitystoiminnon tuloksen jäsenneltynä tilana sen sijaan, että se yksinkertaisesti näyttäisi raakakomentojen tulosteen.
-
-Olennaiset tiedot voivat sisältää:
-
-* onnistuminen tai epäonnistuminen
-
-* pakettitason tulos
-
-* suoritustila
-
-* virhetiedot
-
-* uudelleenkäynnistysvaatimus
-
-* valmistumisaikaleimat
-
-Tämä mahdollistaa palvelimen ylläpitää merkityksellistä päivityshistoriaa.
-Uudelleenkäynnistyksen tunnistus
-
-Pakettitoimintojen jälkeen asiakas tarkistaa, viittaako toiminto uudelleenkäynnistyksen tarpeeseen.
-
-Tulos raportoidaan palvelimelle osana työtulosta.
-
-Uudelleenkäynnistysvaatimus pysyy siksi liitettynä päivitystoimintoon sen sijaan, että se katoaisi asiakaspuolen pääteistuntoon.
-Asiakastodennuksen raja
-
-Asiakas-API käyttää erillistä todennusmekanismia kuin ylläpitäjän verkkosessiot.
-text
-
-Ylläpitäjä
 ```text
-        │
-        ▼
- Verkkotodennus
-        │
-        ▼
-    LUMS-palvelin
-
-Linux-asiakas
-        │
-        ▼
- Asiakastunniste
-        │
-        ▼
+Administrator → allowed
+Operator      → allowed
+Viewer        → not allowed
 ```
-* LUMS-palvelin
 
-Tämä erottelu estää ylläpitäjän selainsessioiden ja asiakastunnisteiden muuttumisen keskenään vaihdettaviksi todennusmekanismeiksi.
-Valvontajälki
+A Viewer can still inspect installed software.
 
-Turvallisuuteen ja ylläpitoon liittyvät toiminnot tallennetaan palvelinpuolen valvontajärjestelmään.
+The Package Management interface itself is hidden for Viewers, and corresponding server-side mutation endpoints enforce authorization independently.
 
-Valvontajälki täydentää normaalia sovelluslokitusta.
+---
 
-Lokitus vastaa kysymyksiin sovelluksen käyttäytymisestä.
+## Update Result Handling
 
-Valvontalokitus tallentaa lisäksi tärkeät ylläpitotoimenpiteet ja niiden kontekstin.
+LUMS treats the result of an update operation as structured state rather than simply displaying raw command output.
 
-Tämä ero on hyödyllinen tutkittaessa asiakkaiden, käyttäjien, todennustilan tai päivitystöiden muutoksia.
-Toimintaperiaate
+Relevant information can include:
 
-LUMS erottaa tarkoituksella:
-text
+* success or failure
+* package-level result
+* execution state
+* error information
+* reboot requirement
+* completion timestamps
 
-Hallinta
+This allows the server to maintain a meaningful update history.
+
+---
+
+## Reboot Detection
+
+After package operations, the client checks whether the operation indicates that a reboot is required.
+
+The result is reported to the server as part of the job result.
+
+A reboot requirement therefore remains associated with the update operation instead of being lost in a client-side terminal session.
+
+---
+
+## Client Authentication Boundary
+
+The client API uses a separate authentication mechanism from administrative web sessions.
+
 ```text
-     │
-     ▼
-Käytäntö / valtuutus
-     │
-     ▼
-Työ
-     │
-     ▼
-Asiakkaan suoritus
-     │
-     ▼
+Administrative User
+        │
+        ▼
+ Web Authentication
+        │
+        ▼
+    LUMS Server
+
+Linux Client
+        │
+        ▼
+ Client Token
+        │
+        ▼
+    LUMS Server
 ```
-Natiivi paketinhallinta
 
-Jokaisella kerroksella on määritelty vastuu.
+This separation prevents administrative browser sessions and client credentials from becoming interchangeable authentication mechanisms.
 
-Palvelin hallinnoi.
+---
 
-Agentti suorittaa.
+## Audit Trail
 
-Paketinhallinta tekee varsinaisen järjestelmämuutoksen.
+Security-relevant and administrative actions are recorded by the server-side audit system.
 
-Tulos kulkee takaisin saman hallitun ketjun kautta.
-Roolipohjainen käyttöoikeushallinta
+The audit trail complements normal application logging.
 
-LUMS käyttää kolmea ylläpitoroolia:
+Logging answers questions about application behavior.
+
+Audit logging additionally records important administrative actions and their context.
+
+This distinction is useful when investigating changes to clients, users, authentication state, or update jobs.
+
+---
+
+## Operational Principle
+
+LUMS deliberately separates:
+
+```text
+Management
+     │
+     ▼
+Policy / Authorization
+     │
+     ▼
+Job
+     │
+     ▼
+Client Execution
+     │
+     ▼
+Native Package Manager
+```
+
+Each layer has a defined responsibility.
+
+The server manages.
+
+The agent executes.
+
+The package manager performs the actual system change.
+
+The result travels back through the same controlled chain.
+
+## Role-Based Access Control
+
+LUMS uses three administrative roles:
 
 ```text
 Administrator
@@ -900,260 +1021,248 @@ Operator
 Viewer
 ```
 
-Valtuutus valvotaan palvelinpuolella.
+Authorization is enforced server-side.
 
-Käyttöliittymä mukauttaa lisäksi näkyvää käyttöliittymää käyttäjän oikeuksien mukaan, mutta käyttöliittymän näkyvyyttä ei koskaan pidetä turvarajana.
+The frontend additionally adapts the visible interface to the user's
+permissions, but frontend visibility is never considered a security boundary.
+
 ### Administrator
 
-Ylläpitäjillä on pääsy:
+Administrators have access to:
 
-* tarkastella asiakkaita
-
-* tarkastella asennettuja ohjelmistoja
-
-* tarkastella saatavilla olevia päivityksiä
-
-* luoda ja suorittaa päivitystöitä
-
-* tarkastella päivityshistoriaa
-
-* käyttää paketinhallintaa
-
-* suorittaa järjestelmän ylläpitoa
-
-* luoda ja poistaa asiakkaita käytöstä
-
-* vaihtaa asiakastunnisteita
-
-* luoda ja hallita käyttäjiä
-
-* hallita rooleja ja käyttäjien käyttöoikeuksia
+* view clients
+* view installed software
+* view available updates
+* create and execute update jobs
+* view update history
+* use package management
+* perform system maintenance
+* create and disable clients
+* rotate client tokens
+* create and manage users
+* manage roles and user access
 
 ### Operator
 
-Operaattoreilla on pääsy:
+Operators have access to:
 
-* tarkastella asiakkaita
+* view clients
+* view installed software
+* view available updates
+* create and execute update jobs
+* view update history
+* use package management
+* perform system maintenance
 
-* tarkastella asennettuja ohjelmistoja
+Operators do not have access to:
 
-* tarkastella saatavilla olevia päivityksiä
-
-* luoda ja suorittaa päivitystöitä
-
-* tarkastella päivityshistoriaa
-
-* käyttää paketinhallintaa
-
-* suorittaa järjestelmän ylläpitoa
-
-Operaattoreilla ei ole pääsyä:
-
-* käyttäjähallintaan
-
-* roolien hallintaan
-
-* asiakkaiden luomiseen tai poistamiseen käytöstä
-
-* asiakastunnisteiden vaihtoon
+* user management
+* role administration
+* client creation or disabling
+* client-token rotation
 
 ### Viewer
 
-Viewereillä on vain luku -pääsy:
+Viewers have read-only access to:
 
-* asiakkaisiin
+* clients
+* installed software
 
-* asennettuihin ohjelmistoihin
+The following functionality is unavailable to Viewers:
 
-Seuraavat toiminnot eivät ole Viewereiden käytettävissä:
+* available-update management
+* update jobs
+* update history
+* package management
+* system maintenance
+* other state-changing administrative operations
 
-* saatavilla olevien päivitysten hallinta
+The server independently enforces these restrictions.
 
-* päivitystyöt
+---
 
-* päivityshistoria
+## User Management
 
-* paketinhallinta
+LUMS provides user management to accounts with the `users.manage` permission.
 
-* järjestelmän ylläpito
+Users with this permission can create accounts using a role template and
+then assign permissions individually or explicitly apply that template. New
+accounts start without permissions; the permission editor opens after creation.
+User managers can also save private administrative notes that are not visible
+to the account owner.
 
-* muut tilaa muuttavat ylläpitotoiminnot
+Administrators with `backups.manage` can create validated `.db` or `.db.gz`
+database backups in a server-configured directory and choose a safe subfolder
+within that mounted location. See [`administration.md`](administration.md) and
+the in-app Markdown restore guide for Docker storage setup and recovery.
 
-Palvelin valvoo näitä rajoituksia itsenäisesti.
-Käyttäjähallinta
+User passwords are stored using Argon2 password hashing rather than plaintext or reversible encryption.
 
-LUMS tarjoaa käyttäjähallinnan tileille, joilla on users.manage-oikeus.
+User-management operations are protected by:
 
-Käyttäjät, joilla on tämä oikeus, voivat luoda tilejä roolimallin avulla ja sitten määrittää oikeuksia yksilöllisesti tai soveltaa kyseistä mallia. Uudet tilit alkavat ilman oikeuksia; oikeuseditori avautuu luomisen jälkeen. Käyttäjähallinnoijat voivat myös tallentaa yksityisiä ylläpitomuistiinpanoja, jotka eivät näy tilin omistajalle.
+* authentication
+* permission-based authorization
+* CSRF protection
+* input validation
+* duplicate-user checks
+* audit logging
 
-Ylläpitäjät, joilla on backups.manage, voivat luoda validoituja .db- tai .db.gz-tietokantavarmuuskopioita palvelimen määrittämään hakemistoon ja valita turvallisen alikansion kyseisestä liitetystä sijainnista. Katso administration.md ja sovelluksen sisäinen Markdown-palautusopas Docker-tallennuksen asetuksia ja palautusta varten.
+The user-management interface is not exposed without `users.manage`.
 
-Käyttäjien salasanat tallennetaan Argon2-salasanatiivistyksellä eikä selkokielisenä tai palautuvasti salattuna.
+---
 
-Käyttäjähallinnan toiminnot on suojattu:
+## Session Security
 
-* todennuksella
+Administrative authentication uses server-side session handling.
 
-* oikeuspohjaisella valtuutuksella
+Session security includes:
 
-* CSRF-suojauksella
+* authenticated session state
+* session revocation
+* CSRF protection for state-changing requests
+* login rate limiting
+* disabled-account enforcement
+* role checks
 
-* syötteen validoinnilla
+Revoking a session invalidates the corresponding authenticated state rather than merely hiding the user interface.
 
-* päällekkäisten käyttäjien tarkistuksella
+---
 
-* valvontalokituksella
+## Login Rate Limiting
 
-Käyttäjähallinnan käyttöliittymää ei paljasteta ilman users.manage-oikeutta.
-Istunnon turvallisuus
+Repeated failed login attempts are subject to progressive rate limiting.
 
-Ylläpitäjätodennus käyttää palvelinpuolen istunnonhallintaa.
+The current thresholds are:
 
-Istunnon turvallisuus sisältää:
-
-* todennettu istuntotila
-
-* istunnon mitätöinti
-
-* CSRF-suojaus tilaa muuttaville pyynnöille
-
-* kirjautumisen nopeusrajoitus
-
-* poistettujen tilien valvonta
-
-* roolitarkistukset
-
-Istunnon mitätöinti mitätöi vastaavan todennetun tilan sen sijaan, että se vain piilottaisi käyttöliittymän.
-Kirjautumisen nopeusrajoitus
-
-Toistuvat epäonnistuneet kirjautumisyritykset ovat asteittaisen nopeusrajoituksen alaisia.
-
-Nykyiset kynnysarvot ovat:
-text
-
-5 yritystä  → 30 sekuntia
-6 yritystä  → 60 sekuntia
-7 yritystä  → 120 sekuntia
-8+ yritystä → 300 sekuntia
-
-Asiaankuuluva tila tallennetaan SQLiteen.
-
-Onnistunut todennus tyhjentää sovellettavan epäonnistumistilan.
-
-Tämä estää pelkän sovelluksen uudelleenkäynnistyksen käytön kirjautumissuojan ohittamiseen.
-Asiakastunnisteen turvallisuus
-
-Jokaisella rekisteröidyllä asiakkaalla on oma todennustunnisteensa.
-
-Palvelin tallentaa tunnisteen SHA-256-tiivisteenä.
-
-Alkuperäistä tunnistetta ei tarvita normaaliin palvelinpuolen validointiin.
-
-Tunnisteen vaihto mahdollistaa ylläpitäjien mitätöidä olemassa olevan tunnisteen ja myöntää korvaava.
-
-Tämä luo selkeän elinkaaren:
-text
-
-Luo
 ```text
-  │
-  ▼
-Käytä
-  │
-  ▼
-Vaihda
-  │
-  ▼
+5 attempts  → 30 seconds
+6 attempts  → 60 seconds
+7 attempts  → 120 seconds
+8+ attempts → 300 seconds
 ```
-Vanha tunniste mitätön
 
-API-turvallisuus
+The relevant state is persisted in SQLite.
 
-LUMS validoi API-syötteen ennen tilaa muuttavia toimintoja.
+Successful authentication clears the applicable failure state.
 
-Turvakontrollit sisältävät:
+This prevents a simple application restart from being used to bypass the login protection.
 
-* todennus
+---
 
-* käyttäjäkohtainen oikeusvaltuutus
+## Client Token Security
 
-* CSRF-suojaus tarvittaessa
+Each registered client has its own authentication token.
 
-* syötteen validointi
+The server stores the token as a SHA-256 digest.
 
-* pakettinimien validointi
+The original token is not required for normal server-side validation.
 
-* jäsennellyt työtoiminnot
+Token rotation allows administrators to invalidate an existing credential and issue a replacement.
 
-* parametroidut tietokantakyselyt
+This creates a clear lifecycle:
 
-* hallittu virheenkäsittely
-
-Sovellus ei käytä käyttäjän antamia pakettinimiä rajoittamattomina komentotulkkeina.
-SQL-injektiosuojaus
-
-Tietokantatoiminnot käyttävät parametroituja SQL-lauseita.
-
-Käyttäjän hallitsemia arvoja ei yhdistetä suoraan SQL-kyselyihin.
-
-Tämä koskee alueita, kuten:
-
-* todennus
-
-* asiakashallinta
-
-* käyttäjähallinta
-
-* pakettihaut
-
-* päivitystyöt
-
-* valvontatiedot
-
-* tulosten raportointi
-
-Tavoitteena on pitää data-arvot erillään SQL-ohjeista.
-SQLite-turvallisuusperustaso
-
-Nykyinen tuotannon SQLite-kokoonpano on:
 ```text
+Create
+  │
+  ▼
+Use
+  │
+  ▼
+Rotate
+  │
+  ▼
+Old token invalid
+```
 
+---
+
+## API Security
+
+LUMS validates API input before performing state-changing operations.
+
+Security controls include:
+
+* authentication
+* per-user permission authorization
+* CSRF protection where applicable
+* input validation
+* package-name validation
+* structured job actions
+* parameterized database queries
+* controlled error handling
+
+The application does not use user-provided package names as unrestricted shell commands.
+
+---
+
+## SQL Injection Protection
+
+Database operations use parameterized SQL statements.
+
+User-controlled values are not directly concatenated into SQL queries.
+
+This applies to areas such as:
+
+* authentication
+* client management
+* user management
+* package searches
+* update jobs
+* audit data
+* result reporting
+
+The goal is to keep data values separate from SQL instructions.
+
+---
+
+## SQLite Security Baseline
+
+The current production SQLite configuration is:
+
+```text
 journal_mode = wal
 busy_timeout = 5000
 synchronous = 2
 foreign_keys = ON
 ```
 
-Sovellus ottaa eksplisiittisesti käyttöön viiteavainten valvonnan tietokantayhteyksille.
+Foreign-key enforcement is explicitly enabled by the application for database connections.
 
-Nykyinen kokoonpano käyttää WAL-tilaa.
+The current configuration uses WAL mode.
 
-Tietokanta tallennetaan pysyvään Docker-taltioon eikä kertakäyttöisen sovelluskontin tiedostojärjestelmään.
-Töiden palautus ja tarkistuspisteet
+The database is stored in the persistent Docker volume rather than inside the disposable application container filesystem.
 
-LUMS käsittelee päivitystöitä pysyvinä tilakoneina.
+---
 
-Monipakettityö voi sisältää useita yksittäisiä pakettitoimintoja.
+## Job Recovery and Checkpointing
 
-Jokainen pakettikohde voi saavuttaa oman tulos tilansa.
+LUMS treats update jobs as persistent state machines.
 
-Jos suoritus keskeytyy, palautus voi erottaa:
-text
+A multi-package job may contain several individual package operations.
 
-jo onnistunut
-  * │
-  * └── älä toista tarpeettomasti
+Each package item can reach its own result state.
 
-ei valmis
-  * │
-  * └── kelvollinen palautukseen
+If execution is interrupted, recovery can distinguish between:
 
-Tämä vähentää riskiä toistaa sokeasti suoritettuja pakettitoimintoja keskeytyksen jälkeen.
-Hallittu päivityksen suoritus
+```text
+already successful
+        │
+        └── do not unnecessarily repeat
 
-LUMS rajoittaa tarkoituksella toimintoja, joita voidaan pyytää päivitystyö-API:n kautta.
+not completed
+        │
+        └── eligible for recovery
+```
 
-Tuetut toiminnot ovat:
+This reduces the risk of blindly repeating completed package operations after an interruption.
+
+---
+
+## Controlled Update Execution
+
+LUMS deliberately limits the actions that can be requested through the update-job API.
+
+Supported actions are:
 
 ```text
 INSTALL_PACKAGE
@@ -1162,256 +1271,258 @@ UPDATE_PACKAGE
 UPDATE_SYSTEM
 ```
 
-Palvelin validoi toiminnon ja asiaankuuluvat pakettitiedot ennen työn luomista.
+The server validates the action and relevant package information before creating the job.
 
-Agentti sitten yhdistää jäsennellyn toiminnon asianmukaiseen paketinhallintatoimintoon.
+The agent then maps the structured action to the appropriate package-manager operation.
 
-Tämä estää päivitysjärjestelmän muuttumisen yleiseksi etäkomentojen suoritusmekanismiksi.
-Pakettitoiminnot
+This avoids turning the update system into a generic remote-command execution mechanism.
 
-Pakettitoiminnot suoritetaan asiakkaan natiivin paketinhallinnan kautta.
-Asennus
+---
 
-Validoitu paketin nimi välitetään paketinhallinnan abstraktiolle asennusta varten.
-Poisto
+## Package Operations
 
-Validoitu paketin nimi välitetään paketinhallinnan abstraktiolle poistoa varten.
-Pakettipäivitys
+Package operations are executed through the native package manager of the client.
 
-Tietty paketti voidaan päivittää, kun asiakas raportoi sen saatavilla olevaksi päivitykseksi.
-Järjestelmäpäivitys
+### Installation
 
-Järjestelmäpäivitystoiminto delegoi päivitysprosessin natiiville paketinhallinnalle.
+A validated package name is passed to the package-manager abstraction for installation.
 
-Kaikki toiminnot palauttavat jäsenneltyjä tuloksia LUMS-palvelimelle.
-Paketinhallinnan turvallisuus
+### Removal
 
-LUMS kohtelee paketinhallintaa etuoikeutettuna paikallisena komponenttina.
+A validated package name is passed to the package-manager abstraction for removal.
 
-Siksi agentti ei yritä jäljitellä paketinhallinnan käyttäytymistä itse.
+### Package Update
 
-Sen sijaan se:
+A specific package can be updated when the client reports it as an available update.
 
-* validoi pyydetyn toiminnon
+### System Update
 
-* valitsee asianmukaisen paketinhallintatoteutuksen
+The system update operation delegates the update process to the native package manager.
 
-* suorittaa hallitun toiminnon
+All operations return structured results to the LUMS server.
 
-* tallentaa tuloksen
+---
 
-* raportoi tuloksen palvelimelle
+## Package Manager Safety
 
-Jakelukohtainen käyttäytyminen pysyy eristettynä paketinhallintakerroksen sisällä.
-Uudelleenkäynnistyksen käsittely
+LUMS treats the package manager as a privileged local component.
 
-Jotkin pakettitoiminnot voivat vaatia uudelleenkäynnistyksen.
+The agent therefore does not attempt to emulate package-manager behavior itself.
 
-LUMS tallentaa uudelleenkäynnistysvaatimukset osana päivitystyön tuloksia.
+Instead, it:
 
-Tämä mahdollistaa ylläpitäjien erottaa:
-text
+1. validates the requested operation
+2. selects the appropriate package-manager implementation
+3. executes the controlled operation
+4. captures the result
+5. reports the result to the server
 
-Päivitys valmis
+Distribution-specific behavior remains isolated inside the package-manager layer.
 
-ja:
-text
+---
 
-Päivitys valmis
-Uudelleenkäynnistys vaaditaan
+## Reboot Handling
 
-Uudelleenkäynnistysvaatimus on siksi osa toimintatilaa sen sijaan, että sitä kohdeltaisiin erillisenä ilmoituksena.
-Valvontalokitus
+Some package operations may require a reboot.
 
-LUMS ylläpitää sovelluksen valvontajälkeä tärkeistä ylläpitoon ja turvallisuuteen liittyvistä toiminnoista.
+LUMS records reboot requirements as part of update-job results.
 
-Esimerkkejä ovat:
+This allows administrators to distinguish between:
 
-* todennukseen liittyvät tapahtumat
+```text
+Update completed
+```
 
-* asiakashallinta
+and:
 
-* tunnistetoiminnot
+```text
+Update completed
+Reboot required
+```
 
-* käyttäjähallinta
+The reboot requirement is therefore part of the operational state rather than being treated as an unrelated notification.
 
-* päivitystöiden luonti
+---
 
-* turvallisuuskriittiset tilamuutokset
+## Audit Logging
 
-Valvontalokitus on erillään tavallisesta diagnostiikkalokituksesta.
+LUMS maintains an application audit trail for important administrative and security-relevant actions.
 
-Diagnostiikkalokit auttavat sovelluksen vianmäärityksessä.
+Examples include:
 
-Valvontatietueet tarjoavat hallinnollisen historian relevanteista toiminnoista.
-Turvallisuuden koventaminen
+* authentication-related events
+* client management
+* token operations
+* user management
+* update-job creation
+* security-sensitive state changes
 
-Nykyinen käyttöönotto sisältää useita koventamistasoja.
-Kontin koventaminen
+Audit logging is separate from ordinary diagnostic logging.
 
-Tuotantokontti käyttää:
+Diagnostic logs help troubleshoot the application.
 
-* ei-root-sovelluksen suoritus
+Audit records provide an administrative history of relevant actions.
 
-* vain luku -juuritiedostojärjestelmä
+---
 
-* poistetut Linux-kyvykkyydet
+## Security Hardening
 
-* no-new-privileges
+The current deployment includes multiple layers of hardening.
 
-* rajoitetut väliaikaiset tiedostojärjestelmät
+### Container Hardening
 
-* vain luku -salaisuuden liitos
+The production container uses:
 
-* erillinen pysyvä datataltio
+* non-root application execution
+* read-only root filesystem
+* dropped Linux capabilities
+* `no-new-privileges`
+* restricted temporary filesystems
+* read-only secret mount
+* dedicated persistent data volume
 
-Verkon koventaminen
+### Network Hardening
 
-Sovelluskontti on sidottu isäntäkoneen loopback-osoitteeseen:
+The application container is bound to loopback on the host:
 
 ```text
 127.0.0.1:5050
 ```
 
-Siksi sovellusporttia ei ole suoraan altistettu LAN-palveluna.
+The application port is therefore not directly exposed as a LAN service.
 
-Ulkoinen käyttö hoidetaan HTTPS-käänteisvälityspalvelimen kautta.
+External access is handled through the HTTPS reverse proxy.
 
-Palomuuri ei altista sisäistä sovellusporttia.
-Kuljetuksen turvallisuus
+The firewall does not expose the internal application port.
 
-Ylläpitäjän pääsy tarjotaan HTTPS:n kautta.
+### Transport Security
 
-Käänteisvälityspalvelin hoitaa ulkoisen TLS-päättämisen.
+Administrative access is provided through HTTPS.
 
-HTTP-pyynnöt ohjataan HTTPS:ään.
-Salaisuudet ja kokoonpano
+The reverse proxy handles external TLS termination.
 
-Arkaluonteiset ajonaikaiset tunnistetiedot pidetään sovelluksen lähdekoodipuun ulkopuolella.
+HTTP requests are redirected to HTTPS.
 
-Tuotantosalaisuus liitetään konttiin vain luku -salaisuustiedostona.
+### Secrets and Configuration
 
-Arkiston ja Docker-koontikontekstin säännöt estävät yleisten varmuuskopio-, salaisuus-, tietokanta- ja varmenneartefaktien tahattoman pääsyn kuvakoontikontekstiin.
-Riippuvuuksien ja koontien turvallisuus
+Sensitive runtime credentials are kept outside the application source tree.
 
-Tuotannon Python-riippuvuudet on kiinnitetty.
+The production secret is mounted into the container as a read-only secret file.
 
-Tuotannon Python-peruskuva on kiinnitetty tiivisteellä.
+Repository and Docker build context rules prevent common backup, secret, database, and certificate artifacts from unintentionally entering the image build context.
 
-Docker-koontikonteksti on rajoitettu .dockerignore-tiedoston kautta.
+### Dependency and Build Security
 
-Nämä kontrollit parantavat koontien toistettavuutta ja vähentävät arkaluonteisten tiedostojen tahatonta sisällyttämistä.
-Turvallisuustarkastuksen tila
+The production Python dependencies are pinned.
 
-LUMSin turvallisuuskatsaus on kattanut seuraavat alueet:
+The production Python base image is pinned by digest.
 
-* SQLite-viiteavainten valvonta
+The Docker build context is restricted through `.dockerignore`.
 
-* SQLite-ajonaikainen kokoonpano
+These controls improve build reproducibility and reduce accidental inclusion of sensitive files.
 
-* päivityksen aikakatkaisu ja prosessien käsittely
+---
 
-* kirjautumisen nopeusrajoitus
+## Security Audit Status
 
-* API-syötteen validointi
+The LUMS security review has covered the following areas:
 
-* istunnon mitätöinti
-
-* asiakastunnisteen vaihto
-
-* offline/IP-käsittely
-
-* töiden palautus ja tarkistuspisteet
-
-* APT-robustisuus
-
-* Arch-uudelleenkäynnistyksen tunnistus
-
-* yksikkö- ja API-tulosten validointi
-
-* simulaatiotestaus
-
-* jatkuva integraatio
-
-* sovellus- ja valvontalokitus
-
-* versiointi ja julkaisujen käsittely
-
+* SQLite foreign-key enforcement
+* SQLite runtime configuration
+* update timeout and process handling
+* login rate limiting
+* API input validation
+* session revocation
+* client-token rotation
+* offline/IP handling
+* job recovery and checkpointing
+* APT robustness
+* Arch reboot detection
+* unit and API result validation
+* simulation testing
+* continuous integration
+* application and audit logging
+* versioning and release handling
 * RBAC
+* session and CSRF security
+* credential security
+* dependency and build security
+* Docker/container hardening
+* secrets and build-context protection
+* HTTP/transport security
+* filesystem/runtime permissions
+* network exposure
+* repository artifact hygiene
 
-* istunto- ja CSRF-turvallisuus
+The remaining documentation review is handled separately as part of the final release-readiness process.
 
-* tunnistetietojen turvallisuus
+---
 
-* riippuvuuksien ja koontien turvallisuus
+## Testaus ja CI
 
-* Docker-/kontin koventaminen
+LUMS includes automated tests covering core application behavior and security controls.
 
-* salaisuuksien ja koontikontekstin suojaus
+Run the complete test suite from the repository root:
 
-* HTTP-/kuljetuksen turvallisuus
-
-* tiedostojärjestelmän/ajonaikaiset oikeudet
-
-* verkon altistuminen
-
-* arkiston artefaktihygienia
-
-Jäljellä oleva dokumentaation tarkistus käsitellään erikseen osana lopullista julkaisukelpoisuusprosessia.
-Testaus ja CI
-
-LUMS sisältää automatisoidut testit, jotka kattavat sovelluksen ydin käyttäytymisen ja turvakontrollit.
-
-Suorita täydellinen testisarja arkiston juuresta:
 ```bash
-
 ./.venv-test/bin/pytest -q
 ```
 
-Testien määrä muuttuu ajan myötä. Vaadittu tulos on, että koko sarja päättyy onnistuneesti ilman epäonnistumisia. Testisarja kattaa alueita, kuten:
+The number of tests changes over time. The required result is that the complete
+suite finishes successfully with no failures. The test suite includes coverage
+for areas such as:
 
-* todennus
-
+* authentication
 * RBAC
+* client management
+* user management
+* package search
+* update jobs
+* job-result validation
+* security behavior
+* API behavior
 
-* asiakashallinta
+Continuous integration executes the automated test suite before changes are considered ready.
 
-* käyttäjähallinta
+A successful test run is required, but tests are only one part of the release process.
 
-* pakettihaku
+The release process also requires:
 
-* päivitystyöt
-
-* työtulosten validointi
-
-* turvallisuuskäyttäytyminen
-
-* API-käyttäytyminen
-
-Jatkuva integraatio suorittaa automatisoidun testisarjan ennen kuin muutokset katsotaan valmiiksi.
-
-Onnistunut testiajo vaaditaan, mutta testit ovat vain yksi osa julkaisuprosessia.
-
-Julkaisuprosessi vaatii myös:
 ```text
-
-Toteutus
+Implementation
     ↓
-Turvallisuuskatsaus
+Security Review
     ↓
-Dokumentaation tarkistus
+Documentation Review
     ↓
-Täydellinen testisarja
+Full Test Suite
     ↓
 CI
     ↓
-Versio
+Version
     ↓
-Git-tunniste
+Git Tag
     ↓
+GitHub Release
 ```
-GitHub-julkaisu
 
+---
+
+## Development Status
+
+LUMS is currently in active development.
+
+The core management architecture, client execution model, package management, RBAC, security hardening, and recovery mechanisms are implemented.
+
+The project is intentionally not considered a finished release merely because the application is functional.
+
+Release readiness also requires the surrounding documentation and operational procedures to describe the same current system.
+
+This is why documentation consistency is treated as part of the engineering process rather than as an afterthought.
+
+## Tuetut järjestelmät
+
+LUMS is designed to manage Linux systems using supported native package managers.
 Nykyinen tila
 
 LUMS on aktiivisesti kehitettävä Linux-päivitysten hallinta-alusta.
@@ -1447,129 +1558,101 @@ Hälytyssäännöt ja niiden ehdot sekä kynnysarvot tallennetaan, mutta palveli
 
 Tuetut järjestelmät
 
-LUMS on suunniteltu hallitsemaan Linux-järjestelmiä, jotka käyttävät tuettuja natiiveja paketinhallintoja.
 ### Debian / Ubuntu
 
-Tuetut paketinhallintapinot:
+Supported package-management stack:
 
 ```text
 APT
 dpkg
 ```
 
-Asiakas käyttää natiiveja Debian-paketinhallintatyökaluja seuraaviin:
+The client uses the native Debian package-management tooling for:
 
-* pakettiluettelo
-
-* päivitysten tunnistus
-
-* pakettihaku
-
-* paketin asennus
-
-* paketin poisto
-
-* pakettipäivitykset
-
-* järjestelmäpäivitykset
+* package inventory
+* update detection
+* package search
+* package installation
+* package removal
+* package updates
+* system updates
 
 ### Arch Linux
 
-Tuetut paketinhallintapinot:
+Supported package-management stack:
 
 ```text
 pacman
 ```
 
-Asiakas käyttää natiiveja Arch-paketinhallintatyökaluja seuraaviin:
+The client uses the native Arch package-management tooling for:
 
-* pakettiluettelo
+* package inventory
+* update detection
+* package search
+* package installation
+* package removal
+* package updates
+* system updates
 
-* päivitysten tunnistus
+---
 
-* pakettihaku
+## Client Requirements
 
-* paketin asennus
+A managed Linux client requires:
 
-* paketin poisto
+* a supported Linux distribution
+* the LUMS agent
+* network connectivity to the LUMS server
+* a registered client token
+* a working native package manager
+* systemd for the timer/service-based execution components
 
-* pakettipäivitykset
+The client does not require the LUMS server to directly access its package database.
 
-* järjestelmäpäivitykset
+The client performs local package operations and reports the results to the server.
 
-Asiakasvaatimukset
+---
 
-Hallinnoitu Linux-asiakas vaatii:
+## Teknologiapino
 
-* tuetun Linux-jakelun
-
-* LUMS-agentin
-
-* verkkoyhteyden LUMS-palvelimeen
-
-* rekisteröidyn asiakastunnisteen
-
-* toimivan natiivin paketinhallinnan
-
-* systemd:n ajastin-/palvelupohjaisille suorituskomponenteille
-
-Asiakas ei vaadi, että LUMS-palvelin pääsee suoraan sen pakettitietokantaan.
-
-Asiakas suorittaa paikalliset pakettitoiminnot ja raportoi tulokset palvelimelle.
-Teknologiapino
-Palvelin
+### Server
 
 * Python
-
 * Flask
-
 * Gunicorn
-
 * SQLite
-
 * HTML
-
 * CSS
-
 * JavaScript
-
 * Nginx
-
 * Docker
 
-Todennus ja turvallisuus
+### Authentication and Security
 
-* Argon2-salasanatiivistys
-
-* palvelinpuolen istunnot
-
-* CSRF-suojaus
-
-* roolimallit käyttäjäkohtaisilla oikeuksilla
-
-* SHA-256-asiakastunnisteiden tiivisteet
-
+* Argon2 password hashing
+* server-side sessions
+* CSRF protection
+* role templates with per-user permissions
+* SHA-256 client-token digests
 * HTTPS
+* audit logging
 
-* valvontalokitus
-
-Asiakas
+### Client
 
 * Python
-
 * systemd
-
 * APT / dpkg
-
 * pacman
+* `loginctl` where idle-state information is available
 
-* loginctl, jos lepotilatiedot ovat saatavilla
+---
 
-Projektin rakenne
+## Projektin rakenne
 
-Arkisto on organisoitu erillisiin palvelin-, asiakas-, frontend- ja testikomponentteihin.
+The repository is organized into separate server, client, frontend, and test components.
 
-Yksinkertaistettu rakenne on:
+A simplified structure is:
 
 ```text id="1rq7v7"
 LUMS/
@@ -1597,87 +1680,76 @@ LUMS/
 └── documentation
 ```
 
-Arkiston tarkka asettelu voi kehittyä LUMSin kehittyessä.
+The exact repository layout may evolve as LUMS develops.
 
-Arkkitehtoninen erottelu palvelimen, agentin, paketinhallinnan abstraktion, frontendin ja testien välillä on tarkoituksellinen.
-Palvelinsovellus
+The architectural separation between server, agent, package-manager abstraction, frontend, and tests is intentional.
 
-Flask-sovellus tarjoaa keskitetyn LUMS-API:n ja verkkokäyttöliittymän.
+---
 
-Sen vastuisiin kuuluvat:
+## Server Application
 
-* todennus
+The Flask application provides the central LUMS API and web interface.
 
-* valtuutus
+Its responsibilities include:
 
-* istunnon käsittely
+* authentication
+* authorization
+* session handling
+* client management
+* user management
+* software inventory
+* update inventory
+* package search
+* update jobs
+* job-result handling
+* audit logging
+* database persistence
 
-* asiakashallinta
+The application is served by Gunicorn inside the container.
 
-* käyttäjähallinta
+Nginx provides the external HTTPS entry point.
 
-* ohjelmistoluettelo
+---
 
-* päivitysluettelo
+## Agent
 
-* pakettihaku
+The LUMS agent is installed directly on managed Linux clients.
 
-* päivitystyöt
-
-* työtulosten käsittely
-
-* valvontalokitus
-
-* tietokannan pysyvyys
-
-Sovellus tarjoillaan Gunicornilla kontin sisällä.
-
-Nginx tarjoaa ulkoisen HTTPS-sisääntulopisteen.
-Agentti
-
-LUMS-agentti asennetaan suoraan hallinnoituihin Linux-asiakkaisiin.
-
-Nykyinen agenttiversio:
+Current agent version:
 
 ```text id="w8p4wz"
 1.7.0
 ```
 
-Agentti vastaa LUMSin suoritusketjun asiakaspuolen osasta.
+The agent is responsible for the client-side part of the LUMS execution chain.
 
-Sen vastuisiin kuuluvat:
+Its responsibilities include:
 
-* asiakastilan raportointi
+* reporting client state
+* collecting installed software
+* detecting available updates
+* searching packages
+* executing package operations
+* reporting job results
+* detecting reboot requirements
+* handling idle-state information
+* participating in job recovery
 
-* asennettujen ohjelmistojen kerääminen
+The agent does not provide an unrestricted remote shell.
 
-* saatavilla olevien päivitysten tunnistus
+---
 
-* pakettien haku
+## Package Manager Layer
 
-* pakettitoimintojen suoritus
+The package-manager implementation isolates distribution-specific behavior from the rest of the agent.
 
-* työtulosten raportointi
+Conceptually:
 
-* uudelleenkäynnistysvaatimusten tunnistus
-
-* lepotilatietojen käsittely
-
-* osallistuminen töiden palautukseen
-
-Agentti ei tarjoa rajoittamatonta etäkomentotulkia.
-Paketinhallintakerros
-
-Paketinhallinnan toteutus eristää jakelukohtaisen käyttäytymisen agentin muusta osasta.
-
-Käsitteellisesti:
-text
-
-Agentti
 ```text id="zq8xq3"
+Agent
   │
   ▼
-Paketinhallintaliittymä
+Package Manager Interface
   │
   ├── Debian / Ubuntu
   │      └── APT / dpkg
@@ -1686,94 +1758,108 @@ Paketinhallintaliittymä
          └── pacman
 ```
 
-Tämä mahdollistaa korkeamman tason päivitystyöjärjestelmän työskennellä jäsenneltyjen toimintojen kanssa tietämättä jokaista jakelukohtaista komentoa.
-Valvoja
+This allows the higher-level update-job system to work with structured operations without needing to know every distribution-specific command.
 
-LUMSin suorituksen valvoja seuraa töitä, joiden odotetaan suoritettavan asiakkaalla.
+---
 
-Nykyinen valvojan versio:
+## Watcher
+
+The LUMS execution watcher monitors jobs that are expected to execute on the client.
+
+Current watcher version:
 
 ```text id="7k6w3s"
 1.2.1
 ```
 
-Valvoja toimii yhdessä agentin ja palvelinpuolen työtilan kanssa.
+The watcher operates together with the agent and server-side job state.
 
-Tämä arkkitehtuuri mahdollistaa LUMSin havaita suoritustilanteita, joissa työ jää odottamaan tai vaatii muuten huomiota.
-systemd-integraatio
+This architecture allows LUMS to detect execution situations where a job remains pending or otherwise requires attention.
 
-Asiakas käyttää systemd:tä ajastettuun ja hallittuun suoritukseen.
+---
 
-Asiaankuuluvat komponentit sisältävät palvelu- ja ajastinyksiköt seuraaviin:
+## systemd Integration
 
-* asiakasraportointi
+The client uses systemd for scheduled and controlled execution.
 
-* päivitysten tunnistus
+Relevant components include service and timer units for:
 
-* työn suoritus/valvonta
+* client reporting
+* update detection
+* job execution/watching
 
-Tämä tarjoaa ennustettavan suorituksen ilman, että jokainen säännöllinen toiminto vaatii jatkuvasti käynnissä olevaa taustaprosessia.
+This provides predictable execution without requiring a continuously running foreground process for every periodic operation.
 
-Asiakasagentti voidaan myös suorittaa manuaalisesti asennuksen ja vianmäärityksen aikana.
-Lepotilatietoinen suoritus
+The client agent can also be executed manually during installation and troubleshooting.
 
-Lepotilatietoinen suoritus on suunniteltu vähentämään häiriöitä aktiivisille käyttäjille.
+---
 
-Nykyinen lepotilan kynnysarvo on:
-text
+## Idle-Aware Execution
 
-300 sekuntia
+Idle-aware execution is designed to reduce interference with active users.
 
-Asiakas määrittää lepotilan käytettävissä olevien paikallisten istuntotietojen avulla.
+The current idle threshold is:
 
-Tuettaessa käytetään loginctl:ää.
+```text id="g8v0lq"
+300 seconds
+```
 
-Agentti erottaa:
-text
+The client determines idle state using the available local session information.
 
-vahvistettu lepotila
-aktiivinen
-lepotila ei saatavilla
+Where supported, `loginctl` is used.
 
-Lepotilaa, joka ei ole saatavilla, ei tulkita hiljaisesti lepotilaksi.
+The agent distinguishes between:
 
-Tämä tekee suorituspäätöksestä eksplisiittisen ja diagnosoitavan.
-Päivitystyön elinkaari
+```text id="6v3m4k"
+confirmed idle
+active
+idle state unavailable
+```
 
-Päivitystyön täydellinen elinkaari voidaan esittää seuraavasti:
-text
+An unavailable idle state is not silently interpreted as idle.
 
-Luo
+This makes the execution decision explicit and diagnosable.
+
+---
+
+## Update Job Lifecycle
+
+The complete lifecycle of an update job can be represented as:
+
 ```text id="h4d9kv"
+Create
   │
   ▼
-Validoi
+Validate
   │
   ▼
-Tallenna
+Persist
   │
   ▼
-Varaa
+Claim
   │
   ▼
-Suorita
+Execute
   │
-  ├──────────────► ONNISTUI
+  ├──────────────► SUCCESS
   │
-  ├──────────────► EPÄONNISTUI
+  ├──────────────► FAILED
   │
-  └──────────────► PALAUTUS
+  └──────────────► RECOVERY
                          │
                          ▼
+                      Execute
 ```
-        * Suorita
 
-Työ tallennetaan ennen suoritusta.
+A job is persisted before execution.
 
-Tämä tarkoittaa, että palvelin säilyttää tiedon aiotusta toiminnosta, vaikka asiakas tai sovellus keskeytyisi.
-Tyypit
+This means the server retains knowledge of the intended operation even if the client or application is interrupted.
 
-LUMS tukee tällä hetkellä jäsenneltyjä päivitystoimintoja, mukaan lukien:
+---
+
+## Job Types
+
+LUMS currently supports structured update actions including:
 
 ```text id="v7r1f8"
 INSTALL_PACKAGE
@@ -1782,64 +1868,73 @@ UPDATE_PACKAGE
 UPDATE_SYSTEM
 ```
 
-Nämä toiminnot on tarkoituksella rajoitettu.
+These actions are intentionally limited.
 
-LUMS on päivitysten hallintajärjestelmä, ei yleiskäyttöinen etäkomentokehys.
-Pakettitason työtila
+LUMS is an update-management system, not a general-purpose remote-command framework.
 
-Useita paketteja sisältävät työt voivat seurata pakettitason edistymistä.
+---
 
-Esimerkiksi:
-text
+## Package-Level Job State
 
-Työ #42
+Jobs containing multiple packages can track package-level progress.
 
-package-a → ONNISTUI
-package-b → ONNISTUI
-package-c → EPÄONNISTUI
-package-d → ODOTTAA
+For example:
 
-Siksi palautus voi toimia työn keskeneräisissä osissa sen sijaan, että se toistaisi sokeasti onnistuneita pakettitoimintoja.
-Töiden palautus
+```text id="v9w1sh"
+Job #42
 
-Palautus on suunniteltu pysyvien tarkistuspisteiden ympärille.
+package-a → SUCCESS
+package-b → SUCCESS
+package-c → FAILED
+package-d → PENDING
+```
 
-Palvelin ylläpitää työtilaa.
+Recovery can therefore operate on the incomplete portions of the job rather than blindly repeating successful package operations.
 
-Asiakas raportoi pakettitason tulokset.
+---
 
-Jos suoritus keskeytyy, palvelin voi määrittää, mikä työ on jo suoritettu ja mikä työ on edelleen kelvollinen palautukseen.
+## Job Recovery
 
-Aiottu palautusperiaate on:
+Recovery is designed around persistent checkpoints.
 
-* Jatka tunnetusta tilasta sen sijaan, että olettaisit, ettei mitään tapahtunut.
+The server maintains the job state.
 
-Tulosten validointi
+The client reports package-level results.
 
-Asiakastyötulokset validoidaan ennen kuin ne hyväksytään pysyvään palvelintilaan.
+If execution is interrupted, the server can determine which work has already completed and which work remains eligible for recovery.
 
-Tämä suojaa työtilaa virheellisiltä tai puutteellisilta tuloslähetyksiltä.
+The intended recovery principle is:
 
-Validointia sovelletaan asiaankuuluviin kenttiin, kuten:
+> **Continue from known state instead of assuming that nothing happened.**
 
-* työn identiteetti
+---
 
-* suoritustila
+## Result Validation
 
-* pakettituloksen tiedot
+Client job results are validated before being accepted into persistent server state.
 
-* virhetiedot
+This protects the job state from malformed or incomplete result submissions.
 
-* uudelleenkäynnistystiedot
+Validation is applied to relevant fields such as:
 
-Tulostenkäsittelykerros toimii siksi toisena rajana todennetun asiakkaan ja pysyvän palvelintilan välillä.
-Käyttäjähallinta
+* job identity
+* execution state
+* package result data
+* error information
+* reboot information
 
-Käyttäjähallinta vaatii users.manage-oikeuden.
+The result-processing layer therefore acts as another boundary between an authenticated client and persistent server state.
 
-Valtuutetut käyttäjät voivat luoda käyttäjiä roolimallista ja mukauttaa kullekin tilille määritettyjä yksittäisiä oikeuksia.
+---
 
-Nykyiset roolit ovat:
+## User Management
+
+User management requires the `users.manage` permission.
+
+Authorized users can create users from a role template and customize the
+individual permissions assigned to each account.
+
+The current roles are:
 
 ```text id="2xqv79"
 Administrator
@@ -1847,289 +1942,314 @@ Operator
 Viewer
 ```
 
-Käyttäjähallinnan toiminnot todennetaan, oikeustarkistetaan, validoidaan, suojataan CSRF:ltä tarvittaessa ja tallennetaan valvontajälkeen.
-Asiakashallinta
+User-management actions are authenticated, permission-checked, validated,
+protected against CSRF where applicable, and recorded in the audit trail.
 
-Ylläpitäjät voivat hallita rekisteröityjä asiakkaita.
+---
 
-Asiakashallinnan toiminnot sisältävät:
+## Client Management
 
-* rekisteröinti
+Administrators can manage registered clients.
 
-* käytöstä poisto
+Client-management functions include:
 
-* tunnisteen vaihto
+* registration
+* disabling
+* token rotation
+* client status inspection
 
-* asiakastilan tarkastus
+Client authentication is independent for every registered client.
 
-Asiakastodennus on riippumaton jokaiselle rekisteröidylle asiakkaalle.
+Disabling a client prevents it from continuing normal authenticated communication with the server.
 
-Asiakkaan poistaminen käytöstä estää sitä jatkamasta normaalia todennettua viestintää palvelimen kanssa.
-Päivityshistoria
+---
 
-LUMS ylläpitää pysyvää päivitystyötilaa, jotta suoritetut ja epäonnistuneet toiminnot pysyvät näkyvinä suorituksen jälkeen.
+## Update History
 
-Valtuutetut käyttäjät voivat tarkastella päivitystoimintojen historiaa roolinsa mukaisesti.
+LUMS maintains persistent update-job state so that completed and failed operations remain visible after execution.
 
-Historian on tarkoitus tarjota toiminnallista kontekstia eikä vain näyttää viimeisintä pakettiluetteloa.
-Valvottavuus
+Authorized users can inspect the history of update operations according to their role.
 
-LUMS ylläpitää kahta toisiinsa liittyvää mutta erillistä toiminnallisen tiedon muotoa:
-Sovelluslokit
+The history is intended to provide operational context rather than merely showing the latest package inventory.
 
-Käytetään ensisijaisesti:
+---
 
-* diagnostiikka
+## Auditability
 
-* virheet
+LUMS maintains two related but distinct forms of operational information:
 
-* ajonaikainen käyttäytyminen
+### Application Logs
 
-* vianmääritys
+Used primarily for:
 
-Valvontalokit
+* diagnostics
+* errors
+* runtime behavior
+* troubleshooting
 
-Käytetään ensisijaisesti:
+### Audit Logs
 
-* ylläpitotoimenpiteet
+Used primarily for:
 
-* turvallisuuteen liittyvät tapahtumat
+* administrative actions
+* security-relevant events
+* changes to important state
+* accountability
 
-* tärkeän tilan muutokset
+Keeping these concepts separate makes troubleshooting and administrative review easier.
 
-* vastuuvelvollisuus
+---
 
-Näiden käsitteiden erottaminen toisistaan helpottaa vianmääritystä ja hallinnollista tarkastelua.
-Testausstrategia
+## Testing Strategy
 
-LUMSin testisarja kattaa sovelluksen useita kerroksia.
-Todennus
+The LUMS test suite covers multiple layers of the application.
 
-Testit kattavat todennuskäyttäytymisen, istunnon käsittelyn ja turvakontrollit.
+### Authentication
+
+Tests cover authentication behavior, session handling, and security controls.
+
 ### RBAC
 
-Testit varmistavat, että:
+Tests verify that:
 
-* Ylläpitäjät voivat suorittaa ylläpitotoimenpiteitä
+* Administrators can perform administrative actions
+* Operators receive their permitted management functions
+* Viewers remain read-only
 
-* Operaattorit saavat sallitut hallintatoimintonsa
+### Package Management
 
-* Viewerit pysyvät vain luku -tilassa
+Tests cover package-search behavior and package-management-related API handling.
 
-Paketinhallinta
+### Update Jobs
 
-Testit kattavat pakettihaun käyttäytymisen ja paketinhallintaan liittyvän API-käsittelyn.
-Päivitystyöt
+Tests cover:
 
-Testit kattavat:
+* job creation
+* validation
+* state transitions
+* result handling
+* recovery behavior
 
-* työn luonti
+### Security
 
-* validointi
+Tests cover security-sensitive application behavior and regression cases.
 
-* tilasiirtymät
+### Full Suite
 
-* tulosten käsittely
+Run the complete test suite from the repository root:
 
-* palautuskäyttäytyminen
-
-Turvallisuus
-
-Testit kattavat turvallisuuskriittisen sovelluskäyttäytymisen ja regressiotapaukset.
-Täydellinen sarja
-
-Suorita täydellinen testisarja arkiston juuresta:
 ```bash
-
 ./.venv-test/bin/pytest -q
 ```
 
-Testien määrä muuttuu projektin kehittyessä; luota komennon tulokseen, ei tässä asiakirjassa tulostettuun kiinteään määrään.
-Jatkuva integraatio
+The test count changes as the project evolves; rely on the command's result,
+not a fixed number printed in this document.
 
-Projekti käyttää jatkuvaa integraatiota automaattisten tarkistusten suorittamiseen muutoksille.
+---
 
-CI-putki auttaa havaitsemaan regressiot ennen kuin muutokset katsotaan julkaisuvalmiiksi.
+## Continuous Integration
 
-Kehitystyönkulku on siksi:
-text
+The project uses continuous integration to run automated checks against changes.
 
-Muutos
+The CI pipeline helps detect regressions before changes are treated as release-ready.
+
+The development workflow is therefore:
+
 ```text id="v3n9k8"
+Change
   ↓
-Testi
+Test
   ↓
-Turvallisuuskatsaus
+Security Review
   ↓
-Dokumentaation tarkistus
+Documentation Review
   ↓
 CI
   ↓
+Release Preparation
 ```
-Julkaisun valmistelu
 
-Onnistunut CI-ajo ei korvaa manuaalista turvallisuus- tai dokumentaatiokatsausta.
-Dokumentaatio
+A successful CI run does not replace manual security or documentation review.
 
-LUMS ylläpitää erillistä dokumentaatiota eri toiminnallisille alueille.
-### README.md
+---
 
-Projektin yleiskatsaus, arkkitehtuuri, ominaisuudet, turvallisuusperustaso, kehityksen tila ja projektin suunta.
-### install.md
+## Documentation
 
-Asennus, käyttöönotto, asiakasasetukset, validointi, päivitys ja poistomenettelyt.
-### administration.md
+LUMS maintains separate documentation for different operational concerns.
 
-Rutiininomainen ylläpito, huolto, varmuuskopiot, päivitykset, toimintamenettelyt ja hätätilanteiden hallinta.
-### security.md
+### `README.md`
 
-Turvallisuusarkkitehtuuri, turvakontrollit, tarkastushavainnot, koventaminen ja julkaisuvalmiuden turvallisuustiedot.
-### troubleshooting.md
+Project overview, architecture, features, security baseline, development status, and project direction.
 
-Diagnostiikkamenettelyt palvelimen, asiakkaan, töiden, paketinhallinnan, todennuksen, tietokannan, kontin ja verkon ongelmiin.
-### LUMS_Optional_Theme_System.md
+### `install.md`
 
-Arkkitehtuuri- ja ylläpito-opas valinnaisille LUMS-frontend-teemoille.
+Installation, deployment, client setup, validation, upgrade, and removal procedures.
 
-Dokumentaatio on tarkoituksella erotettu vastuualueittain, jotta toimintaohjeet eivät sekoitu turvallisuussuunnitteluun tai visuaaliseen mukauttamiseen.
-Dokumentaatioperiaate
+### `administration.md`
 
-Dokumentaatiota pidetään osana järjestelmää.
+Routine administration, maintenance, backups, upgrades, operational procedures, and emergency administration.
 
-Ominaisuutta ei pidetä täysin valmiina, kun koodi toimii mutta dokumentaatio kuvaa edelleen vanhempaa arkkitehtuuria.
+### `security.md`
 
-Aiottu suhde on:
-text
+Security architecture, security controls, audit findings, hardening, and release-readiness security information.
 
-Toteutus
+### `telemetry.md`
+
+Optional CPU and memory telemetry, agent configuration, data retention, security, and troubleshooting.
+
+### `LUMS_Health_Dashboard.md`
+
+What the authenticated health dashboard reports, how client status is classified, telemetry limits, backup-storage interpretation, and operational checks.
+
+### `troubleshooting.md`
+
+Diagnostic procedures for server, client, jobs, package management, authentication, database, container, and network problems.
+
+### `LUMS_Optional_Theme_System.md`
+
+Architecture and maintenance guidance for optional LUMS frontend themes.
+
+The documentation is intentionally separated by responsibility so that operational instructions do not become mixed with security design or visual customization.
+
+---
+
+## Documentation Principle
+
+Documentation is treated as part of the system.
+
+A feature is not considered completely finished when the code works but the documentation still describes an older architecture.
+
+The intended relationship is:
+
 ```text id="0m1m5u"
+Implementation
       │
-      ├── Testit
-      ├── Turvallisuuskatsaus
-      └── Dokumentaatio
+      ├── Tests
+      ├── Security Review
+      └── Documentation
                │
                ▼
+          Release Ready
 ```
-  * Julkaisuvalmis
 
-Tämä on erityisen tärkeää turvallisuuskriittisissä käyttöönotto- ja hallintamenettelyissä.
-Nykyinen tila
+This is particularly important for security-sensitive deployment and administration procedures.
 
-LUMS on aktiivisesti kehitetty Linux-päivitysten hallintapalvelin.
+## Current Status
 
-Nykyinen toteutus sisältää:
+LUMS is an actively developed Linux update-management platform.
 
-* keskitetty asiakashallinta
+The current implementation includes:
 
-* ohjelmistoluettelo
+* centralized client management
+* software inventory
+* update detection
+* package search
+* package installation and removal
+* package-specific updates
+* system updates
+* persistent update jobs
+* package-level job state
+* job recovery
+* reboot detection
+* idle-aware execution
+* client-token authentication
+* token rotation
+* administrative authentication
+* role-based access control
+* user management
+* audit logging
+* container hardening
+* HTTPS transport
+* automated testing
+* continuous integration
 
-* päivitysten tunnistus
+The project is currently in the final documentation and release-readiness phase.
 
-* pakettihaku
+---
 
-* paketin asennus ja poisto
+## Security Status
 
-* pakettikohtaiset päivitykset
+The major security-review areas have been implemented and reviewed.
 
-* järjestelmäpäivitykset
+The current security baseline includes:
 
-* pysyvät päivitystyöt
-
-* pakettitason työtila
-
-* töiden palautus
-
-* uudelleenkäynnistyksen tunnistus
-
-* lepotilatietoinen suoritus
-
-* asiakastunnistetodennus
-
-* tunnisteen vaihto
-
-* ylläpitäjätodennus
-
-* roolipohjainen käyttöoikeushallinta
-
-* käyttäjähallinta
-
-* valvontalokitus
-
-* kontin koventaminen
-
-* HTTPS-kuljetus
-
-* automatisoitu testaus
-
-* jatkuva integraatio
-
-Projekti on tällä hetkellä viimeisessä dokumentaatio- ja julkaisuvalmiusvaiheessa.
-Turvallisuuden tila
-
-Tärkeimmät turvallisuuskatsauksen alueet on toteutettu ja katsastettu.
-
-Nykyinen turvallisuusperustaso sisältää:
 ```text
+Authentication
+    ├── Argon2 password hashing
+    ├── session handling
+    ├── session revocation
+    └── login rate limiting
 
-Todennus
-    ├── Argon2-salasanatiivistys
-    ├── istunnon käsittely
-    ├── istunnon mitätöinti
-    └── kirjautumisen nopeusrajoitus
-
-Valtuutus
+Authorization
     ├── Administrator
     ├── Operator
     └── Viewer
 
-Asiakasturvallisuus
-    ├── asiakaskohtaiset tunnisteet
-    ├── SHA-256-tunnistetiivisteet
-    └── tunnisteen vaihto
+Client Security
+    ├── per-client tokens
+    ├── SHA-256 token digests
+    └── token rotation
 
-API-turvallisuus
-    ├── syötteen validointi
-    ├── CSRF-suojaus
-    ├── RBAC-valvonta
-    └── parametroitu SQL
+API Security
+    ├── input validation
+    ├── CSRF protection
+    ├── RBAC enforcement
+    └── parameterized SQL
 
-Ajonaikainen turvallisuus
-    ├── ei-root-kontti
-    ├── vain luku -juuritiedostojärjestelmä
-    ├── poistetut kyvykkyydet
+Runtime Security
+    ├── non-root container
+    ├── read-only root filesystem
+    ├── dropped capabilities
     ├── no-new-privileges
-    ├── rajoitetut väliaikaiset tiedostojärjestelmät
-    └── suojattu salaisuuden liitos
+    ├── restricted temporary filesystems
+    └── protected secret mount
 
-Verkon turvallisuus
+Network Security
     ├── HTTPS
+    ├── reverse proxy
+    ├── loopback application binding
+    └── firewall restrictions
 ```
-* ├── käänteisvälityspalvelin
-* ├── sovelluksen loopback-sidonta
-* └── palomuurirajoitukset
 
-Turvallisuutta pidetään jatkuvana suunnitteluvastuuna eikä kertaluonteisena tarkistuslistana.
-Julkaisun tila
+Security is treated as an ongoing engineering responsibility rather than a one-time checklist.
 
+---
+
+## Release Status
+
+LUMS does not currently claim a stable production release version.
+
+There is currently:
+
+* no final semantic version
+* no stable release tag
+* no GitHub Release
+
+The project deliberately follows the release sequence:
 Projekti noudattaa tarkoituksella julkaisujärjestystä:
 text
 
-Toteutus
 ```text id="f3c4y9"
+Implementation
       ↓
-Turvallisuuskatsaus
+Security Review
       ↓
-Dokumentaation tarkistus
+Documentation Review
       ↓
-Täydellinen testisarja
+Full Test Suite
       ↓
 CI
       ↓
-Version määritys
+Version Assignment
       ↓
-Git-tunniste
+Git Tag
       ↓
+GitHub Release
 ```
+
+The first official release should only be created after the current implementation, security review, documentation, and regression testing are considered complete.
+
+---
 GitHub-julkaisu
 
 Julkaisu- ja tunnistetietojen saatavuus voi muuttua tästä dokumentaatiosta riippumatta. Tarkista ajantasainen tilanne arkiston [Releases-sivulta](https://github.com/NovaForgeCtrl/LUMS/releases) ja [tunnisteista](https://github.com/NovaForgeCtrl/LUMS/tags). Julkaisu tulisi tehdä vasta, kun kyseisen version toteutus, tietoturvakatsaus, dokumentaatio ja regressiotestit ovat valmiit.
@@ -2144,121 +2264,136 @@ Mahdollinen tuleva työ voi sisältää:
 
 * lisää paketinhallinnan taustajärjestelmiä
 
-* käyttöliittymän parannuksia
+## Roadmap
 
-* lisää raportointiominaisuuksia
+The roadmap is intentionally focused on stability and maintainability rather than adding features without completing the existing foundation.
 
-* laajennettua toiminnan automatisointia
+### Current Phase
 
-* lisää turvakontrolleja
+* complete documentation review
+* remove remaining documentation inconsistencies
+* close documentation audit work
+* perform final full test run
+* verify CI
+* prepare release version
+* create the first official Git tag
+* publish the first GitHub Release
 
-* lisää testikattavuutta
+### Future Development
 
-Tulevien ominaisuuksien tulisi säilyttää olemassa olevat arkkitehtoniset rajat.
-Mitä LUMS ei ole
+Potential future work may include:
 
-LUMS ei ole tarkoituksella suunniteltu:
+* additional Linux distributions
+* additional package-manager backends
+* further UI improvements
+* additional reporting capabilities
+* expanded operational automation
+* additional security controls
+* further test coverage
 
-* yleiskäyttöiseksi etäkomentotulkiksi
+Future features should preserve the existing architectural boundaries.
 
-* APT:n, dpkg:n tai pacmanin korvaajaksi
+---
 
-* täydelliseksi konfiguraationhallintaympäristöksi
+## What LUMS Is Not
 
-* päätepisteiden hallintaratkaisuksi kaikille käyttöjärjestelmille
+LUMS is intentionally not designed as:
 
-* vain pilvipalveluksi
+* a general-purpose remote shell
+* a replacement for APT, dpkg, or pacman
+* a full configuration-management platform
+* an endpoint-management suite for every operating system
+* a cloud-only service
+* an uncontrolled command-execution framework
 
-* hallitsemattomaksi komennon suorituskehykseksi
+LUMS focuses on a narrower problem:
 
-LUMS keskittyy kapeampaan ongelmaan:
+> **Controlled Linux software and update management with persistent state and auditability.**
 
-* Hallittu Linux-ohjelmistojen ja päivitysten hallinta, jossa on pysyvä tila ja valvottavuus.
+---
 
-Kehitysfilosofia
+## Development Philosophy
 
-LUMS noudattaa yksinkertaista kehityssykliä:
-text
+LUMS follows a simple development cycle:
 
-Rakenna
 ```text id="8a0mve"
+Build
   ↓
-Testaa
+Test
   ↓
-Turvaa
+Secure
   ↓
+Document
 ```
-Dokumentoi
 
-Ominaisuutta ei pidetä valmiina vain siksi, että se toimii kehittäjäympäristössä.
+A feature is not considered complete simply because it works in the developer environment.
 
-Sen tulisi myös olla:
+It should also be:
 
-* testattu
+* tested
+* security-reviewed
+* documented
+* reproducible
+* understandable
+* recoverable where appropriate
 
-* turvallisuuskatsastettu
+---
 
-* dokumentoitu
+## Change Philosophy
 
-* toistettavissa
+Changes should be made deliberately.
 
-* ymmärrettävä
+A typical change should answer:
 
-* palautettavissa tarvittaessa
+1. What problem does this solve?
+2. Which component should own the change?
+3. Does the change affect security?
+4. Does it affect persistent state?
+5. Does it affect clients?
+6. Does it require documentation changes?
+7. Which tests prove that existing functionality still works?
 
-Muutosfilosofia
+This reduces the risk of fixing one part of the system while silently breaking another.
 
-Muutokset tulisi tehdä harkitusti.
+---
 
-Tyypillisen muutoksen tulisi vastata:
+## Development Workflow
 
-* Minkä ongelman tämä ratkaisee?
+The preferred development workflow is:
 
-* Minkä komponentin tulisi omistaa muutos?
-
-* Vaikuttaako muutos turvallisuuteen?
-
-* Vaikuttaako se pysyvään tilaan?
-
-* Vaikuttaako se asiakkaisiin?
-
-* Vaatiiko se dokumentaatiomuutoksia?
-
-* Mitkä testit osoittavat, että olemassa oleva toiminnallisuus toimii edelleen?
-
-Tämä vähentää riskiä korjata järjestelmän yksi osa samalla kun toinen osa rikkoutuu hiljaisesti.
-Kehitystyönkulku
-
-Ensisijainen kehitystyönkulku on:
-text
-
-Ymmärrä
 ```text id="r8u6o1"
+Understand
    ↓
-Toteuta
+Implement
    ↓
-Testaa
+Test
    ↓
-Tarkasta
+Inspect
    ↓
-Koveta
+Harden
    ↓
-Dokumentoi
+Document
    ↓
+Regression Test
 ```
-Regressiotesti
 
-Turvallisuuskriittiset muutokset saavat lisävarmennuksen ennen kuin ne katsotaan valmiiksi.
-Arkisto
+Security-sensitive changes receive additional verification before being considered complete.
 
-Projektin arkisto sijaitsee GitHubissa:
+---
 
-NovaForgeCtrl/LUMS
+## Repository
 
-Arkisto sisältää sovelluksen lähdekoodin, asiakaskomponentit, testit, konttikokoonpanon ja projektidokumentaation.
-Dokumentaatiosarja
+The project repository is hosted on GitHub:
 
-Nykyinen dokumentaatiosarja koostuu:
+**NovaForgeCtrl/LUMS**
+
+The repository contains the application source code, client components, tests, container configuration, and project documentation.
+
+---
+
+## Documentation Set
+
+The current documentation set consists of:
 
 ```text id="0xw7cy"
 README.md
@@ -2266,133 +2401,144 @@ install.md
 administration.md
 security.md
 troubleshooting.md
+telemetry.md
 LUMS_Optional_Theme_System.md
 ```
 
-Jokaisella asiakirjalla on määritelty tarkoitus.
+Each document has a defined purpose.
 
-README tarjoaa projektitason yleiskatsauksen.
+The README provides the project-level overview.
 
-Asennusopas selittää käyttöönoton.
+The installation guide explains deployment.
 
-Hallintaopas selittää jatkuvan toiminnan.
+The administration guide explains ongoing operation.
 
-Turvallisuusopas dokumentoi turvallisuusarkkitehtuurin ja tarkastuksen tilan.
+The security guide documents the security architecture and audit state.
 
-Vianmääritysopas tarjoaa diagnostiikkamenettelyt.
+The troubleshooting guide provides diagnostic procedures.
 
-Valinnaisten teemojen asiakirja kattaa frontend-teemojen arkkitehtuurin.
-Lisenssi
+The optional theme document covers frontend theme architecture.
 
-LUMS on julkaistu MIT-lisenssillä.
+---
 
-Lisenssin tarkoitus on pitää projekti avoimena ja saavutettavana samalla kun se sallii käytön, muokkaamisen ja uudelleenjakelun lisenssin ehtojen mukaisesti.
+## License
 
-Katso arkiston lisenssitiedostosta täydellinen oikeudellinen teksti.
-Yhteisö ja panokset
+LUMS is released under the MIT License.
 
-LUMS on avoimen lähdekoodin projekti ja panokset ovat tervetulleita.
+The license is intended to keep the project open and accessible while allowing use, modification, and redistribution under the terms of the license.
 
-Hyödyllisiä panoksia voivat olla:
+See the repository license file for the complete legal text.
 
-* virheraportit
+---
 
-* turvallisuusraportit
+## Community and Contributions
 
-* dokumentaation parannukset
+LUMS is an open-source project and contributions are welcome.
 
-* testit
+Useful contributions can include:
 
-* paketinhallinnan tuki
+* bug reports
+* security reports
+* documentation improvements
+* tests
+* package-manager support
+* frontend improvements
+* backend improvements
+* deployment improvements
 
-* frontend-parannukset
+Contributions should preserve the project's architectural and security principles.
 
-* backend-parannukset
+---
 
-* käyttöönoton parannukset
+## Security Reports
 
-Panosten tulisi säilyttää projektin arkkitehtoniset ja turvallisuusperiaatteet.
-Turvallisuusraportit
+Security issues should not be treated like ordinary feature requests.
 
-Turvallisuusongelmia ei tulisi käsitellä tavallisina ominaisuuspyyntöinä.
+When reporting a security problem, provide enough information to reproduce and understand the issue without unnecessarily exposing sensitive information.
 
-Kun raportoit turvallisuusongelmasta, anna riittävät tiedot ongelman toistamiseksi ja ymmärtämiseksi ilman tarpeetonta arkaluonteisten tietojen paljastamista.
+Security-related changes should be reviewed carefully before being merged.
 
-Turvallisuuteen liittyvät muutokset tulisi katsastaa huolellisesti ennen yhdistämistä.
-Projektin identiteetti
+---
 
-LUMS on rakennettu yksinkertaisen idean ympärille:
+## Project Identity
 
-* Linux-päivitysten hallinta ilman turhaa kohinaa.
+LUMS is built around a simple idea:
 
-Projekti ei yritä piilottaa monimutkaisuutta teeskentelemällä, että Linux-paketinhallinta on yksinkertaista.
+> **Linux update management without the noise.**
 
-Sen sijaan se tekee olennaisen tilan näkyväksi:
-text
+The project does not attempt to hide complexity by pretending that Linux package management is simple.
 
-Mitä on asennettu?
-  * ↓
-Mitä voidaan päivittää?
-  * ↓
-Mitä pitäisi muuttaa?
-  * ↓
-Kuka sen pyysi?
-  * ↓
-Mitä todella tapahtui?
-  * ↓
-Mikä tila jää jäljelle?
+Instead, it makes the relevant state visible:
 
-Nämä tiedot ovat hallitun päivitysten hallinnan perusta.
-Lopullinen arkkitehtuuri
+```text id="q2j5r0"
+What is installed?
+        ↓
+What can be updated?
+        ↓
+What should change?
+        ↓
+Who requested it?
+        ↓
+What actually happened?
+        ↓
+What state remains?
+```
 
-Korkeimmalla tasollaan LUMS voidaan ymmärtää viitenä kerroksena:
+That information is the foundation of controlled update management.
+
+---
+
+## Final Architecture
+
+At its highest level, LUMS can be understood as five layers:
 
 ```text id="7b4p6n"
 ┌───────────────────────────────────────────────┐
 │                    UI                         │
-│       Ihmisen vuorovaikutus ja näkyvyys       │
+│       Human interaction and visibility        │
 └───────────────────────┬───────────────────────┘
                         │
 ┌───────────────────────▼───────────────────────┐
 │                    API                        │
-│    Todennus, valtuutus, validointi            │
+│    Authentication, authorization, validation  │
 └───────────────────────┬───────────────────────┘
                         │
 ┌───────────────────────▼───────────────────────┐
-│                  Pysyvyys                     │
-│       Työt, asiakkaat, käyttäjät, tulokset,   │
-│       valvonta                                │
+│                  Persistence                   │
+│       Jobs, clients, users, results, audit   │
 └───────────────────────┬───────────────────────┘
                         │
 ┌───────────────────────▼───────────────────────┐
-│                    Agentti                    │
-│      Paikallinen suoritus ja järjestelmän     │
-│      raportointi                              │
+│                    Agent                      │
+│      Local execution and system reporting     │
 └───────────────────────┬───────────────────────┘
                         │
 ┌───────────────────────▼───────────────────────┐
-│              Natiivit Linux-työkalut          │
-│              APT / dpkg / pacman              │
+│              Native Linux Tools               │
+│              APT / dpkg / pacman             │
 └───────────────────────────────────────────────┘
 ```
 
-Jokaisella kerroksella on erityinen vastuu.
+Each layer has a specific responsibility.
 
-Käyttöliittymä tarjoaa vuorovaikutuksen.
+The UI provides interaction.
 
-API valvoo käytäntöä.
+The API enforces policy.
 
-SQLite tarjoaa pysyvän tilan.
+SQLite provides persistent state.
 
-Agentti suorittaa hallitun asiakaspuolen suorituksen.
+The agent performs controlled client-side execution.
 
-Natiivi paketinhallinta tekee varsinaisen järjestelmämuutoksen.
-Lopullinen periaate
+The native package manager performs the actual system change.
 
-LUMS on rakennettu yhden keskeisen periaatteen ympärille:
+---
 
-* Havaitse järjestelmä. Hallitse muutosta. Kirjaa tulos.
+## Final Principle
 
-Tämä periaate pätee ohjelmistoarkkitehtuuriin, päivitysten suoritukseen, turvallisuusmalliin, palautusmekanismeihin ja dokumentaatioon.
+LUMS is built around one central principle:
 
-Linux-päivitysten hallinta ilman turhaa kohinaa.
+> **Observe the system. Control the change. Record the result.**
+
+That principle applies to the software architecture, update execution, security model, recovery mechanisms, and documentation.
+
+**Linux-päivitysten hallinta ilman hälyä.**

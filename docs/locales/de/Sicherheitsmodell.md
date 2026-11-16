@@ -1,5 +1,38 @@
 # LUMS Sicherheitsdokumentation
 
+<!-- LUMS-POSTGRES-STATUS-2026-11-15 -->
+# PostgreSQL-Nachfolger Sicherheitsstatus
+
+**Status-Datum: 15. November 2026**
+
+Der PostgreSQL-Nachfolger wird separat von der bestehenden produktiven SQLite-Bereitstellung validiert. Sicherheitsmerkmale müssen gegen ihre tatsächliche Runtime-Integration bewertet werden, nicht lediglich gegen das Vorhandensein von Implementierungsmodulen oder Unit-Tests.
+
+Die aktuelle SOC-Sicherheitsarbeit umfasst Code für:
+
+- Collector-Identity-Provider-Injektion und Fingerprint-Format-Validierung
+- Collector-Registrierung, Widerrufsüberprüfungen und begrenzte Event-Erfassung
+- Zertifikat- und CRL-Validierungs-Hilfsprogramme
+- Backend-TLS-Kontext-Konstruktion mit Client-Zertifikat-Verifikationseinstellungen
+- Validierungsschnittstellen für vertrauenswürdige Zeit und Fail-Closed-Policy-Checks
+
+Die folgenden Runtime-Fähigkeiten wurden noch nicht als integrierte Produktionsbereitstellung nachgewiesen:
+
+- Ein operatives Envoy-Collector-facing mTLS-Gateway
+- Ein produktiver vertrauenswürdiger Zeitanbieter, der mit den laufenden Diensten verbunden ist
+- Backend-mTLS-Kontext-Aktivierung im tatsächlichen Anwendungsstart und Gunicorn-Lebenszyklusverlauf
+- Vollständige Gateway-zu-Backend-Zertifikatbereitstellung und Rotation
+- Eine bereitgestellte Collector-Anwendung und ihre vollständige Runtime-Identity-Provider-Integration
+- SOC-Collector-Verwaltungs-API und UI
+- Integrierte PostgreSQL-Backup- und Wiederherstellungsoperationen
+
+Die Collector-API bleibt deaktiviert, sofern nicht explizit aktiviert. Ein Test-Callback oder isolierter Unit-Test beweist keine Zertifikatauthentifizierung über eine echte TLS-Verbindung.
+
+Beschreiben Sie die SOC-mTLS-Grenze nicht als operativ, bis echte Gateway- und Backend-TLS-Integrationstests, Fehlerzustands-Tests und Bereitstellungsprüfungen bestanden haben.
+
+Die bestehenden SQLite-Sicherheitskontrollen und die Sicherheitskontrollen des PostgreSQL-Kandidaten müssen separat dokumentiert und verifiziert werden. Das Bestehen von Tests für eine Bereitstellung stellt automatisch nicht den Sicherheitsstatus der anderen fest.
+
+<!-- /LUMS-POSTGRES-STATUS-2026-11-15 -->
+
 **LUMS — Linux Update Management Server**
 
 Dieses Dokument beschreibt die aktuelle Sicherheitsarchitektur, implementierte Sicherheitskontrollen, Ergebnisse des Sicherheitsaudits, operative Einschränkungen und sicherheitsrelevante Designentscheidungen von LUMS.

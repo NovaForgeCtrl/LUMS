@@ -1,5 +1,127 @@
 # LUMS — Administrationshandbuch
 
+<!-- LUMS-POSTGRES-STATUS-2026-11-15 -->
+## PostgreSQL-Nachfolger: Aktueller Betriebsstatus
+
+**Status-Datum: 15. November 2026**
+
+### Bereitstellungstrennung
+
+LUMS verfügt derzeit über zwei separate Bereitstellungen:
+
+- Die bestehende produktive Installation nutzt die SQLite-basierte Anwendung.
+- Der PostgreSQL-Nachfolger läuft als isolierter Release-Kandidat.
+
+Der PostgreSQL-Kandidat ist nicht der aktive Produktionsdienst. Seine Datenbank, sein persistentes Volume, seine Container, sein Netzwerk und seine Anwendungskonfiguration müssen bis zur vollständigen Validierung und expliziter Genehmigung einer kontrollierten Cutover vom produktiven SQLite-System getrennt bleiben.
+
+Stoppen, ersetzen oder rekonfigurieren Sie nicht den produktiven `lums`-Container, seine Datenbank, seinen Persistente Speicher, seinen Reverse-Proxy oder seine externe URL als Teil der Kandidaten-Administration.
+
+### PostgreSQL-Kandidaten-Architektur
+
+Der Kandidat ist in: `/etc/lums-postgres-soc-test-20261115/compose.yaml` definiert.
+
+Sein Compose-Projekt ist `lums-postgres-soc-test-20261115`.
+
+Der Datenbankdienst nutzt PostgreSQL 18.6 auf Debian Trixie. Das Image ist auf einen SHA-256-Digest festgelegt. Die konfigurierte Datenbank ist `lums_soc_test`; die anfängliche Datenbankeinrichtung nutzt die Bootstrap-Rolle `lums_pg_bootstrap`. Die Host-Authentifizierung ist für SCRAM-SHA-256 konfiguriert.
+
+Die Datenbank speichert ihre persistenten Daten im benannten Volume `lums-postgres-soc-test-data-20261115`. Kandidaten-Dienste kommunizieren über das externe Docker-Netzwerk `lums-postgres-soc-test-net-20261115`.
+
+Das Compose-Projekt enthält diese Dienste:
+
+- `db`: PostgreSQL-Datenbankdienst mit einem `pg_isready`-Healthcheck.
+- `provision`: Einmalige Datenbank- und Rollenbereitstellung.
+- `migrate`: Einmalige Schema-Migration mit `python -m server.postgres_migrate`.
+- `worker-grants`: Einmalige Einrichtung von Datenbankberechtigungen für den SOC-Worker.
+- `app-grants`: Einmalige Anwendungsdatenbank-Berechtigungseinrichtung.
+- `app`: PostgreSQL-basierte LUMS-Webanwendung.
+- `soc-worker`: Kontinuierlicher SOC-Worker-Prozess mit `server.soc.postgres_worker_cli`.
+
+Bereitstellungs-, Migrations- und Grant-Dienste sollten nach Abschluss ihrer Aufgaben erfolgreich beendet werden; sie sind keine permanenten Anwendungsdienste.
+
+### Beobachteter Laufzeitzustand
+
+Die Compose-Status-Inspektionen am 15. November 2026 zeigten:
+
+- `db`: läuft und ist fehlerfrei.
+- `app`: läuft und ist fehlerfrei.
+- `soc-worker`: läuft.
+- `provision`: beendet mit Status 0.
+- `migrate`: beendet mit Status 0.
+- `worker-grants`: beendet mit Status 0.
+- `app-grants`: beendet mit Status 0.
+
+Diese Ergebnisse beschreiben den beobachteten Kandidaten-Zustand zum Zeitpunkt der Inspektionen. Dies ist keine Garantie, dass jedes Anwendungsmodul oder Workflow die funktionale Akzeptanztestung bestanden hat. Die Anwesenheit und der Laufzustand des SOC-Workers darf nicht als Beweis dafür interpretiert werden, dass der vollständige SOC-Collector-Dienst, das Collector-facing mTLS-Gateway oder die SOC-Verwaltungsoberfläche fertiggestellt ist.
+
+Der Anwendungs-Container ist auf dem Kandidaten-Netzwerk mit der statischen Adresse `172.30.0.4` konfiguriert. Die Compose-Datei veröffentlicht keinen Anwendungsport auf dem Host. Sein Container-Port darf nicht mit einem extern verfügbaren Produktionsendpunkt verwechselt werden.
+
+### Container- und Secret-Verarbeitung
+
+Die Anwendung und der SOC-Worker laufen als UID/GID `10001:10001`. Die Anwendung nutzt ein schreibgeschütztes Root-Dateisystem, ein eingeschränktes temporäres Dateisystem, `no-new-privileges` und gelöschte Linux-Capabilities.
+
+Der Migrationsdienst nutzt auch ein schreibgeschütztes Root-Dateisystem und läuft als UID/GID `10001:10001`. Die Anwendungs-Grant-Einrichtung läuft als Root in seinem kurzlebigen Container, aber hat ein schreibgeschütztes Root-Dateisystem, gelöschte Capabilities und `no-new-privileges`.
+
+Compose bindet Anmeldeinformationen als dateibasierte Secrets ein. Die konfigurierten Secret-Dateien umfassen:
+
+- PostgreSQL-Bootstrap-Passwort
+- Anwendungsdatenbank-Passwort
+- Migrations-Datenbankpasswort
+- SOC-Worker-Datenbankpasswort
+- Anwendungsdatenbank-Verbindungs-URL
+- Migrations-Datenbankverbindungs-URL
+- SOC-Worker-Datenbankverbindungs-URL
+- LUMS-Anwendungs-Secret
+
+Geben Sie keine Secret-Inhalte in Terminalausgabe, Dokumentation, Tickets oder Logs aus. Kopieren Sie keine Kandidaten-Secrets in die produktive Bereitstellung.
+
+### Anwendungsmodul-Status
+
+Die PostgreSQL-Anwendung meldet derzeit den Backend-Status `migration_in_progress`.
+
+Die folgenden Module werden von der Anwendung als verfügbar aufgelistet:
+
+- Authentifizierung
+- Autorisierung
+- Sprache
+- Clients
+- Infrastruktur
+- Telemetrie
+- Paketsuche
+- Benachrichtigungen
+- Benachrichtigungs-Dashboard
+- Updates
+- Benutzerverwaltung
+
+Die Anwendung listet diese Module als ausstehend auf:
+
+- SOC
+- Backups
+
+Dieser Modul-Status ist maßgeblich für den aktuell selbstgemeldeten Integrationszustand der Anwendung. Ein laufender Worker-Prozess negiert nicht die Tatsache, dass das `soc`-Modul noch als ausstehend aufgelistet ist.
+
+### Ausstehende Produktionsreife-Arbeiten
+
+Die folgenden Fähigkeiten darf nicht als abgeschlossene Produktionsmerkmale beschrieben werden, bis ihre Implementierung und Akzeptanztests verifiziert wurden:
+
+- Vollständige SOC-Modulintegration, einschließlich Collector-Registrierung, Authentifizierung, Event-Erfassung und Administration.
+- Collector-facing Envoy-Gateway und End-to-End mTLS-Durchsetzung.
+- Produktives vertrauenswürdiges Zeitangebot und operative Zertifikatlebenszyklusverwaltung.
+- Vollständige SOC-Verwaltungs-API und Weboberfläche.
+- Integrierte PostgreSQL-Backup-, Wiederherstellungs- und Recovery-Verwaltung.
+- Vollständige Produktions-Cutover, Überwachung und Rollback-Validierung.
+
+Ein isoliertes Datenbankbackup oder Wiederherstellungstest stellt durch sich selbst keine integrierte administrative Backup- und Recovery-Funktion bereit.
+
+### Administrative Sicherheitsregeln
+
+- Identifizieren Sie die Bereitstellung, das Compose-Projekt, den Container und die Datenbank, bevor Sie einen administrativen Befehl ausführen.
+- Verwenden Sie PostgreSQL-spezifische Verfahren für den Kandidaten; SQLite-Befehle in diesem Handbuch darf nicht auf PostgreSQL angewendet werden.
+- Entfernen oder erstellen Sie niemals das produktive SQLite-Volume während der Kandidaten-Entwicklung oder Tests neu.
+- Behandeln Sie einen erfolgreichen Container-Healthcheck nicht als Beweis für vollständige Anwendungsfunktionalität.
+- Halten Sie Kandidaten-Anmeldeinformationen, Speicher und Netzwerkgrenzen von der Produktion getrennt.
+- Eine Produktions-Cutover erfordert verifizierte Backups, getestete Wiederherstellung, dokumentierten Rollback, validierte Datenbankberechtigungen und explizite Genehmigung.
+
+<!-- /LUMS-POSTGRES-STATUS-2026-11-15 -->
+
 > **Linux Update Management ohne das Rauschen.**
 
 Dieses Handbuch beschreibt die tägliche Administration und den Betrieb von LUMS, nachdem Server und Clients installiert wurden.
@@ -540,13 +662,175 @@ Wenn ein Passwort vermutlich kompromittiert ist, ersetzen Sie es über das entsp
 
 ---
 
-## 16. Sitzungen
+## 16. Fleet-Telemetrie und Gesundheits-Dashboard
 
-LUMS verwendet authentifizierte Anwendungssitzungen für den Webzugriff.
+Das optionale Telemetrie-System überwacht CPU-Auslastung, Speicherauslastung und Netzwerk-Traffic von verwalteten Clients.
 
-Die Sitzungsverwaltung ist Teil der Sicherheitsgrenze der Anwendung.
+Das Dashboard `/health` bietet Echtzeit- und historische Sichtbarkeit der Client-Ressourcennutzung.
 
-Administratoren sollten eine unerwartete authentifizierte Sitzung als Sicherheitsereignis behandeln, wenn das zugehörige Konto keinen Zugriff mehr haben sollte.
+### Telemetrie-Übersicht
+
+Telemetrie ist ein optionales, von Agent und Watcher separates System. Es:
+
+* Erfasst alle ~5 Sekunden CPU-, Speicher- und Netzwerkmetriken
+* Bewahrt Daten 7 Tage lang auf
+* Erfordert Client-Authentifizierung mit dem LUMS-Client-Token
+* Nutzt HTTPS für Remote-Verbindungen
+* Ist vollständig optional und beeinträchtigt die Paketverwaltung nicht
+
+### Dashboard-Zugang
+
+Das Dashboard `/health` erfordert die Berechtigung `clients.view`.
+
+Das Dashboard zeigt:
+
+* **Client-Status:** Online (≤120s), Unbekannt (120-600s) oder Offline (>600s)
+* **Fleet-Übersicht:** Nach Status, abgelaufener Telemetrie oder hoher Last filterbar
+* **CPU-/Speicherdiagramme:** Linie, Fläche oder aktuelle Messuhren-Ansicht
+* **Netzwerk-Überwachung:** Empfangene/gesendete Bytes pro Sekunde
+* **Historische Daten:** 1-Stunden-, 24-Stunden- oder 7-Tage-Ansichten
+* **Backup-Status:** Neueste erkannte Sicherungsdatei
+
+### Telemetrie auf Clients installieren
+
+Zur Aktivierung der Telemetrie auf einem verwalteten Client folgen Sie den Telemetrie-Einrichtungsanweisungen in [`install.md`](../../../install.md).
+
+Dies umfasst:
+
+1. Installation des Telemetrie-Agents (`agent/telemetry.py`)
+2. Installation von systemd-Service und Timer (`agent/lums-telemetry.service`, `agent/lums-telemetry.timer`)
+3. Konfiguration von Umgebungsvariablen:
+   - `LUMS_BASE`: Server-URL (z. B. `https://lums.example.com`)
+   - `LUMS_TOKEN`: Das Client-Authentifizierungs-Token
+   - `LUMS_CA_FILE` (optional): Pfad zum CA-Zertifikat für benutzerdefinierte Zertifizierungsstellen
+
+4. Aktivierung des Timers: `sudo systemctl enable --now lums-telemetry.timer`
+
+### Datenbank-Migration
+
+Nach einem Server-Upgrade die Datenbank-Migration ausführen, um Telemetrie-Spalten hinzuzufügen:
+
+```bash
+python3 server/security_migration.py
+```
+
+Dies muss vor der Übermittlung von Netzwerkdaten durch Agents ausgeführt werden.
+
+### Status-Schwellwerte
+
+Der Client-Status wird durch den letzten gemeldeten Telemetrie-Zeitstempel bestimmt:
+
+| Status | Bedingung |
+| --- | --- |
+| Online | Letzte Meldung ≤ 120 Sekunden |
+| Unbekannt | Letzte Meldung 120-600 Sekunden, oder Zeitstempel fehlt/ungültig/zukünftig |
+| Offline | Letzte Meldung > 600 Sekunden |
+
+Diese spiegeln die Meldungshäufigkeit wider, nicht die tatsächliche Systemgesundheit. Netzwerkausreißer oder gestoppte Agents können Statusänderungen verursachen.
+
+### Daten-Retention
+
+Der Server entfernt Telemetrie-Samples älter als 7 Tage beim Verarbeiten neuer Übermittlungen.
+
+Abfragen des Verlaufs sind auf 1-168 Stunden begrenzt und können auf maximal 1.000 Samples heruntergerechnet werden.
+
+Das Dashboard aktualisiert angezeigte Daten alle 5 Sekunden.
+
+### Telemetrie-Fehlerbehebung
+
+**Keine Samples erscheinen:**
+- Verifizieren Sie die Server-URL in `LUMS_BASE`
+- Verifizieren Sie das Client-Token in `LUMS_TOKEN`
+- Prüfen Sie, ob der systemd-Timer aktiviert ist: `sudo systemctl status lums-telemetry.timer`
+- Überprüfen Sie Agent-Logs: `sudo journalctl -u lums-telemetry.service -n 50`
+
+**TLS-Zertifikatsfehler:**
+- Für selbstsignierte oder benutzerdefinierte CA-Zertifikate den CA-Pfad angeben: `export LUMS_CA_FILE=/path/to/ca.crt`
+- Verifizieren Sie, dass das Zertifikat gültig und der Hostname korrekt ist
+
+**Hohe Speicher- oder CPU-Werte gemeldet:**
+- Speicherberechnung: `(MemTotal - MemAvailable) / MemTotal * 100`
+- CPU wird über 0,2 Sekunden abgerechnet und kann Spitzen unter hoher Auslastung zeigen
+- Verwenden Sie die 24-Stunden- oder 7-Tage-Ansicht, um anhaltende Probleme zu identifizieren
+
+Weitere Informationen zur Telemetrie finden Sie in [`telemetry.md`](../../../telemetry.md).
+
+---
+
+## 17. Thema-System
+
+LUMS bietet ein optionales Client-seitiges Thema-System, das sechs visuelle Themen bietet, während die Backend-Funktionalität identisch bleibt.
+
+### Verfügbare Themen
+
+1. **standard** - Standard-LUMS-Oberfläche
+2. **LUMSStadium** - Alternatives Unternehmensthema
+3. **golf** - Beruhigendes Designthema
+4. **nerd** - Entwickler-fokussiertes Thema
+5. **geek** - Technisches Thema
+6. **admin** - Administratorspezifisches Thema
+
+### Wichtig: Themen sind nur Präsentation
+
+Themen ändern **NICHT**:
+
+* Benutzerberechtigungen oder Rollen
+* Authentifizierungsverhalten
+* Autorisierungsentscheidungen
+* CSRF-Schutz
+* Client-Authentifizierung
+* Update-Ausführung
+* Paketverwaltung
+* Job-Statusbehandlung
+* Audit-Protokollierung
+* Datenbankverhalten
+* Sicherheitsgrenzen
+
+Themen ändern nur die visuelle Darstellung: Farben, Typographie, Hintergründe, Animationen und visuelle Gewichtung.
+
+### Ein Thema auswählen
+
+Die Themaauswahl ist über die LUMS-Weboberfläche verfügbar. Benutzer können:
+
+1. Den Thema-Wähler in der Oberfläche anklicken
+2. Ihr bevorzugtes Thema wählen
+3. Die Auswahl wird automatisch im Browser-Speicher gespeichert (`lums-theme`-Schlüssel)
+4. Die Einstellung bleibt über Login-Sitzungen hinweg erhalten
+
+### Thema-Speicherung
+
+Themen werden im Browser-Speicher gespeichert, nicht auf dem Server. Dies bedeutet:
+
+* Jedes Gerät hat eigene Themavoreinstellungen
+* Das Löschen von Browser-Daten setzt die Themaauswahl zurück
+* Gemeinsam genutzte Geräte können unterschiedliche Themavoreinstellungen pro Benutzer haben
+* Themen werden nicht zwischen Geräten synchronisiert
+
+### Visuelle Anpassung
+
+Jedes Thema kann anpassen:
+
+* Farbschemas und Akzente
+* Typographie und Schriftarten
+* Button- und Formularstile
+* Navigations-Darstellung
+* Seitenhintergründe
+* Animationen und Übergänge
+* Visuelle Effekte
+* Abstände und Layout-Gewichtung
+
+### Administrationsnotizen
+
+* Themaauswahl ist eine Benutzereinstellung, keine administrative Kontrolle
+* Administratoren können nicht ein bestimmtes Thema für alle Benutzer erzwingen
+* Themen sind optional; LUMS funktioniert unabhängig von der Themaauswahl identisch
+* Kein Thema gewährt zusätzliche Berechtigungen oder ändert Sicherheitskontrollen
+
+Weitere Informationen zum Thema-System und Designprinzipien finden Sie in [`LUMS_Optional_Theme_System.md`](../../../LUMS_Optional_Theme_System.md).
+
+---
+
+## 18. Sitzungen
 
 Relevante Situationen sind:
 
