@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="{{ language }}" data-locale="{{ language_locale }}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="csrf-token" content="{{ csrf_token }}">
+    <title>LUMS — Trusted Time</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='trusted_time.css') }}">
+</head>
+<body class="lums-sidebar-layout">
+    {% include "_postgres_sidebar.html" %}
+
+    <header class="lums-pagebar">
+        <button type="button" class="lums-sidebar-toggle"
+                id="lums-sidebar-toggle"
+                aria-label="{{ tr('Toggle navigation') }}"
+                aria-controls="lums-sidebar"
+                aria-expanded="true">
+            <span aria-hidden="true">&#9776;</span>
+        </button>
+        <div class="lums-pagebar-brand">
+            <strong>LUMS</strong>
+            <span>Security Operations / Trusted Time</span>
+        </div>
+        <div class="lums-pagebar-status">
+            <span class="status-dot" aria-hidden="true"></span>
+            Preview
+        </div>
+    </header>
+
+    <main class="container trusted-time-page">
+        <header class="panel-header">
+            <div>
+                <p class="trusted-time-eyebrow">LUMS / SECURITY OPERATIONS</p>
+                <h1>Trusted Time</h1>
+                <p>
+                    Read-only status of the host's authenticated Chrony
+                    time synchronization.
+                </p>
+            </div>
+        </header>
+
+        <section class="trusted-time-policy" aria-label="Preview policy">
+            <strong>Preview policy – not production approved</strong>
+            <p>
+                The displayed limits are test values. They are not yet
+                an approved production security policy.
+            </p>
+        </section>
+
+        <section class="trusted-time-grid"
+                 id="trusted-time-dashboard"
+                 data-api-url="{{ trusted_time_api_url }}">
+            <article class="panel trusted-time-card trusted-time-card-status">
+                <h2>Synchronization status</h2>
+                <p id="trusted-time-status" class="trusted-time-value"
+                   role="status" aria-live="polite">
+                    Loading…
+                </p>
+                <p id="trusted-time-source" class="trusted-time-detail">
+                    Source: —
+                </p>
+            </article>
+
+            <article class="panel trusted-time-card">
+                <h2>Synchronization age</h2>
+                <p id="trusted-time-age" class="trusted-time-value">—</p>
+                <p class="trusted-time-detail">
+                    Conservative upper-bound estimate
+                </p>
+            </article>
+
+            <article class="panel trusted-time-card">
+                <h2>Clock offset</h2>
+                <p id="trusted-time-offset" class="trusted-time-value">—</p>
+                <p class="trusted-time-detail">Milliseconds</p>
+            </article>
+
+            <article class="panel trusted-time-card">
+                <h2>Time uncertainty</h2>
+                <p id="trusted-time-uncertainty" class="trusted-time-value">
+                    —
+                </p>
+                <p class="trusted-time-detail">Milliseconds</p>
+            </article>
+
+            <article class="panel trusted-time-card trusted-time-card-wide">
+                <h2>Authentication basis</h2>
+                <p id="trusted-time-authentication" class="trusted-time-note">
+                    Waiting for host status…
+                </p>
+                <p id="trusted-time-observed" class="trusted-time-detail">
+                    Last observation: —
+                </p>
+            </article>
+        </section>
+
+        <section class="panel trusted-time-explanation">
+            <h2>How the status is established</h2>
+            <p>
+                The host-side monitor reads only the approved Chrony
+                tracking and source status. The application validates
+                the protected configuration digest, source quorum,
+                synchronization age, offset and uncertainty.
+            </p>
+            <p>
+                NTS authentication is inferred from the protected
+                NTS-only configuration, <code>authselectmode=require</code>
+                and the selected source quorum. The unprivileged monitor
+                does not query Chrony's privileged <code>authdata</code>
+                command. This limitation is intentionally shown here.
+            </p>
+            <p id="trusted-time-updated" class="trusted-time-detail">
+                Waiting for first status response…
+            </p>
+        </section>
+    </main>
+
+    <script src="{{ url_for('static', filename='sidebar.js') }}" defer></script>
+    <script src="{{ url_for('static', filename='trusted_time.js') }}" defer></script>
+</body>
+</html>

@@ -1,0 +1,55 @@
+[Unit]
+Description=LUMS Read-Only Authenticated Chrony Status Service
+Documentation=man:chronyd(8) man:chronyc(1)
+Wants=chrony.service
+After=chrony.service
+ConditionPathExists=/etc/chrony/chrony.conf
+
+[Service]
+Type=simple
+
+User=986
+Group=987
+
+WorkingDirectory=/opt/lums-soc-worker-service
+Environment=PYTHONPATH=/opt/lums-soc-worker-service
+Environment=PYTHONDONTWRITEBYTECODE=1
+Environment=PYTHONUNBUFFERED=1
+
+ExecStartPre=/usr/bin/test -x /usr/bin/chronyc
+ExecStart=/usr/bin/python3 -m server.soc.chrony_status_service
+
+Restart=on-failure
+RestartSec=5s
+TimeoutStopSec=10s
+
+UMask=0117
+
+RuntimeDirectory=lums-chrony-status
+RuntimeDirectoryMode=0750
+RuntimeDirectoryPreserve=yes
+
+NoNewPrivileges=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectSystem=strict
+ProtectHome=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+ProtectClock=yes
+ProtectHostname=yes
+RestrictSUIDSGID=yes
+LockPersonality=yes
+MemoryDenyWriteExecute=yes
+
+RestrictAddressFamilies=AF_UNIX AF_INET
+
+CapabilityBoundingSet=
+AmbientCapabilities=
+
+SystemCallFilter=@system-service
+SystemCallErrorNumber=EPERM
+
+[Install]
+WantedBy=multi-user.target
