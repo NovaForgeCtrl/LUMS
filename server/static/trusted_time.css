@@ -1,0 +1,85 @@
+.trusted-time-page {
+    padding-bottom: 2rem;
+}
+
+.trusted-time-eyebrow {
+    margin-bottom: 0.35rem;
+    opacity: 0.7;
+    letter-spacing: 0.08em;
+    font-size: 0.78rem;
+    font-weight: 700;
+}
+
+.trusted-time-policy {
+    margin: 1rem 0 1.25rem;
+    padding: 1rem 1.15rem;
+    border: 1px solid var(--border-color, #8888);
+    border-radius: 0.65rem;
+}
+
+.trusted-time-policy p {
+    margin: 0.35rem 0 0;
+}
+
+.trusted-time-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr));
+    gap: 1rem;
+}
+
+.trusted-time-card {
+    min-width: 0;
+    padding: 1.15rem;
+}
+
+.trusted-time-card h2,
+.trusted-time-explanation h2 {
+    margin-top: 0;
+    font-size: 1rem;
+}
+
+.trusted-time-value {
+    margin: 0.75rem 0 0.25rem;
+    font-size: clamp(1.35rem, 3vw, 2rem);
+    font-weight: 700;
+    overflow-wrap: anywhere;
+}
+
+.trusted-time-detail {
+    margin: 0.4rem 0 0;
+    opacity: 0.72;
+    font-size: 0.9rem;
+    overflow-wrap: anywhere;
+}
+
+.trusted-time-card-wide {
+    grid-column: 1 / -1;
+}
+
+.trusted-time-note {
+    overflow-wrap: anywhere;
+    line-height: 1.55;
+}
+
+.trusted-time-explanation {
+    margin-top: 1rem;
+    padding: 1.15rem;
+}
+
+.trusted-time-explanation p:last-child {
+    margin-bottom: 0;
+}
+
+#trusted-time-status[data-state="ready"] {
+    color: var(--success-color, #23844d);
+}
+
+#trusted-time-status[data-state="error"] {
+    color: var(--danger-color, #b53a3a);
+}
+
+@media (max-width: 600px) {
+    .trusted-time-card-wide {
+        grid-column: auto;
+    }
+}

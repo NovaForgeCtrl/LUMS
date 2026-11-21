@@ -51,6 +51,7 @@ if __package__:
     from .postgres_user_routes import register_postgres_user_routes
     from .postgres_ui_pages import register_postgres_ui_page_routes
     from .postgres_system_updates import register_postgres_system_update_routes
+    from .postgres_trusted_time import register_postgres_trusted_time_routes
     from .security import (
         ROLE_ADMINISTRATOR,
         ROLE_OPERATOR,
@@ -88,6 +89,7 @@ else:
     from postgres_user_routes import register_postgres_user_routes
     from postgres_ui_pages import register_postgres_ui_page_routes
     from postgres_system_updates import register_postgres_system_update_routes
+    from postgres_trusted_time import register_postgres_trusted_time_routes
     from security import (
         ROLE_ADMINISTRATOR,
         ROLE_OPERATOR,
@@ -185,6 +187,7 @@ def create_postgres_app(config=None) -> Flask:
     register_postgres_user_routes(app)
     register_postgres_ui_page_routes(app)
     register_postgres_system_update_routes(app)
+    register_postgres_trusted_time_routes(app)
 
     @app.post("/logout")
     @login_required
@@ -238,6 +241,7 @@ def create_postgres_app(config=None) -> Flask:
                 "alerts_dashboard",
                 "updates",
                 "user_management",
+                "trusted_time",
             ],
             "pending_modules": [
                 "soc",

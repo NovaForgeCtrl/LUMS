@@ -57,6 +57,16 @@
         </a>
         {% endif %}
 
+        {% if "soc.view" in user_permissions %}
+        <a href="{{ url_for('postgres_trusted_time_page') }}"
+           data-nav-id="trusted-time"
+           class="lums-sidebar-link{% if request.path == '/trusted-time' %} is-active{% endif %}"
+           {% if request.path == '/trusted-time' %}aria-current="page"{% endif %}>
+            <span class="lums-sidebar-icon" aria-hidden="true">◷</span>
+            <span class="lums-sidebar-label">{{ tr("Trusted Time") }}</span>
+        </a>
+        {% endif %}
+
         {% if "alerts.view" in user_permissions %}
         <a href="{{ url_for('postgres_alert_dashboard') }}"
            data-nav-id="alerts"

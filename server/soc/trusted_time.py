@@ -64,11 +64,15 @@ class TrustedTimePolicy:
 class TrustedTimeSnapshot:
     """One atomic provider snapshot.
 
-    The provider is responsible for recording last_sync_boottime_ns at the
-    instant a successful synchronization is confirmed. It must not derive
-    that value later from wall-clock timestamps.
+    A provider may supply a conservative lower-bound anchor for the last
+    successful synchronization. Such an anchor must be an actual paired
+    UTC/CLOCK_BOOTTIME observation known to precede the synchronization
+    event. This deliberately overstates sync age and must never be derived
+    by converting Chrony's UTC Ref time into BOOTTIME.
 
-    observed_utc and observed_boottime_ns must describe the same observation.
+    last_sync_utc and last_sync_boottime_ns describe that same conservative
+    anchor observation. observed_utc and observed_boottime_ns describe the
+    current observation.
     """
 
     synchronized: bool
