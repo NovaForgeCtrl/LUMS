@@ -90,8 +90,8 @@ def _build_provider(config):
         expected_server_gid=expected_gid,
     )
 
-    # Constructed during app creation, not per request. Each Gunicorn worker
-    # therefore gets its own tracker and process-start BOOTTIME reference.
+    # Called lazily by the worker-local provider factory. Each Gunicorn
+    # worker therefore gets its own tracker and process-start BOOTTIME reference.
     return ChronyTrustedTimeProvider(reader)
 
 

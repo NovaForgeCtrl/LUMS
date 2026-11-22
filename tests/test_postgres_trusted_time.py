@@ -1,7 +1,11 @@
 """Tests for the PostgreSQL Trusted-Time page and read-only API."""
 
+import json
+import os
 from datetime import datetime, timedelta, timezone
 from types import SimpleNamespace
+
+import pytest
 
 from server import postgres_flask_security as pg_security
 from server.postgres_app import create_postgres_app
@@ -259,6 +263,64 @@ def test_provider_is_created_lazily_and_recreated_after_worker_pid_change(
         assert app.extensions["lums_trusted_time_provider_pid"] == 41002
 
     assert len(created) == 2
+
+
+
+@pytest.mark.skipif(not hasattr(os, "fork"), reason="requires os.fork")
+def test_provider_is_initialized_independently_in_each_forked_process():
+    from server import postgres_trusted_time
+
+    app = create_postgres_app({
+        "SECRET_KEY": "pytest-trusted-time-fork-secret",
+        "TESTING": True,
+    })
+    app.extensions["lums_trusted_time_provider_factory"] = (
+        lambda: {"created_by_pid": os.getpid()}
+    )
+
+    children = []
+    for _ in range(2):
+        rfd, wfd = os.pipe()
+        pid = os.fork()
+
+        if pid == 0:
+            os.close(rfd)
+            try:
+                with app.app_context():
+                    provider = postgres_trusted_time._get_process_provider()
+                    result = {
+                        "child_pid": os.getpid(),
+                        "provider_pid": provider["created_by_pid"],
+                        "extension_pid": app.extensions[
+                            "lums_trusted_time_provider_pid"
+                        ],
+                    }
+                os.write(wfd, json.dumps(result).encode() + b"\n")
+                os._exit(0)
+            except BaseException as exc:
+                os.write(wfd, json.dumps({"error": repr(exc)}).encode() + b"\n")
+                os._exit(1)
+
+        os.close(wfd)
+        children.append((pid, rfd))
+
+    results = []
+    for pid, rfd in children:
+        with os.fdopen(rfd, "rb") as stream:
+            result = json.loads(stream.readline())
+        _, status = os.waitpid(pid, 0)
+        result["exit_status"] = os.waitstatus_to_exitcode(status)
+        results.append(result)
+
+    assert len(results) == 2
+    assert all(r["exit_status"] == 0 for r in results)
+    assert all(
+        r["child_pid"] == r["provider_pid"] == r["extension_pid"]
+        for r in results
+    )
+    assert results[0]["child_pid"] != results[1]["child_pid"]
+    assert app.extensions["lums_trusted_time_provider"] is None
+    assert app.extensions["lums_trusted_time_provider_pid"] is None
 
 
 def test_preview_policy_is_explicit_and_not_a_production_policy():
