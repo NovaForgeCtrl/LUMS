@@ -19,6 +19,10 @@ from server.soc.crl_validation import (
     validate_direct_crl,
 )
 from server.soc.trusted_time import TrustedTime
+from server.soc.certificate_profiles import (
+    CertificateProfileError,
+    validate_backend_server_files,
+)
 
 
 class MTLSContextError(RuntimeError):
@@ -32,6 +36,7 @@ def build_backend_mtls_context(
     *,
     policy: CRLPolicy,
     trusted_time: TrustedTime,
+    expected_dns_name: str,
 ) -> ssl.SSLContext:
     """Build a server context requiring a CRL-valid gateway client cert.
 
@@ -53,6 +58,18 @@ def build_backend_mtls_context(
 
     if not isinstance(trusted_time, TrustedTime):
         raise TypeError("trusted_time must be a TrustedTime instance")
+
+    try:
+        validate_backend_server_files(
+            server_certfile,
+            server_keyfile,
+            expected_dns_name=expected_dns_name,
+            trusted_time=trusted_time,
+        )
+    except (CertificateProfileError, TypeError) as exc:
+        raise MTLSContextError(
+            "Backend server certificate profile validation failed"
+        ) from exc
 
     if not hasattr(ssl, "VERIFY_CRL_CHECK_LEAF"):
         raise MTLSContextError(

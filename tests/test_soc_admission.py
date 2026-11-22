@@ -1,5 +1,6 @@
 from dataclasses import replace
 from datetime import datetime, timedelta, timezone
+import threading
 
 import pytest
 
@@ -116,6 +117,259 @@ def test_starts_blocked(admission_environment):
     assert not controller.admit_new_connection()
 
 
+def test_admission_leases_allow_parallel_handshakes(
+    admission_environment,
+):
+    controller, _, _, active, _ = admission_environment
+    activate_initial(controller, active)
+
+    both_entered = threading.Barrier(3)
+    release = threading.Event()
+    failures = []
+
+    def handshake():
+        try:
+            with controller.admitted_handshake() as admission:
+                if admission is None:
+                    raise AssertionError("Handshake lease was denied")
+                both_entered.wait(timeout=3)
+                if not release.wait(timeout=3):
+                    raise AssertionError("Handshake release timed out")
+        except BaseException as exc:
+            failures.append(exc)
+
+    threads = [
+        threading.Thread(target=handshake, daemon=True)
+        for _ in range(2)
+    ]
+
+    for thread in threads:
+        thread.start()
+
+    try:
+        both_entered.wait(timeout=3)
+        assert controller.active_handshakes == 2
+    finally:
+        release.set()
+        for thread in threads:
+            thread.join(timeout=3)
+
+    assert all(not thread.is_alive() for thread in threads)
+    assert failures == []
+    assert controller.active_handshakes == 0
+
+
+def test_recovery_waits_until_admitted_handshakes_drain(
+    admission_environment,
+):
+    controller, _, _, active, candidate = admission_environment
+    activate_initial(controller, active)
+
+    entered = threading.Event()
+    release = threading.Event()
+    recovery_started = threading.Event()
+    verifier_called = threading.Event()
+    results = []
+    failures = []
+
+    def handshake():
+        try:
+            with controller.admitted_handshake() as admission:
+                assert admission is not None
+                entered.set()
+                if not release.wait(timeout=4):
+                    raise AssertionError("Handshake release timed out")
+        except BaseException as exc:
+            failures.append(exc)
+
+    def recover():
+        try:
+            recovery_started.set()
+            results.append(
+                controller.complete_recovery(
+                    tls_verifier=lambda _crl: (
+                        verifier_called.set() or True
+                    ),
+                    drain_timeout=3,
+                )
+            )
+        except BaseException as exc:
+            failures.append(exc)
+
+    handshake_thread = threading.Thread(target=handshake, daemon=True)
+    handshake_thread.start()
+
+    try:
+        assert entered.wait(timeout=2)
+        assert controller.begin_update()
+        assert controller.begin_recovery(candidate)
+
+        recovery_thread = threading.Thread(target=recover, daemon=True)
+        recovery_thread.start()
+        assert recovery_started.wait(timeout=2)
+
+        # The verifier cannot run while an older handshake lease is active.
+        assert not verifier_called.wait(timeout=0.15)
+        assert controller.active_handshakes == 1
+
+        release.set()
+        handshake_thread.join(timeout=2)
+        recovery_thread.join(timeout=3)
+
+        assert not handshake_thread.is_alive()
+        assert not recovery_thread.is_alive()
+    finally:
+        release.set()
+        handshake_thread.join(timeout=2)
+
+    assert failures == []
+    assert results == [True]
+    assert verifier_called.is_set()
+    assert controller.active_handshakes == 0
+    assert controller.state is AdmissionState.READY
+
+
+def test_block_cancels_recovery_waiting_for_handshake_drain(
+    admission_environment,
+):
+    controller, _, _, active, candidate = admission_environment
+    activate_initial(controller, active)
+
+    entered = threading.Event()
+    release = threading.Event()
+    results = []
+    failures = []
+
+    def handshake():
+        try:
+            with controller.admitted_handshake() as admission:
+                assert admission is not None
+                entered.set()
+                release.wait(timeout=4)
+        except BaseException as exc:
+            failures.append(exc)
+
+    def recover():
+        try:
+            results.append(
+                controller.complete_recovery(
+                    tls_verifier=lambda _crl: True,
+                    drain_timeout=3,
+                )
+            )
+        except BaseException as exc:
+            failures.append(exc)
+
+    handshake_thread = threading.Thread(target=handshake, daemon=True)
+    handshake_thread.start()
+
+    try:
+        assert entered.wait(timeout=2)
+        assert controller.begin_update()
+        assert controller.begin_recovery(candidate)
+
+        recovery_thread = threading.Thread(target=recover, daemon=True)
+        recovery_thread.start()
+
+        controller.block()
+        recovery_thread.join(timeout=2)
+
+        assert not recovery_thread.is_alive()
+        assert results == [False]
+        assert controller.state is AdmissionState.BLOCKED
+    finally:
+        release.set()
+        handshake_thread.join(timeout=2)
+
+    assert failures == []
+    assert controller.active_handshakes == 0
+
+
+def test_admission_lease_is_released_after_handshake_exception(
+    admission_environment,
+):
+    controller, _, _, active, _ = admission_environment
+    activate_initial(controller, active)
+
+    with pytest.raises(RuntimeError, match="simulated TLS failure"):
+        with controller.admitted_handshake() as admission:
+            assert admission is not None
+            assert controller.active_handshakes == 1
+            raise RuntimeError("simulated TLS failure")
+
+    assert controller.active_handshakes == 0
+    assert controller.state is AdmissionState.READY
+
+
+def test_blocked_recovery_cannot_be_replaced_before_waiter_exits(
+    admission_environment,
+    monkeypatch,
+):
+    controller, _, _, active, candidate = admission_environment
+    activate_initial(controller, active)
+
+    waiting = threading.Event()
+    results = []
+    failures = []
+
+    original_wait = controller._handshake_condition.wait
+
+    def observed_wait(timeout=None):
+        waiting.set()
+        return original_wait(timeout)
+
+    monkeypatch.setattr(
+        controller._handshake_condition,
+        "wait",
+        observed_wait,
+    )
+
+    def recover():
+        try:
+            results.append(
+                controller.complete_recovery(
+                    tls_verifier=lambda _crl: True,
+                    drain_timeout=3,
+                )
+            )
+        except BaseException as exc:
+            failures.append(exc)
+
+    with controller.admitted_handshake() as admission:
+        assert admission is not None
+        assert controller.begin_update()
+        assert controller.begin_recovery(candidate)
+
+        recovery_thread = threading.Thread(target=recover, daemon=True)
+        recovery_thread.start()
+
+        try:
+            assert waiting.wait(timeout=2), (
+                "Recovery did not begin waiting for active handshakes"
+            )
+
+            # Keep the controller lock while cancelling and attempting
+            # another recovery. The old waiter cannot clear its flag yet.
+            with controller._lock:
+                controller.block()
+
+                with pytest.raises(
+                    AdmissionError,
+                    match="Recovery completion is already in progress",
+                ):
+                    controller.begin_recovery(candidate)
+
+        finally:
+            recovery_thread.join(timeout=3)
+
+        assert not recovery_thread.is_alive()
+        assert failures == []
+        assert results == [False]
+        assert controller.state is AdmissionState.BLOCKED
+
+    assert controller.active_handshakes == 0
+
+
 def test_initial_recovery_requires_successful_tls_verification(
     admission_environment,
 ):
@@ -225,6 +479,57 @@ def test_recovery_verifier_receives_exact_candidate(
 
     assert controller.complete_recovery(tls_verifier=verifier)
     assert received == [candidate]
+
+
+def test_block_during_recovery_verification_invalidates_candidate(
+    admission_environment,
+):
+    controller, _, _, _, candidate = admission_environment
+    assert controller.begin_recovery(candidate)
+
+    verifier_entered = threading.Event()
+    release_verifier = threading.Event()
+    block_finished = threading.Event()
+    results = []
+
+    def verifier(_crl):
+        verifier_entered.set()
+        assert release_verifier.wait(timeout=3)
+        return True
+
+    recovery_thread = threading.Thread(
+        target=lambda: results.append(
+            controller.complete_recovery(tls_verifier=verifier)
+        )
+    )
+    recovery_thread.start()
+
+    assert verifier_entered.wait(timeout=2)
+
+    def block_controller():
+        controller.block()
+        block_finished.set()
+
+    blocker_thread = threading.Thread(target=block_controller)
+    blocker_thread.start()
+
+    try:
+        # block() must acquire the lock while the verifier is still running.
+        assert block_finished.wait(timeout=1), (
+            "block() was blocked by the TLS verifier"
+        )
+    finally:
+        release_verifier.set()
+
+    recovery_thread.join(timeout=3)
+    blocker_thread.join(timeout=3)
+
+    assert not recovery_thread.is_alive()
+    assert not blocker_thread.is_alive()
+    assert results == [False]
+    assert controller.state is AdmissionState.BLOCKED
+    assert controller.snapshot.candidate_crl_sha256 is None
+    assert not controller.admit_new_connection()
 
 
 def test_recovery_verifier_cannot_reenter_completion(

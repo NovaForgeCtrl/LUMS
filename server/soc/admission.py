@@ -11,10 +11,12 @@ isolated staging TLS check.
 from __future__ import annotations
 
 import threading
-from dataclasses import dataclass
+import time
+from contextlib import contextmanager
+from dataclasses import dataclass, replace
 from datetime import datetime, timedelta, timezone
 from enum import Enum
-from typing import Callable
+from typing import Callable, Iterator
 
 from server.soc.crl_validation import (
     CRLPolicy,
@@ -69,9 +71,14 @@ class AdmissionController:
     A safety margin is subtracted. Revalidation can shorten an established
     deadline but can never extend it.
 
-    New connections must call admit_new_connection() at the actual TLS
-    admission boundary. Existing TLS connections are not revoked by this
-    class and require a separately implemented drain/termination policy.
+    TLS adapters must use admitted_handshake() at the actual handshake
+    boundary. Its lease protects the CRL and trusted-time snapshot while
+    the handshake runs without holding the controller lock. The legacy
+    admit_new_connection() method remains available as a boolean admission
+    check, but does not provide a lease.
+
+    Existing TLS connections are not revoked by this class. Their lifecycle
+    requires a separately implemented drain/termination policy.
     """
 
     def __init__(
@@ -120,12 +127,15 @@ class AdmissionController:
         self._crl_validator = crl_validator
 
         self._lock = threading.RLock()
+        self._handshake_condition = threading.Condition(self._lock)
+        self._active_handshakes = 0
         self._state = AdmissionState.BLOCKED
         self._active_crl: ValidatedCRL | None = None
         self._candidate_crl: ValidatedCRL | None = None
         self._deadline_ns: int | None = None
         self._candidate_deadline_ns: int | None = None
         self._recovery_verification_in_progress = False
+        self._recovery_generation = 0
 
     @property
     def state(self) -> AdmissionState:
@@ -151,10 +161,17 @@ class AdmissionController:
             )
 
     def _block_locked(self) -> None:
+        self._recovery_generation += 1
         self._state = AdmissionState.BLOCKED
         self._deadline_ns = None
         self._candidate_crl = None
         self._candidate_deadline_ns = None
+        self._handshake_condition.notify_all()
+
+    def block(self) -> None:
+        """Fail closed after a backend TLS context construction failure."""
+        with self._lock:
+            self._block_locked()
 
     def _read_observation(self) -> tuple[TrustedTime, int, datetime]:
         trusted = self._trusted_time_reader()
@@ -281,7 +298,9 @@ class AdmissionController:
 
         return deadline
 
-    def _refresh_active_locked(self) -> None:
+    def _refresh_active_locked(
+        self,
+    ) -> tuple[ValidatedCRL, TrustedTime]:
         if self._active_crl is None:
             raise AdmissionError("No active CRL is installed")
 
@@ -307,6 +326,59 @@ class AdmissionController:
 
         if now_boot >= self._deadline_ns:
             raise AdmissionError("Monotonic CRL admission deadline reached")
+
+        # Return the exact CRL and trusted UTC observation used for this
+        # admission decision. The caller retains this snapshot for the
+        # lifetime of its admission lease; the controller lock is released.
+        return validated, replace(
+            trusted,
+            utc_now=effective_utc,
+            boottime_ns=now_boot,
+        )
+
+    @property
+    def active_handshakes(self) -> int:
+        """Return the number of currently active admission leases."""
+        with self._lock:
+            return self._active_handshakes
+
+    @contextmanager
+    def admitted_handshake(
+        self,
+    ) -> Iterator[tuple[ValidatedCRL, TrustedTime] | None]:
+        """Acquire a snapshot-backed lease for one TLS handshake.
+
+        The controller lock protects the admission decision and lease
+        counter only. The TLS handshake itself runs without the global lock.
+
+        State transitions affect new handshakes immediately. Already
+        admitted handshakes may finish with their captured CRL and
+        trusted-time snapshot.
+        """
+        admission = None
+
+        with self._lock:
+            if self._state in (
+                AdmissionState.READY,
+                AdmissionState.UPDATE_PENDING,
+            ):
+                try:
+                    admission = self._refresh_active_locked()
+                except Exception:
+                    self._block_locked()
+                else:
+                    self._active_handshakes += 1
+
+        if admission is None:
+            yield None
+            return
+
+        try:
+            yield admission
+        finally:
+            with self._handshake_condition:
+                self._active_handshakes -= 1
+                self._handshake_condition.notify_all()
 
     def admit_new_connection(self) -> bool:
         """Return whether a new TLS handshake may be admitted.
@@ -366,6 +438,11 @@ class AdmissionController:
     def begin_recovery(self, candidate: ValidatedCRL) -> bool:
         """Preflight a candidate and enter RECOVERY without admitting TLS."""
         with self._lock:
+            if self._recovery_verification_in_progress:
+                raise AdmissionError(
+                    "Recovery completion is already in progress"
+                )
+
             if self._state not in (
                 AdmissionState.BLOCKED,
                 AdmissionState.UPDATE_PENDING,
@@ -401,6 +478,7 @@ class AdmissionController:
 
                 return False
 
+            self._recovery_generation += 1
             self._candidate_crl = validated
             self._candidate_deadline_ns = deadline
             self._state = AdmissionState.RECOVERY
@@ -416,15 +494,23 @@ class AdmissionController:
         self,
         *,
         tls_verifier: Callable[[ValidatedCRL], bool],
+        drain_timeout: float = 15.0,
     ) -> bool:
-        """Activate only after the supplied staging TLS verifier succeeds.
+        """Activate a candidate after leases drain and staging TLS succeeds.
 
-        The verifier must be bounded, must not re-enter this controller, and
-        must not trigger admission state transitions. Reentrant completion
-        attempts are rejected. The lock remains held during verification.
+        External verification and trusted-time checks run without the
+        controller lock. A generation check prevents stale recovery from
+        activating after a concurrent fail-closed block.
         """
         if not callable(tls_verifier):
             raise TypeError("tls_verifier must be callable")
+
+        if (
+            isinstance(drain_timeout, bool)
+            or not isinstance(drain_timeout, (int, float))
+            or drain_timeout <= 0
+        ):
+            raise ValueError("drain_timeout must be positive")
 
         with self._lock:
             if self._state is not AdmissionState.RECOVERY:
@@ -445,38 +531,66 @@ class AdmissionController:
                 return False
 
             self._recovery_verification_in_progress = True
-            try:
-                try:
-                    verification_result = tls_verifier(self._candidate_crl)
-                    if verification_result is not True:
-                        raise AdmissionError(
-                            "Staging TLS verification did not succeed"
-                        )
+            generation = self._recovery_generation
+            candidate = self._candidate_crl
+            candidate_deadline = self._candidate_deadline_ns
 
-                    trusted, now_boot, effective_utc = self._read_observation()
-                    validated = self._validate_crl(
-                        self._candidate_crl,
-                        effective_utc,
-                    )
-                    proposed_deadline = self._calculate_deadline(
-                        validated,
-                        effective_utc,
-                        now_boot,
-                    )
+        try:
+            # Drain admitted handshakes while holding the condition lock.
+            with self._handshake_condition:
+                drain_deadline = time.monotonic() + float(drain_timeout)
 
-                    # Do not extend the candidate's deadline while recovery
-                    # verification is in progress.
-                    deadline = min(
-                        self._candidate_deadline_ns,
-                        proposed_deadline,
-                    )
+                while self._active_handshakes:
+                    if (
+                        self._recovery_generation != generation
+                        or self._state is not AdmissionState.RECOVERY
+                    ):
+                        return False
 
-                    if now_boot >= deadline:
-                        raise AdmissionError(
-                            "Candidate CRL deadline expired during recovery"
-                        )
+                    remaining = drain_deadline - time.monotonic()
+                    if remaining <= 0:
+                        self._fail_recovery_locked()
+                        return False
 
-                except Exception:
+                    self._handshake_condition.wait(timeout=remaining)
+
+                if (
+                    self._recovery_generation != generation
+                    or self._state is not AdmissionState.RECOVERY
+                    or self._candidate_crl is not candidate
+                    or self._candidate_deadline_ns != candidate_deadline
+                ):
+                    return False
+
+            # Do not hold the controller lock while invoking external code
+            # or reading/validating trusted time and CRL data.
+            verification_result = tls_verifier(candidate)
+            if verification_result is not True:
+                raise AdmissionError(
+                    "Staging TLS verification did not succeed"
+                )
+
+            trusted, now_boot, effective_utc = self._read_observation()
+            validated = self._validate_crl(candidate, effective_utc)
+            proposed_deadline = self._calculate_deadline(
+                validated,
+                effective_utc,
+                now_boot,
+            )
+            deadline = min(candidate_deadline, proposed_deadline)
+
+            with self._lock:
+                # A concurrent block invalidates this generation. Never
+                # allow an old verifier to restore READY.
+                if (
+                    self._recovery_generation != generation
+                    or self._state is not AdmissionState.RECOVERY
+                    or self._candidate_crl is not candidate
+                    or self._candidate_deadline_ns != candidate_deadline
+                ):
+                    return False
+
+                if now_boot >= deadline:
                     self._fail_recovery_locked()
                     return False
 
@@ -486,5 +600,18 @@ class AdmissionController:
                 self._candidate_deadline_ns = None
                 self._state = AdmissionState.READY
                 return True
-            finally:
+
+        except Exception:
+            with self._lock:
+                # Only the still-current recovery may fail its own state.
+                if (
+                    self._recovery_generation == generation
+                    and self._state is AdmissionState.RECOVERY
+                ):
+                    self._fail_recovery_locked()
+            return False
+
+        finally:
+            with self._handshake_condition:
                 self._recovery_verification_in_progress = False
+                self._handshake_condition.notify_all()
