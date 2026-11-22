@@ -3,22 +3,31 @@ from datetime import datetime, timedelta, timezone
 import socket
 import ssl
 import threading
+from types import SimpleNamespace
 
 import pytest
+from gunicorn import sock as gunicorn_sock
 from cryptography import x509
 from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import ec
 from cryptography.x509.oid import ExtendedKeyUsageOID, NameOID
 
+from server.soc.admission import AdmissionController, AdmissionState
+from server.soc.gunicorn_mtls import make_gunicorn_ssl_context_callback
 from server.soc.crl_validation import (
     CRLPolicy,
     validate_direct_crl,
+)
+from server.soc.certificate_profiles import (
+    CertificateProfileError,
+    validate_backend_server_certificate,
+    validate_gateway_client_certificate,
 )
 from server.soc.mtls_context import (
     MTLSContextError,
     build_backend_mtls_context,
 )
-from server.soc.trusted_time import TrustedTime
+from server.soc.trusted_time import TrustedTime, boottime_ns
 
 
 UTC = timezone.utc
@@ -76,6 +85,7 @@ def _make_leaf(
     common_name,
     *,
     eku,
+    additional_ekus=(),
     server_certificate=False,
 ):
     key = ec.generate_private_key(ec.SECP256R1())
@@ -107,7 +117,7 @@ def _make_leaf(
             critical=True,
         )
         .add_extension(
-            x509.ExtendedKeyUsage([eku]),
+            x509.ExtendedKeyUsage([eku, *additional_ekus]),
             critical=False,
         )
         .add_extension(
@@ -374,6 +384,7 @@ def _server_context(material):
         material["validated"],
         policy=material["policy"],
         trusted_time=material["trusted_time"],
+        expected_dns_name="localhost",
     )
 
 
@@ -461,6 +472,7 @@ def test_revalidates_original_crl_material_before_context_creation(
             invalidated,
             policy=tls_material["policy"],
             trusted_time=tls_material["trusted_time"],
+            expected_dns_name="localhost",
         )
 
     assert "validation failed" in str(exc_info.value)
@@ -474,6 +486,7 @@ def test_rejects_missing_server_certificate_file(tls_material, tmp_path):
             tls_material["validated"],
             policy=tls_material["policy"],
             trusted_time=tls_material["trusted_time"],
+            expected_dns_name="localhost",
         )
 
 
@@ -486,6 +499,7 @@ def test_context_rejects_unvalidated_time_object(tls_material):
             tls_material["validated"],
             policy=tls_material["policy"],
             trusted_time=None,
+            expected_dns_name="localhost",
         )
 
 
@@ -506,4 +520,386 @@ def test_context_uses_supplied_trusted_time_for_crl_validation(
             tls_material["validated"],
             policy=tls_material["policy"],
             trusted_time=future_trusted_time,
+            expected_dns_name="localhost",
         )
+
+
+def _make_ready_gunicorn_admission(material):
+    """Create READY admission state using real CRL and staging TLS."""
+    def trusted_time_reader():
+        return TrustedTime(
+            utc_now=datetime.now(UTC),
+            boottime_ns=boottime_ns(),
+            sync_age=timedelta(seconds=1),
+            source_id="isolated-gunicorn-integration-test",
+            offset=timedelta(0),
+            uncertainty=timedelta(milliseconds=1),
+        )
+
+    controller = AdmissionController(
+        material["policy"],
+        trusted_time_reader,
+        safety_margin=timedelta(seconds=1),
+        boottime_clock=boottime_ns,
+    )
+
+    assert controller.begin_recovery(material["validated"]) is True
+
+    def staging_tls_verifier(candidate):
+        staging_context = build_backend_mtls_context(
+            material["server_cert"],
+            material["server_key"],
+            candidate,
+            policy=material["policy"],
+            trusted_time=trusted_time_reader(),
+            expected_dns_name="localhost",
+        )
+        server_result, client_result = _perform_handshake(
+            staging_context,
+            _client_context(
+                material["server_ca"],
+                material["valid_client"],
+            ),
+        )
+        return (
+            server_result == "accepted"
+            and client_result == "accepted"
+        )
+
+    assert controller.complete_recovery(
+        tls_verifier=staging_tls_verifier,
+    ) is True
+    assert controller.state is AdmissionState.READY
+
+    return controller, trusted_time_reader
+
+
+def _perform_gunicorn_admission_handshake(
+    callback,
+    client_context,
+):
+    """Exercise Gunicorn's real ssl_wrap_socket() integration path."""
+    config = SimpleNamespace(
+        ssl_context=callback,
+        suppress_ragged_eofs=True,
+        do_handshake_on_connect=False,
+        http_protocols=["h1"],
+    )
+
+    server_socket, client_socket = socket.socketpair()
+    server_socket.settimeout(4)
+    client_socket.settimeout(4)
+
+    server_result = []
+
+    def server_handshake():
+        try:
+            with gunicorn_sock.ssl_wrap_socket(
+                server_socket,
+                config,
+            ) as tls_socket:
+                tls_socket.settimeout(4)
+                payload = tls_socket.recv(1)
+                if payload != b"\x01":
+                    raise AssertionError("Unexpected client payload")
+                tls_socket.sendall(b"\x02")
+                server_result.append("accepted")
+        except Exception as exc:
+            server_result.append(exc)
+
+    thread = threading.Thread(target=server_handshake, daemon=True)
+    thread.start()
+
+    try:
+        with client_context.wrap_socket(
+            client_socket,
+            server_hostname="localhost",
+        ) as tls_socket:
+            tls_socket.sendall(b"\x01")
+            response = tls_socket.recv(1)
+            if response != b"\x02":
+                raise AssertionError("Server did not confirm TLS session")
+            client_result = "accepted"
+    except Exception as exc:
+        client_result = exc
+
+    thread.join(timeout=5)
+    if thread.is_alive():
+        raise AssertionError("Gunicorn TLS handshake thread did not terminate")
+
+    if not server_result:
+        raise AssertionError("Gunicorn server returned no handshake result")
+
+    return server_result[0], client_result
+
+
+def test_gunicorn_admission_accepts_valid_gateway_client(tls_material):
+    controller, _ = _make_ready_gunicorn_admission(tls_material)
+
+    callback = make_gunicorn_ssl_context_callback(
+        controller,
+        tls_material["server_cert"],
+        tls_material["server_key"],
+        tls_material["policy"],
+        expected_dns_name="localhost",
+    )
+
+    server_result, client_result = _perform_gunicorn_admission_handshake(
+        callback,
+        _client_context(
+            tls_material["server_ca"],
+            tls_material["valid_client"],
+        ),
+    )
+
+    assert server_result == "accepted"
+    assert client_result == "accepted"
+    assert controller.state is AdmissionState.READY
+
+
+@pytest.mark.parametrize(
+    "client_material",
+    ["revoked_client", "untrusted_client", None],
+    ids=["revoked-certificate", "untrusted-ca", "missing-client-certificate"],
+)
+def test_gunicorn_admission_rejects_invalid_gateway_client(
+    tls_material,
+    client_material,
+):
+    controller, _ = _make_ready_gunicorn_admission(tls_material)
+
+    callback = make_gunicorn_ssl_context_callback(
+        controller,
+        tls_material["server_cert"],
+        tls_material["server_key"],
+        tls_material["policy"],
+        expected_dns_name="localhost",
+    )
+
+    certificate = (
+        tls_material[client_material]
+        if client_material is not None
+        else None
+    )
+
+    server_result, client_result = _perform_gunicorn_admission_handshake(
+        callback,
+        _client_context(tls_material["server_ca"], certificate),
+    )
+
+    assert server_result != "accepted"
+    assert client_result != "accepted"
+    # A rejected peer certificate must not block later valid connections.
+    assert controller.state is AdmissionState.READY
+
+
+def test_gunicorn_admission_rejects_connections_while_blocked(tls_material):
+    controller = AdmissionController(
+        tls_material["policy"],
+        lambda: None,
+        boottime_clock=lambda: 0,
+    )
+    assert controller.state is AdmissionState.BLOCKED
+
+    callback = make_gunicorn_ssl_context_callback(
+        controller,
+        tls_material["server_cert"],
+        tls_material["server_key"],
+        tls_material["policy"],
+        expected_dns_name="localhost",
+    )
+
+    server_result, client_result = _perform_gunicorn_admission_handshake(
+        callback,
+        _client_context(
+            tls_material["server_ca"],
+            tls_material["valid_client"],
+        ),
+    )
+
+    assert server_result != "accepted"
+    assert client_result != "accepted"
+    assert isinstance(server_result, OSError)
+    assert controller.state is AdmissionState.BLOCKED
+
+
+def test_gunicorn_admission_closes_socket_if_timeout_read_fails(
+    tls_material,
+):
+    controller = AdmissionController(
+        tls_material["policy"],
+        lambda: None,
+        boottime_clock=lambda: 0,
+    )
+    callback = make_gunicorn_ssl_context_callback(
+        controller,
+        tls_material["server_cert"],
+        tls_material["server_key"],
+        tls_material["policy"],
+        expected_dns_name="localhost",
+    )
+    adapter = callback(
+        SimpleNamespace(http_protocols=["h1"]),
+        lambda: None,
+    )
+
+    class BrokenTimeoutSocket:
+        closed = False
+
+        def gettimeout(self):
+            raise OSError("simulated gettimeout failure")
+
+        def shutdown(self, how):
+            self.closed = True
+
+        def close(self):
+            self.closed = True
+
+    sock = BrokenTimeoutSocket()
+
+    with pytest.raises(OSError, match="Backend TLS handshake"):
+        adapter.wrap_socket(sock, server_side=True)
+
+    assert sock.closed is True
+    assert controller.state is AdmissionState.BLOCKED
+
+
+def test_gunicorn_admission_releases_lock_after_handshake_timeout(
+    tls_material,
+):
+    controller, _ = _make_ready_gunicorn_admission(tls_material)
+
+    callback = make_gunicorn_ssl_context_callback(
+        controller,
+        tls_material["server_cert"],
+        tls_material["server_key"],
+        tls_material["policy"],
+        expected_dns_name="localhost",
+        handshake_timeout=0.2,
+    )
+
+    config = SimpleNamespace(
+        ssl_context=callback,
+        suppress_ragged_eofs=True,
+        do_handshake_on_connect=False,
+        http_protocols=["h1"],
+    )
+
+    server_socket, client_socket = socket.socketpair()
+    server_socket.settimeout(3)
+
+    server_result = []
+
+    def stalled_client_handler():
+        try:
+            gunicorn_sock.ssl_wrap_socket(server_socket, config)
+            server_result.append("unexpected-accept")
+        except Exception as exc:
+            server_result.append(exc)
+
+    thread = threading.Thread(
+        target=stalled_client_handler,
+        daemon=True,
+    )
+
+    try:
+        thread.start()
+        thread.join(timeout=3)
+
+        assert not thread.is_alive(), "TLS timeout did not terminate handler"
+        assert len(server_result) == 1
+        assert isinstance(server_result[0], OSError)
+        assert controller.state is AdmissionState.READY
+
+        # This state transition needs the same controller lock.
+        # It must complete after the failed handshake.
+        controller.block()
+        assert controller.state is AdmissionState.BLOCKED
+
+    finally:
+        client_socket.close()
+        if thread.is_alive():
+            server_socket.close()
+            thread.join(timeout=1)
+
+
+def test_backend_profile_rejects_additional_eku(tls_material, tmp_path):
+    now = tls_material["trusted_time"].utc_now
+    ca_key, ca = _make_ca(now, "Additional EKU test CA")
+    key, certificate = _make_leaf(
+        ca_key,
+        ca,
+        now,
+        "backend-with-extra-eku",
+        eku=ExtendedKeyUsageOID.SERVER_AUTH,
+        additional_ekus=(ExtendedKeyUsageOID.CLIENT_AUTH,),
+        server_certificate=True,
+    )
+
+    with pytest.raises(CertificateProfileError, match="only the required purpose"):
+        validate_backend_server_certificate(
+            _pem_certificate(certificate),
+            _pem_private_key(key),
+            expected_dns_name="localhost",
+            trusted_time=tls_material["trusted_time"],
+        )
+
+
+def test_gateway_profile_rejects_additional_eku(tls_material):
+    now = tls_material["trusted_time"].utc_now
+    ca_key, ca = _make_ca(now, "Gateway additional EKU test CA")
+    _, certificate = _make_leaf(
+        ca_key,
+        ca,
+        now,
+        "gateway-with-extra-eku",
+        eku=ExtendedKeyUsageOID.CLIENT_AUTH,
+        additional_ekus=(ExtendedKeyUsageOID.SERVER_AUTH,),
+    )
+
+    with pytest.raises(CertificateProfileError, match="only the required purpose"):
+        validate_gateway_client_certificate(
+            certificate.public_bytes(serialization.Encoding.DER),
+            trusted_time=tls_material["trusted_time"],
+        )
+
+
+def test_backend_profile_rejects_non_certificate_pem_data(tls_material):
+    certificate = tls_material["server_cert"].read_bytes()
+    malformed = certificate + b"UNEXPECTED-TRAILING-DATA"
+
+    with pytest.raises(CertificateProfileError, match="Unexpected data"):
+        validate_backend_server_certificate(
+            malformed,
+            _pem_private_key(
+                # The key is loaded from the matching fixture below.
+                serialization.load_pem_private_key(
+                    tls_material["server_key"].read_bytes(),
+                    password=None,
+                )
+            ),
+            expected_dns_name="localhost",
+            trusted_time=tls_material["trusted_time"],
+        )
+
+
+def test_backend_profile_accepts_leaf_first_fullchain(tls_material):
+    # Use the actual issuer of the backend leaf certificate.
+    intermediate = x509.load_pem_x509_certificate(
+        tls_material["server_ca"].read_bytes()
+    )
+
+    leaf_pem = tls_material["server_cert"].read_bytes()
+    fullchain = leaf_pem + _pem_certificate(intermediate)
+    private_key = tls_material["server_key"].read_bytes()
+
+    certificate = validate_backend_server_certificate(
+        fullchain,
+        private_key,
+        expected_dns_name="localhost",
+        trusted_time=tls_material["trusted_time"],
+    )
+
+    assert certificate.subject == x509.load_pem_x509_certificate(
+        leaf_pem
+    ).subject
